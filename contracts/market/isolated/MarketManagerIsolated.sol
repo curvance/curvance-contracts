@@ -525,9 +525,11 @@ contract MarketManagerIsolated is
             _closePositionsIfNeeded(2, account, positionsToClose);
             return;
         }
+        // We round down to favor the protocol here even though typically
+        // we use !getLower for debt.
         (uint256 price, uint256 errorCode) =
             CommonLib._oracleManager(centralRegistry)
-                .getPrice(debtAsset, true, false);
+                .getPrice(debtAsset, true, true);
 
         // If there an issue pricing we should bubble up an error since we
         // cannot validate the loan size.
@@ -538,7 +540,7 @@ contract MarketManagerIsolated is
         // Check `account`'s new debt position in $ and review if the loan
         // size is too small for us to allow issuing the loan.
         if (
-            _assetValue(newNetDebt, price, 10 ** decimals, false) <
+            _assetValue(newNetDebt, price, 10 ** decimals, true) <
             MIN_LOAN_SIZE
         ) {
             revert LiquidityManager__InsufficientLoanSize();
