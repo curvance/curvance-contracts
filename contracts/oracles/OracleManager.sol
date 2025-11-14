@@ -127,7 +127,7 @@ contract OracleManager is IOracleManager {
     /// @notice Maximum value that a price deviation bound can be set as
     ///         inside the protocol, in `BPS`.
     /// @dev 300 = 3.0%, in `BPS`.
-    uint256 public constant MAX_DEVIATION_BOUND = 300;
+    uint256 public constant MAX_DEVIATION_BOUND = 350;
     /// @notice Minimum value that a price deviation bound can be set as
     ///         inside the protocol.
     /// @dev 20 = 0.2%.

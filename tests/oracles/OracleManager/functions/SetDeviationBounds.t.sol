@@ -37,8 +37,8 @@ contract SetDeviationBoundsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        // badSource too large (> MAX_DEVIATION_BOUND = 300).
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 301, 200);
+        // badSource too large (> MAX_DEVIATION_BOUND = 350).
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 351, 200);
     }
 
     function test_setDeviationBounds_fail_whenDeviationIsTooSmall() public {
