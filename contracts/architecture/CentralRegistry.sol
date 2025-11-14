@@ -844,6 +844,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
             hasMarketPermissions[newTimelock] = true;
             emit PermissionsUpdated("Market", newTimelock, true);
         }
+
+        // Update timelock roles.
+        ITimelock(newTimelock).updateRoles();
     }
 
     /// @notice Transfers Emergency Council permissions to another address.
