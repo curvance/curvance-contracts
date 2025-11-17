@@ -15,10 +15,7 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
     }
 
     // No longer reverts
-
     function test_notifyFeedRemoval_fail_whenNoFeedsAvailable() public {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
         vm.prank(address(chainlinkAdaptor));
 
         // No-op call
