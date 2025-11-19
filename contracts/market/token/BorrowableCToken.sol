@@ -360,7 +360,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         _checkZeroAmount(assets);
-        _checkAssetsHeld(assets);
+        if (assets > _asset.balanceOf(address(this))) {
+            revert BorrowableCToken__InsufficientAssetsHeld();
+        }
 
         address token = address(_asset);
         uint256 fee = flashFee(assets);

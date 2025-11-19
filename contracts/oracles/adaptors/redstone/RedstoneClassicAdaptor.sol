@@ -74,6 +74,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         string memory id
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // If we are not using the default heartbeat directly, apply
         // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,

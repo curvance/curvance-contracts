@@ -196,6 +196,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     /// @param config The adaptor data needed to add `asset`.
     function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // Verify twap time sample is reasonable.
         if (config.secondsAgo < MINIMUM_SECONDS_AGO) {

@@ -135,6 +135,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the lp token to add pricing support for.
     function addAsset(address asset) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         IVeloPool pool = IVeloPool(asset);
         _checkLPType(pool);

@@ -251,6 +251,7 @@ contract RedstoneCoreAdaptor is
         string memory id
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.

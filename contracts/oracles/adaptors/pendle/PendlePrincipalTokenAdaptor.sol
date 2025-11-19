@@ -121,6 +121,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     /// @param config The adaptor data needed to add `asset`.
     function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // Make sure pt and market match.
         (IStandardizedYield sy, IPPrincipalToken pt, ) = config

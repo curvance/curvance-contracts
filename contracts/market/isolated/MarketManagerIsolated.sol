@@ -1546,7 +1546,7 @@ contract MarketManagerIsolated is
         // more than their shares posted, there is bad debt that should be
         // socialized among lenders, calculate using the same formula we used
         // for `liquidatedShares`.
-        uint256 sharesNeeded = FixedPointMathLib.fullMulDiv(
+        uint256 sharesNeeded = FixedPointMathLib.fullMulDivUp(
             aData.debtBalance,
             debtToCollateral,
             WAD_SQUARED

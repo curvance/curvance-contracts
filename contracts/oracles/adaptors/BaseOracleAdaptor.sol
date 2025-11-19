@@ -342,6 +342,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
     }
 
+    /// @notice Checks whether `asset` is the zero address which is blocked.
+    function _checkNotZeroAddress(address asset) internal view {
+        if (asset == address(0)) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+    }
+
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
