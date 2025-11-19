@@ -580,7 +580,7 @@ contract OracleManager is IOracleManager {
 
         // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
         // flag is bubbled up.
-        if (price == 0 && errorCode < BAD_SOURCE) {
+        if (collateralSharesPrice == 0 && errorCode < BAD_SOURCE) {
             errorCode = BAD_SOURCE;
         }
 
@@ -607,7 +607,7 @@ contract OracleManager is IOracleManager {
 
         // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
         // flag is bubbled up.
-        if (price == 0 && errorCode < BAD_SOURCE) {
+        if (debtUnderlyingPrice == 0 && errorCode < BAD_SOURCE) {
             errorCode = BAD_SOURCE;
         }
 
