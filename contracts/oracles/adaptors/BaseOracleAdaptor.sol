@@ -173,7 +173,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
-        if (pg.timestampStart > timestampStart) {
+        if (pg.timestampStart > timestampStart && timestampStart > 0) {
             revert BaseOracleAdaptor__InvalidTimestamp();
         }
 

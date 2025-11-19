@@ -536,6 +536,12 @@ contract OracleManager is IOracleManager {
                 );
             }
         }
+
+        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+        // flag is bubbled up.
+        if (price == 0 && errorCode < BAD_SOURCE) {
+            errorCode = BAD_SOURCE;
+        }
     }
 
     /// @notice Retrieves the prices of a collateral token, and debt token
@@ -572,9 +578,16 @@ contract OracleManager is IOracleManager {
             true
         );
 
+        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+        // flag is bubbled up.
+        if (price == 0 && errorCode < BAD_SOURCE) {
+            errorCode = BAD_SOURCE;
+        }
+
         if (errorCode >= errorCodeBreakpoint) {
             revert OracleManager__ErrorCodeFlagged();
         }
+        
         collateralSharesPrice = FixedPointMathLib.mulDiv(
             collateralSharesPrice,
             ICToken(collateralToken).exchangeRateUpdated(),
@@ -591,6 +604,13 @@ contract OracleManager is IOracleManager {
             true,
             false
         );
+
+        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+        // flag is bubbled up.
+        if (price == 0 && errorCode < BAD_SOURCE) {
+            errorCode = BAD_SOURCE;
+        }
+
         if (errorCode >= errorCodeBreakpoint) {
             revert OracleManager__ErrorCodeFlagged();
         }
@@ -656,6 +676,12 @@ contract OracleManager is IOracleManager {
                 );
             }
 
+            // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+            // flag is bubbled up.
+            if (prices[i] == 0 && errorCode < BAD_SOURCE) {
+                errorCode = BAD_SOURCE;
+            }
+
             if (errorCode >= errorCodeBreakpoint) {
                 revert OracleManager__ErrorCodeFlagged();
             }
@@ -710,12 +736,6 @@ contract OracleManager is IOracleManager {
             if (hadError) {
                 errorCode = BAD_SOURCE;
             }
-        }
-
-        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
-        // flag is bubbled up.
-        if (price == 0 && errorCode < BAD_SOURCE) {
-            errorCode = BAD_SOURCE;
         }
     }
 
@@ -941,6 +961,12 @@ contract OracleManager is IOracleManager {
     ) internal view returns (uint256 price, bool hadError) {
         uint256 errorCode;
         (price, errorCode) = _getPrice(native, true, getLower);
+
+        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+        // flag is bubbled up.
+        if (price == 0 && errorCode < BAD_SOURCE) {
+            errorCode = BAD_SOURCE;
+        }
 
         // If there was any error while querying native token price,
         // bubble up an error.
