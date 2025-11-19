@@ -211,11 +211,11 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         assertGt(excessUsdc, 0, "User should receive excess USDC in wallet");
     }
 
-    function testDeleverage_belowMinLoan() public {
-        deal(WMON_ADDRESS, user1, 50e18);
+    function testDeleverage_fail_whenBelowMinLoan() public {
+        deal(WMON_ADDRESS, user1, 10e18);
         vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 50e18);
-        borrowableCWMON.depositAsCollateral(50e18, user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 10e18);
+        borrowableCWMON.depositAsCollateral(10e18, user1);
 
         (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
             user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
@@ -256,17 +256,16 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
-
+        // deleverage below min loan
 		collateralBefore = borrowableCWMON.balanceOf(user1);
 		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-		uint256 collateralAssetsToWithdraw = collateralBefore / 2; // withdraw 50% collateral
-		// quote prices from kuru api
-		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, USDC_ADDRESS, collateralAssetsToWithdraw);
-	
-		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
-		uint256 debtToRepay = bufferedMinOut;
 
-        SimplePositionManager.DeleverageAction memory deleverageAction;
+		uint256 targetRemainingDebt = 5e6; // $5 USDC
+		uint256 debtToRepay = debtBefore - targetRemainingDebt;
+
+		uint256 collateralAssetsToWithdraw = (collateralBefore * 50) / 100;
+
+		SimplePositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCWMON));
         deleverageAction.collateralAssets = collateralAssetsToWithdraw;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
