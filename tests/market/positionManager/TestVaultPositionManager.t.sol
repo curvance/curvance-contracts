@@ -346,7 +346,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             IUniswapV3Router.exactInput.selector,
             params
         );
-        deleverageAction.swapActions[0].slippage = 0.01e18;
+        deleverageAction.swapActions[0].slippage = 0.2e18;
 
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
@@ -603,8 +603,19 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         centralRegistry.setSlippageLimit(2000);
         vm.startPrank(user1);
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);
-        positionManager.leverage(leverageAction, 0.01e18);
+        vm.expectRevert(abi.encodeWithSelector(SwapperLib.SwapperLib__Slippage.selector, 1e18));
+        positionManager.leverage(leverageAction, 0.05e18);
+
+        params.recipient = address(positionManager); // correct recipient
+        params.amountIn = 0; // 0 input amount
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.05e18);
+
         vm.stopPrank();
     }
 

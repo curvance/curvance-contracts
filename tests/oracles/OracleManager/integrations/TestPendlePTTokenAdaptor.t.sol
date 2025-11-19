@@ -124,7 +124,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
                 .PendlePrincipalTokenAdaptor__WrongMarket
                 .selector
         );
-        adapter.addAsset(address(0), assetConfig);
+        adapter.addAsset(_STETH, assetConfig);
     }
 
     function testRevertAddAsset__CallIncreaseCardinality() public {

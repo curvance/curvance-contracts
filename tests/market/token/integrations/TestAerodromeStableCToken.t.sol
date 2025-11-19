@@ -74,7 +74,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAERO = new MockV3Aggregator(8, 0.65e8);
+        chainlinkAERO = new MockV3Aggregator(8, 0.50e8);
         chainlinkAdaptor.addAsset(
             _AERO_ADDRESS,
             true,
