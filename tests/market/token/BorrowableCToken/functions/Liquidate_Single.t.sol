@@ -63,12 +63,14 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             badDebt: 0
         });
 
+        vm.startPrank(address(borrowableCUSDC));
         (IMarketManager.LiqResult memory result, ) = marketManagerIsolated.canLiquidate(
             debtAmounts,
             user2,
             accounts,
             action
         );
+        vm.stopPrank();
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
