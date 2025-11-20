@@ -105,9 +105,10 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
-            180,
-            130
+            180,  // badSourceBoundUSD
+            130,  // cautionBoundUSD
+            180,  // badSourceBoundNative
+            130   // cautionBoundNative
         );
     }
 
@@ -120,9 +121,10 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
-            true,
-            180,
-            130
+            180,  // badSourceBoundUSD
+            130,  // cautionBoundUSD
+            180,  // badSourceBoundNative
+            130   // cautionBoundNative
         );
     }
 }

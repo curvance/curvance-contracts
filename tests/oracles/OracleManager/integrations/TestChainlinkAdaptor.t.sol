@@ -108,7 +108,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             SNX_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            180,
+            50,
             180,
             50
         );

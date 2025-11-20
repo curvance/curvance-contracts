@@ -43,7 +43,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             _ARB_TICKER
         );
 
-        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), 100, 50, 100, 50);
     }
 
     function testReturnsCorrectPrice() public view {

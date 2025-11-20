@@ -86,14 +86,16 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             WMON_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );

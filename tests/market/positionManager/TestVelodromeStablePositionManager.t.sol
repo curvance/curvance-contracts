@@ -72,7 +72,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -86,7 +87,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -96,7 +98,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;

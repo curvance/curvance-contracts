@@ -71,8 +71,9 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             SHMON_ADDRESS, 
             address(chainlinkAdaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
         oracleManager.addCTokenSupport(address(simpleCSHMON));
@@ -86,8 +87,9 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS, 
             address(chainlinkAdaptor), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
         oracleManager.addCTokenSupport(address(borrowableCUSDC));

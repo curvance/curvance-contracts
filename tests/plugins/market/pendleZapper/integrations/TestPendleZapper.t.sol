@@ -62,8 +62,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _LP_STETH, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 

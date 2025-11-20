@@ -59,21 +59,24 @@ contract TestOracleManager is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -81,7 +84,8 @@ contract TestOracleManager is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _VELODROME_WETH_USDC,
             address(adaptor),
-            false,
+            100,
+            50,
             100,
             50
         );

@@ -32,7 +32,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         adaptor.addAsset(_WBTC_ADDRESS, true, data);
 
 
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50, 100, 50);
     }
 
     function testReturnsCorrectPrice() public view {

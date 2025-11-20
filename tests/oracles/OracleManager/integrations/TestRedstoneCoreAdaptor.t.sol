@@ -122,8 +122,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -215,8 +216,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -257,8 +259,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -345,8 +348,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
         );
 
@@ -421,8 +425,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 

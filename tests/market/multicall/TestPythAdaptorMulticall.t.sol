@@ -97,7 +97,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             address(dualChainlinkAdaptor)
         );
         // Add the Pyth pythAdaptor as the price feed for WBTC.
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(pythAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(pythAdaptor), 100, 50, 100, 50);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
