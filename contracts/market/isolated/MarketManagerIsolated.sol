@@ -477,15 +477,6 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Checks if the account should be allowed to repay a borrow
-    ///         in the given market.
-    /// @param cToken The Curvance token to verify the repayment of.
-    /// @param account The account who will have their loan repaid.
-    function canRepay(address cToken, address account) external view {
-        _checkIsListedToken(cToken);
-        _checkHoldPeriod(account);
-    }
-
-    /// @notice Checks if the account should be allowed to repay a borrow
     ///         in the given market, may clean up positions.
     /// @param cToken The Curvance token to verify the repayment of.
     /// @param newNetDebt The new debt amount owed by `account` after

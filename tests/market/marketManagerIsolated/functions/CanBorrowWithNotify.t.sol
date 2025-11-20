@@ -182,11 +182,11 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         assertEq(cooldownTimestamp, block.timestamp);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);
-        marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
+        marketManagerIsolated.canRepayWithReview(address(borrowableCUSDC), 10e6, address(usdc), 6, user1);
 
         vm.warp(block.timestamp + 20 minutes);
 
-        marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
+        marketManagerIsolated.canRepayWithReview(address(borrowableCUSDC), 10e6, address(usdc), 6, user1);
    
     }
 

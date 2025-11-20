@@ -417,35 +417,6 @@ contract OracleManager is IOracleManager {
         isApprovedAdaptor[adaptorToAdd] = true;
     }
 
-    /// @notice Removes adaptor approval for `adaptorToRemove`, then,
-    ///         adds adaptor approval for `adaptorToAdd`.
-    /// @dev Requires that the adaptor isn't already approved.
-    /// @param adaptorToRemove The address of the adaptor to remove approval.
-    /// @param adaptorToAdd The address of the adaptor to approve.
-    function replaceApprovedAdaptor(
-        address adaptorToRemove,
-        address adaptorToAdd
-    ) external {
-        _checkElevatedPermissions();
-
-        // Validate `adaptorToAdd` is not already supported.
-        if (isApprovedAdaptor[adaptorToAdd]) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        // Validate `adaptorToRemove` is currently supported.
-        _checkIsApprovedAdaptor(adaptorToRemove);
-
-        // Validate that the adaptors are not identical as there would be no
-        // point to replace an adaptor with itself.
-        if (adaptorToAdd == adaptorToRemove) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        delete isApprovedAdaptor[adaptorToRemove];
-        isApprovedAdaptor[adaptorToAdd] = true;
-    }
-
     /// @notice Removes `adaptorToRemove` as an approved adaptor.
     /// @dev Requires that the adaptor is currently approved.
     /// @param adaptorToRemove The address of the adaptor to remove.
