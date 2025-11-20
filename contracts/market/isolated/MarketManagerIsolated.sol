@@ -983,8 +983,8 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Admin function to set market-wide liquidation status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits an {ActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits an {ActionPaused} event.
     /// @param state Whether the desired action is pausing or unpausing.
     function setLiquidationPaused(bool state) external {
         _checkMarketPermissions();
@@ -994,8 +994,8 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Admin function to set market-wide redemption status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits an {ActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits an {ActionPaused} event.
     /// @param state Whether redemptions should be paused or unpaused.
     function setRedeemPaused(bool state) external {
         _checkMarketPermissions();
@@ -1005,8 +1005,8 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Admin function to set market-wide transfer status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits an {ActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits an {ActionPaused} event.
     /// @param state Whether transfers should be paused or unpaused.
     function setTransferPaused(bool state) external {
         _checkMarketPermissions();
@@ -1017,8 +1017,8 @@ contract MarketManagerIsolated is
 
     /// @notice Admin function to set token-specific Curvance token
     ///         minting status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits a {TokenActionPaused} event.
     /// @param cToken The Curvance token to set minting status for.
     /// @param state Whether minting should be paused or unpaused.
     function setMintPaused(address cToken, bool state) external {
@@ -1031,8 +1031,8 @@ contract MarketManagerIsolated is
 
     /// @notice Admin function to set token-specific Curvance token
     ///         collateralization status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits a {TokenActionPaused} event.
     /// @param cToken The Curvance token to set collateralization status for.
     /// @param state Whether collateralization should be paused or unpaused.
     function setCollateralizationPaused(address cToken, bool state) external {
@@ -1045,8 +1045,8 @@ contract MarketManagerIsolated is
 
     /// @notice Admin function to set token-specific Curvance token
     ///         borrowing status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
+    /// @dev Requires market permissions, corresponding contracts may restrict
+    ///      `state` input. Emits a {TokenActionPaused} event.
     /// @param cToken The Curvance token to set borrowing status for.
     /// @param state Whether borrowing should be paused or unpaused.
     function setBorrowPaused(address cToken, bool state) external {
