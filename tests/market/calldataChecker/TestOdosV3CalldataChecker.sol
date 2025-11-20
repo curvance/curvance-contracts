@@ -24,7 +24,7 @@ contract TestOdosV3CalldataChecker is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        checker = new OdosV3CalldataChecker(odosRouterV3, odosExecutor);
+        checker = new OdosV3CalldataChecker(odosRouterV3, odosExecutor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         vm.roll(23299738);
     }

@@ -174,7 +174,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         _provideEnoughLiquidityForLeverage();
 
-        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor);
+        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         centralRegistry.setExternalCalldataChecker(
             odosRouterV2,
