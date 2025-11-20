@@ -501,6 +501,7 @@ contract MarketManagerIsolated is
         address account
     ) external {
         _checkIsToken(cToken);
+        _checkIsListedToken(cToken);
         _checkHoldPeriod(account);
 
         // Validate `account` actually has a debt position in `cToken`.
@@ -599,6 +600,7 @@ contract MarketManagerIsolated is
             revert MarketManager__Paused();
         }
 
+        _checkIsToken(action.debtToken);
         _checkIsListedToken(action.collateralToken);
         _checkIsListedToken(action.debtToken);
 
@@ -885,11 +887,12 @@ contract MarketManagerIsolated is
 
         // Validate closeFactorMin and closeFactorMax are properly configured.
         // closeFactorBase should be between min and max, min should be less
-        // than max, and max cannot exceed BPS.
+        // than max, but greater than 0, and max cannot exceed BPS.
         if (
             newConfig.closeFactorBase > newConfig.closeFactorMax ||
             newConfig.closeFactorBase < newConfig.closeFactorMin ||
             newConfig.closeFactorMin >= newConfig.closeFactorMax ||
+            newConfig.closeFactorMin == 0 ||
             newConfig.closeFactorMax > BPS
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);

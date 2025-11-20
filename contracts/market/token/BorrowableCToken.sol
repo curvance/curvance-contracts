@@ -814,7 +814,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // and block.timestamp extends into the new vesting period.
             assetsToVest += _assetsToVest(
                 rate,
-                outstandingDebt,
+                outstandingDebt + assetsToVest,
                 vestingEnd,
                 lastVestingClaim
             );
