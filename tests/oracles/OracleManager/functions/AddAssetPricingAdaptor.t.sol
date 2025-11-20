@@ -13,24 +13,26 @@ contract AddAssetPricingAdaptorTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
-            100,
-            50
+            100,  // badSourceBoundUSD
+            50,   // cautionBoundUSD
+            100,  // badSourceBoundNative
+            50    // cautionBoundNative
         );
     }
 
     function test_addAssetPricingAdaptor_fail_whenAdaptorIsNotApproved() public {
         oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
-        
+
         vm.expectRevert(
             OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
-            100,
-            50
+            100,  // badSourceBoundUSD
+            50,   // cautionBoundUSD
+            100,  // badSourceBoundNative
+            50    // cautionBoundNative
         );
     }
 
@@ -45,9 +47,10 @@ contract AddAssetPricingAdaptorTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
-            true,
-            100,
-            50
+            100,  // badSourceBoundUSD
+            50,   // cautionBoundUSD
+            100,  // badSourceBoundNative
+            50    // cautionBoundNative
         );
     }
 
@@ -60,9 +63,10 @@ contract AddAssetPricingAdaptorTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
-            100,
-            50
+            100,  // badSourceBoundUSD
+            50,   // cautionBoundUSD
+            100,  // badSourceBoundNative
+            50    // cautionBoundNative
         );
     }
 
@@ -77,9 +81,10 @@ contract AddAssetPricingAdaptorTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
-            100,
-            50
+            100,  // badSourceBoundUSD
+            50,   // cautionBoundUSD
+            100,  // badSourceBoundNative
+            50    // cautionBoundNative
         );
     }
 

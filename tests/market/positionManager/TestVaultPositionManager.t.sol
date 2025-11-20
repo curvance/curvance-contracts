@@ -93,7 +93,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             address(sfrxAgg),
             0
         );
-        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
 
         // Price FRAX
@@ -103,7 +103,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _CHAINLINK_FRAX_USD,
             0
         );
-        oracleManager.addAssetPricingAdaptor(_FRAX_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_FRAX_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         borrowableCFRAX = _deployBorrowableCToken(_FRAX_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCFRAX));

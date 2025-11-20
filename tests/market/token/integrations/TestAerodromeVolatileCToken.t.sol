@@ -82,7 +82,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -97,7 +98,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -112,7 +114,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -125,7 +128,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
             address(adaptor),
-            true,
+            100,
+            50,
             100,
             50
         );

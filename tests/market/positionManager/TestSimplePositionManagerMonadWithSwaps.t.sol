@@ -72,8 +72,8 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         chainlinkAdaptor.addAsset(USDC_ADDRESS, true, address(chainlinkUSDC_WMON), 0);
         chainlinkAdaptor.addAsset(WMON_ADDRESS, true, address(chainlinkWMON), 0);
 
-        oracleManager.addAssetPricingAdaptor(USDC_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
-        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(USDC_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC_MONAD));
         oracleManager.addCTokenSupport(address(borrowableCWMON));

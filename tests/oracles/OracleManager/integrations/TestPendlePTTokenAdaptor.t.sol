@@ -67,15 +67,17 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _STETH, 
-            address(chainlinkAdaptor), 
-            true, 
+            address(chainlinkAdaptor),
             100, 
+            50,
+            100,
             50
             );
 
@@ -90,8 +92,9 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _PT_STETH, 
             address(adapter), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
 
@@ -193,15 +196,17 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _STETH, 
             address(chainlinkAdaptor), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
 

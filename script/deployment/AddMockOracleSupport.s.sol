@@ -26,7 +26,7 @@ contract AddMockOracleSupport is DeployScript {
 
             adaptor.addAsset(asset);
             adaptor.setPrice(asset, usdPrice, nativePrice);
-            oracleManager.addAssetPricingAdaptor(asset, address(adaptor), true, 100, 50);
+            oracleManager.addAssetPricingAdaptor(asset, address(adaptor), 100, 50, 100, 50);
         }
     }
 }

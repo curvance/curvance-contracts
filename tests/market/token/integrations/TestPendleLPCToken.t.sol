@@ -49,7 +49,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
             address(chainlinkPendleUsd),
             0
         );
-        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor),true ,100, 50);
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor),100, 50, 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));

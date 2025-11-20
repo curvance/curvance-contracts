@@ -51,8 +51,9 @@ contract TestSimpleZapperMonad is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             SHMON_ADDRESS, 
             address(adaptor), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
         oracleManager.addCTokenSupport(address(simpleCSHMON));
@@ -61,8 +62,9 @@ contract TestSimpleZapperMonad is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             WMON_ADDRESS, 
             address(adaptor), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
 

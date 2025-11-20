@@ -190,21 +190,29 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to add a new pricing adaptor
     ///              dependency for.
     /// @param adaptor The address of the new adaptor to add dependency to.
-    /// @param inUSD Whether the deviation bounds for `asset` is for
-    ///              pricing in USD (inUSD = true) or native
-    ///              token (inUSD = false).
-    /// @param badSourceBound The new maximum price deviation before a
-    ///                       `BAD_SOURCE` error code is returned, only
-    ///                       used when adding a second adaptor dependency.
-    /// @param cautionBound The new maximum price deviation before a
-    ///                     `CAUTION` error code is returned, only used when
-    ///                     adding a second adaptor dependency.
+    /// @param badSourceBoundUSD The new maximum price deviation before a
+    ///                          `BAD_SOURCE` error code is returned for USD
+    ///                          pricing, only used when adding a second
+    ///                          adaptor dependency.
+    /// @param cautionBoundUSD The new maximum price deviation before a
+    ///                        `CAUTION` error code is returned for USD
+    ///                        pricing, only used when adding a second
+    ///                        adaptor dependency.
+    /// @param badSourceBoundNative The new maximum price deviation before a
+    ///                             `BAD_SOURCE` error code is returned for
+    ///                             native pricing, only used when adding a
+    ///                             second adaptor dependency.
+    /// @param cautionBoundNative The new maximum price deviation before a
+    ///                           `CAUTION` error code is returned for native
+    ///                           pricing, only used when adding a second
+    ///                           adaptor dependency.
     function addAssetPricingAdaptor(
         address asset,
         address adaptor,
-        bool inUSD,
-        uint256 badSourceBound,
-        uint256 cautionBound
+        uint256 badSourceBoundUSD,
+        uint256 cautionBoundUSD,
+        uint256 badSourceBoundNative,
+        uint256 cautionBoundNative
     ) external {
         _checkElevatedPermissions();
         _addAssetPricingAdaptor(asset, adaptor);
@@ -215,7 +223,14 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDeviationBounds(asset, config, inUSD, badSourceBound, cautionBound);
+            _setDeviationBounds(
+                asset,
+                config,
+                badSourceBoundUSD,
+                cautionBoundUSD,
+                badSourceBoundNative,
+                cautionBoundNative
+            );
         }
     }
 
@@ -231,22 +246,30 @@ contract OracleManager is IOracleManager {
     ///                        from.
     /// @param adaptorToAdd The address of the new adaptor to add dependency
     ///                     to.
-    /// @param inUSD Whether the deviation bounds for `asset` is for
-    ///              pricing in USD (inUSD = true) or native
-    ///              token (inUSD = false).
-    /// @param badSourceBound The new maximum price deviation before a
-    ///                       `BAD_SOURCE` error code is returned, only
-    ///                       used when replacing a second adaptor dependency.
-    /// @param cautionBound The new maximum price deviation before a
-    ///                     `CAUTION` error code is returned, only used when
-    ///                     replacing a second adaptor dependency.
+    /// @param badSourceBoundUSD The new maximum price deviation before a
+    ///                          `BAD_SOURCE` error code is returned for USD
+    ///                          pricing, only used when replacing a second
+    ///                          adaptor dependency.
+    /// @param cautionBoundUSD The new maximum price deviation before a
+    ///                        `CAUTION` error code is returned for USD
+    ///                        pricing, only used when replacing a second
+    ///                        adaptor dependency.
+    /// @param badSourceBoundNative The new maximum price deviation before a
+    ///                             `BAD_SOURCE` error code is returned for
+    ///                             native pricing, only used when replacing a
+    ///                             second adaptor dependency.
+    /// @param cautionBoundNative The new maximum price deviation before a
+    ///                           `CAUTION` error code is returned for native
+    ///                           pricing, only used when replacing a second
+    ///                           adaptor dependency.
     function replaceAssetPricingAdaptor(
         address asset,
         address adaptorToRemove,
         address adaptorToAdd,
-        bool inUSD,
-        uint256 badSourceBound,
-        uint256 cautionBound
+        uint256 badSourceBoundUSD,
+        uint256 cautionBoundUSD,
+        uint256 badSourceBoundNative,
+        uint256 cautionBoundNative
     ) external {
         _checkElevatedPermissions();
 
@@ -265,7 +288,14 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDeviationBounds(asset, config, inUSD, badSourceBound, cautionBound);
+            _setDeviationBounds(
+                asset,
+                config,
+                badSourceBoundUSD,
+                cautionBoundUSD,
+                badSourceBoundNative,
+                cautionBoundNative
+            );
         }
     }
 
@@ -432,18 +462,24 @@ contract OracleManager is IOracleManager {
     ///      already. Emits an {AssetDeviationBoundsSet} event.
     /// @param asset The address of the asset to set pricing deviation bound
     ///              values for.
-    /// @param inUSD Whether the deviation bounds for `asset` is for
-    ///              pricing in USD (inUSD = true) or native
-    ///              token (inUSD = false).
-    /// @param badSourceBound The new maximum price deviation before a
-    ///                       `BAD_SOURCE` error code is returned.
-    /// @param cautionBound The new maximum price deviation before a
-    ///                     `CAUTION` error code is returned.
+    /// @param badSourceBoundUSD The new maximum price deviation before a
+    ///                          `BAD_SOURCE` error code is returned for USD
+    ///                          pricing.
+    /// @param cautionBoundUSD The new maximum price deviation before a
+    ///                        `CAUTION` error code is returned for USD
+    ///                        pricing.
+    /// @param badSourceBoundNative The new maximum price deviation before a
+    ///                             `BAD_SOURCE` error code is returned for
+    ///                             native pricing.
+    /// @param cautionBoundNative The new maximum price deviation before a
+    ///                           `CAUTION` error code is returned for native
+    ///                           pricing.
     function setDeviationBounds(
         address asset,
-        bool inUSD,
-        uint256 badSourceBound,
-        uint256 cautionBound
+        uint256 badSourceBoundUSD,
+        uint256 cautionBoundUSD,
+        uint256 badSourceBoundNative,
+        uint256 cautionBoundNative
     ) external {
         _checkElevatedPermissions();
         PricingConfig storage config = assetPricingConfig[asset];
@@ -453,7 +489,14 @@ contract OracleManager is IOracleManager {
             revert OracleManager__InvalidParameter();
         }
 
-        _setDeviationBounds(asset, config, inUSD, badSourceBound, cautionBound);
+        _setDeviationBounds(
+            asset,
+            config,
+            badSourceBoundUSD,
+            cautionBoundUSD,
+            badSourceBoundNative,
+            cautionBoundNative
+        );
     }
 
     /// @notice Checks if a given asset is supported by the Oracle Manager.
@@ -1043,48 +1086,66 @@ contract OracleManager is IOracleManager {
     ///      already.
     /// @param asset The address of the asset to set pricing deviation values
     ///              for.
-    /// @param inUSD Whether the deviation bounds for `asset` is for
-    ///              pricing in USD (inUSD = true) or native
-    ///              token (inUSD = false).
-    /// @param badSourceBound The new maximum price deviation before a
-    ///                     `BAD_SOURCE` error code is returned.
-    /// @param cautionBound The new maximum price deviation before a
-    ///                   `CAUTION` error code is returned.
+    /// @param badSourceBoundUSD The new maximum price deviation before a
+    ///                          `BAD_SOURCE` error code is returned for USD
+    ///                          pricing.
+    /// @param cautionBoundUSD The new maximum price deviation before a
+    ///                        `CAUTION` error code is returned for USD
+    ///                        pricing.
+    /// @param badSourceBoundNative The new maximum price deviation before a
+    ///                             `BAD_SOURCE` error code is returned for
+    ///                             native pricing.
+    /// @param cautionBoundNative The new maximum price deviation before a
+    ///                           `CAUTION` error code is returned for native
+    ///                           pricing.
     function _setDeviationBounds(
         address asset,
         PricingConfig storage config,
-        bool inUSD,
-        uint256 badSourceBound,
-        uint256 cautionBound
+        uint256 badSourceBoundUSD,
+        uint256 cautionBoundUSD,
+        uint256 badSourceBoundNative,
+        uint256 cautionBoundNative
     ) internal {
         // Validate that the `CAUTION` error code will not trigger too
-        // closely to `BAD_SOURCE` error code, because `BAD_SOURCE` is
-        // a more significant error than `CAUTION`.
-        if (badSourceBound < cautionBound + MIN_CAUTION_TO_BAD_SOURCE_DELTA) {
+        // closely to `BAD_SOURCE` error code for USD bounds.
+        if (badSourceBoundUSD < cautionBoundUSD + MIN_CAUTION_TO_BAD_SOURCE_DELTA) {
             revert OracleManager__InvalidParameter();
         }
 
-        // Validate bound values are within acceptable value range.
+        // Validate that the `CAUTION` error code will not trigger too
+        // closely to `BAD_SOURCE` error code for native bounds.
+        if (badSourceBoundNative < cautionBoundNative + MIN_CAUTION_TO_BAD_SOURCE_DELTA) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        // Validate USD bound values are within acceptable value range.
         if (
-            cautionBound < MIN_DEVIATION_BOUND ||
-            badSourceBound > MAX_DEVIATION_BOUND
+            cautionBoundUSD < MIN_DEVIATION_BOUND ||
+            badSourceBoundUSD > MAX_DEVIATION_BOUND
+        ) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        // Validate native bound values are within acceptable value range.
+        if (
+            cautionBoundNative < MIN_DEVIATION_BOUND ||
+            badSourceBoundNative > MAX_DEVIATION_BOUND
         ) {
             revert OracleManager__InvalidParameter();
         }
 
         // Add `BPS` to the value to save converting to a BPS premium
         // e.g. 10200 for 2% at runtime.
-        badSourceBound = badSourceBound + BPS;
-        cautionBound = cautionBound + BPS;
-        if (inUSD) {
-            config.badSourceBoundUSD = uint16(badSourceBound);
-            config.cautionBoundUSD = uint16(cautionBound);
-        } else {
-            config.badSourceBoundNative = uint16(badSourceBound);
-            config.cautionBoundNative = uint16(cautionBound);
+        if(badSourceBoundUSD > 0 && cautionBoundUSD > 0) {
+            config.badSourceBoundUSD = uint16(badSourceBoundUSD + BPS);
+            config.cautionBoundUSD = uint16(cautionBoundUSD + BPS);
         }
-        
-        emit AssetDeviationBoundsSet(asset, badSourceBound, cautionBound);
+        if (badSourceBoundNative > 0 && cautionBoundNative > 0) {
+            config.badSourceBoundNative = uint16(badSourceBoundNative + BPS);
+            config.cautionBoundNative = uint16(cautionBoundNative + BPS);
+        }
+
+        emit AssetDeviationBoundsSet(asset, badSourceBoundUSD, cautionBoundUSD);
     }
 
     /// @notice Reviews the report prices from both pricing adaptors,

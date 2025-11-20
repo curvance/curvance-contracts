@@ -120,8 +120,8 @@ function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
     _deployBorrowableCDAI();
     // switch to mock feeds to enable time skipping.
     _setMockFeedsInitial();
-    oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), true, 150, 180);
-    oracleManager.addAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor), true, 150, 180);
+    oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 150, 180, 150, 180);
+    oracleManager.addAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor), 150, 180, 150, 180);
 
     oracleManager.addCTokenSupport(address(borrowableCDAI));
     oracleManager.addCTokenSupport(address(borrowableCUSDC));
