@@ -403,6 +403,29 @@ contract OracleManager is IOracleManager {
         delete cTokens[cTokenToRemove];
     }
 
+    /// @notice Removes adaptor approval for `adaptorToRemove`, then,
+    ///         adds adaptor approval for `adaptorToAdd`.
+    /// @dev Requires that the adaptor isn't already approved.
+    /// @param adaptorToRemove The address of the adaptor to remove approval.
+    /// @param adaptorToAdd The address of the adaptor to approve.
+    function replaceApprovedAdaptor(
+        address adaptorToRemove,
+        address adaptorToAdd
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `adaptorToAdd` is not already supported.
+        if (isApprovedAdaptor[adaptorToAdd]) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        // Validate `adaptorToRemove` is currently supported.
+        _checkIsApprovedAdaptor(adaptorToRemove);
+
+        delete isApprovedAdaptor[adaptorToRemove];
+        isApprovedAdaptor[adaptorToAdd] = true;
+    }
+
     /// @notice Adds `newAdaptor` as an approved adaptor.
     /// @dev Requires that the adaptor isn't already approved.
     /// @param adaptorToAdd The address of the adaptor to approve.
