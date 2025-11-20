@@ -1138,14 +1138,10 @@ contract OracleManager is IOracleManager {
 
         // Add `BPS` to the value to save converting to a BPS premium
         // e.g. 10200 for 2% at runtime.
-        if(badSourceBoundUSD > 0 && cautionBoundUSD > 0) {
-            config.badSourceBoundUSD = uint16(badSourceBoundUSD + BPS);
-            config.cautionBoundUSD = uint16(cautionBoundUSD + BPS);
-        }
-        if (badSourceBoundNative > 0 && cautionBoundNative > 0) {
-            config.badSourceBoundNative = uint16(badSourceBoundNative + BPS);
-            config.cautionBoundNative = uint16(cautionBoundNative + BPS);
-        }
+        config.badSourceBoundUSD = uint16(badSourceBoundUSD + BPS);
+        config.cautionBoundUSD = uint16(cautionBoundUSD + BPS);
+        config.badSourceBoundNative = uint16(badSourceBoundNative + BPS);
+        config.cautionBoundNative = uint16(cautionBoundNative + BPS);
 
         emit AssetDeviationBoundsSet(asset, badSourceBoundUSD, cautionBoundUSD, badSourceBoundNative, cautionBoundNative);
     }
