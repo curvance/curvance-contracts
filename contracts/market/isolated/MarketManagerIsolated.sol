@@ -533,7 +533,7 @@ contract MarketManagerIsolated is
 
         // If there an issue pricing we should bubble up an error since we
         // cannot validate the loan size.
-        if (errorCode != 0) {
+        if (errorCode != NO_ERROR) {
             revert MarketManager__PriceError();
         }
 
@@ -1292,7 +1292,7 @@ contract MarketManagerIsolated is
                     cTokenModified: debtToken,
                     redemptionShares: 0,
                     borrowAssets: assets,
-                    errorCodeBreakpoint: 1
+                    errorCodeBreakpoint: CAUTION
                 })
             );
 
@@ -1376,7 +1376,7 @@ contract MarketManagerIsolated is
                     cTokenModified: cToken,
                     redemptionShares: collateralRedeemed,
                     borrowAssets: 0,
-                    errorCodeBreakpoint: 1
+                    errorCodeBreakpoint: CAUTION
                 })
             );
 
@@ -1656,7 +1656,7 @@ contract MarketManagerIsolated is
         // is calculated.
         (tData.collateralSharesPrice, tData.debtUnderlyingPrice) =
             CommonLib._oracleManager(centralRegistry)
-                .getPriceIsolatedPair(collateralToken, debtToken, 2);
+                .getPriceIsolatedPair(collateralToken, debtToken, BAD_SOURCE);
 
         // Cache all variables needed for computing liquidation levels.
         tData.collateralToken = collateralToken;

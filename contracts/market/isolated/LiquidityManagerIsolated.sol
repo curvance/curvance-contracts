@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -345,7 +346,7 @@ abstract contract LiquidityManagerIsolated {
             AccountSnapshot[] memory snapshots,
             uint256[] memory prices,
             uint256 numAssets
-        ) = _assetDataOf(account, 2);
+        ) = _assetDataOf(account, BAD_SOURCE);
         AccountSnapshot memory snap;
 
         for (uint256 i; i < numAssets; ++i) {
