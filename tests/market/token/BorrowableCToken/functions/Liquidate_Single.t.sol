@@ -72,6 +72,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         );
         vm.stopPrank();
 
+        vm.startPrank(user2);
+
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
