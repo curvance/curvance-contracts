@@ -159,8 +159,10 @@ contract OracleManager is IOracleManager {
     event AdaptorDependencyRemoved(address asset, address adaptor);
     event AssetDeviationBoundsSet(
         address asset,
-        uint256 badSourceBound,
-        uint256 cautionBound
+        uint256 badSourceBoundUSD,
+        uint256 cautionBoundUSD,
+        uint256 badSourceBoundNative,
+        uint256 cautionBoundNative
     );
 
     /// ERRORS ///
@@ -1145,7 +1147,7 @@ contract OracleManager is IOracleManager {
             config.cautionBoundNative = uint16(cautionBoundNative + BPS);
         }
 
-        emit AssetDeviationBoundsSet(asset, badSourceBoundUSD, cautionBoundUSD);
+        emit AssetDeviationBoundsSet(asset, badSourceBoundUSD, cautionBoundUSD, badSourceBoundNative, cautionBoundNative);
     }
 
     /// @notice Reviews the report prices from both pricing adaptors,
