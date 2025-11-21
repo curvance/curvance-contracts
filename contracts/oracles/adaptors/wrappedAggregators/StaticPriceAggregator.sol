@@ -76,6 +76,7 @@ abstract contract StaticPriceAggregator is IChainlink {
     /// @notice Returns the oracle data from the aggregator for a roundId,
     ///         adjusted by the wrapper.
     /// @dev For this implementation it always returns the `_staticPrice`.
+    /// @param _roundId The round ID to retrieve data from the aggregator.
     /// @return uint80 The round ID from the aggregator for which the data
     ///                 was retrieved.
     ///         int256 The price returned by the aggregator,
@@ -84,9 +85,13 @@ abstract contract StaticPriceAggregator is IChainlink {
     ///         uint256 The timestamp the `_roundId` last was updated.
     ///         uint80 The round ID of the round in which `answer`
     ///                         was computed.
-    function getRoundData(uint80) external view override returns (
+    function getRoundData(uint80 _roundId) external view override returns (
         uint80, int256, uint256, uint256, uint80
     ) {
-        return (1, _staticPrice, block.timestamp, block.timestamp, 1);
+        if (_roundId > 1) {
+            return (_roundId, 0, 0, 0, _roundId);
+        }
+        
+        return (_roundId, _staticPrice, block.timestamp, block.timestamp, _roundId);
     }
 }
