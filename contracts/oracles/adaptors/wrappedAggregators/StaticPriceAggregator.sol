@@ -48,7 +48,7 @@ abstract contract StaticPriceAggregator is IChainlink {
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return result The number of decimals the aggregator responds with.
     function decimals() external pure override returns (uint8 result) {
-        result = 8;
+        result = 18;
     }
 
     /// @notice Returns the latest oracle data from the aggregator,

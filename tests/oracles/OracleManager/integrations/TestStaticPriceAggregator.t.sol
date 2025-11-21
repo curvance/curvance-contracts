@@ -20,13 +20,13 @@ contract TestStaticPriceAggregator is TestBaseOracleManager {
         super.setUp();
 
         aggregator = new MockStaticPriceAggregator(
-            1e8
+            1e18
         );
     }
 
     function testLatestRoundData() public view {
         (, int256 price, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) = aggregator.latestRoundData();
-        assertEq(uint256(price), 1e8);
+        assertEq(uint256(price), 1e18);
         assertEq(startedAt, block.timestamp);
         assertEq(updatedAt, block.timestamp);
         assertEq(answeredInRound, 1);
@@ -39,7 +39,7 @@ contract TestStaticPriceAggregator is TestBaseOracleManager {
 
     function testGetRoundData() public view {
         (, int256 price, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) = aggregator.getRoundData(1);
-        assertEq(uint256(price), 1e8);
+        assertEq(uint256(price), 1e18);
         assertEq(startedAt, block.timestamp);
         assertEq(updatedAt, block.timestamp);
         assertEq(answeredInRound, 1);
