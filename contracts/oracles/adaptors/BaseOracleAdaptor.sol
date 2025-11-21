@@ -154,12 +154,12 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
 
         // Validate the lower feed did not return an error.
-        PricingResult memory result = this.getPrice(asset, inUSD, true);
+        PricingResult memory result = this.getPrice(asset, inUSD, false);
         if (result.hadError) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
         // Validate the higher feed did not return an error.
-        result = this.getPrice(asset, inUSD, false);
+        result = this.getPrice(asset, inUSD, true);
         if (result.hadError) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
