@@ -153,8 +153,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
+        // Validate the lower feed did not return an error.
         PricingResult memory result = this.getPrice(asset, inUSD, true);
-        // Validate the feed did not return an error.
+        if (result.hadError) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        // Validate the higher feed did not return an error.
+        result = this.getPrice(asset, inUSD, false);
         if (result.hadError) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
@@ -344,7 +349,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     }
 
     /// @notice Checks whether `asset` is the zero address which is blocked.
-    function _checkNotZeroAddress(address asset) internal view {
+    function _checkNotZeroAddress(address asset) internal pure {
         if (asset == address(0)) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
