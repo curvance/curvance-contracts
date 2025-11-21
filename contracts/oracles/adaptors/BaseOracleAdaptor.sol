@@ -170,19 +170,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         if (guardedMinPrice > result.price) {
             revert BaseOracleAdaptor__MinPriceAboveCurrentPrice();
         }
-
-        // Validate that the guarded base price is greater than the higher price.
-        uint256 guardedBasePrice =
-            _guardedPrice(block.timestamp - timestampStart, ips, basePrice);
-
-        result = this.getPrice(asset, inUSD, false);
-        if (result.hadError) {
-            revert BaseOracleAdaptor__InvalidConfig();
-        }
-        if (guardedBasePrice < result.price) {
-            revert BaseOracleAdaptor__BasePriceBelowCurrentPrice();
-        }   
-
+        
         PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
