@@ -1259,6 +1259,9 @@ contract MarketManagerIsolated is
 
         // Validates that newNetDebt is not an empty value and this borrow
         // action will not push net debt above the debt limit.
+        // DEV: By rounding up the debt of each user, up to 1 wei for each
+        // time a user has their interest accrued, the actual sum of user
+        // debts may exceed marketOutstandingDebt and thus debtCap.
         if (newNetDebt > debtCaps[debtToken]) {
             revert MarketManager__CapReached();
         }
