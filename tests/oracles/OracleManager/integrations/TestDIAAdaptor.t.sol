@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { DIAAdaptor } from "contracts/oracles/adaptors/dia/DIAAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
@@ -43,5 +44,15 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertGt(price, 0);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        DIAAdaptor.AssetConfig memory data;
+        data.isConfigured = true;
+        data.decimals = 8;
+        data.heartbeat = 24 hours;
+        data.key = "BTC/USD";
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, data);
     }
 }

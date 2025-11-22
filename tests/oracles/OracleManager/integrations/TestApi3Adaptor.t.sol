@@ -113,4 +113,9 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPrice(_ARB_ADDRESS, false, false);
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, _DAPI_PROXY_ARB_USD, 0, _ARB_TICKER);
+    }
 }

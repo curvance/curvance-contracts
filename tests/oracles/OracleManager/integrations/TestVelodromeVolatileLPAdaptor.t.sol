@@ -213,4 +213,9 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         );
         adaptor.removeAsset(address(0));
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0));
+    }
 }

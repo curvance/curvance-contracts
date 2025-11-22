@@ -214,4 +214,12 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         );
         adaptor.removeAsset(_WBTC_ADDRESS);
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), assetConfig);
+    }
 }

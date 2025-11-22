@@ -495,4 +495,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertGt(price1, price0, "Dynamic cap should increase with time on read");
         assertEq(price1, cap1, "Price should be capped to dynamic max");
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, 8, "WBTC");
+    }
 }

@@ -225,4 +225,14 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         );
         adapter.removeAsset(_PT_STETH);
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adapter.addAsset(address(0), assetConfig);
+    }
 }

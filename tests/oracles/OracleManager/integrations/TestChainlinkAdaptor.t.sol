@@ -497,4 +497,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertGt(nativePriceData.price, 0);
     }
 
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.addAsset(address(0), true, address(snxUsdPriceFeed), 0);
+    }
+
 }

@@ -308,4 +308,14 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         );
         adapter.removeAsset(_LP_STETH);
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adapter.addAsset(address(0), assetConfig);
+    }
 }

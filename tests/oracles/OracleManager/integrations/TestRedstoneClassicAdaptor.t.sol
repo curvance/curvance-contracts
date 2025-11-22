@@ -445,4 +445,9 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
         assertTrue(result.hadError);
     }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        redstoneClassicAdaptor.addAsset(address(0), true, ETHX_USD_PRICEFEED, 0, "ETHx");
+    }
 }

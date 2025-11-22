@@ -5,6 +5,8 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
@@ -137,5 +139,73 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
 
         console2.log("Initial exchange rate:", initialExchangeRate);
         console2.log("Exchange rate after accrual:", exchangeRateAfterAccrual);
+    }
+
+    function test_getPriceIsolatedPair_revertsWithBadSource_whenCollateralPriceZero() public {
+        // Remove existing adaptors for DAI to allow using a mock adaptor
+        oracleManager.removeAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.removeAssetPricingAdaptor(_DAI_ADDRESS, address(dualChainlinkAdaptor));
+
+        // Set up mock adaptor that will be set to zero
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "Mock"
+        );
+        oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(_DAI_ADDRESS);
+        mockAdaptor.setPrice(_DAI_ADDRESS, 1e18, 1e18);
+
+        oracleManager.addAssetPricingAdaptor(
+            _DAI_ADDRESS,
+            address(mockAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        // Force zero price for collateral underlying
+        mockAdaptor.setPrice(_DAI_ADDRESS, 1e18, 0);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            2
+        );
+    }
+
+    function test_getPriceIsolatedPair_revertsWithBadSource_whenDebtPriceZero() public {
+        // Remove existing adaptors for USDC to allow using a mock adaptor
+        oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(dualChainlinkAdaptor));
+
+        // Set up mock adaptor that will be set to zero
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "Mock"
+        );
+        oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(_USDC_ADDRESS);
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 1e18);
+
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(mockAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        // Force zero price for debt underlying
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 0);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            2
+        );
     }
 }

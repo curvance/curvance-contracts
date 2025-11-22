@@ -333,4 +333,20 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         assertEq(err, 0);
         assertEq(price, 3550e18);
     }
+
+    function test_fail_whenHigherPriceReturnsError() public {
+        // Force hadError on the higher price check by returning 0
+        chainlinkEthUsd.updateAnswer(0);
+        chainlinkEthUsd.updateRoundData(2, 0, block.timestamp, block.timestamp);
+
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            3600e18,
+            3400e18
+        );
+    }
 }

@@ -5,6 +5,8 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract GetPricesForMarketTest is TestBaseOracleManager {
@@ -172,4 +174,37 @@ function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
     // snapshot reflects accrued interest
     assertGt(snaps[1].debtBalance, 100e6, "debt snapshot must include accrued interest");
 }
+
+    function test_getPricesForMarket_bubblesBadSource_whenZeroPrice() public {
+        _prepareUSDC(address(this), 1e18);
+        vm.prank(address(this));
+        usdc.approve(address(borrowableCUSDC), 1e18);
+
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+
+        // Set up a mock adaptor
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "Mock"
+        );
+        oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(_USDC_ADDRESS);
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 1e18);
+
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(mockAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        // Force zero price for underlying USDC
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 0);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPricesForMarket(address(this), assets, 2);
+    }
 }
