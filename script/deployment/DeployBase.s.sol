@@ -41,7 +41,7 @@ contract DeployBase is DeployScript  {
         address harvester,
         Adaptors calldata adaptors,
         address wrappedNative,
-        string memory name,
+        string memory mockOracleName,
         bool testnet
     ) external recordEvents {
         CentralRegistry centralRegistry = new CentralRegistry(
@@ -61,7 +61,7 @@ contract DeployBase is DeployScript  {
 
         deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
         deployZappers(icr, wrappedNative);
-        deployMockOracle(icr, oracleManager, name, testnet);
+        deployMockOracle(icr, oracleManager, mockOracleName, testnet);
     }
 
     function deployMockOracle(

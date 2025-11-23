@@ -25,7 +25,7 @@ contract AddChainLinkSupport is DeployScript {
         IERC20 token = IERC20(asset);
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
         adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
-        manager.addAssetPricingAdaptor(asset, address(adaptor), 100, 50, 100, 50);
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
     }
 
     function deployChainlinkAdaptor(
