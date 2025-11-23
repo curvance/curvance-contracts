@@ -617,6 +617,12 @@ contract OracleManager is IOracleManager {
             true
         );
 
+        collateralSharesPrice = FixedPointMathLib.mulDiv(
+            collateralSharesPrice,
+            ICToken(collateralToken).exchangeRateUpdated(),
+            WAD
+        );
+
         // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
         // flag is bubbled up.
         if (collateralSharesPrice == 0 && errorCode < BAD_SOURCE) {
@@ -626,12 +632,6 @@ contract OracleManager is IOracleManager {
         if (errorCode >= errorCodeBreakpoint) {
             revert OracleManager__ErrorCodeFlagged();
         }
-        
-        collateralSharesPrice = FixedPointMathLib.mulDiv(
-            collateralSharesPrice,
-            ICToken(collateralToken).exchangeRateUpdated(),
-            WAD
-        );
 
         underlying = cTokens[debtToken];
         if (underlying == address(0)) {
