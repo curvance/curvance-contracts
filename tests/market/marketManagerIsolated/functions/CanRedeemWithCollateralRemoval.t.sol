@@ -271,8 +271,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.startPrank(address(borrowableCDAI));
-        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
-        emit PositionUpdated(address(borrowableCDAI), user1, false);
+        // vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
+        // emit PositionUpdated(address(borrowableCDAI), user1, false);
         uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
@@ -310,8 +310,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.startPrank(address(borrowableCDAI));
-        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
-        emit PositionUpdated(address(borrowableCDAI), user1, false);
+        // vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
+        // emit PositionUpdated(address(borrowableCDAI), user1, false);
         uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");

@@ -128,7 +128,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      Emits a {NewIRM} event.
     /// @param newIRM The new interest rate model to determine interest
     ///               paid by borrowers to lenders for outstanding debt.
-    function setIRM(address newIRM) external {
+    function setIRM(address newIRM) external nonReentrant {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
@@ -149,7 +149,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      Emits a {NewInterestFee} event.
     /// @param newInterestFee The portion of interest paid by borrowers that
     ///                       goes to the protocol.
-    function setInterestFee(uint256 newInterestFee) external {
+    function setInterestFee(uint256 newInterestFee) external nonReentrant {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.

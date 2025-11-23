@@ -500,21 +500,9 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // If `account` is fully repaying their debt, we can close their
-        // position.
+        // If `account` is fully repaying their debt, we can skip loan size
+        // check.
         if (newNetDebt == 0) {
-            address[] memory assets = accountAssets[account].assets;
-            uint256 numAssets = assets.length;
-            bool[] memory positionsToClose = new bool[](numAssets);
-
-            for (uint256 i; i < numAssets; ++i) {
-                if (assets[i] == cToken) {
-                    positionsToClose[i] = true;
-                    break;
-                }
-            }
-            
-            _closePositionsIfNeeded(2, account, positionsToClose);
             return;
         }
         // We round down to favor the protocol here even though typically
@@ -1280,10 +1268,7 @@ contract MarketManagerIsolated is
 
         // Check if the user has sufficient liquidity to borrow,
         // with heavier error code scrutiny.
-        (
-            HypotheticalResult memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
+        (, uint256 liquidityDeficit) = _hypotheticalLiquidityOf(
                 account,
                 HypotheticalAction({
                     cTokenModified: debtToken,
@@ -1295,15 +1280,9 @@ contract MarketManagerIsolated is
 
         // Validate that `account` will not run out of collateral based
         // on their collateralization ratio(s).
-        if (result.liquidityDeficit > 0) {
+        if (liquidityDeficit > 0) {
             revert MarketManager__InsufficientCollateral();
         }
-
-        _closePositionsIfNeeded(
-            result.positionClosureNeeded,
-            account,
-            positionsToClose
-        );
     }
 
     /// @notice Checks if the account should be allowed to redeem tokens
@@ -1364,10 +1343,7 @@ contract MarketManagerIsolated is
         }
 
         // Check account liquidity with hypothetical cToken redemption.
-        (
-            HypotheticalResult memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
+        (, uint256 liquidityDeficit) = _hypotheticalLiquidityOf(
                 account,
                 HypotheticalAction({
                     cTokenModified: cToken,
@@ -1379,15 +1355,9 @@ contract MarketManagerIsolated is
 
         // Validate that `account` will not run out of collateral based
         // on their collateralization ratio(s).
-        if (result.liquidityDeficit > 0) {
+        if (liquidityDeficit > 0) {
             revert MarketManager__InsufficientCollateral();
         }
-
-        _closePositionsIfNeeded(
-            result.positionClosureNeeded,
-            account,
-            positionsToClose
-        );
     }
 
     /// @notice Determines if an account can be liquidated and calculates
@@ -1673,71 +1643,6 @@ contract MarketManagerIsolated is
         if (aData.liqInc == 0) {
             aData.liqIncBase = c.liqIncBase;
             aData.liqIncCurve = c.liqIncCurve;
-        }
-    }
-
-    /// @notice Helper function for closing user positions after liquidity
-    ///         checks have been passed.
-    /// @dev Used as sort of a garbage collection system for any user
-    ///      positions that should be closed to optimize future liquidity
-    ///      checks. May emit {PositionUpdated} events.
-    /// @param positionsClosureNeeded Whether closing positions is needed
-    ///                               for `account`.
-    /// @param account The address of the account to close a
-    ///                `cToken` position for.
-    /// @param positionsToClose Array containing all The address of the asset
-    ///                         to be removed.
-    function _closePositionsIfNeeded(
-        uint256 positionsClosureNeeded,
-        address account,
-        bool[] memory positionsToClose
-    ) internal {
-        if (positionsClosureNeeded != 2) {
-            return;
-        }
-
-        // Cache asset list.
-        address[] memory userAssets = accountAssets[account].assets;
-
-        // Cache asset array characteristics.
-        uint256 numAssets = userAssets.length;
-        uint256 lastAssetIndex = numAssets - 1;
-        address token;
-
-        // Copy last item in list to location of item to be removed.
-        address[] storage storedAssets = accountAssets[account].assets;
-
-        // Go backwards through position list so swap and pop maintains
-        // continuity.
-        for (uint256 i = numAssets; i > 0; ) {
-            // Subtract 1 from i prior since length starts at 1 but array
-            // indices start at 0.
-            if (positionsToClose[--i]) {
-                // If the asset is not at the end of the array swap and pop
-                // entries.
-                if (i != lastAssetIndex) {
-                    // Switch assets in user asset array, then decrease
-                    // lastAssetIndex to account for pop.
-                    storedAssets[i] = storedAssets[lastAssetIndex--];
-                    // Remove the last element to remove `cToken` from
-                    // account asset list.
-                    storedAssets.pop();
-                } else {
-                    // If we are on the last index we don't need to decrement
-                    // lastAssetIndex again.
-                    if (lastAssetIndex != 0) {
-                        --lastAssetIndex;
-                    }
-
-                    storedAssets.pop();
-                }
-
-                token = userAssets[i];
-
-                // Remove `cToken` account position flag.
-                accountPositions[token][account] = 1;
-                emit PositionUpdated(token, account, false);
-            }
         }
     }
 
