@@ -27,7 +27,7 @@ as well as the ability to support nascent assets safely.
 Unique assets with esoteric functionality such as:
 - Rebasing tokens
 - ERC777 transfer on hook
-- Duel-entry point tokens
+- Dual-entry point tokens
 - Abnormal token decimals (This is measured via decimals < 6 and decimals > 24)
 - Extremely low value tokens due to extremely high total supply (This is measured as > 10T supply)
 - Extremely high value tokens due to extremely low total supply (This is measured as < 1000 supply)
@@ -46,7 +46,7 @@ additional collateral as margin or the liquidation of an accounts assets if pric
 
 ## Minimum Loan Size
 
-Every Curvance market has a corresponding minimum loan size set in WAD dollars. The default value of this is $10 but will be changed on chains with higher gas costs such as HyperEVM. When liquidations are processed this value is not considered, its important for us to 
+Every Curvance market has a corresponding minimum loan size configured in WAD dollars. This is set per market within a permitted range of $10–$100 (WAD). Deployments commonly use $10 on lower-cost chains. This check applies when opening new loans and when partially repaying if the remaining debt would be non‑zero; full repayments are always allowed.
 
 ## Asset Pricing
 
@@ -71,9 +71,9 @@ the two oracle feeds is too large, an error code can be returned. For the simpli
 Δ = Delta, or differential between values.
 
 - Error Code = 0/NO_ERROR: No oracles had any issues in pricing and the Δ was small, every market functionality is allowed.
-- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate, both new borrows 
+- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate; new borrows, repayments, 
   and redemptions are paused.
-- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large, new borrows, redemptions, 
+- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large; new borrows, repayments, redemptions, 
   and liquidations are paused.
 ```
 
@@ -104,7 +104,7 @@ Curvance implements a far more complex liquidation system that is generally refe
 ### Auction-based Liquidations
 
 Auction-based liquidations are the "primary" liquidation path inside Curvance. Auction-based liquidations are built in collaboration with Fastlane Labs and their AEE. 
-Auction-based liquidations have a slight priority against traditional liquidations (currently 10 basis points) which acts as a discount on account collateral when compared to their outstanding debt obligations. Auction-based liquidations also have priority via backrunning oracle updates, currently built through Redstone oracle feeds.
+Auction-based liquidations have a slight priority against traditional liquidations (market-dependent: 10 bps for correlated markets, 50 bps for uncorrelated markets) which acts as a discount on account collateral when compared to their outstanding debt obligations. Auction-based liquidations also have priority via backrunning oracle updates, currently built through Redstone oracle feeds.
 
 ```
 The workflow of an auction-based liquidation follows the steps:
@@ -131,7 +131,7 @@ Additionally, auction-based liquidations follow all the additional checks and ex
 
 ### Traditional Liquidations
 
-Traditional liquidations are intended to be used as a fallback when auction-based liquidations are either too slow (high volatility), or Atlas somehow cannot complete an auction. As highlighted above, traditional liquidations have an extra hurdle for approved execution when compared to auction-based liquidation, the `AUCTION_BUFFER` (current 10 basis points) which is applied to the accounts collateral value when viewed against soft liquidation thresholds. Traditional liquidations leak MEV like every 
+Traditional liquidations are intended to be used as a fallback when auction-based liquidations are either too slow (high volatility), or Atlas somehow cannot complete an auction. As highlighted above, traditional liquidations have an extra hurdle for approved execution when compared to auction-based liquidation, the `AUCTION_BUFFER` (10 bps for correlated markets, 50 bps for uncorrelated markets) which is applied to the accounts collateral value when viewed against soft liquidation thresholds. Traditional liquidations leak MEV like every 
 overcollateralized protocol does today. When compared to traditional models, these traditional liquidations are still vastly superior in the ability to keep marginal 
 execution costs low due to its bundling structure.
 
@@ -173,7 +173,7 @@ As an example, a user collateralizes WBTC on Ethereum Layer 1, then borrows USDC
 
 ## Additional Information
 
-*Last updated: 8/24/2025*
+*Last updated: 11/23/2025*
 
 *Maintained by: Curvance Core Team*
 
