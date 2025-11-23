@@ -185,8 +185,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Stored redundantly to reduce gas overhead.
     uint256 public supportedChains;
 
-    /// @notice Array of Chain IDs recorded in the Crosschain Protocol's Chain
-    ///         ID format.
+    /// @notice Array of Chain IDs recorded in GETH format.
     /// @dev Stored redundantly to reduce gas overhead.
     uint256[] internal _foreignChainIds;
     
@@ -1344,8 +1343,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit CalldataCheckerSet("Multicall", target, checker);
     }
 
-    /// @notice Returns an array of Chain IDs recorded in the Crosschain
-    /// Protocol's Chain ID format.
+    /// @notice Returns an array of Chain IDs recorded in the GETH format.
     function foreignChainIds() external view returns (uint256[] memory) {
         return _foreignChainIds;
     }

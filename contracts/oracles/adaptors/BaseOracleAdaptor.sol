@@ -130,7 +130,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         } else {
             if (
                 timestampStart > block.timestamp ||
-                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER ||
+                timestampStart == 0
             ) {
                 revert BaseOracleAdaptor__InvalidTimestamp();
             }
