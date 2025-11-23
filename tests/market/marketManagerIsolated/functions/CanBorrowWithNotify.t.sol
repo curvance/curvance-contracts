@@ -182,12 +182,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         assertEq(cooldownTimestamp, block.timestamp);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);
-        marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
+        vm.startPrank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(address(borrowableCUSDC), 10e6, address(usdc), 6, user1);
+        vm.stopPrank();
 
         vm.warp(block.timestamp + 20 minutes);
 
-        marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
-   
+        vm.startPrank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(address(borrowableCUSDC), 10e6, address(usdc), 6, user1);
+        vm.stopPrank();
     }
 
     function test_canBorrowWithNotify_success_withProtocolReaderReview() external {

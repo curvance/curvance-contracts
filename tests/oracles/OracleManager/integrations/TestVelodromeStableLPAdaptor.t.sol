@@ -59,29 +59,33 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _VELODROME_DAI_USDC, 
             address(adaptor), 
-            true, 
             100, 
+            50,
+            100,
             50
             );
     }
@@ -208,5 +212,10 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0));
     }
 }

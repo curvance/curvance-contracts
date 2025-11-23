@@ -44,6 +44,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     error BaseOracleAdaptor__InvalidConfig();
     error BaseOracleAdaptor__InvalidTimestamp();
     error BaseOracleAdaptor__MinPriceAboveCurrentPrice();
+    error BaseOracleAdaptor__BasePriceBelowCurrentPrice();
     error BaseOracleAdaptor__AssetIsNotSupported();
     
     /// CONSTRUCTOR ///
@@ -129,7 +130,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         } else {
             if (
                 timestampStart > block.timestamp ||
-                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER ||
+                timestampStart == 0
             ) {
                 revert BaseOracleAdaptor__InvalidTimestamp();
             }
@@ -152,8 +154,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        PricingResult memory result = this.getPrice(asset, inUSD, true);
-        // Validate the feed did not return an error.
+        // Validate the higher feed did not return an error.
+        PricingResult memory result = this.getPrice(asset, inUSD, false);
+        if (result.hadError) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        // Validate the lower feed did not return an error.
+        result = this.getPrice(asset, inUSD, true);
         if (result.hadError) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
@@ -169,11 +176,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         if (guardedMinPrice > result.price) {
             revert BaseOracleAdaptor__MinPriceAboveCurrentPrice();
         }
-
+        
         PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
-        if (pg.timestampStart > timestampStart) {
+        if (pg.timestampStart > timestampStart && timestampStart > 0) {
             revert BaseOracleAdaptor__InvalidTimestamp();
         }
 
@@ -339,6 +346,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert BaseOracleAdaptor__AssetIsNotSupported();
+        }
+    }
+
+    /// @notice Checks whether `asset` is the zero address which is blocked.
+    function _checkNotZeroAddress(address asset) internal pure {
+        if (asset == address(0)) {
+            revert BaseOracleAdaptor__InvalidConfig();
         }
     }
 

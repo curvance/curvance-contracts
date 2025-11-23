@@ -74,11 +74,12 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 12;
@@ -88,7 +89,7 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         adapter.addAsset(_LP_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), 100, 50, 100, 50);
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _LP_STETH,
@@ -130,11 +131,12 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 100;
@@ -144,7 +146,7 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         adapter.addAsset(_LP_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), 100, 50, 100, 50);
 
         (uint256 priceBefore, uint256 errorCode) = oracleManager.getPrice(
             _LP_STETH,
@@ -277,16 +279,19 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _STETH, 
             address(chainlinkAdaptor), 
-            true, 
             100, 
-            50);
+            50,
+            100,
+            50
+        );
 
         PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 12;
@@ -302,5 +307,15 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
             BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adapter.removeAsset(_LP_STETH);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adapter.addAsset(address(0), assetConfig);
     }
 }

@@ -236,8 +236,6 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        _harvestPendleLP(1 weeks);
-
         assertEq(user1.balance, balance - messageFee);
     }
 

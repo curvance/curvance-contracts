@@ -72,6 +72,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // If we are not using the default heartbeat directly, apply
         // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,

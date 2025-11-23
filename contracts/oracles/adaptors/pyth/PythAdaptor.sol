@@ -96,6 +96,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         bytes32 priceId
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         if (heartbeat != type(uint256).max) {
             // Apply `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it

@@ -96,7 +96,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -110,7 +111,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -120,7 +122,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -172,7 +174,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         _provideEnoughLiquidityForLeverage();
 
-        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor);
+        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         centralRegistry.setExternalCalldataChecker(
             odosRouterV2,

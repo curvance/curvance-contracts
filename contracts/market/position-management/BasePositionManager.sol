@@ -187,10 +187,10 @@ abstract contract BasePositionManager is
         uint256 assets,
         LeverageAction calldata action,
         uint256 slippage
-    ) external preDeposit(
+    ) external nonReentrant preDeposit(
         assets,
         action.cToken
-    ) checkSlippage(msg.sender, slippage) nonReentrant {
+    ) checkSlippage(msg.sender, slippage) {
         // Execute pre deposit, then the leverage action.
         _leverage(action, msg.sender);
     }
@@ -217,7 +217,7 @@ abstract contract BasePositionManager is
     function leverage(
         LeverageAction calldata action,
         uint256 slippage
-    ) external checkSlippage(msg.sender, slippage) nonReentrant {
+    ) external nonReentrant checkSlippage(msg.sender, slippage) {
         // Execute leverage action.
         _leverage(action, msg.sender);
     }
@@ -250,7 +250,7 @@ abstract contract BasePositionManager is
         LeverageAction calldata action,
         address account,
         uint256 slippage
-    ) external checkSlippage(account, slippage) nonReentrant {
+    ) external nonReentrant checkSlippage(account, slippage) {
         _checkDelegate(account, msg.sender);
         // Check for delegation permissions, then the leverage action.
         _leverage(action, account);
@@ -282,7 +282,7 @@ abstract contract BasePositionManager is
     function deleverage(
         DeleverageAction calldata action,
         uint256 slippage
-    ) external checkSlippage(msg.sender, slippage) nonReentrant {
+    ) external nonReentrant checkSlippage(msg.sender, slippage) {
         // Execute deleverage action.
         _deleverage(action, msg.sender);
     }
@@ -313,7 +313,7 @@ abstract contract BasePositionManager is
         DeleverageAction calldata action,
         address account,
         uint256 slippage
-    ) external checkSlippage(account, slippage) nonReentrant {
+    ) external nonReentrant checkSlippage(account, slippage) {
         _checkDelegate(account, msg.sender);
         // Check for delegation permissions, then the deleverage action.
         _deleverage(action, account);

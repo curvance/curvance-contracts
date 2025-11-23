@@ -8,8 +8,8 @@ import { WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/Constan
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
 
-  // This test demonstrates protocol-derived auction liquidation parameters.
-  // Tests that protocol-derived incentive + protocol-derived close factor works correctly.
+  // This test demonstrates partial zero values in auction liquidations.
+  // Tests that custom incentive + protocol-derived close factor works correctly.
 
   // Setup:
   //    User 1 has 1000 DAI collateral worth $1000 ($1 each)
@@ -30,10 +30,10 @@ import { console2 } from "forge-std/console2.sol";
   //    Auction lFactor: (500 * 1.4) / 699.37 = 1.0009 > 1.0  (Should succeed)
 
   // Expected results:
-  //    Protocol-derived incentive is used for collateral calculation
+  //    Custom incentive (105%) is used for collateral calculation
   //    Protocol-derived close factor is used for debt repayment amount
 
-contract AuctionDerivedIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
+contract AuctionCustomIncentiveDerivedCloseFactorTest is TestBaseMarketIsolated {
     address[] borrowers = [user1];
 
     function setUp() public override {
@@ -67,58 +67,75 @@ contract AuctionDerivedIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
         mockDaiFeed.setMockAnswer(70007000);
     }
 
-    function test_success_AuctionLiquidationWithBothProtocolDerivedIncentiveAndCloseFactor() public {
+    function test_success_AuctionLiquidationWithNonZeroIncentiveAndZeroCloseFactor() public {
         _prepareUSDC(auctionPermsUser, 1000e6);
 
         vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        // Set auction with zero incentive and zero close factor (both protocol-derived)
-        marketManagerIsolated.setTransientLiquidationConfig(address(borrowableCDAI), 0, 0);
+        // Set auction with lower non-zero incentive but zero close factor
+        // liqIncMin = 10, so use 10500 (105%) which is lower than protocol-derived
+        // Lower incentive = less collateral seized per unit debt
+        uint256 lowerIncentive = 10500;
+        marketManagerIsolated.setTransientLiquidationConfig(address(borrowableCDAI), lowerIncentive, 0);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
 
         // Verify values are stored correctly in transient storage
         {
-            (, uint256 storedIncentive, uint256 storedCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
+            (address storedToken, uint256 storedIncentive, uint256 storedCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
 
-            // CRITICAL ASSERTION 1: transient values are set correctly.
-            assertEq(storedIncentive, 0, "Incentive should be stored as 0 to signal protocol-derived");
+            // CRITICAL ASSERTION 1: transient values are set correctly (all 3 fields)
+            assertEq(storedToken, address(borrowableCDAI),
+                "CRITICAL: Stored token address must match exactly (bit packing check)");
+            assertEq(storedIncentive, lowerIncentive, "Custom lower incentive should be stored");
             assertEq(storedCloseFactor, 0, "Close factor should be stored as 0 to signal protocol-derived");
+        }
+
+        // HIGH VALUE ADDITION #2A: Verify user is UNHEALTHY before liquidation
+        {
+            (uint256 collateralBeforeLiq, uint256 maxDebtBeforeLiq, uint256 debtBeforeLiq) =
+                marketManagerIsolated.statusOf(user1);
+
+            // User must be unhealthy to be liquidatable (debt > maxDebt)
+            assertGt(debtBeforeLiq, maxDebtBeforeLiq,
+                "CRITICAL: User must be unhealthy before liquidation (debt > maxDebt)");
         }
 
         uint256 debtBefore = borrowableCUSDC.debtBalanceUpdated(user1);
         uint256 collateralBefore = borrowableCDAI.balanceOf(user1);
-
         uint256 expectedMaxDebtRepaid;
-        uint256 expectedCollateralSeized;
         {
-            // Get protocol liquidation config to calculate both expected values
+            // Get protocol liquidation config to calculate expected close factor
+            // HIGH VALUE ADDITION #1: Also capture liqInc values for differential testing
             (uint256 liqIncBase, uint256 liqIncCurve, , , uint256 closeFactorBase, uint256 closeFactorCurve,,)
                 = marketManagerIsolated.liquidationConfig(address(borrowableCDAI));
 
-            // Calculate expected protocol-derived values
+            // Calculate expected protocol-derived close factor
             // Get lFactor (liquidation severity) for the borrower
             (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
+
+            // HIGH VALUE ADDITION #1: Prove the correct code path will be taken
+            // CRITICAL: Prove curves exist and will be used for close factor
+            assertGt(closeFactorCurve, 0,
+                "CRITICAL: closeFactorCurve must be > 0 or protocol-derived close factor won't work");
+            assertGt(lFactor, 0,
+                "CRITICAL: lFactor must be > 0 for curve calculations to have effect");
+
+            // CRITICAL: Calculate what protocol-derived incentive WOULD be
+            uint256 protocolDerivedIncentive = liqIncBase + ((liqIncCurve * lFactor) / 1e18);
+
+            // CRITICAL: Prove custom incentive is LOWER than protocol-derived (this test's scenario)
+            assertLt(lowerIncentive, protocolDerivedIncentive,
+                "CRITICAL: Custom incentive must be lower than protocol-derived for this test scenario");
 
             // Calculate expected close factor: closeFactorBase + (closeFactorCurve * lFactor / WAD)
             uint256 expectedCloseFactor = closeFactorBase + ((closeFactorCurve * lFactor) / 1e18);
 
-            // Calculate expected liquidation incentive: liqIncBase + (liqIncCurve * lFactor / WAD)
-            uint256 expectedLiqIncentive = liqIncBase + ((liqIncCurve * lFactor) / 1e18);
-
-            // Calculate expected max debt repaid with protocol-derived close factor
+            // Calculate expected max debt that can be repaid with protocol-derived close factor
             expectedMaxDebtRepaid = (debtBefore * expectedCloseFactor) / 10000;
-
-            // Calculate expected collateral seized using protocol-derived incentive
-            expectedCollateralSeized = _calculateExpectedCollateralSeized(
-                expectedMaxDebtRepaid,
-                expectedLiqIncentive,
-                address(borrowableCDAI),
-                address(borrowableCUSDC)
-            );
         }
 
-        // Execute liquidation with both protocol-derived values
+        // Execute liquidation with custom lower incentive + protocol-derived close factor
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
 
         vm.stopPrank();
@@ -138,10 +155,30 @@ contract AuctionDerivedIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
         assertEq(debtRepaid, expectedMaxDebtRepaid,
             "Debt repaid must exactly match expected value from protocol-derived close factor");
 
-        // CRITICAL ASSERTION 3: Verify we used the exact protocol-derived incentive.
-        // This indirectly proves aData.liqIncCurve != 0 (second if block executed and loaded curves).
-        assertEq(collateralSeized, expectedCollateralSeized,
-            "Collateral seized must exactly match expected value from protocol-derived liquidation incentive");
+        // CRITICAL ASSERTION 3: Verify we used the exact auction provided incentive (105%).
+        // This indirectly proves aData.liqIncCurve == 0 (second if block was skipped).
+        {
+            uint256 expectedCollateralSeized = _calculateExpectedCollateralSeized(
+                debtRepaid,
+                lowerIncentive,
+                address(borrowableCDAI),
+                address(borrowableCUSDC)
+            );
+
+            assertEq(collateralSeized, expectedCollateralSeized,
+                "Collateral seized must exactly match expected value from custom 105% liquidation incentive");
+        }
+
+        // HIGH VALUE ADDITION #2B: Verify user is HEALTHY after liquidation
+        // CRITICAL: Liquidations must restore account health
+        {
+            (uint256 collateralAfterLiq, uint256 maxDebtAfterLiq, uint256 debtAfterLiq) =
+                marketManagerIsolated.statusOf(user1);
+
+            // User must be healthy after liquidation (debt <= maxDebt)
+            assertLe(debtAfterLiq, maxDebtAfterLiq,
+                "CRITICAL: User must be healthy after liquidation (debt <= maxDebt)");
+        }
     }
 
     function _calculateExpectedCollateralSeized(

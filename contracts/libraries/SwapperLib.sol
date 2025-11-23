@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { NO_ERROR, BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { NO_ERROR, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -150,7 +150,7 @@ library SwapperLib {
         // Calculate % slippage from executed swap.
         uint256 slippage = FixedPointMathLib.mulDivUp(
             valueIn - valueOut,
-            BPS,
+            WAD,
             valueIn
         );
 

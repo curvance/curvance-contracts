@@ -614,4 +614,27 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    function test_updateTokenConfig_fail_whenCloseFactorMinIsZero() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorMin = 0; // Invalid
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 100_000e18;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+    }
+
 }

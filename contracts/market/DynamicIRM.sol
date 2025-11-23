@@ -99,10 +99,10 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                    is used, instead of base rate, in `WAD`.
     /// @param increaseThresholdStart The utilization rate at which the vertex
     ///                               multiplier will begin to increase,
-    ///                               in `BPS`.
+    ///                               in 10 * `BPS`.
     /// @param decreaseThresholdEnd The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out,
-    ///                             in `BPS`.
+    ///                             in 10 * `BPS`.
     /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
     ///                           is adjusted per `adjustmentRate`, in `BPS`.
     /// @param decayPerAdjustment The rate at which `vertexMultiplier` will

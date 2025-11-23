@@ -72,6 +72,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         string memory ticker
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // If we are not using the default heartbeat directly, apply
         // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,

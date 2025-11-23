@@ -360,7 +360,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         _checkZeroAmount(assets);
-        _checkAssetsHeld(assets);
+        if (assets > _asset.balanceOf(address(this))) {
+            revert BorrowableCToken__InsufficientAssetsHeld();
+        }
 
         address token = address(_asset);
         uint256 fee = flashFee(assets);
@@ -730,7 +732,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // `result.badDebtRealized` back due to realized bad debt.
         // Emit corresponding event recognizing bad debt.
         if (result.badDebtRealized > 0) {
-            _totalAssets = _totalAssets - result.badDebtRealized;
+            uint256 ta = _totalAssets;
+            if (ta < result.badDebtRealized + _BASE_UNDERLYING_RESERVE) {
+                revert BorrowableCToken__InsufficientAssetsHeld();
+            }
+            _totalAssets = ta - result.badDebtRealized;
             emit BadDebtRecognized(result.badDebtRealized, liquidator);
         }
 
@@ -812,7 +818,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // and block.timestamp extends into the new vesting period.
             assetsToVest += _assetsToVest(
                 rate,
-                outstandingDebt,
+                outstandingDebt + assetsToVest,
                 vestingEnd,
                 lastVestingClaim
             );

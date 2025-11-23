@@ -122,8 +122,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -215,8 +216,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -257,8 +259,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -345,8 +348,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
         );
 
@@ -421,8 +425,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -489,5 +494,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(err1, 0);
         assertGt(price1, price0, "Dynamic cap should increase with time on read");
         assertEq(price1, cap1, "Price should be capped to dynamic max");
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, 8, "WBTC");
     }
 }

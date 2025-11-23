@@ -13,8 +13,7 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
     /// @notice Native token placeholder address that Odos does not recognize.
-    address constant INVALID_NATIVE_PLACEHOLDER =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address immutable public INVALID_NATIVE_PLACEHOLDER;
 
     /// @notice The address of the Odos Executor on this chain.
     address immutable public ODOS_EXECUTOR;
@@ -28,9 +27,11 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
     /// @param _target The address of the Odos Router V3 contract.
     constructor(
         address _target,
-        address _odosExecutor
+        address _odosExecutor,
+        address _invalidNativePlaceholder
     ) BaseSwapChecker(_target) {
         ODOS_EXECUTOR = _odosExecutor;
+        INVALID_NATIVE_PLACEHOLDER = _invalidNativePlaceholder;
     }
 
     /// EXTERNAL FUNCTIONS ///

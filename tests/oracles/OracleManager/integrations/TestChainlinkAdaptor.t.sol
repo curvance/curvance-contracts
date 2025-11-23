@@ -108,7 +108,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             SNX_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            180,
+            50,
             180,
             50
         );
@@ -494,6 +495,11 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertFalse(nativePriceData.inUSD);
         
         assertGt(nativePriceData.price, 0);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.addAsset(address(0), true, address(snxUsdPriceFeed), 0);
     }
 
 }

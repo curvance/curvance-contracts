@@ -390,7 +390,7 @@ contract ProtocolReader {
         }
 
         HypotheticalResult memory r =
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
         oracleError = r.oracleError;
         collateralizedSharesRedeemable =
             _collateralPosted(cTokenRedeemed, account);
@@ -458,7 +458,7 @@ contract ProtocolReader {
         }
 
         HypotheticalResult memory r =
-            _hypotheticalLiquidityOf(
+            hypotheticalLiquidityOf(
                 mm,
                 account,
                 cTokenModified,
@@ -505,7 +505,7 @@ contract ProtocolReader {
         }
 
         HypotheticalResult memory r =
-            _hypotheticalLiquidityOf(
+            hypotheticalLiquidityOf(
                 mm,
                 account,
                 borrowableCTokenModified,
@@ -568,7 +568,7 @@ contract ProtocolReader {
         }
 
         HypotheticalResult memory r = 
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
         loanSizeError = r.loanSizeError;
         oracleError = r.oracleError;
         // If the account is insolvent or we can immediately return with 0 for
@@ -786,8 +786,6 @@ contract ProtocolReader {
         }
     }
 
-    /// INTERNAL FUNCTIONS ///
-
     /// @notice Calculates hypothetical liquidity for an account after a
     ///         potential action such as redemption and borrowing.
     /// @param mm The market manager to pull hypothetical liquidity values
@@ -817,14 +815,14 @@ contract ProtocolReader {
     ///                              insufficient causing an error.
     ///                oracleError Whether an oracle error was hit when pricing
     ///                            assets.
-    function _hypotheticalLiquidityOf(
+    function hypotheticalLiquidityOf(
         IMarketManager mm,
         address account,
         address cTokenModified,
         uint256 redemptionShares,
         uint256 borrowAssets,
         uint256 bufferTime
-    ) internal view returns (HypotheticalResult memory result) {
+    ) public view returns (HypotheticalResult memory result) {
         AccountSnapshot[] memory snapshots;
         uint256[] memory prices;
         uint256 numAssets;
@@ -926,6 +924,8 @@ contract ProtocolReader {
         // Returns shortfall on hypothetical positions.
         result.liquidityDeficit = newDebt - result.maxDebt;
     }
+
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Evaluates collateral and debt positions to determine account
     ///         health and liquidation parameters.
@@ -1172,7 +1172,7 @@ contract ProtocolReader {
         }
 
         HypotheticalResult memory r =
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, 0);
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, 0);
         um.collateral = r.collateral;
         um.maxDebt = r.maxDebt;
         um.debt = r.debt;

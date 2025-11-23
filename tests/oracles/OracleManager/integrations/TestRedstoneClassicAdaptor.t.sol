@@ -124,7 +124,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             ETHX_ADDRESS,
             address(redstoneClassicAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -443,5 +444,10 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
 
         assertTrue(result.hadError);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        redstoneClassicAdaptor.addAsset(address(0), true, ETHX_USD_PRICEFEED, 0, "ETHx");
     }
 }

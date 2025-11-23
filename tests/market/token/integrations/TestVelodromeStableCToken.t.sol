@@ -77,7 +77,8 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _VELO_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );
@@ -92,7 +93,8 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            true,
+            100,
+            50,
             100,
             50
         );

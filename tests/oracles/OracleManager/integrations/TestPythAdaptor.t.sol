@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -55,8 +56,9 @@ contract TestPythAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS, 
             address(adaptor), 
-            true, 
-            100, 
+            100,
+            50,
+            100,
             50
             );
 
@@ -67,5 +69,10 @@ contract TestPythAdaptor is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertEq(price, 66688013490000000000000);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, 0, bytes32(uint256(1)));
     }
 }

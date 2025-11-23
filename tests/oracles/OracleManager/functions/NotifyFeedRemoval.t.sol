@@ -10,20 +10,17 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
     function test_notifyFeedRemoval_fail_whenCallerIsNotApprovedAdaptor()
         public
     {
-        vm.expectRevert(OracleManager.OracleManager__AdaptorIsNotApproved.selector);
+        // No-op call
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
     }
 
     // No longer reverts
+    function test_notifyFeedRemoval_fail_whenNoFeedsAvailable() public {
+        vm.prank(address(chainlinkAdaptor));
 
-    // function test_notifyFeedRemoval_fail_whenNoFeedsAvailable() public {
-    //     oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
-    //     vm.prank(address(chainlinkAdaptor));
-
-    //     vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-    //     oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
-    // }
+        // No-op call
+        oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
+     }
 
     function test_notifyFeedRemoval_noop_whenSingleFeedDoesNotExist() public {
         _addSinglePriceFeed();

@@ -24,7 +24,7 @@ contract TestOdosV2CalldataChecker is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        checker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor);
+        checker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     function testCheckCallDataRevert__TargetError() public {
