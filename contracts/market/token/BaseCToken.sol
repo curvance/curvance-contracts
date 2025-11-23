@@ -128,6 +128,7 @@ abstract contract BaseCToken is
     error BaseCToken__Unauthorized();
     error BaseCToken__UnsupportedChain();
     error BaseCToken__InvalidMarketManager();
+    error BaseCToken__InvariantError();
 
     /// CONSTRUCTOR ///
 
@@ -1037,6 +1038,10 @@ abstract contract BaseCToken is
             owner,
             action
         );
+
+        if (balancePrior != balanceOf(owner)) {
+            revert BaseCToken__InvariantError();
+        }
 
         // Fails if redemption not allowed.
         uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
