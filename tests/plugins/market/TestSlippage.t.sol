@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { KuruCalldataChecker } from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
 
@@ -26,7 +25,6 @@ contract TestSlippage is TestBaseMarketIsolated {
 
     address public constant KURU_FEE_COLLECTOR = 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1;
 
-    SimpleZapper internal simpleZapper;
     SimplePositionManager internal positionManager;
     KuruCalldataChecker internal kuruChecker;
 
@@ -78,7 +76,6 @@ contract TestSlippage is TestBaseMarketIsolated {
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), type(uint256).max);
         borrowableCWMON.deposit(1_000_000e18, address(this));
 
-        simpleZapper = new SimpleZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
         positionManager = new SimplePositionManager(ICentralRegistry(address(centralRegistry)), address(marketManagerIsolated), WMON_ADDRESS);
         marketManagerIsolated.addPositionManager(address(positionManager));
         protocolReader = new ProtocolReader(ICentralRegistry(address(centralRegistry)));
@@ -86,7 +83,7 @@ contract TestSlippage is TestBaseMarketIsolated {
 
     function test_slippage_fail_whenExcessiveSlippage() public {
         
-        uint256 wmonToDeposit = 50_000e18;
+        uint256 wmonToDeposit = 100e18;
         deal(WMON_ADDRESS, user1, wmonToDeposit);
         vm.startPrank(user1);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), wmonToDeposit);
@@ -98,13 +95,6 @@ contract TestSlippage is TestBaseMarketIsolated {
             user1, address(borrowableCWMON), address(borrowableCUSDC), 0, 0
         );
         uint256 borrowAmount = (maxDebtBorrowable * 50) / 100;
-        if (borrowAmount == 0) {
-            borrowAmount = 10_000e6;
-        }
-        // Cap borrow amount to avoid aggregator mid-swap failures
-        if (borrowAmount > 1_000e6) {
-            borrowAmount = 1_000e6;
-        }
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
@@ -124,9 +114,10 @@ contract TestSlippage is TestBaseMarketIsolated {
         );
 
         vm.startPrank(user1);
-        // Expect excess slippage revert
-        // match selector only
-        vm.expectRevert(bytes4(keccak256("SwapperLib__Slippage(uint256)")));
+        // Only match error selector
+        // use expectPartialRevert for custom errors with args
+        // (https://getfoundry.sh/reference/cheatcodes/expect-revert/#:~:text=Custom,with)
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
         positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
     }
