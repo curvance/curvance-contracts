@@ -732,10 +732,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // `result.badDebtRealized` back due to realized bad debt.
         // Emit corresponding event recognizing bad debt.
         if (result.badDebtRealized > 0) {
-            if (_totalAssets < result.badDebtRealized + _BASE_UNDERLYING_RESERVE) {
+            uint256 ta = _totalAssets;
+            if (ta < result.badDebtRealized + _BASE_UNDERLYING_RESERVE) {
                 revert BorrowableCToken__InsufficientAssetsHeld();
             }
-            _totalAssets = _totalAssets - result.badDebtRealized;
+            _totalAssets = ta - result.badDebtRealized;
             emit BadDebtRecognized(result.badDebtRealized, liquidator);
         }
 
