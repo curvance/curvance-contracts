@@ -117,21 +117,6 @@ abstract contract LiquidityManagerIsolated {
         uint256 errorCodeBreakpoint;
     }
 
-    /// @notice Data structure returned on hypothetical calculation containing
-    ///         whether there was a collateral surplus or a liquidity deficit,
-    ///         and whether account positions need to be updated.
-    /// @param collateralSurplus Excess collateral when adjusted for debt
-    ///                          obligations.
-    /// @param liquidityDeficit Liquidity deficit when adjusted for debt
-    ///                         obligations.
-    /// @param positionClosureNeeded Whether account positions need to be
-    ///                              updated.
-    struct HypotheticalResult {
-        uint256 collateralSurplus;
-        uint256 liquidityDeficit;
-        uint256 positionClosureNeeded;
-    }
-
     /// @notice Data structure returned on liquidation threshold calculation
     ///         containing an accounts collateral values under specific
     ///         (soft liquidation versus hard liquidation) methodology
@@ -392,25 +377,17 @@ abstract contract LiquidityManagerIsolated {
     ///                            borrow, in `assets`.
     ///               errorCodeBreakpoint The error code that will cause
     ///                                   liquidity operations to revert.
-    /// @return result Hypothetical results for an action containing:
-    ///                collateralSurplus Excess collateral capacity after
-    ///                                  the action.
-    ///                liquidityDeficit Shortfall in collateral capacity after
-    ///                                 the action.
-    ///                positionClosureNeeded Flag indicating if positions need
-    ///                                      to be closed. (0: no, 2: yes)
-    /// @return positionsToClose Boolean array indicating which positions
-    ///                          would need to be closed.
+    /// @return uint256 Excess collateral capacity after the action.
+    ///         uint256 Shortfall in collateral capacity after the action.
     function _hypotheticalLiquidityOf(
         address account,
         HypotheticalAction memory action
-    ) internal returns (HypotheticalResult memory result, bool[] memory) {
+    ) internal returns (uint256, uint256) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory prices,
             uint256 numAssets
         ) = _assetDataOf(account, action.errorCodeBreakpoint);
-        bool[] memory positionsToClose = new bool[](numAssets);
         AccountSnapshot memory snap;
         uint256 maxDebt;
         uint256 newDebt;
@@ -450,12 +427,7 @@ abstract contract LiquidityManagerIsolated {
                 // CASE: There is no collateral posted. Either the position
                 // will be closed through a full redemption, or the user
                 // already had their position closed via liquidation.
-                if (snap.collateralPosted == 0) {
-                    positionsToClose[i] = true;
-                    if (result.positionClosureNeeded == 0) {
-                        result.positionClosureNeeded = 2;
-                    }
-                } else {
+                if (snap.collateralPosted > 0) {
                     // CASE: There is collateral posted in this cToken,
                     // the user can take on more debt from lenders.
                     maxDebt += _mulDiv(
@@ -477,12 +449,7 @@ abstract contract LiquidityManagerIsolated {
                 // CASE: There is no outstanding debt, clean up the position
                 // entry as the user was liquidated, otherwise add to the
                 // user's outstanding debt.
-                if (snap.debtBalance == 0) {
-                    positionsToClose[i] = true;
-                    if (result.positionClosureNeeded == 0) {
-                        result.positionClosureNeeded = 2;
-                    }
-                } else {
+                if (snap.debtBalance > 0) {
                     // CASE: There is outstanding debt to lenders, add it to
                     // `newDebt` to check against `maxDebt`.
                     newDebt += _assetValue(
@@ -503,13 +470,11 @@ abstract contract LiquidityManagerIsolated {
 
         // Returns excess liquidity on hypothetical positions.
         if (maxDebt > newDebt) {
-            result.collateralSurplus = maxDebt - newDebt;
-            return (result, positionsToClose);
+            return (maxDebt - newDebt, 0);
         }
 
         // Returns shortfall on hypothetical positions.
-        result.liquidityDeficit = newDebt - maxDebt;
-        return (result, positionsToClose);
+        return (0, newDebt - maxDebt);
     }
 
     /// @notice Evaluates an account's collateral and debt positions to

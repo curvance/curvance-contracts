@@ -1039,7 +1039,7 @@ abstract contract BaseCToken is
             action
         );
 
-        if (balancePrior != balanceOf(owner)) {
+        if (balancePrior != balanceOf(owner) + shares) {
             revert BaseCToken__InvariantError();
         }
 
