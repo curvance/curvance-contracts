@@ -339,16 +339,18 @@ contract ProtocolReader {
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
-        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) =
-            IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
-        uint256 numLocks = lockAmounts.length;
-        data.locks = new UserLock[](numLocks);
-        for (uint256 i; i < numLocks; ++i) {
-            data.locks[i] = UserLock({
-                lockIndex: i,
-                amount: lockAmounts[i],
-                unlockTime: lockTimestamps[i]
-            });
+        if(centralRegistry.veCVE() != address(0)) {
+            (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) =
+                IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
+            uint256 numLocks = lockAmounts.length;
+            data.locks = new UserLock[](numLocks);
+            for (uint256 i; i < numLocks; ++i) {
+                data.locks[i] = UserLock({
+                    lockIndex: i,
+                    amount: lockAmounts[i],
+                    unlockTime: lockTimestamps[i]
+                });
+            }
         }
         
         address[] memory markets = centralRegistry.marketManagers();
@@ -1205,7 +1207,7 @@ contract ProtocolReader {
             IDynamicIRM irm = bcToken.IRM();
 
             dmt.debt = bcToken.marketOutstandingDebt();
-            dmt.liquidity = assetsHeld - MARKET_ASSET_RESERVE;
+            dmt.liquidity = assetsHeld;
 
             // Values are given in seconds, and should be multiplied depending
             // on the time frame needed. For example, you might multiply these

@@ -15,7 +15,7 @@ contract DeployCalldataChecker is DeployScript {
         CentralRegistry cr = CentralRegistry(registry);
         
         if(checkerSelection.kuruRouter != address(0)) {
-            KuruCalldataChecker checker = new KuruCalldataChecker(checkerSelection.kuruRouter, 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1, cr.daoAddress());
+            KuruCalldataChecker checker = new KuruCalldataChecker(checkerSelection.kuruRouter, 0xb3e6778480b2E488385E8205eA05E20060B813cb, cr.daoAddress());
             cr.setExternalCalldataChecker(checkerSelection.kuruRouter, address(checker));
         }
     }
