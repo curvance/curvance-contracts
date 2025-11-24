@@ -70,6 +70,8 @@ contract DeployMarkets is DeployScript {
             );
 
             market.listTokens(cTokens[0], cTokens[1]);
+            market.setMintPaused(cTokens[0], true);
+            market.setMintPaused(cTokens[1], true);
             market.updateTokenConfig(tokens[0].tokenConfig);
             market.updateTokenConfig(tokens[1].tokenConfig);
         }

@@ -25,11 +25,21 @@ contract AddRedstoneSupport is DeployScript {
         string id;
     }
 
+    struct PriceGuard {
+        bool enabled;
+        bool inUSD;
+        uint256 timestampStart;
+        uint256 ips;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     function run(
         address asset,
         address adaptorAddr,
         address oracleManager,
-        PushFeed memory feed
+        PushFeed memory feed,
+        PriceGuard memory guardConfig
     ) external recordEvents {
         RedstoneClassicAdaptor adaptor = RedstoneClassicAdaptor(adaptorAddr);
         OracleManager manager = OracleManager(oracleManager);
@@ -37,13 +47,25 @@ contract AddRedstoneSupport is DeployScript {
 
         adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
         manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                guardConfig.timestampStart,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 
     function run(
         address asset,
         address adaptor,
         address oracleManager,
-        PullFeed memory feed
+        PullFeed memory feed,
+        PriceGuard memory guardConfig
     ) external recordEvents {
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(adaptor);
         OracleManager manager = OracleManager(oracleManager);
@@ -66,6 +88,17 @@ contract AddRedstoneSupport is DeployScript {
 
         // Finalize oracle support
         manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                guardConfig.timestampStart,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 
     function deployRedstoneClassicAdaptor(

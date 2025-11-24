@@ -15,17 +15,38 @@ contract AddChainLinkSupport is DeployScript {
         bool inUSD;
     }
 
+    struct PriceGuard {
+        bool enabled;
+        bool inUSD;
+        uint256 timestampStart;
+        uint256 ips;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     function run(
         address asset,
         address adaptorAddress,
         address oracleManager,
-        PullFeed memory feed
+        PullFeed memory feed,
+        PriceGuard memory guardConfig
     ) external recordEvents {
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
         adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
         manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                guardConfig.timestampStart,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 
     function deployChainlinkAdaptor(
