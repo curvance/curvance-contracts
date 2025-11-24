@@ -41,7 +41,7 @@ contract AddStaticPriceAggregator is DeployScript {
             adaptor.setGuardedPriceConfig(
                 asset,
                 guardConfig.inUSD,
-                guardConfig.timestampSubtract > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
+                guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
                 guardConfig.ips,
                 guardConfig.basePrice,
                 guardConfig.minPrice
