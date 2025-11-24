@@ -17,11 +17,10 @@ contract DeployMarkets is DeployScript {
     struct DynamicInterestRateConfig {
         uint256 baseRatePerYear;
         uint256 vertexRatePerYear;
-        uint256 vertexUtilStart;
-        uint256 adjustmentRate;
+        uint256 vertexStart;
         uint256 adjustmentVelocity;
+        uint256 decayPerAdjustment;
         uint256 vertexMultiplierMax;
-        uint256 decayRate;
     }
 
     AddPlugins internal plugin_deployer;
@@ -142,9 +141,9 @@ contract DeployMarkets is DeployScript {
                 icr,
                 config.interestConfig.baseRatePerYear,
                 config.interestConfig.vertexRatePerYear,
-                config.interestConfig.vertexUtilStart,
+                config.interestConfig.vertexStart,
                 config.interestConfig.adjustmentVelocity,
-                config.interestConfig.decayRate,
+                config.interestConfig.decayPerAdjustment,
                 config.interestConfig.vertexMultiplierMax
             );
         emit ContractDeployed(
