@@ -256,8 +256,6 @@ abstract contract BaseCToken is
     ///      NOTE: Be careful who you approve here!
     ///      They can delay redemption of assets through repeated
     ///      collateralization preventing withdrawal.
-    ///      If the caller is not approved to collateralize the function will
-    ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
     /// @return shares The amount of cToken shares received by `receiver`.

@@ -115,8 +115,6 @@ interface ICToken {
     ///         shares, and collateralization of `assets` is enabled.
     /// @dev The caller must be depositing for themselves, or be managing
     ///      their position through a Position Manager contract.
-    ///      If the caller is not approved to collateralize the function will
-    ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the shares.
     /// @return shares The amount of shares received by `receiver`.
@@ -132,8 +130,6 @@ interface ICToken {
     ///      NOTE: Be careful who you approve here!
     ///      They can delay redemption of assets through repeated
     ///      collateralization preventing withdrawal.
-    ///      If the caller is not approved to collateralize the function will
-    ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the shares.
     /// @return shares The amount of shares received by `receiver`.

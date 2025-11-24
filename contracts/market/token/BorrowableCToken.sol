@@ -439,7 +439,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///         recovered without impacting user accounting.
     /// @dev Computed as:
     ///      marketOutstandingDebt + underlyingBalance - totalAssets.
-    /// @return excess The recoverable excess underlying amount, or 0 if none.
+    /// @return excess The recoverable excess underlying amount.
+    ///                Reverts with BaseCToken__ZeroAmount() if none.
     function skimAvailable() public view returns (uint256 excess) {
         uint256 cachedAssets = _totalAssets;
         uint256 debtPlusBalance =
