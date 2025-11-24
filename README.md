@@ -19,6 +19,10 @@ Main dependencies:
 2. Ensure you have `forge` installed, A guide can be found [here](https://book.getfoundry.sh/getting-started/installation)
 3. Happy building, all dependencies are gitmodule linked & remapping can be found in `remappings.txt` which should be picked up automatically
 
+## Code Safety
+
+The Curvance Protocol codebase is rather large with different parts of the codebase at different levels of maturity. Review our public audit reports for what has been audited to better understand what is mature versus still in development (potentially with bugs).
+
 ## Internal code guidelines
 
 ### Imports order
