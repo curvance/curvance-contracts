@@ -18,7 +18,7 @@ contract AddChainLinkSupport is DeployScript {
     struct PriceGuard {
         bool enabled;
         bool inUSD;
-        uint256 timestampStart;
+        uint256 timestampSubtract;
         uint256 ips;
         uint256 basePrice;
         uint256 minPrice;
@@ -41,7 +41,7 @@ contract AddChainLinkSupport is DeployScript {
             adaptor.setGuardedPriceConfig(
                 asset,
                 guardConfig.inUSD,
-                guardConfig.timestampStart,
+                block.timestamp - guardConfig.timestampSubtract,
                 guardConfig.ips,
                 guardConfig.basePrice,
                 guardConfig.minPrice

@@ -10,13 +10,13 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 /// @dev This implementation does not have any way to verify that the
 ///      constructor value is correctly denominated in the static 18 decimals
 ///      format.
-///      
+///
 ///      Tests should be built and ran before/during deployment to verify that
 ///      the static price configured is correct. This should also be verified
 ///      separately on chain until any protocol introduces a dependency on
 ///      this aggregator.
 ///
-abstract contract StaticPriceAggregator is IChainlink {
+contract StaticPriceAggregator is IChainlink {
     /// CONSTANTS ///
 
     /// @notice The static price to return when pricing an asset, in `WAD`.
@@ -91,7 +91,7 @@ abstract contract StaticPriceAggregator is IChainlink {
         if (_roundId > 1) {
             return (_roundId, 0, 0, 0, _roundId);
         }
-        
+
         return (_roundId, _staticPrice, block.timestamp, block.timestamp, _roundId);
     }
 }

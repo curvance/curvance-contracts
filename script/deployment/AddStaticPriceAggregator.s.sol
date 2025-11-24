@@ -5,25 +5,30 @@ import { DeployScript } from "../utils/DeployScript.sol";
 import { StaticPriceAggregator } from "contracts/oracles/adaptors/wrappedAggregators/StaticPriceAggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
-
-// Minimal implemented implementation.
-contract ImplementedStaticPriceAggregator is StaticPriceAggregator {
-    constructor(uint256 staticPrice) StaticPriceAggregator(staticPrice) {
-    }
-}
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddStaticPriceAggregator is DeployScript {
+    struct PriceGuard {
+        bool enabled;
+        bool inUSD;
+        uint256 timestampSubtract;
+        uint256 ips;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     function run(
         address asset,
         uint256 staticPrice,
         address adaptorAddress,
         address oracleManager,
         uint256 heartbeat,
-        bool inUSD
+        bool inUSD,
+        PriceGuard memory guardConfig
     ) external recordEvents {
-        
-        address agg = address(new ImplementedStaticPriceAggregator(staticPrice));
-        emit ContractDeployed(agg, "StaticPriceAggregator");
+        IERC20 token = IERC20(asset);
+        address agg = address(new StaticPriceAggregator(staticPrice));
+        emit ContractDeployed(agg, string.concat("StaticPriceAggregator-", token.symbol()));
 
         // Register on chainlink adaptor and OracleManager
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
@@ -31,5 +36,16 @@ contract AddStaticPriceAggregator is DeployScript {
 
         OracleManager manager = OracleManager(oracleManager);
         manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                block.timestamp - guardConfig.timestampSubtract,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 }
