@@ -14,6 +14,7 @@ contract DeployProtocolReader is DeployScript {
         emit ContractDeployed(newContract, "ProtocolReader");
 
         CentralRegistry cr = CentralRegistry(registry);
+        cr.addAuctionPermissions(0x0121D18d43E747f711d5d54e6b5dCf1E442ca7cC);
         cr.transferDaoPermissions(0x6D3DA13B41E18Dc7bd1c084De0034fBcB1fDbCE8);
         cr.transferEmergencyCouncil(0x6D3DA13B41E18Dc7bd1c084De0034fBcB1fDbCE8);
     }
