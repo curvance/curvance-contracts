@@ -6,6 +6,8 @@ import { OracleManager, BAD_SOURCE } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract Oracle {
     address internal constant _FXS_TOKEN =
@@ -116,8 +118,8 @@ contract GetPriceTest is TestBaseOracleManager {
         Oracle feed = new Oracle();
 
         oracleManager.addApprovedAdaptor(address(feed));
-        oracleManager.addAssetPriceFeed(_ETH_ADDRESS, address(feed));
-        oracleManager.addAssetPriceFeed(_FXS_TOKEN, address(feed));
+        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(feed), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_FXS_TOKEN, address(feed), 100, 50, 100, 50);
 
         (uint256 lower, ) = oracleManager.getPrice({
             asset: _FXS_TOKEN,
@@ -131,5 +133,90 @@ contract GetPriceTest is TestBaseOracleManager {
         });
 
         assert(higher > lower);
+    }
+
+    function test_getPrice_bubblesBadSource_whenAdaptorReturnsZeroPrice() public {
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "Mock"
+        );
+
+        oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(_USDC_ADDRESS);
+
+        // Initial non-zero price so addAssetPricingAdaptor is happy
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 1e18);
+
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(mockAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        // force the adaptor to return a zero price
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1e18, 0);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _USDC_ADDRESS,
+            true,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_bubblesBadSource_duringConversion_whenNativeZero() public {
+        // Set up a USD only adaptor for USDC so denomination conversion is needed 
+        // when requesting native
+        ChainlinkAdaptor usdOnlyAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(usdOnlyAdaptor));
+        usdOnlyAdaptor.addAsset(_USDC_ADDRESS, true, _CHAINLINK_USDC_USD, 0);
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(usdOnlyAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        // Configure native pricing to use a single mock adaptor returning zero
+        MockOracleAdaptor mockNative = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "MockNative"
+        );
+        oracleManager.addApprovedAdaptor(address(mockNative));
+        mockNative.addAsset(_ETH_ADDRESS);
+
+        // Initial non-zero price so addAssetPricingAdaptor is happy
+        mockNative.setPrice(_ETH_ADDRESS, 1e18, 1e18);
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(mockNative),
+            180,
+            130,
+            180,
+            130
+        );
+        
+        // Force native price to zero
+        mockNative.setPrice(_ETH_ADDRESS, 1e18, 0);
+
+        // Request USDC in native denomination
+        // expect to bubble BAD_SOURCE
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _USDC_ADDRESS,
+            false,
+            false
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
     }
 }

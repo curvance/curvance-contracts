@@ -4,8 +4,6 @@ pragma solidity 0.8.28;
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 interface IOracleManager {
-    /// TYPES ///
-
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.
@@ -41,7 +39,7 @@ interface IOracleManager {
         address collateralToken,
         address debtToken,
         uint256 errorCodeBreakpoint
-    ) external view returns (uint256, uint256);
+    ) external returns (uint256, uint256);
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
@@ -58,18 +56,29 @@ interface IOracleManager {
         uint256 errorCodeBreakpoint
     )
         external
-        view
         returns (AccountSnapshot[] memory, uint256[] memory, uint256);
 
-    /// @notice Removes a price feed for a specific asset
-    ///         triggered by an adaptors notification.
-    /// @dev Requires that the feed exists for the asset.
-    /// @param asset The address of the asset.
+    /// @notice Potentially removes the dependency on pricing from `adaptor`
+    ///         for `asset`, triggered by an adaptor's notification of a price
+    ///         feed's removal.
+    /// @notice Removes a pricing adaptor for `asset` triggered by an
+    ///         adaptor's notification of a price feed's removal.
+    /// @dev Requires that the adaptor is currently being used for pricing
+    ///      for `asset`.
+    ///      NOTE: This intentionally does not modify asset deviation values
+    ///            because they simply wont be used if there are less than two
+    ///            pricing adaptors in use, so no reason to delete data as
+    ///            when a second pricing adaptor is configured the deviation
+    ///            has the opportunity be to reconfigured anyway.
+    /// @param asset The address of the asset to potentially remove the
+    ///              pricing adaptor dependency from depending on current
+    ///              `asset` configuration.
     function notifyFeedRemoval(address asset) external;
 
-    /// @notice Returns the price feeds for `asset`.
-    /// @param asset The address of the asset to get price feeds of.
-    function getPriceFeeds(
+    /// @notice Returns the adaptors used for pricing `asset`.
+    /// @param asset The address of the asset to get pricing adaptors for.
+    /// @return The current adaptor(s) used for pricing `asset`.
+    function getPricingAdaptors(
         address asset
     ) external view returns(address[] memory);
 

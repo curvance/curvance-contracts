@@ -34,6 +34,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
 
     address public owner;
     address public user;
+    address liquidityProvider;
     uint256 constant INITIAL_DEPOSIT = 200000e18;
     uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40_000e18; // 20% utilization
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160_000e18; // 80% utilization
@@ -66,7 +67,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(simpleCUSDC), 200_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 0, 200_000e18);
 
-        address liquidityProvider = makeAddr("liquidityProvider");
+        liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);
 
         vm.startPrank(liquidityProvider);
@@ -84,7 +85,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             5500,
             1000,
             150,
-            150000000,
+            100000,
             true
         );
 
@@ -459,18 +460,19 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         testVertexMultiplierIncreaseAboveThreshold();
         skip(20 minutes);
 
-        vm.startPrank(user);
-        // Repay almost all debt
-        uint256 currentDebt = borrowableCDAI.debtBalance(address(user));
-        _prepareDAI(user, currentDebt);
-        dai.approve(address(borrowableCDAI), currentDebt);
-        borrowableCDAI.repay(currentDebt);
+        // Deposit a ton of new liquidity to push down utilization rate.
+        _prepareDAI(liquidityProvider, 2000000e18);
+
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(borrowableCDAI), 2000000e18);
+        borrowableCDAI.deposit(2000000e18, liquidityProvider);
+        vm.stopPrank();
 
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Move time forward several adjustment periods
-        uint256 adjustmentPeriods = 100;
-        for (uint256 i = 0; i < adjustmentPeriods; i++) {
+        uint256 numAdjustmentPeriods = 100;
+        for (uint256 i; i < numAdjustmentPeriods; ++i) {
             vm.warp(block.timestamp + adjustmentRate);
             borrowableCDAI.accrueIfNeeded();
         }
@@ -480,8 +482,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             WAD,
             "Multiplier should be at floor of 1 WAD"
         );
-
-        vm.stopPrank();
     }
 
     function testOnlyDecayRateApplied() public {

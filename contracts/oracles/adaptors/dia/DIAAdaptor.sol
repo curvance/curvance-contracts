@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
@@ -24,6 +26,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
+    /// @notice If zero is specified for a DIA asset heartbeat, this value
+    ///         value is used instead.
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
+
     address public diaOracle;
 
     /// @notice Price feed configuration data for an asset.
@@ -43,28 +50,41 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param cr The address of the Protocol Central Registry.
     /// @param dia The address of the proxy contract containing all dia price
     ///            feeds on this chain.
-    constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr) {
+    constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr, "DIAAdaptor") {
         diaOracle = dia;
     }
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param adaptor The adaptor configuration
+    /// @param config The asset's adaptor configuration.
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory adaptor
+        AssetConfig memory config
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
+
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (config.heartbeat != 0) {
+            config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
+
+        // Validate the feed heartbeat is not too long.
+        if (config.heartbeat > DEFAULT_HEARTBEAT) {
+            revert DIAAdaptor__InvalidHeartbeat();
+        }
 
         // Save `config` and update mapping that we support `asset` now.
-        assetConfig[asset][inUSD] = adaptor;
+        assetConfig[asset][inUSD] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -73,15 +93,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, adaptor, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 6;
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -118,12 +130,9 @@ contract DIAAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(price),
-            c.decimals
-        );
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, uint256(price), c.decimals);
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = adjustedPrice;

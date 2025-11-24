@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
@@ -51,12 +51,12 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "RedstoneClassicAdaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset` via a new Redstone feed.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
@@ -64,7 +64,8 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @param feedProxy Redstone price feed proxy to use for pricing `asset`.
     /// @param heartbeat Redstone heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
-    /// @param id The dataFeedId of the token to add pricing for.
+    /// @param id The dataFeedId of the token to add pricing for,
+    ///           in string form.
     function addAsset(
         address asset,
         bool inUSD,
@@ -73,7 +74,16 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         string memory id
     ) external {
         _checkElevatedPermissions();
-        
+        _checkNotZeroAddress(asset);
+
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (heartbeat != 0) {
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
+
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert RedstoneClassicAdaptor__InvalidHeartbeat();
         }
@@ -99,14 +109,6 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, c, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 3;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -144,12 +146,9 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(price),
-            c.decimals
-        );
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, uint256(price), c.decimals);
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = adjustedPrice;

@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -46,7 +46,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(
+        ICentralRegistry cr,
+        string memory adaptorName
+    ) BaseOracleAdaptor(cr, adaptorName) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -101,7 +104,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         (price0, errorCode) = om.getPrice(config.token0, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token0.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }
@@ -109,7 +112,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         (price1, errorCode) = om.getPrice(config.token1, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token1.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }
@@ -126,11 +129,12 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Adds pricing support for `asset`, an lp token for
     ///         a stable swap style stable liquidity pool.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
     function addAsset(address asset) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         IVeloPool pool = IVeloPool(asset);
         _checkLPType(pool);

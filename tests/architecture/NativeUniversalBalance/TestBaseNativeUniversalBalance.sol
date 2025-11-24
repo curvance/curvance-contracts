@@ -22,13 +22,14 @@ contract TestBaseNativeUniversalBalance is TestBaseMarketIsolated {
         );
 
         _prepareWETH(address(this), 10e18);
-        _prepareBALRETH(address(this), 1000e18);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
         deal(user1, _ONE);
 
         weth.approve(address(borrowableCWETH), 10e18);
-        balRETH.approve(address(strategyCBALRETH), 1000e18);
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCWETH));
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCWETH));
         oracleManager.addCTokenSupport(address(borrowableCWETH));
+        // oracleManager.addCTokenSupport(address(pendleStrategyCTokenSTETH));
 
         borrowableCWETH.deposit(_ONE + 1, address(this));
 

@@ -24,16 +24,13 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE);
 
-        _prepareBALRETH(address(this), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
         
-        SafeTransferLib.safeApprove(
-            _BAL_WETH_RETH_ADDRESS,
-            address(strategyCBALRETH),
-            77777
-        );
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
+        
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         // Mint borrowable cUSDC.
@@ -44,12 +41,12 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
 
         vm.startPrank(liquidityProvider);
         
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.mint(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.mint(200000e6, liquidityProvider);
 
@@ -57,15 +54,15 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
     }
 
     function test_strategyCTokenWithdrawByPositionManager_success() public {
-        _prepareBALRETH(user1, 1000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1000e18);
 
         vm.startPrank(user1);
 
-        balRETH.approve(address(strategyCBALRETH), 1000e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1000e18);
 
-        strategyCBALRETH.deposit(100e18, user1);
+        pendleStrategyCTokenSTETH.deposit(100e18, user1);
 
-        strategyCBALRETH.postCollateral(100e18);
+        pendleStrategyCTokenSTETH.postCollateral(100e18);
 
         borrowableCUSDC.borrow(100e6, user1);
 
@@ -73,7 +70,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         
         // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(strategyCBALRETH));
+        deleverageAction.cToken = ICToken(address(pendleStrategyCTokenSTETH));
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         deleverageAction.swapActions = swapActions;
 
@@ -84,11 +81,11 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         uint256 collateralRemoveAmount = 5e18;
 
         vm.prank(address(mockPositionManager));
-        strategyCBALRETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageAction);
+        pendleStrategyCTokenSTETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageAction);
         
-        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(mockPositionManager));
+        uint256 LP_wstETH_24Dec2025BalanceAfter = LP_wstETH_24Dec2025.balanceOf(address(mockPositionManager));
 
-        assert(balRETHBalanceAfter == collateralRemoveAmount);       
+        assert(LP_wstETH_24Dec2025BalanceAfter == collateralRemoveAmount);       
     }
 
 }

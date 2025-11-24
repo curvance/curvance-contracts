@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { PendleLpOracleLib } from "contracts/libraries/external/pendle/PendleLpOracleLib.sol";
 
@@ -35,7 +35,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// @notice The minimum acceptable twap duration when pricing.
     uint32 public constant MINIMUM_TWAP_DURATION = 12;
-    /// @notice Current network's ptOracle.
+    /// @notice The address of the Principal Token oracle on this chain.
     /// @dev for mainnet use 0x414d3C8A26157085f286abE3BC6E1bb010733602.
     IPendlePTOracle public immutable ptOracle;
 
@@ -65,7 +65,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     constructor(
         ICentralRegistry cr,
         IPendlePTOracle ptOracle_
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "PendleLPAdaptor") {
         ptOracle = ptOracle_;
     }
 
@@ -101,7 +101,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
                 .getPrice(config.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }
@@ -113,13 +113,14 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a pendle lp token.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the Pendle lp token to add pricing
     ///              support for.
     /// @param config The adaptor data needed to add `asset`.
     function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // Make sure pt and market match.
         (IStandardizedYield sy, IPPrincipalToken pt, ) = IPMarket(asset)
@@ -162,14 +163,6 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 8;
     }
 
     /// INTERNAL FUNCTIONS ///

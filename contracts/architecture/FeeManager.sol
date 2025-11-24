@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { BAD_SOURCE, CAUTION, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
@@ -226,7 +227,7 @@ contract FeeManager is ReentrancyGuard {
             om.getPrice(feeToken, true, true);
 
         // Validate we have fresh, functional prices.
-        if (errorCodeFeeToken == 2 || errorCodeSwap == 2) {
+        if (errorCodeFeeToken != NO_ERROR || errorCodeSwap != NO_ERROR) {
             revert FeeManager__ConfigurationError();
         }
 

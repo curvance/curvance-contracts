@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
-import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
+
+import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
 import { MockRedstoneClassicFeed } from "contracts/mocks/MockRedstoneClassicFeed.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
@@ -49,8 +53,6 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     }
 
     function test_success_AddPriceFeeds() public {
-        console2.log("chain id", block.chainid);
-        
         // Assert asset not supported initially
         assertFalse(redstoneClassicAdaptor.isSupportedAsset(ETHX_ADDRESS));
 
@@ -119,9 +121,13 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         }
 
         // Should successfully add to oracle manager
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             ETHX_ADDRESS,
-            address(redstoneClassicAdaptor)
+            address(redstoneClassicAdaptor),
+            100,
+            50,
+            100,
+            50
         );
     }
 
@@ -184,7 +190,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     }
 
     function test_success_UpdateExistingAsset() public {
-
+        // Add native feed, with 3600 heartbeat (without default grace period)
         redstoneClassicAdaptor.addAsset(
             ETHX_ADDRESS,
             true,
@@ -203,8 +209,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true
         );
 
-        // Assert initial heartbeat
-        assertEq(heartbeat, 3600);
+        // Assert initial heartbeat, with default grace period added.
+        assertEq(heartbeat, 3600 + HEARTBEAT_GRACE_PERIOD);
 
         vm.expectEmit(true, false, false, false);
 
@@ -213,6 +219,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             ), true
         );
         
+        // Add native feed, with 7200 heartbeat (without default grace period)
         redstoneClassicAdaptor.addAsset(
             ETHX_ADDRESS,
             true,
@@ -226,7 +233,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             ETHX_ADDRESS,
             true
         );
-        assertEq(updatedHeartbeat, 7200);
+        // Assert updated heartbeat, with default grace period added.
+        assertEq(updatedHeartbeat, 7200 + HEARTBEAT_GRACE_PERIOD);
     }
 
     function test_fail_InvalidHeartbeat() public {
@@ -436,5 +444,10 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
 
         assertTrue(result.hadError);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        redstoneClassicAdaptor.addAsset(address(0), true, ETHX_USD_PRICEFEED, 0, "ETHx");
     }
 }

@@ -6,6 +6,8 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
     event PermissionsTransferred(
         string indexed permissionsType,
@@ -113,5 +115,50 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
         assertTrue(
             newTimelock2.hasRole(newTimelock2.EXECUTOR_ROLE(), address(2))
         );
+    }
+
+    // Assert previous timelock (also DAO) loses market permissions
+    function test_transferTimelockPermissions_success_whenPrevTimelockIsAlsoDao() public {
+        
+        console2.log("daoTimelock address: ", address(daoTimelock));
+
+        // Make current timelock also be the DAO;
+        centralRegistry.transferDaoPermissions(address(daoTimelock));
+
+        assertEq(centralRegistry.daoAddress(), address(daoTimelock));
+        assertTrue(centralRegistry.hasDaoPermissions(address(daoTimelock)));
+        assertTrue(centralRegistry.hasElevatedPermissions(address(daoTimelock)));
+        assertTrue(centralRegistry.hasMarketPermissions(address(daoTimelock)));
+
+        // New timelock
+        DAOTimelock newTimelock = new DAOTimelock(
+            ICentralRegistry(address(centralRegistry))
+        );
+
+        // Expect market permissions to be removed from previous timelock (even though it's also the DAO)
+        vm.expectEmit(true, true, true, true);
+        emit PermissionsUpdated("Market", address(daoTimelock), false);
+
+        vm.expectEmit(true, true, true, true);
+        emit PermissionsTransferred(
+            "Timelock",
+            address(daoTimelock),
+            address(newTimelock)
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit PermissionsUpdated("Market", address(newTimelock), true);
+
+        centralRegistry.transferTimelockPermissions(address(newTimelock));
+
+        // Previous timelock (also DAO) should lose market and elevated, kept DAO permissions
+        assertFalse(centralRegistry.hasMarketPermissions(address(daoTimelock)));
+        assertFalse(centralRegistry.hasElevatedPermissions(address(daoTimelock)));
+        assertTrue(centralRegistry.hasDaoPermissions(address(daoTimelock)));
+
+        // New timelock should gain DAO, elevated and market
+        assertTrue(centralRegistry.hasDaoPermissions(address(newTimelock)));
+        assertTrue(centralRegistry.hasElevatedPermissions(address(newTimelock)));
+        assertTrue(centralRegistry.hasMarketPermissions(address(newTimelock)));
     }
 }

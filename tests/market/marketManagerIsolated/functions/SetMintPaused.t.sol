@@ -21,13 +21,13 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
     }
 
     function test_setMintPaused_success() public {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         marketManagerIsolated.canMint(address(borrowableCUSDC));
 
@@ -51,7 +51,7 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
         assertFalse(_mintPaused(address(borrowableCUSDC)));
     }
 
-    function _mintPaused(address cToken) internal returns (bool isPaused) {
+    function _mintPaused(address cToken) internal view returns (bool isPaused) {
         (isPaused, , ) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

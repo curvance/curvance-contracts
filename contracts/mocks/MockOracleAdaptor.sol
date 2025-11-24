@@ -15,7 +15,10 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
     mapping(address => MockPrice) public definedPrices;
     mapping(address => bool) public hasSetPrice;
 
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(
+        ICentralRegistry cr,
+        string memory adaptorName
+    ) BaseOracleAdaptor(cr, adaptorName) {}
 
     function getPrice(
         address asset,
@@ -49,8 +52,8 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         isSupportedAsset[asset] = true;
     }
 
-    function adaptorType() external view virtual override returns (uint256) {
-        return 1337;
+    function deviationThreshold(address) external view returns (uint256) {
+        
     }
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.

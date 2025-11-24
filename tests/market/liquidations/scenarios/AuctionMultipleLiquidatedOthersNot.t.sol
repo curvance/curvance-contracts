@@ -1,0 +1,304 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
+
+// Scenario: 3 liquidations via auction with bad debt, 2 other users remain healthy
+// - Setup: 5 users with same collateral (1 LP token each) but different debt amounts
+// - Borrowers 1-3: High LTV (~70%) - become liquidatable after 30% price drop
+// - Borrowers 4-5: Safe LTV (~35-40%) - remain healthy after price drop
+// - Action: Price drop from ~$10,287 to $7,200 per token (30% drop)
+// - Expected: Borrowers 1-3 liquidated via auction, Borrowers 4-5 remain healthy
+// Also harvest positions before liquidation to test with accrued interest
+
+contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
+    // addresses are sorted in ascending order
+    address borrower1 = address(0x0000000000000000000000000000000000000001);
+    address borrower2 = address(0x0000000000000000000000000000000000000002);
+    address borrower3 = address(0x0000000000000000000000000000000000000003);
+    address borrower4 = address(0x0000000000000000000000000000000000000004);
+    address borrower5 = address(0x0000000000000000000000000000000000000005);
+
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
+
+    function setUp() public override {
+        super.setUp();
+
+        // Set up positions.
+        _setUpMarketPreLiquidation();
+        _setUpBorrowerCollateral();
+        _setUpBorrowerDebt();
+        _harvestPendleLP(2 weeks);
+
+        _setPendleStEthLpPrice(7200e8);
+        _refreshMockFeeds();
+        // accrue interest
+        borrowableCUSDC.accrueIfNeeded();
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
+    }
+
+    function test_success_AuctionMultipleLiquidatedOthersNot() public {
+        // Configure auction.
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 11000, 3000);
+
+        // Cache the expected liquidation values for all 3 liquidated borrowers.
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+            borrower: borrower1,
+            collateralToken: address(pendleStrategyCTokenSTETH),
+            borrowedToken: address(borrowableCUSDC),
+            isLiquidateExact: false,
+            liquidateExactAmount: 0,
+            isAuction: true,
+            isMultiMarketTest: false,
+            marketManagerId: 0
+        }));
+
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower2 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+            borrower: borrower2,
+            collateralToken: address(pendleStrategyCTokenSTETH),
+            borrowedToken: address(borrowableCUSDC),
+            isLiquidateExact: false,
+            liquidateExactAmount: 0,
+            isAuction: true,
+            isMultiMarketTest: false,
+            marketManagerId: 0
+        }));
+
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower3 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+            borrower: borrower3,
+            collateralToken: address(pendleStrategyCTokenSTETH),
+            borrowedToken: address(borrowableCUSDC),
+            isLiquidateExact: false,
+            liquidateExactAmount: 0,
+            isAuction: true,
+            isMultiMarketTest: false,
+            marketManagerId: 0
+        }));
+
+        // Cache total debt.
+        uint256 totalDebtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        // User1 debt and collateral before liquidation.
+        uint256 user1DebtBefore = borrowableCUSDC.debtBalance(borrower1);
+        uint256 user1CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower1);
+
+        // Cache debt and collateral for liquidated users only
+        uint256 user2DebtBefore = borrowableCUSDC.debtBalance(borrower2);
+        uint256 user2CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower2);
+        uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
+        uint256 user3CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower3);
+
+        uint256 borrowableCUSDCBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
+
+        _prepareUSDC(address(this), 1_000_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000_000e6);
+
+        address[] memory usersToLiquidate = new address[](5);   
+        usersToLiquidate[0] = borrower1;
+        usersToLiquidate[1] = borrower2;
+        usersToLiquidate[2] = borrower3;
+        usersToLiquidate[3] = borrower4;
+        usersToLiquidate[4] = borrower5;
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(
+            expectedLiquidationValuesBorrower1.debtRepaid + expectedLiquidationValuesBorrower1.badDebt,
+            user1DebtBefore - (expectedLiquidationValuesBorrower1.debtRepaid + expectedLiquidationValuesBorrower1.badDebt),
+            address(this),
+            borrower1
+        );
+        
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(
+            expectedLiquidationValuesBorrower2.debtRepaid + expectedLiquidationValuesBorrower2.badDebt,
+            user2DebtBefore - (expectedLiquidationValuesBorrower2.debtRepaid + expectedLiquidationValuesBorrower2.badDebt),
+            address(this),
+            borrower2
+        );
+        
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(
+            expectedLiquidationValuesBorrower3.debtRepaid + expectedLiquidationValuesBorrower3.badDebt,
+            user3DebtBefore - (expectedLiquidationValuesBorrower3.debtRepaid + expectedLiquidationValuesBorrower3.badDebt),
+            address(this),
+            borrower3
+        );
+        
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(
+            expectedLiquidationValuesBorrower1.badDebt + 
+            expectedLiquidationValuesBorrower2.badDebt + 
+            expectedLiquidationValuesBorrower3.badDebt, 
+            address(this)
+        );
+
+        borrowableCUSDC.liquidate(usersToLiquidate, address(pendleStrategyCTokenSTETH));
+
+        // Assert borrowers 1, 2, 3 were liquidated
+        _assertMultipleLiquidations(
+            expectedLiquidationValuesBorrower1,
+            expectedLiquidationValuesBorrower2,
+            expectedLiquidationValuesBorrower3,
+            totalDebtBefore,
+            user1DebtBefore,
+            user1CollateralBefore,
+            user2DebtBefore,
+            user2CollateralBefore,
+            user3DebtBefore,
+            user3CollateralBefore,
+            borrowableCUSDCBalanceBefore
+        );
+
+        // Get actual debt values for non liquidated borrowers to account for accrued interest
+        uint256 actualBorrower4Debt = borrowableCUSDC.debtBalance(borrower4);
+        uint256 actualBorrower5Debt = borrowableCUSDC.debtBalance(borrower5);
+        
+        _assertUserNotLiquidated(borrower4, actualBorrower4Debt, 1e18);
+        _assertUserNotLiquidated(borrower5, actualBorrower5Debt, 1e18);
+    }
+
+    function _setUpMarketPreLiquidation() internal {
+        // Setup market with tokens.
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
+
+        deal(address(_USDC_ADDRESS), address(this), 77777 + 1_000_000e6);
+        usdc.approve(address(borrowableCUSDC), 77777 + 1_000_000e6);
+
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+
+        // provide liquidity to the market
+        borrowableCUSDC.deposit(1_000_000e6, address(this));
+    }
+
+    function _setUpBorrowerCollateral() internal {
+        deal(address(LP_wstETH_24Dec2025), borrower1, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower2, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower3, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower4, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower5, 1e18);
+        
+        vm.startPrank(borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower1);
+        vm.stopPrank();
+        
+        vm.startPrank(borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower2);
+        vm.stopPrank();
+
+        vm.startPrank(borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower3);
+        vm.stopPrank();
+
+        vm.startPrank(borrower4);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower4);
+        vm.stopPrank();
+
+        vm.startPrank(borrower5);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower5);
+        vm.stopPrank();
+        
+    }
+
+    function _setUpBorrowerDebt() internal {
+        // High LTV - will become liquidatable after price drop
+        vm.startPrank(borrower1);
+        borrowableCUSDC.borrow(7_200e6, borrower1);
+        vm.stopPrank();
+
+        // High LTV - will become liquidatable after price drop
+        vm.startPrank(borrower2);
+        borrowableCUSDC.borrow(7_100e6, borrower2);
+        vm.stopPrank();
+
+        // High LTV - will become liquidatable after price drop
+        vm.startPrank(borrower3);
+        borrowableCUSDC.borrow(7_000e6, borrower3);
+        vm.stopPrank();
+
+        // Safe LTV - will remain healthy
+        vm.startPrank(borrower4);
+        borrowableCUSDC.borrow(4_000e6, borrower4);
+        vm.stopPrank();
+
+        // Safe LTV - will remain healthy
+        vm.startPrank(borrower5);
+        borrowableCUSDC.borrow(3_500e6, borrower5);
+        vm.stopPrank();
+    }
+
+    function _assertMultipleLiquidations(
+        ExpectedLiquidationValues memory expectedBorrower1,
+        ExpectedLiquidationValues memory expectedBorrower2,
+        ExpectedLiquidationValues memory expectedBorrower3,
+        uint256 totalDebtBefore,
+        uint256 user1DebtBefore,
+        uint256 user1CollateralBefore,
+        uint256 user2DebtBefore,
+        uint256 user2CollateralBefore,
+        uint256 user3DebtBefore,
+        uint256 user3CollateralBefore,
+        uint256 borrowableCUSDCBalanceBefore
+    ) internal view {
+        uint256 totalDebtReduction = 
+            (expectedBorrower1.debtRepaid + expectedBorrower1.badDebt) +
+            (expectedBorrower2.debtRepaid + expectedBorrower2.badDebt) +
+            (expectedBorrower3.debtRepaid + expectedBorrower3.badDebt);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 
+            totalDebtBefore - totalDebtReduction);
+
+        _assertLiquidatedUserDebtAndCollateral(borrower1, user1DebtBefore, user1CollateralBefore, expectedBorrower1);
+        _assertLiquidatedUserDebtAndCollateral(borrower2, user2DebtBefore, user2CollateralBefore, expectedBorrower2);
+        _assertLiquidatedUserDebtAndCollateral(borrower3, user3DebtBefore, user3CollateralBefore, expectedBorrower3);
+
+        uint256 totalCollateralLiquidated = 
+            expectedBorrower1.collateralLiquidated +
+            expectedBorrower2.collateralLiquidated +
+            expectedBorrower3.collateralLiquidated;
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), totalCollateralLiquidated);
+
+        uint256 totalDebtRepaid = 
+            expectedBorrower1.debtRepaid +
+            expectedBorrower2.debtRepaid +
+            expectedBorrower3.debtRepaid;
+        assertEq(usdc.balanceOf(address(borrowableCUSDC)), 
+            borrowableCUSDCBalanceBefore + totalDebtRepaid);
+    }
+
+    function _assertLiquidatedUserDebtAndCollateral(
+        address user,
+        uint256 userDebtBefore,
+        uint256 userCollateralBefore,
+        ExpectedLiquidationValues memory expected
+    ) internal view {
+        uint256 expectedDebtReduction = expected.debtRepaid + expected.badDebt;
+        assertEq(borrowableCUSDC.debtBalance(user), 
+            userDebtBefore - expectedDebtReduction);
+
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user), 
+            userCollateralBefore - expected.collateralLiquidated);
+    }
+
+    function _assertUserNotLiquidated(
+        address user,
+        uint256 expectedDebt,
+        uint256 expectedCollateral
+    ) internal view {
+        assertEq(borrowableCUSDC.debtBalance(user), expectedDebt);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user), expectedCollateral);
+    }
+}

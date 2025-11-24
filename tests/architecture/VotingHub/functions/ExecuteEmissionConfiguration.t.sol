@@ -277,6 +277,8 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             zeroRemoteEmissionData // zero remote emission data
         );
 
+        assertEq(cve.balanceOf(address(gaugeManager)), gaugePoolCVEBalance);
+
 
     }
 

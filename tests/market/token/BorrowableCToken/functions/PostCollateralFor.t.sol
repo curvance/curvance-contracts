@@ -20,7 +20,7 @@ contract PostCollateralForTest is TestBaseBorrowableCToken {
         borrowableCUSDC.deposit(_ONE + _ONE, user1);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
         borrowableCUSDC.setDelegateApproval(user2, true);
@@ -72,12 +72,12 @@ contract PostCollateralForTest is TestBaseBorrowableCToken {
         usdc.approve(address(borrowableCUSDC), _ONE + _ONE);
         borrowableCUSDC.deposit(_ONE, address(this));
 
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE + _ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
         
         borrowableCUSDC.borrow(20e6, user1);
         vm.stopPrank();

@@ -59,7 +59,14 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _LP_STETH, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+            );
 
         pendleCTokenSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
@@ -117,6 +124,43 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
         assertGt(IERC20(address(pendleCTokenSTETH)).balanceOf(user1), 0);
+    }
+
+    function test_pendleZapper_fail_enterPendleErc20WithMsgValue() public {
+
+        vm.deal(user1, 1);
+
+        // Dummy values, we are reverting fairly early in the function.
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1;
+        action.approx.guessMax = 1;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 1;
+        action.approx.eps = 1;
+
+        vm.startPrank(user1);
+    
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+
+        pendleZapper.enterPendle{ value: 1 }( // Incorrectly attach 1 wei to the call
+            address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
+            PendleZapper.ZapAction(
+                _LP_STETH,
+                1,
+                _PENDLE_LP_STETH,
+                0,
+                false
+            ),
+            new SwapperLib.Swap[](0),
+            0,
+            false,
+            user1
+        );
+
+        vm.stopPrank();
     }
 
     function testExitPendle() public {

@@ -10,10 +10,6 @@ contract PreviewRedeemTest is TestBaseStrategyCTokenWithExitFee {
     function test_strategyCTokenWithExitFeeRedeem_success() public {
         strategyCBALRETHWithExitFee.mint(100, address(this));
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
-        uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
-
         uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(100);
         assertEq(redeemQuote, 98); // 100 - 2% exit fee = 98
 
@@ -22,8 +18,6 @@ contract PreviewRedeemTest is TestBaseStrategyCTokenWithExitFee {
     function test_strategyCTokenWithExitFeeRedeem_All() public {
         strategyCBALRETHWithExitFee.mint(100, address(this));
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
         uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
         uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(totalSupply);

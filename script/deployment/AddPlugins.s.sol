@@ -41,7 +41,7 @@ contract AddPlugins is DeployScript {
         address wrappedNative,
         string memory marketName,
         AvailablePlugins memory plugins
-    ) public externalScript {
+    ) public useDeployer {
         if (plugins.nativeVaultPositionManager) {
             NativeVaultPositionManager nativeVaultPositionManager = new NativeVaultPositionManager(
                     icr,
@@ -53,7 +53,7 @@ contract AddPlugins is DeployScript {
             );
             emit ContractDeployed(
                 address(nativeVaultPositionManager),
-                string.concat(marketName, ".plugins.nativeVaultPositionManager")
+                string.concat('markets.', marketName, ".plugins.nativeVaultPositionManager")
             );
         }
 
@@ -68,7 +68,7 @@ contract AddPlugins is DeployScript {
             );
             emit ContractDeployed(
                 address(simplePositionManager),
-                string.concat(marketName, ".plugins.simplePositionManager")
+                string.concat('markets.', marketName, ".plugins.simplePositionManager")
             );
         }
 
@@ -83,7 +83,7 @@ contract AddPlugins is DeployScript {
             );
             emit ContractDeployed(
                 address(vaultPositionManager),
-                string.concat(marketName, ".plugins.vaultPositionManager")
+                string.concat('markets.', marketName, ".plugins.vaultPositionManager")
             );
         }
     }

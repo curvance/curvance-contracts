@@ -45,7 +45,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
     /// @dev We do not need to worry about uint240 overflow here since we
-    ///      limit debt caps to type(uint160).max in the Market Manager.
+    ///      limit debt caps to type(uint136).max in the Market Manager.
     uint240 public marketOutstandingDebt;
     /// @notice The portion of interest paid by borrowers that goes to the
     ///         protocol, in `BPS`.
@@ -59,13 +59,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
+    event DebtAccrued(uint256 newDebtAssets, uint256 protocolFeeAssets);
     event RatesAdjusted(uint256 debtPerSecond, uint256 nextAdjustment);
-    event Borrow(uint256 assets, address account);
-    event Repay(uint256 assets, address payer, address account);
+    event Borrow(uint256 assets, uint256 debtAssetsOwed, address account);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
     event Flashloan(uint256 assets, uint256 assetsFee, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
     event NewIRM(address oldIRM, address newIRM, uint256 newVestingPeriod);
     event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
+    event ExcessRecovered(uint256 assets, address recipient);
 
     /// ERRORS ///
 
@@ -73,6 +75,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     error BorrowableCToken__DebtPositionActive();
     error BorrowableCToken__InvalidParameter();
     error BorrowableCToken__InsufficientAssetsHeld();
+    error BorrowableCToken__DepositsNotInitialized();
 
     /// CONSTRUCTOR ///
 
@@ -96,7 +99,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Assign the portion of interest paid by borrowers that goes to the
         // protocol.
-        _setInterestFee(centralRegistry.protocolInterestFee(mm));
+        _setInterestFee(centralRegistry.defaultProtocolInterestFee());
     }
 
     /// @notice Returns the current vesting yield information.
@@ -104,16 +107,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @return vestingEnd When the current vesting period ends and interest
     ///                    rates paid will update.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
+    /// @return debtIndex The current market debt index.
     function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
         uint256 vestingEnd,
-        uint256 lastVestingClaim
+        uint256 lastVestingClaim,
+        uint256 debtIndex
     ) {
         // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         vestingRate = uint96(vestingData);
         vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+        debtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
     }
 
     /// @notice Accrues pending interest and updates the interest rate
@@ -122,7 +128,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      Emits a {NewIRM} event.
     /// @param newIRM The new interest rate model to determine interest
     ///               paid by borrowers to lenders for outstanding debt.
-    function setIRM(address newIRM) external {
+    function setIRM(address newIRM) external nonReentrant {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
@@ -143,7 +149,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      Emits a {NewInterestFee} event.
     /// @param newInterestFee The portion of interest paid by borrowers that
     ///                       goes to the protocol.
-    function setInterestFee(uint256 newInterestFee) external {
+    function setInterestFee(uint256 newInterestFee) external nonReentrant {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
@@ -264,7 +270,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             address(this),
             0,
             owner,
-            marketOutstandingDebt + assets
+            marketOutstandingDebt
         );
     }
 
@@ -354,7 +360,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         _checkZeroAmount(assets);
-        _checkAssetsHeld(assets);
+        if (assets > _asset.balanceOf(address(this))) {
+            revert BorrowableCToken__InsufficientAssetsHeld();
+        }
 
         address token = address(_asset);
         uint256 fee = flashFee(assets);
@@ -376,24 +384,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit Flashloan(assets, fee, msg.sender);
     }
 
-    /// @notice Get a snapshot of the cToken and `account` data.
-    /// @dev Used by marketManager to more efficiently perform
-    ///      liquidity checks.
-    ///      NOTE: Does not accrue pending interest as part of the call.
-    /// @param account The address of the account to snapshot.
-    /// @return result The account snapshot of `account`.
-    function getSnapshot(
-        address account
-    ) external view override returns (AccountSnapshot memory result) {
-        uint256 outstandingDebt = debtBalance(account);
-
-        result.asset = address(this);
-        result.decimals = decimals();
-        result.isCollateral = outstandingDebt > 0 ? false : true;
-        result.collateralPosted = collateralPosted[account];
-        result.debtBalance = outstandingDebt;
-    }
-
     /// @notice Updates pending interest and then returns the current
     ///         market-wide outstanding debt.
     /// @dev Used for third party integrations.
@@ -408,17 +398,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         result = marketOutstandingDebt;
-    }
-
-    /// @notice Updates pending interest and returns the up-to-date exchange
-    ///         rate from the underlying to the BorrowableCToken.
-    /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRateUpdated() external nonReentrant returns (uint256 r) {
-        // Accrue interest if needed.
-        _accrueIfNeeded();
-        
-        r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Updates pending interest and returns the current outstanding
@@ -436,7 +415,60 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = debtBalance(account);
     }
 
+    /// @notice Recovers any accumulated excess underlying from rounding or
+    ///         unsolicited donations, to the DAO address.
+    /// @dev Does not modify `_totalAssets` or any accounting to avoid
+    ///      invariant manipulation.
+    ///      Computed as:
+    ///      debtPlusBalance = marketOutstandingDebt + underlyingBalance
+    ///      excess = debtPlusBalance - totalAssets.
+    ///      Requires DAO permissions.
+    function skim() external nonReentrant {
+        _checkDaoPermissions();
+        uint256 excess = skimAvailable();
+
+        address daoAddress = centralRegistry.daoAddress();
+        SafeTransferLib.safeTransfer(asset(), daoAddress, excess);
+
+        emit ExcessRecovered(excess, daoAddress);
+    }
+
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns the amount of excess underlying that can be safely
+    ///         recovered without impacting user accounting.
+    /// @dev Computed as:
+    ///      marketOutstandingDebt + underlyingBalance - totalAssets.
+    /// @return excess The recoverable excess underlying amount, or 0 if none.
+    function skimAvailable() public view returns (uint256 excess) {
+        uint256 cachedAssets = _totalAssets;
+        uint256 debtPlusBalance =
+            marketOutstandingDebt + IERC20(_asset).balanceOf(address(this));
+        if (debtPlusBalance <= cachedAssets) {
+            revert BaseCToken__ZeroAmount();
+        }
+
+        excess = debtPlusBalance - cachedAssets; 
+    }
+
+    /// @notice Get a snapshot of the cToken and `account` data.
+    /// @dev Used by marketManager to more efficiently perform
+    ///      liquidity checks.
+    ///      NOTE: Does not accrue pending interest as part of the call.
+    /// @param account The address of the account to snapshot.
+    /// @return result The account snapshot of `account`.
+    function getSnapshot(
+        address account
+    ) public view override returns (AccountSnapshot memory result) {
+        uint256 outstandingDebt = debtBalance(account);
+
+        result.asset = address(this);
+        result.underlying = address(_asset);
+        result.decimals = decimals();
+        result.isCollateral = outstandingDebt > 0 ? false : true;
+        result.collateralPosted = collateralPosted[account];
+        result.debtBalance = outstandingDebt;
+    }
 
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
@@ -455,7 +487,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Calculate `account` active debt balance using:
         // `(Account's outstanding debt * Market's `DEBT_INDEX`) /
         // Account's `DEBT_INDEX``.
-        r = FixedPointMathLib.mulDivUp(
+        r = _mulDivUp(
             outstandingDebt,
             uint80(_vestingData >> _BITPOS_DEBT_INDEX),
             uint80(debtOf >> _BITPOS_DEBT_INDEX)
@@ -466,22 +498,35 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of `asset()` lent during the flashloan.
     /// return The assets of `asset()` to be charged for the flashloan.
     function flashFee(uint256 assets) public pure returns (uint256 fee) {
-        fee = FixedPointMathLib.mulDivUp(assets, FLASHLOAN_FEE, BPS);
+        fee = _mulDivUp(assets, FLASHLOAN_FEE, BPS);
     }
 
-    /// @notice Gets balance of this contract, in terms of the underlying.
-    /// @dev This excludes changes in underlying token balance by the
-    ///      current transaction, if any.
-    /// @return The quantity of underlying tokens held by the market.
-    function assetsHeld() public view returns (uint256) {
-        return _asset.balanceOf(address(this));
+    /// @notice Gets balance of borrowable assets held by this
+    ///         borrowableCToken contract.
+    /// @dev This excludes changes in assets by the current transaction,
+    ///      if any.
+    /// @return result The quantity of borrowable assets held by the market.
+    function assetsHeld() public view returns (uint256 result) {
+        uint256 currentAssets = _totalAssets;
+        if (currentAssets == 0) {
+            revert BorrowableCToken__DepositsNotInitialized();
+        }
+
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
+        // This also acts as a protective mechanism against trying to
+        // manipulate marketOutstandingDebt above total underlying assets
+        // inside the system since there will always be at least
+        // _BASE_UNDERLYING_RESERVE excess inside the market.
+        result = currentAssets - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
     }
 
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
-    /// @return Whether this token is borrowable or not.
-    function isBorrowable() public pure override returns (bool) {
-        return true;
+    /// @return result Whether this token is borrowable or not.
+    function isBorrowable() public pure override returns (bool result) {
+        result = true;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -507,9 +552,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Calculate current account debt then add `assets`.
         // Then update account exchange rate, and total borrow balances.
+        uint256 debtOf = debtBalance(owner) + assets;
         _setDebtOf(
             owner,
-            uint176(debtBalance(owner) + assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
         marketOutstandingDebt = uint240(marketOutstandingDebt + assets);
@@ -517,7 +563,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Transfer underlying to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        emit Borrow(assets, owner);
+        emit Borrow(assets, debtOf, owner);
     }
 
     /// @notice Repays an outstanding loan of `account` through repayment
@@ -536,9 +582,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), owner);
-
         // Cache how much the account has to save gas.
         uint256 debtOf = debtBalance(owner);
 
@@ -553,10 +596,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         SafeTransferLib.safeTransferFrom(asset(), payer, address(this), assets);
 
-        // Update the account and market outstanding debt balance data.
+        // Validate that the payer is allowed to repay the loan, then update
+        // account data.
+        marketManager.canRepayWithReview(
+            address(this),
+            debtOf = debtOf - assets,
+            asset(),
+            decimals(),
+            owner
+        );
         _setDebtOf(
             owner,
-            uint176(debtOf - assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
 
@@ -569,7 +620,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt = uint240(marketOutstandingDebt - assets);
         }
 
-        emit Repay(assets, payer, owner);
+        emit Repay(assets, debtOf, payer, owner);
         return assets;
     }
 
@@ -636,10 +687,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 debtAmount;
+        uint256 debtOf;
         address account;
 
         for (uint256 i; i < numAccounts; ++i) {
-            // Cache the repayment amount.
+            // Cache the liquidation repayment amount.
             debtAmount = debtAmounts[i];
             // If theres no debt to repay for this user can
             // skip them.
@@ -652,12 +704,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the new `account` outstanding debt, then update the
             // account's debt balance and debt index value.
             // Update the account and market outstanding debt balance data.
+            debtOf = debtBalance(account) - debtAmount;
             _setDebtOf(
                 account,
-                uint176(debtBalance(account) - debtAmount),
+                uint176(debtOf),
                 cachedDebtIndex
             );
-            emit Repay(debtAmount, liquidator, account);
+            emit Repay(debtAmount, debtOf, liquidator, account);
         }
 
         // We need to update marketOutstandingDebt for the total debt repaid
@@ -679,7 +732,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // `result.badDebtRealized` back due to realized bad debt.
         // Emit corresponding event recognizing bad debt.
         if (result.badDebtRealized > 0) {
-            _totalAssets = _totalAssets - result.badDebtRealized;
+            uint256 ta = _totalAssets;
+            if (ta < result.badDebtRealized + _BASE_UNDERLYING_RESERVE) {
+                revert BorrowableCToken__InsufficientAssetsHeld();
+            }
+            _totalAssets = ta - result.badDebtRealized;
             emit BadDebtRecognized(result.badDebtRealized, liquidator);
         }
 
@@ -733,18 +790,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim
         );
 
-        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
-        // vesting period has ended.
-        lastVestingClaim = block.timestamp > vestingEnd ?
-            vestingEnd : block.timestamp;
-
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingEnd) {
+            // Update `lastVestingClaim`, to `vestingEnd` so we can vest any
+            // pending assets from the new accrual period.
+            lastVestingClaim = vestingEnd;
             uint256 adjustmentRate;
             
             // Calculate the new interest rate for borrowers, in seconds.
-            (rate, adjustmentRate)
-                = IRM.adjustedBorrowRate(assetsHeld(), outstandingDebt);
+            (rate, adjustmentRate) = IRM.adjustedBorrowRate(
+                assetsHeld(),
+                outstandingDebt + assetsToVest
+            );
 
             // The multiplication logic here is to round down to
             // discrete `adjustmentRate` cycles, e.g. if block.timestamp is 3
@@ -761,19 +818,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // and block.timestamp extends into the new vesting period.
             assetsToVest += _assetsToVest(
                 rate,
-                outstandingDebt,
+                outstandingDebt + assetsToVest,
                 vestingEnd,
                 lastVestingClaim
             );
         }
 
         // Calculate any protocol fee on `assetsToVest`, in assets.
-        uint256 protocolFee = FixedPointMathLib.mulDivUp(
-            assetsToVest,
-            interestFee,
-            BPS
-        );
         // If theres fees we need to mint new shares for the protocol.
+        uint256 protocolFee = _mulDivUp(assetsToVest, interestFee, BPS);
         if (protocolFee > 0) {
             // We can calculate how many shares the protocol should receive
             // from its fee on assetsToVest by using the formula:
@@ -781,7 +834,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // This means that that shares minted will result in an exchange
             // rate matching the amount of vested assets lenders should
             // benefit from.
-            uint256 protocolFeeShares = _mulDiv(
+            uint256 protocolFeeShares = FixedPointMathLib.fullMulDivUp(
                 protocolFee,
                 totalSupply(),
                 cachedTa + assetsToVest - protocolFee
@@ -796,13 +849,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
         if (assetsToVest > 0) {
             // `assetsToVest` is new outstanding debt in assets so we
             // need to divide by `outstandingDebt` so its in % form.
+            // Rounding up here can cause individual user debt to be increased
+            // more heavily than expected when a cToken has extremely low
+            // borrow utilization, this is intentional.
             marketDebtIndex =
-                _mulDiv(assetsToVest, marketDebtIndex, outstandingDebt)
+                _mulDivUp(assetsToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested assets.
             marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);
             // Update _totalAssets based on new assets recognized by protocol.
             _totalAssets = cachedTa + assetsToVest;
+
+            emit DebtAccrued(assetsToVest, protocolFee);
         }
 
         assembly {
@@ -970,15 +1028,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of assets to withdraw which is checked
     ///               against current assets held in the contract.
     function _checkAssetsHeld(uint256 assets) internal view override {
-        // Check if we have enough underlying held to support the withdrawal.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        // This also acts as a protective mechanism against trying to
-        // manipulate marketOutstandingDebt above total underlying assets
-        // inside the system since there will always be at least
-        // _BASE_UNDERLYING_RESERVE excess inside the market.
-        if (assetsHeld() < assets + _BASE_UNDERLYING_RESERVE) {
+        if (assetsHeld() < assets) {
             revert BorrowableCToken__InsufficientAssetsHeld();
         }
     }

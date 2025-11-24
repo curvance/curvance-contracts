@@ -13,11 +13,11 @@ contract RedeemTest is TestBaseStrategyCToken {
     function setUp() public override {
         super.setUp();
         
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE + _ONE, user1);
         vm.stopPrank();
     }
 
@@ -29,7 +29,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        _redeemBalRETH(_ONE);
+        _redeemBalPendleStrategyCTokenSTETH(_ONE);
     }
 
     function test_strategyCTokenRedeem_fail_whenUser2Unauthorized() public {
@@ -38,7 +38,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
 
         vm.startPrank(user2);
-        strategyCBALRETH.redeem(_ONE, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(_ONE, user1, user1);
         vm.stopPrank();
     }
 
@@ -52,7 +52,7 @@ contract RedeemTest is TestBaseStrategyCToken {
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
-        _redeemBalRETH(_ONE);
+        _redeemBalPendleStrategyCTokenSTETH(_ONE);
     }
 
     function test_strategyCTokenRedeem_fail_whenAmountIsZero() public {
@@ -62,41 +62,41 @@ contract RedeemTest is TestBaseStrategyCToken {
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
 
-        _redeemBalRETH(0);
+        _redeemBalPendleStrategyCTokenSTETH(0);
     }
 
     function test_strategyCTokenRedeem_fail_whenRedeemAmountExceedsCTokens() public {
         skip(20 minutes);
 
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
-        _redeemBalRETH(10e18);
+        _redeemBalPendleStrategyCTokenSTETH(10e18);
     }
 
     function test_strategyCTokenRedeem_fail_whenCooldownActive() public {
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE + _ONE, user1);
         vm.stopPrank();
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
 
-        _redeemBalRETH(_ONE);
+        _redeemBalPendleStrategyCTokenSTETH(_ONE);
     }
 
     function test_strategyCTokenRedeem_fail_whenCollateralIsRequired() public {
-        _prepareDAI(address(this), 2000e18);
+        deal(address(dai), address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
 
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE + _ONE, user1);
         borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
@@ -106,67 +106,67 @@ contract RedeemTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBalRETH(3.9e18);
+        _redeemBalPendleStrategyCTokenSTETH(3.9e18);
     }
 
     function test_strategyCTokenRedeem_success() public {
         skip(20 minutes);
 
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
         uint256 collateralRedeemed = _ONE;
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit Transfer(user1, address(0), collateralRedeemed);
-        uint256 assets = _redeemBalRETH(collateralRedeemed);
+        uint256 assets = _redeemBalPendleStrategyCTokenSTETH(collateralRedeemed);
 
-        assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(user1), underlyingBalance + assets);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
     function test_strategyCTokenRedeem_success_User2WithApproval() public {
         skip(20 minutes);
 
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
         uint256 collateralRedeemed = 0.5e18;
 
         vm.startPrank(user1);
-        strategyCBALRETH.approve(user2, _ONE);
+        pendleStrategyCTokenSTETH.approve(user2, _ONE);
         vm.stopPrank();
         
         vm.startPrank(user2);
-        uint256 assets = strategyCBALRETH.redeem(collateralRedeemed, user2, user1);
+        uint256 assets = pendleStrategyCTokenSTETH.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
 
-        assertEq(balRETH.balanceOf(user2), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(user2), underlyingBalance + assets);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
     function test_strategyCTokenRedeem_success_User2WithMaxApproval() public {
         skip(20 minutes);
 
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
         uint256 collateralRedeemed = 0.5e18;
 
         vm.startPrank(user1);
-        strategyCBALRETH.approve(user2, type(uint256).max);
+        pendleStrategyCTokenSTETH.approve(user2, type(uint256).max);
         vm.stopPrank();
         
         vm.startPrank(user2);
-        uint256 assets = strategyCBALRETH.redeem(collateralRedeemed, user2, user1);
+        uint256 assets = pendleStrategyCTokenSTETH.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
 
-        assertEq(balRETH.balanceOf(user2), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
-        assertEq(strategyCBALRETH.allowance(user1, user2), type(uint256).max);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(user2), underlyingBalance + assets);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.allowance(user1, user2), type(uint256).max);
     }
 
     function test_strategyCTokenRedeem_success_redeemNonCollateralWhenCollateralIsInUse() public {
@@ -178,32 +178,32 @@ contract RedeemTest is TestBaseStrategyCToken {
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
 
-        _prepareBALRETH(user1, newTokensDeposited * 2);
+        deal(address(LP_wstETH_24Dec2025), user1, newTokensDeposited * 2);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), newTokensDeposited * 2);
-        strategyCBALRETH.depositAsCollateral(newTokensDeposited, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), newTokensDeposited * 2);
+        pendleStrategyCTokenSTETH.depositAsCollateral(newTokensDeposited, user1);
         borrowableCDAI.borrow(1000e18, user1);
-        strategyCBALRETH.deposit(newTokensDeposited, user1);
+        pendleStrategyCTokenSTETH.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 
         skip(20 minutes);
 
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
-        uint256 collateral = strategyCBALRETH.collateralPosted(user1);
-        uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
+        uint256 collateral = pendleStrategyCTokenSTETH.collateralPosted(user1);
+        uint256 totalCollateral = pendleStrategyCTokenSTETH.marketCollateralPosted();
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit Transfer(user1, address(0), tokensRedeemed);
-        uint256 assets = _redeemBalRETH(tokensRedeemed);
+        uint256 assets = _redeemBalPendleStrategyCTokenSTETH(tokensRedeemed);
 
-        assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - tokensRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - tokensRedeemed);
-        assertEq(strategyCBALRETH.collateralPosted(user1), collateral - collateralRedeemed);
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(user1), underlyingBalance + assets);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balance - tokensRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user1), collateral - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
     function test_strategyCTokenRedeem_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
@@ -215,37 +215,37 @@ contract RedeemTest is TestBaseStrategyCToken {
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
 
-        _prepareBALRETH(user1, newTokensDeposited * 2);
+        deal(address(LP_wstETH_24Dec2025), user1, newTokensDeposited * 2);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), newTokensDeposited * 2);
-        strategyCBALRETH.depositAsCollateral(newTokensDeposited, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), newTokensDeposited * 2);
+        pendleStrategyCTokenSTETH.depositAsCollateral(newTokensDeposited, user1);
         borrowableCDAI.borrow(1000e18, user1);
-        strategyCBALRETH.deposit(newTokensDeposited, user1);
+        pendleStrategyCTokenSTETH.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 
         skip(20 minutes);
 
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
-        uint256 collateral = strategyCBALRETH.collateralPosted(user1);
-        uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
+        uint256 collateral = pendleStrategyCTokenSTETH.collateralPosted(user1);
+        uint256 totalCollateral = pendleStrategyCTokenSTETH.marketCollateralPosted();
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit CollateralUpdated(collateralRedeemed, false, user1);
-        uint256 assets = _redeemBalRETH(tokensRedeemed);
+        uint256 assets = _redeemBalPendleStrategyCTokenSTETH(tokensRedeemed);
 
-        assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - tokensRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - tokensRedeemed);
-        assertEq(strategyCBALRETH.collateralPosted(user1), collateral - collateralRedeemed);
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(user1), underlyingBalance + assets);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balance - tokensRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user1), collateral - collateralRedeemed);
+        assertEq(pendleStrategyCTokenSTETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
-    function _redeemBalRETH(uint256 shares) internal returns (uint256 assets) {
+    function _redeemBalPendleStrategyCTokenSTETH(uint256 shares) internal returns (uint256 assets) {
         vm.startPrank(user1);
-        assets = strategyCBALRETH.redeem(shares, user1, user1);
+        assets = pendleStrategyCTokenSTETH.redeem(shares, user1, user1);
         vm.stopPrank();
     }
 }

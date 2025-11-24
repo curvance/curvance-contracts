@@ -74,16 +74,20 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAERO = new MockV3Aggregator(8, 0.65e8);
+        chainlinkAERO = new MockV3Aggregator(8, 0.50e8);
         chainlinkAdaptor.addAsset(
             _AERO_ADDRESS,
             true,
             address(chainlinkAERO),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         chainlinkDAI = new MockV3Aggregator(8, 1e8);
@@ -93,9 +97,13 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(chainlinkDAI),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         chainlinkUSDC = new MockV3Aggregator(8, 1e8);
@@ -105,9 +113,13 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(chainlinkUSDC),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeStableLPAdaptor(
@@ -115,9 +127,9 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_AERODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_AERODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testDaiUsdcStablePool_fuzzed(uint256 amount0) public {
@@ -238,7 +250,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(aeroCTokenUSDCDAI),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         aeroCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e4));
 

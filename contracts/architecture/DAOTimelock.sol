@@ -81,12 +81,10 @@ contract DAOTimelock is TimelockController, ERC165 {
         if (registryDaoAddress != timelockDaoAddress) {
             _revokeRole(PROPOSER_ROLE, timelockDaoAddress);
             _revokeRole(EXECUTOR_ROLE, timelockDaoAddress);
-            _revokeRole(CANCELLER_ROLE, timelockDaoAddress);
+            if (timelockDaoAddress != centralRegistry.emergencyCouncil()) {
+                _revokeRole(CANCELLER_ROLE, timelockDaoAddress);
+            }
 
-            _grantRole(PROPOSER_ROLE, registryDaoAddress);
-            _grantRole(EXECUTOR_ROLE, registryDaoAddress);
-            _grantRole(CANCELLER_ROLE, registryDaoAddress);
-            _DAO_ADDRESS = registryDaoAddress;
             _grantRole(PROPOSER_ROLE, registryDaoAddress);
             _grantRole(EXECUTOR_ROLE, registryDaoAddress);
             _grantRole(CANCELLER_ROLE, registryDaoAddress);
@@ -96,8 +94,10 @@ contract DAOTimelock is TimelockController, ERC165 {
         address registryEC = centralRegistry.emergencyCouncil();
         address timelockEC = _EMERGENCY_COUNCIL;
         if (registryEC != timelockEC) {
-            _revokeRole(CANCELLER_ROLE, timelockEC);
-
+            if (timelockEC != registryDaoAddress) {
+                 _revokeRole(CANCELLER_ROLE, timelockEC);
+            }
+           
             _grantRole(CANCELLER_ROLE, registryEC);
             _EMERGENCY_COUNCIL = registryEC;
         }

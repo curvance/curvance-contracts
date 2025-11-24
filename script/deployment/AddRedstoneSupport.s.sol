@@ -15,6 +15,7 @@ contract AddRedstoneSupport is DeployScript {
     struct PullFeed {
         bytes payload;
         uint48 timestamp;
+        string id;
     }
 
     struct PushFeed {
@@ -35,7 +36,7 @@ contract AddRedstoneSupport is DeployScript {
         IERC20 token = IERC20(asset);
 
         adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
-        manager.addAssetPriceFeed(asset, address(adaptor));
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
     }
 
     function run(
@@ -49,7 +50,7 @@ contract AddRedstoneSupport is DeployScript {
         IERC20 token = IERC20(asset);
 
         // Add oracle support
-        adaptor.addAsset(asset, true, token.decimals(), 10 minutes);
+        adaptor.addAsset(asset, true, token.decimals(), feed.id);
         adaptor.assetConfig(asset, true);
 
         // Push the first price on-chain
@@ -64,13 +65,13 @@ contract AddRedstoneSupport is DeployScript {
         require(success, "Failed to write price");
 
         // Finalize oracle support
-        manager.addAssetPriceFeed(asset, address(adaptor));
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
     }
 
     function deployRedstoneClassicAdaptor(
         ICentralRegistry icr,
         OracleManager oracleManager
-    ) public externalScript returns (RedstoneClassicAdaptor) {
+    ) public useDeployer returns (RedstoneClassicAdaptor) {
         RedstoneClassicAdaptor adaptor  = new RedstoneClassicAdaptor(icr);
         oracleManager.addApprovedAdaptor(address(adaptor));
         emit ContractDeployed(address(adaptor),"adaptors.RedstoneClassicAdaptor");
@@ -82,14 +83,14 @@ contract AddRedstoneSupport is DeployScript {
         CentralRegistry registry,
         ICentralRegistry icr,
         OracleManager oracleManager
-    ) public externalScript returns (RedstoneCoreAdaptor) {
+    ) public useDeployer returns (RedstoneCoreAdaptor) {
         address[] memory redstoneSigners = new address[](4);
         redstoneSigners[0] = 0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774;
         redstoneSigners[1] = 0xdEB22f54738d54976C4c0fe5ce6d408E40d88499;
         redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
         redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
 
-        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH");
+        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH", 1 minutes);
         emit ContractDeployed(
             address(adaptor),
             "adaptors.RedstoneCoreAdaptor"

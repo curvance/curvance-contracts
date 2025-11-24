@@ -64,8 +64,8 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             _CHAINLINK_ETH_USD,
             0
         );
-        oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -89,7 +89,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -133,26 +133,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         _provideEnoughLiquidityForLeverage();
     }
 
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        deal(_LP_STETH, liquidityProvider, 100 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Deposit borrowable cDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Deposit strategyCTokenSTETH.
-        IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
-        strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
-
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)
@@ -181,7 +162,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -238,9 +219,6 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         deal(_LP_STETH, user, 1 ether);
         IERC20(_LP_STETH).approve(address(positionManager), 1 ether);
-
-        // allow delegation for postCollateral
-        strategyCTokenSTETH.setDelegateApproval(address(positionManager), true);
 
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 7.4983181832e21;
@@ -375,7 +353,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -494,5 +472,24 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             strategyCTokenSTETHCollateralBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        deal(_LP_STETH, liquidityProvider, 100 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Deposit borrowable cDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Deposit strategyCTokenSTETH.
+        IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
+        strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
+
+        vm.stopPrank();
     }
 }

@@ -375,7 +375,6 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
     // NO-SWAP TESTS
 
     function test_vaultZapper_success_swapAndDeposit_noSwap() public {
-
         _setUpSimpleCSFRAX_borrowableCUSDC();
 
         deal(_FRAX_ADDRESS, user1, 100e18);
@@ -407,6 +406,35 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         assertGt(balanceAfter, balanceBefore, "User should have received cToken shares");
     }
 
+    function test_vaultZapper_fail_swapAndDepositErc20WithMsgValue() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        // Dummy values, we are reverting fairly early in the function.
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _FRAX_ADDRESS;
+        swapAction.inputAmount = 1e18;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.call = "";
+
+        vm.deal(user1, 1); // Incorrectly attach 1 wei to the call
+
+        vm.startPrank(user1);
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+
+        vaultZapper.swapAndDeposit{ value: 1 }(
+            address(simpleCSFRAX),
+            false,
+            swapAction,
+            0,
+            false,
+            user1
+        );
+
+        vm.stopPrank();
+    }
+
     // Market setup
 
     function _setUpSimpleCSFRAX_borrowableCUSDC() internal {
@@ -432,7 +460,15 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
             _CHAINLINK_FRAX_USD,
             0
         );
-        oracleManager.addAssetPriceFeed(_SFRAX_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _SFRAX_ADDRESS, 
+            address(chainlinkAdaptor), 
+            100, 
+            50,
+            100,
+            50
+            );
+
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
 
         deal(_SFRAX_ADDRESS, address(this), 77777);

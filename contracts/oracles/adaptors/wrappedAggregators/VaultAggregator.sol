@@ -4,52 +4,89 @@ pragma solidity 0.8.28;
 import { BaseWrappedAggregator, WAD } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IERC4626 } from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Vault Aggregator.
+/// @notice Modifies an oracle aggregator to return the price for a related
+///         ERC4626 vault token, based on the exchange rate between them.
+/// @dev Curvance vault aggregators are intended to hook up to any
+///      onchain push based oracle that supports rounds of data with the
+///      "latestRoundData" function interface (see "IChainlink"). An exchange
+///      rate between the oracle aggregator's asset and the vault token is
+///      calculated and applied to the underlying aggregator's answer.
+///
+///      Validation is done on contract deployment to ensure that the linked
+///      contracts have the expected asset addresses supported and that any
+///      difference in decimals between the assets MUST be adjusted so that
+///      the new answer's decimals batches the underlying aggregator's
+///      decimals.
+///
+///      These aggregators should then be listed in the corresponding adaptor
+///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
+///      inside Curvance Markets.
+///
 contract VaultAggregator is BaseWrappedAggregator {
-    /// STORAGE ///
+    /// CONSTANTS ///
 
     /// @notice The address of the vault token.
-    address public vault;
+    address public immutable vault;
     /// @notice The address of the underlying asset token.
-    address public asset;
+    address public immutable asset;
 
-    /// @notice The address of the underlying asset aggregator.
-    address internal _assetAggregator;
+    /// @notice The expanded decimal precision (10 ** decimals) for
+    ///         `vault` asset.
+    uint256 internal immutable _vaultDecimalPrecision;
+    /// @notice The expanded decimal precision (10 ** decimals) for
+    ///         `asset` asset, in int256 form.
+    int256 internal immutable _assetDecimalPrecision;
 
     /// CONSTRUCTOR ///
     
-    constructor(address _vault, address _asset, address _aggregator) {
-        _checkVaultAsset(_vault, _asset);
+    constructor(
+        address _vault,
+        address _asset,
+        address _aggregator,
+        string memory id
+    ) BaseWrappedAggregator(_aggregator, id) {
+        _checkAssetConfig(_vault, _asset);
 
         vault = _vault;
         asset = _asset;
-        _assetAggregator = _aggregator;
+
+        _vaultDecimalPrecision = 10 ** IERC4626(_vault).decimals();
+        _assetDecimalPrecision = _toInt256(10 ** IERC20(_asset).decimals());
     }
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the underlying aggregator address.
-    /// @return r The underlying aggregator address.
-    function underlyingAggregator() public view override returns (address r) {
-        r = _assetAggregator;
-    }
-
-    /// @notice Returns the current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
-    /// @return result The current exchange rate between the wrapped asset
-    ///                and the underlying aggregator, in `WAD`.
-    function getExchangeRate() public view virtual override returns (
-        uint256 result
-    ) {
-        // Return exchange rate in `WAD` format directly.
-        // We can use ICToken since its an erc4626 vault itself.
-        result = ICToken(vault).convertToAssets(WAD);
+    /// @notice Returns the adjusted `answer` based on the current exchange
+    ///         rate between the wrapped asset and the underlying aggregator.
+    /// @dev Overridden in implemented wrapped oracle aggregators.
+    /// @param answer The answer to adjust based on current exchange rate value.
+    /// @return result The adjusted oracle `answer`.
+    function getAdjustedAnswer(
+        int256 answer
+    ) public view virtual override returns (int256 result) {
+        // Adjust `answer` by current exchange rate and any difference in decimals.
+        result = (answer * _toInt256(_getExchangeRate())) / _assetDecimalPrecision;
     }
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Returns the current exchange rate between `vault` and the
+    ///         and the underlying `asset`, in `_vaultDecimalPrecision`.
+    /// @return result The current exchange rate between `vault` and the
+    ///                underlying `asset`, in `_vaultDecimalPrecision`.
+    function _getExchangeRate() internal view virtual returns (
+        uint256 result
+    ) {
+        // Return exchange rate in `_vaultDecimalPrecision` format directly.
+        result = IERC4626(vault).convertToAssets(_vaultDecimalPrecision);
+    }
+
     /// @notice Validates whether `_vault`'s asset() is `_asset`.
-    function _checkVaultAsset(
+    function _checkAssetConfig(
         address _vault,
         address _asset
     ) internal view virtual {

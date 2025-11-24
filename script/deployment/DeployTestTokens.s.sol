@@ -17,14 +17,12 @@ contract DeployTestTokens is DeployScript {
         uint256[] memory faucetInitialBalances,
         uint256[] memory faucetClaimAmounts,
         uint256[] memory prices,
-        address registry
+        address registry,
+        address mockOracle
     ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
-
-        MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
+        MockOracleAdaptor adaptor = MockOracleAdaptor(mockOracle);
 
         address[] memory faucetTokens = new address[](names.length);
         for (uint256 i = 0; i < names.length; i++) {
@@ -41,9 +39,13 @@ contract DeployTestTokens is DeployScript {
             if (price != 0) {
                 adaptor.addAsset(address(token));
                 adaptor.setPrice(address(token), price, price);
-                oracleManager.addAssetPriceFeed(
+                oracleManager.addAssetPricingAdaptor(
                     address(token),
-                    address(adaptor)
+                    address(adaptor),
+                    100,
+                    50,
+                    100,
+                    50
                 );
             }
         }

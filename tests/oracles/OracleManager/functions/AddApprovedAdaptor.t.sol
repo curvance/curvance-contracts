@@ -16,7 +16,8 @@ contract AddApprovedAdaptorTest is TestBaseOracleManager {
     function test_addApprovedAdaptor_fail_whenAdaptorIsAlreadyConfigured()
         public
     {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        // Already added in parent contract
+        // oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
@@ -25,6 +26,8 @@ contract AddApprovedAdaptorTest is TestBaseOracleManager {
     }
 
     function test_addApprovedAdaptor_success() public {
+
+        oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
         assertFalse(
             oracleManager.isApprovedAdaptor(address(chainlinkAdaptor))
         );

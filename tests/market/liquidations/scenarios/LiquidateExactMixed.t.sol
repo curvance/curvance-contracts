@@ -1,0 +1,282 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
+import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
+
+// Scenario: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
+// - Setup: 4 users with varying positions
+// - User 1: 1.9 Pendle wstETH LP tokens (~$19,500 initial value), 15,500 USDC debt
+// - Action 1: Price drop to $7,200 per token (~$13,680 total value)
+// - Action 2: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their total debt
+// - Action 3: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their remaining debt
+// - Action 4: User 1 has the rest of their debt liquidated via regular liquidation using liquidate()
+
+contract LiquidateExactMix is TestBaseLiquidations {
+
+    address borrower1 = makeAddr("borrower1");
+    uint256 collateralAmountStart = 1.9e18;
+    uint256 borrowAmount = 15_500e6;
+    address[] borrowers = [borrower1];
+    uint256[] amountToRepayPartial;
+    
+    // Auction parameters
+    uint256 validPenalty = 1.04e18;
+    uint256 closeFactor = 0.50e18;
+
+    event BadDebtRecognized(uint256 assets, address liquidator);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
+
+    function setUp() public override {
+        super.setUp();
+
+        // use mock pricing for testing
+        vm.warp(gaugeManager.gaugeStartTime());
+        vm.roll(block.number + 1000);
+
+        _prepareUSDC(user1, _ONE);
+        _prepareUSDC(address(this), _ONE);
+
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
+
+        vm.prank(user1);
+        usdc.approve(address(borrowableCUSDC), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
+
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+
+        _setCTokenConfigHighValues(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
+
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 200000e6);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
+        // mint borrowableCUSDC
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
+        // Mint cBALETH.
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
+        vm.stopPrank();
+
+        _createPositions();
+        _setPendleStEthLpPrice(7200e8);
+        
+        console2.log("SETUP COMPLETE");
+    }
+
+    uint256 outstandingDebtBefore;
+    uint256 quarterRatio = 0.25e18;
+    uint256 debtBalancesPreLiquidation;
+    uint256 lFactorPreLiquidation;
+
+    function test_liquidateExactMix() public {
+
+        skip(4 weeks);
+        _refreshMockFeeds();
+        borrowableCUSDC.accrueIfNeeded();
+
+        // ===== Cache general liquidation values =====
+
+        outstandingDebtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
+
+        // ===== Cache first liquidation values =====
+        amountToRepayPartial = new uint256[](1);
+
+        // repay a quarter of the total debt
+        amountToRepayPartial[0] = (debtBalancesPreLiquidation * quarterRatio) / WAD;
+
+        console2.log("calculating first liquidation values");
+
+        ExpectedLiquidationValues memory expectedLiqValues_first = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: borrower1,
+                collateralToken: address(pendleStrategyCTokenSTETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: true,
+                liquidateExactAmount: amountToRepayPartial[0],
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        uint256 totalDebtPaid_first = amountToRepayPartial[0] + expectedLiqValues_first.badDebt;
+
+        uint256 remainingDebt_after_first = debtBalancesPreLiquidation - totalDebtPaid_first;
+
+        // ===== First liquidation using liquidateExact() =====
+
+        address first_liquidator = makeAddr("first_liquidator");
+        _prepareUSDC(first_liquidator, amountToRepayPartial[0]);
+
+        vm.startPrank(first_liquidator);
+        usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
+
+        // expect events in order
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(totalDebtPaid_first, remainingDebt_after_first, first_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_first.badDebt, first_liquidator);
+
+        borrowableCUSDC.liquidateExact(
+            amountToRepayPartial,
+            borrowers,
+            address(pendleStrategyCTokenSTETH)
+        );
+
+        vm.stopPrank();
+
+        // ===== Cache second liquidation values =====
+
+        // Repay a quarter of the remaining debt.
+        amountToRepayPartial[0] = (remainingDebt_after_first * quarterRatio) / WAD;
+
+        console2.log("amountToRepayPartial after second liquidation" ,amountToRepayPartial[0] );
+
+        // Update lFactor (shouldn't change much).
+        lFactorPreLiquidation = _getLFactorPreLiquidation(borrower1);
+
+        // Update expected remaining collateral
+        uint256 collateralAmount_after_first = collateralAmountStart - expectedLiqValues_first.collateralLiquidated;
+
+        ExpectedLiquidationValues memory expectedLiqValues_second = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: borrower1,
+                collateralToken: address(pendleStrategyCTokenSTETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: true,
+                liquidateExactAmount: amountToRepayPartial[0],
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        console2.log("amountToRepayPartial[0]", amountToRepayPartial[0]);
+        console2.log("expectedLiqValues_second.badDebt", expectedLiqValues_second.badDebt);
+
+        uint256 totalDebtPaid_second = amountToRepayPartial[0] + expectedLiqValues_second.badDebt;
+
+        uint256 remainingDebt_after_second = remainingDebt_after_first - totalDebtPaid_second;
+
+        // ====== Second liquidation using liquidateExact() =====
+
+        address second_liquidator = makeAddr("second_liquidator");
+        _prepareUSDC(second_liquidator, 100_000e6);
+
+        vm.startPrank(second_liquidator);
+        usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
+
+        // expect events in order
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(totalDebtPaid_second, remainingDebt_after_second, second_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_second.badDebt, second_liquidator);
+
+        // The second liquidation should have the same expected result as the first
+
+        borrowableCUSDC.liquidateExact(
+            amountToRepayPartial,
+            borrowers,
+            address(pendleStrategyCTokenSTETH)
+        );
+
+        vm.stopPrank();
+
+        // ===== Cache third liquidation values =====
+
+        // Update lFactor (shouldn't change much).
+        lFactorPreLiquidation = _getLFactorPreLiquidation(borrower1);
+
+        // Update expected remaining collateral.
+        uint256 collateralAmount_after_second = collateralAmount_after_first - expectedLiqValues_second.collateralLiquidated;
+
+        ExpectedLiquidationValues memory expectedLiqValues_third = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: borrower1,
+                collateralToken: address(pendleStrategyCTokenSTETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        uint256 totalDebtPaid_third = expectedLiqValues_third.debtRepaid + expectedLiqValues_third.badDebt;
+
+        console2.log("remainingDebt_after_second", remainingDebt_after_second);
+        console2.log("totalDebtPaid_third", totalDebtPaid_third);
+
+        uint256 remainingDebt_after_third = remainingDebt_after_second - totalDebtPaid_third;
+
+        address third_liquidator = makeAddr("third_liquidator");
+        _prepareUSDC(third_liquidator, 100_000e6);
+
+        vm.startPrank(third_liquidator);
+        usdc.approve(address(borrowableCUSDC), 100_000e6);
+
+        // expect bad debt emit and debt repaid
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(totalDebtPaid_third, remainingDebt_after_third, third_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_third.badDebt, third_liquidator);
+
+        borrowableCUSDC.liquidate(
+            borrowers,
+            address(pendleStrategyCTokenSTETH)
+        );
+
+       vm.stopPrank();
+
+        // ===== Final Assertions =====
+
+        uint256 collateralAmountAfterThird = collateralAmount_after_second - expectedLiqValues_third.collateralLiquidated;
+
+        // Verify borrower1's debt is fully liquidated.
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
+
+        // Verify borrower1's collateral is fully liquidated.
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrower1), collateralAmountAfterThird, "double check to make sure the test accounting aligns fully");
+
+        // Verify total outstanding debt decreased appropriately.
+        uint256 outstandingDebtAfter = borrowableCUSDC.marketOutstandingDebt();
+        assertLt(outstandingDebtAfter, outstandingDebtBefore, "Total outstanding debt should have decreased");
+
+        // Verify the position is no longer liquidatable.
+        (, , , uint256 lFactorFinal) = _liquidationValuesOfHelper(marketManagerIsolated, borrower1);
+        assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
+
+        // Verify remaining debt calculation was correct
+        assertApproxEqAbs(remainingDebt_after_third, 0, 1, "Remaining debt should be approximately zero");
+    }
+
+    function _createPositions() internal {
+        deal(address(LP_wstETH_24Dec2025), borrower1, collateralAmountStart);
+
+        vm.startPrank(borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmountStart);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmountStart, borrower1);
+        borrowableCUSDC.borrow(borrowAmount, borrower1);
+        vm.stopPrank();
+    }
+
+    function _getLFactorPreLiquidation(address _borrower) internal returns (uint256 lFactor) {
+        (, , , lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, _borrower);
+
+        return lFactor;
+    }
+
+    function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
+        debtBalance = borrowableCUSDC.debtBalance(_borrower);
+    }
+
+}

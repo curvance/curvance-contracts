@@ -6,7 +6,7 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
-    event Borrow(uint256 borrowAmount, address borrower);
+    event Borrow(uint256 assets, uint256 newDebtAssets, address account);
 
     function test_borrowableCTokenBorrow_fail_whenBorrowIsNotAllowed() public {
         address borrower = makeAddr("borrower");
@@ -27,12 +27,12 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
 
-        _prepareBALRETH(address(this), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, address(this));
-        strategyCBALRETH.postCollateral(_ONE);
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, address(this));
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
@@ -51,13 +51,13 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         borrowableCUSDC.deposit(100e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(address(this), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, address(this));
-        strategyCBALRETH.postCollateral(_ONE);
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, address(this));
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         skip(69 minutes);
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
@@ -72,7 +72,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         borrowableCUSDC.deposit(200e6, address(this));
 
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
         borrowableCUSDC.postCollateral(100e6 - 1);
 
         vm.expectRevert(
@@ -84,7 +84,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrow_success() public {
         borrowableCUSDC.deposit(200e6, address(this));
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = borrowableCUSDC.balanceOf(address(this));
@@ -92,7 +92,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Borrow(100e6, address(this));
+        emit Borrow(100e6, 100e6, address(this));
 
         borrowableCUSDC.borrow(100e6, address(this));
 
@@ -103,7 +103,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
 
         // Test interest accrual over time
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
@@ -119,6 +119,42 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
         assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
+    }
+
+    function test_borrow_UpToAssetsHeld() public {
+        
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000_000e18, 1_000_000_000e18);
+        
+        // Provide liquidity
+        address lp = makeAddr("lpAssetsHeld");
+        _prepareUSDC(lp, 100e6);
+        vm.startPrank(lp);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, lp);
+        vm.stopPrank();
+
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE, address(this));
+
+        _harvestPendleLP(1 weeks);
+
+        uint256 assetsHeld = borrowableCUSDC.assetsHeld();
+        uint256 debtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        // Borrow exactly assetsHeld, which does not include the base reserve
+        borrowableCUSDC.borrow(assetsHeld, address(this));
+
+        // After borrowing, assetsHeld should be 0
+        assertEq(borrowableCUSDC.assetsHeld(), 0, "assetsHeld should be zero after full borrowable extraction");
+
+        uint256 debtAfter = borrowableCUSDC.marketOutstandingDebt();
+        uint256 util = borrowableCUSDC.IRM().utilizationRate(0, debtAfter);
+        assertEq(util, 1e18, "Utilization should be WAD");
+
+        // Attempting to borrow 1 wei more should revert
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector);
+        borrowableCUSDC.borrow(1, address(this));
     }
 
 

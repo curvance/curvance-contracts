@@ -20,6 +20,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
 
+    /// @notice The oracle adaptor type, calculated via keccak256 of the
+    ///         oracle adaptor's name.
+    uint256 internal immutable _adaptorType;
+
     /// STORAGE ///
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
@@ -40,14 +44,20 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     error BaseOracleAdaptor__InvalidConfig();
     error BaseOracleAdaptor__InvalidTimestamp();
     error BaseOracleAdaptor__MinPriceAboveCurrentPrice();
+    error BaseOracleAdaptor__BasePriceBelowCurrentPrice();
     error BaseOracleAdaptor__AssetIsNotSupported();
     
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) {
+    constructor(ICentralRegistry cr, string memory adaptorName) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
+
+        if (bytes(adaptorName).length == 0) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        _adaptorType = uint256(keccak256(abi.encode(adaptorName)));
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -76,11 +86,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param asset The address of the asset to retrieve any PriceGuard data on.
     /// @param inUSD Specifies whether the PriceGuard returned should be in
     ///              USD (true) or a chain's native token (false).
+    /// @return result The price guard currently applied to `asset` when
+    ///                denominated in `inUSD`.
     function getPriceGuard(
         address asset,
         bool inUSD
-    ) external view returns (PriceGuard memory) {
-        return priceGuards[asset][inUSD];
+    ) external view returns (PriceGuard memory result) {
+        result = priceGuards[asset][inUSD];
     }
 
     /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
@@ -107,12 +119,22 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ) external {
         _checkMarketPermissions();
 
-        // Validate the starting timestamp is not in the future or too "now".
-        if (
-            timestampStart > block.timestamp ||
-            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-        ) {
-            revert BaseOracleAdaptor__InvalidTimestamp();
+        // Validate timestamp configuration depending on whether dynamic scaling is 
+        // enabled. If ips == 0, timestampStart must be exactly 0 
+        // (unused in static mode).
+        // Otherwise, enforce it is not in the future or too "now".
+        if (ips == 0) {
+            if (timestampStart != 0) {
+                revert BaseOracleAdaptor__InvalidTimestamp();
+            }
+        } else {
+            if (
+                timestampStart > block.timestamp ||
+                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER ||
+                timestampStart == 0
+            ) {
+                revert BaseOracleAdaptor__InvalidTimestamp();
+            }
         }
 
         // Validate that growth rate will fit in 40 bit slot allocated.
@@ -120,18 +142,28 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that max price will fit in the 96 bit slot allocated.
-        if (basePrice > type(uint96).max) {
+        // Validate basePrice is not 0 and that base price will fit in the 
+        // 88 bit slot allocated.
+        if (basePrice == 0 || basePrice > type(uint88).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that min and max price logic are not inverted and that the
-        // minimum price will not overflow.
-        if (minPrice > basePrice || minPrice > type(uint80).max) {
+        // Validate that min and max price logic are not inverted, we can then
+        // skip the storage slot check since basePrice > minPrice.
+        if (minPrice > basePrice) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        PricingResult memory result = this.getPrice(asset, inUSD, true);
+        // Validate the higher feed did not return an error.
+        PricingResult memory result = this.getPrice(asset, inUSD, false);
+        if (result.hadError) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        // Validate the lower feed did not return an error.
+        result = this.getPrice(asset, inUSD, true);
+        if (result.hadError) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
 
         // Having a minimum price above the current price does not make sense,
         // implying that asset price behaves differently than our PriceGuard
@@ -144,18 +176,18 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         if (guardedMinPrice > result.price) {
             revert BaseOracleAdaptor__MinPriceAboveCurrentPrice();
         }
-
+        
         PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
-        if (pg.timestampStart > timestampStart) {
+        if (pg.timestampStart > timestampStart && timestampStart > 0) {
             revert BaseOracleAdaptor__InvalidTimestamp();
         }
 
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(ips);
-        pg.basePrice = uint96(basePrice);
-        pg.minPrice = uint80(minPrice);
+        pg.basePrice = uint88(basePrice);
+        pg.minPrice = uint88(minPrice);
 
         emit PriceGuardUpdated(pg);
     }
@@ -167,10 +199,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///              USD (true) or a chain's native token (false).
     function disableGuardedPriceConfig(address asset, bool inUSD) external {
         _checkMarketPermissions();
-        delete priceGuards[asset][inUSD];
+        _disableGuardedPriceConfig(asset, inUSD);
     }
 
-    /// @notice Removes a supported asset from the adaptor.
+    /// @notice Removes a supported asset from the adaptor, and any price
+    ///         guard configured.
     /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
@@ -182,12 +215,22 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
         _wipeAssetConfigs(asset);
+        _disableGuardedPriceConfig(asset, true);
+        _disableGuardedPriceConfig(asset, false);
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
         CommonLib._oracleManager(centralRegistry).notifyFeedRemoval(asset);
         
         emit AssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @return result The adaptor's type.
+    function adaptorType() external view returns (uint256 result) {
+        result = _adaptorType;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -247,8 +290,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Case where there is no realtime price increase so the PriceGuard
         // has static minimum/maximum guarded prices.
         if (pg.ips == 0) {
+            // If the price of the token drops below the minimum we return 0
+            // to immediately bubble up a pricing error.
             if (price < pg.minPrice) {
-                return pg.minPrice;
+                return 0;
             }
 
             return price > pg.basePrice ? pg.basePrice : price;
@@ -261,8 +306,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 timePassed = block.timestamp - pg.timestampStart;
         uint256 min = _guardedPrice(timePassed, pg.ips, pg.minPrice);
 
+        // If the price of the token drops below the minimum we return 0 to
+        // immediately bubble up a pricing error.
         if (price < min) {
-            return min;
+            return 0;
         }
         
         uint256 max = _guardedPrice(timePassed, pg.ips, pg.basePrice);
@@ -282,7 +329,16 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 ips,
         uint256 price
     ) internal pure returns (uint256 r) {
-        r = FixedPointMathLib.mulDiv(price, ((timePassed * ips) + WAD), WAD);
+        r = FixedPointMathLib.fullMulDiv(price, ((timePassed * ips) + WAD), WAD);
+    }
+
+    /// @notice Disables any PriceGuard active when pricing `asset`
+    ///         denominated either USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to disable any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard disabled should be in
+    ///              USD (true) or a chain's native token (false).
+    function _disableGuardedPriceConfig(address asset, bool inUSD) internal {
+        delete priceGuards[asset][inUSD];
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.
@@ -290,6 +346,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert BaseOracleAdaptor__AssetIsNotSupported();
+        }
+    }
+
+    /// @notice Checks whether `asset` is the zero address which is blocked.
+    function _checkNotZeroAddress(address asset) internal pure {
+        if (asset == address(0)) {
+            revert BaseOracleAdaptor__InvalidConfig();
         }
     }
 
@@ -306,14 +369,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__Unauthorized();
         }
     }
-
-    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external view virtual returns (uint256);
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 

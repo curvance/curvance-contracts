@@ -31,7 +31,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///
 ///      This means that if utilization remains elevated during update
 ///      periods, the interest rate paid by borrowers will continually
-///      increase. This will, in theory, attract new borrowers who require
+///      increase. This will, in theory, attract new lenders who require
 ///      a higher yield to provide liquidity to a particular market.
 ///      At the same time, higher borrow rates incentivize interest rate
 ///      sensitive borrowers to repay their outstanding debt.
@@ -84,9 +84,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract DynamicIRM is IDynamicIRM, ERC165 {
     /// TYPES ///
 
-    /// @title Rates Configuration
+    /// @title Rates Configuration.
     /// @notice Stores configuration data for current Dynamic Interest
     ///         Rate Model.
+    /// @dev Once this token is set it can never be changed, like an immutable
+    ///      variable, this IRM will also be depreciated if that token ever
+    ///      switches IRMs.
     /// @param baseRatePerSecond Rate at which interest is accumulated,
     ///                          before `vertexStart`, per second, in `WAD`.
     /// @param vertexRatePerSecond Rate at which interest is
@@ -96,10 +99,10 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                    is used, instead of base rate, in `WAD`.
     /// @param increaseThresholdStart The utilization rate at which the vertex
     ///                               multiplier will begin to increase,
-    ///                               in `BPS`.
+    ///                               in 10 * `BPS`.
     /// @param decreaseThresholdEnd The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out,
-    ///                             in `BPS`.
+    ///                             in 10 * `BPS`.
     /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
     ///                           is adjusted per `adjustmentRate`, in `BPS`.
     /// @param decayPerAdjustment The rate at which `vertexMultiplier` will
@@ -110,18 +113,15 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                            aka `WAD`.
     /// @param linkedToken The borrowable Curvance token linked to this
     ///                    interest rate model contract.
-    /// @dev Once this token is set it can never be changed, like an immutable
-    ///      variable, this IRM will also be depreciated if that token ever
-    ///      switches IRMs.
     struct RatesConfig {
         uint64 baseRatePerSecond;
         uint64 vertexRatePerSecond;
         uint64 vertexStart;
-        uint16 increaseThresholdStart;
-        uint16 decreaseThresholdEnd;
+        uint24 increaseThresholdStart;
+        uint24 decreaseThresholdEnd;
         uint16 adjustmentVelocity;
         uint16 decayPerAdjustment;
-        uint96 vertexMultiplierMax;
+        uint80 vertexMultiplierMax;
         address linkedToken;
     }
 
@@ -129,9 +129,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
     /// @notice The interval at which interest rates are adjusted, in seconds.
     /// @dev 10 minutes = 600 seconds.
-    ///      The 10 minute adjustment rate is intentionally set so that every
-    ///      borrower experiences a minimum 2 interest rate adjustments from a
-    ///      standard borrow action (20 minute minimum holding period).
+    ///      The 10 minute adjustment rate is set so that borrowers experience
+    ///      on average 2 interest rate adjustments from a standard borrow
+    ///      action (20 minute minimum holding period).
     uint256 public constant ADJUSTMENT_RATE = 10 minutes;
     
     /// @notice Curvance DAO hub.
@@ -157,7 +157,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     uint256 internal constant _MIN_VERTEX_START = 0.5e18;
     /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
     ///         in BPS on top of base rate (1 `BPS`).
-    ///         E.g. 1 * BPS = 200% multiplied to vertex interest rate per
+    ///         E.g. 1 * BPS = 120% multiplied to vertex interest rate per
     ///         `ADJUSTMENT_RATE` at 100% utilization.
     uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 2000;
     /// @notice The minimum rate at which `vertexMultiplier` is adjusted,
@@ -172,12 +172,17 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @notice The maximum value that `vertexMultiplierMax` can be set
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Maximum `vertexMultiplierMax` value.
-    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = type(uint96).max;
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = 50e18;
     /// @notice The minimum value that `vertexMultiplierMax` can be set to,
     ///         in `WAD`.
     ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` value.
     uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = WAD;
 
+    /// @notice Very small adjustments in utilization can lose 1 decimal of
+    ///         precision when calculating inflection points with `BPS`
+    ///         denomination so we use 10 * BPS instead for
+    ///         `increaseThresholdStart` and `decreaseThresholdEnd`.
+    uint256 internal constant _INFLECTION_DENOMINATION = 1e13;
     /// STORAGE ///
 
     /// @notice The dynamic value applied to `vertexRatePerSecond`, increasing
@@ -200,7 +205,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     error DynamicIRM__InvalidToken();
     error DynamicIRM__InvalidUtilizationStart();
     error DynamicIRM__InvalidInterestRatePerYear();
-    error DynamicIRM__InvalidAdjustmentRate();
     error DynamicIRM__InvalidAdjustmentVelocity();
     error DynamicIRM__InvalidDecayRate();
     error DynamicIRM__InvalidMultiplierMax();
@@ -323,6 +327,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ) external {
         _checkMarketPermissions();
 
+        address linkedCToken = ratesConfig.linkedToken;
+        if (linkedCToken != address(0)) {
+            IBorrowableCToken(linkedCToken).accrueIfNeeded();
+        }
+
         _updateDynamicIRM(
             baseRatePerYear,
             vertexRatePerYear,
@@ -382,7 +391,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util`, no precision loss as a result.
         if (
             multiplier == WAD &&
-            util < (1e14 * uint256(c.increaseThresholdStart))
+            util < (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))
         ) {
             return (ratePerSecond, ADJUSTMENT_RATE);
         }
@@ -428,7 +437,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util`, no precision loss as a result.
         if (
             multiplier == WAD &&
-            util < (1e14 * uint256(c.increaseThresholdStart))
+            util < (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))
         ) {
             return _vertexRate(
                 util,
@@ -656,8 +665,17 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         config.vertexStart = uint64(vertexStart);
         config.adjustmentVelocity = uint16(adjustmentVelocity);
         config.decayPerAdjustment = uint16(decayPerAdjustment);
-        config.vertexMultiplierMax = uint96(vertexMultiplierMax);
-        vertexMultiplier = vertexReset ? WAD : vertexMultiplier;
+        config.vertexMultiplierMax = uint80(vertexMultiplierMax);
+        if (vertexReset) {
+            vertexMultiplier = WAD;
+        } else {
+            uint256 cachedVertexMultiplier = vertexMultiplier;
+            // If the new `vertexMultiplierMax` is below `vertexMultiplier`
+            // we should clamp it down to the new maximum.
+            if (vertexMultiplierMax < cachedVertexMultiplier) {
+                vertexMultiplier = vertexMultiplierMax;
+            }
+        }
 
         // Dynamic rates start increasing halfway between desired
         // utilization and 100% utilization, in `WAD`.
@@ -668,7 +686,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // storage slot and `vertexStart` is set in `BPS` so we shouldnt lose
         // precision.
         config.increaseThresholdStart =
-            uint16((vertexStart + thresholdLength) / 1e14);
+            uint24((vertexStart + thresholdLength) / _INFLECTION_DENOMINATION);
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexStart) and maximizes an equal utilization down
@@ -676,7 +694,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // to save a storage slot and `vertexStart` is set in `BPS` so we
         // shouldnt lose precision.
         config.decreaseThresholdEnd =
-            uint16((vertexStart - thresholdLength) / 1e14);
+            uint24((vertexStart - thresholdLength) / _INFLECTION_DENOMINATION);
 
         emit NewIRM(config);
     }
@@ -710,7 +728,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        if (util <= (1e14 * uint256(c.increaseThresholdStart))) {
+        if (util <= (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))) {
             newMultiplier = multiplier - decay;
 
             // Check if decay rate sends new rate below 1.
@@ -725,7 +743,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             c.adjustmentVelocity, // `adjustmentVelocity` in `BPS`.
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
-            1e14 * uint256(c.increaseThresholdStart) // `start` convert to WAD to match util.
+            _INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart) // `start` convert to WAD to match util.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -773,7 +791,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // Convert `decreaseThresholdEnd` to `WAD` to be in same terms as
         // `util`, no precision loss as a result.
-        if (util <= (1e14 * uint256(c.decreaseThresholdEnd))) {
+        if (util <= (_INFLECTION_DENOMINATION * uint256(c.decreaseThresholdEnd))) {
             // Apply maximum adjustVelocity reduction (shift = 1).
             // We only need to adjust for `BPS` precision since `shift`
             // is not used here.
@@ -797,7 +815,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
             c.vertexStart, // `start` in `WAD`.
-            1e14 * uint256(c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
+            _INFLECTION_DENOMINATION * uint256(c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
         );
 
         // Update and return with adjustment and decay rate applied.

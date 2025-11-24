@@ -33,6 +33,8 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         adaptor = new VelodromeStableLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         adaptor.addAsset(_VELODROME_DAI_USDC);
 
         chainlinkAdaptor.addAsset(
@@ -54,22 +56,38 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             0
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _VELODROME_DAI_USDC, 
+            address(adaptor), 
+            100, 
+            50,
+            100,
+            50
+            );
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {
@@ -79,7 +97,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         oracleManager.getPrice(_VELODROME_DAI_USDC, true, false);
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _VELODROME_DAI_USDC,
             true,
@@ -194,5 +212,10 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0));
     }
 }

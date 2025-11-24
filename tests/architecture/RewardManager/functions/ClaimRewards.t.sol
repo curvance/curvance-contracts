@@ -45,7 +45,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         usdc.approve(_UNISWAP_V2_ROUTER, 10000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 1000000e18);
 
-        _UNISWAP_V2_ROUTER.call(
+        (bool success, ) =_UNISWAP_V2_ROUTER.call(
             abi.encodeWithSignature(
                 "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
                 _USDC_ADDRESS,
@@ -58,6 +58,8 @@ contract ClaimRewardsTest is TestBaseRewardManager {
                 block.timestamp
             )
         );
+
+        assertTrue(success);
     }
 
     function test_claimRewards_fail_whenNoEpochRewardsToClaim() public {

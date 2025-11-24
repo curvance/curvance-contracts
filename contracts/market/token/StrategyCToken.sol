@@ -62,6 +62,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// ERRORS ///
 
+    error StrategyCToken__SlippageInputError();
     error StrategyCToken__HarvestingPaused();
     error StrategyCToken__UnapprovedAssetSwap();
 
@@ -120,15 +121,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return vestingEnd When the current vesting period ends and a new
     ///                    harvest can execute.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
+    /// @return strategyPaused Whether the strategy token's strategy is
+    ///                        currently paused.
     function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
         uint256 vestingEnd,
-        uint256 lastVestingClaim
+        uint256 lastVestingClaim,
+        uint256 strategyPaused
     ) {
         uint256 vestingData = _vestingData;
         vestingRate = uint176(vestingData);
         vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+        strategyPaused = harvestingPaused;
     }
 
     /// @notice Virtual function to harvest yield from the vault.
@@ -256,6 +261,18 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
             uint40(vestingData >> _BITPOS_VEST_END);
     }
 
+    /// @notice Validates whether the inputted slippage from the harvestor is
+    ///         within the acceptable range allowed for strategy swap action.
+    /// @param slippage The amount of value-loss acceptable from swapping
+    ///                 between tokens.
+    function _checkSlippageInput(
+        uint256 slippage
+    ) internal view {
+        if (slippage > centralRegistry.slippageLimit()) {
+            revert StrategyCToken__SlippageInputError();
+        }
+    }
+
     /// @notice Updates asset values for a pending deposit.
     /// @param assets The amount of `asset()` to deposit.
     function _updateAssetsForDeposit(uint256 assets) internal override {
@@ -334,7 +351,8 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         address feeManager
     ) internal returns (uint256) {
         // Calculate protocol fee for token lockers and strategy bot.
-        uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, BPS);
+        uint256 fee = _mulDivUp(reward, strategyFee, BPS);
+        
         // Take fee.
         SafeTransferLib.safeTransfer(rewardToken, feeManager, fee);
         // Return remaining reward after fee was taken.

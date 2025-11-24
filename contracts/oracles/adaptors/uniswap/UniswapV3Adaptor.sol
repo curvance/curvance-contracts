@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
@@ -67,7 +68,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         ICentralRegistry cr,
         IStaticOracle uniOracle,
         address wNative
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "UniswapV3Adaptor") {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
@@ -149,7 +150,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 om.getPrice(config.quoteToken, true, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
-            if (errorCode > 0) {
+            if (errorCode > NO_ERROR) {
                 result.hadError = true;
                 return result;
             }
@@ -173,7 +174,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 om.getPrice(config.quoteToken, false, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
-            if (errorCode > 0) {
+            if (errorCode > NO_ERROR) {
                 result.hadError = true;
                 return result;
             }
@@ -189,12 +190,13 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a token inside a Univ3 lp.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param config The adaptor data needed to add `asset`.
     function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         // Verify twap time sample is reasonable.
         if (config.secondsAgo < MINIMUM_SECONDS_AGO) {
@@ -228,14 +230,6 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 9;
     }
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///

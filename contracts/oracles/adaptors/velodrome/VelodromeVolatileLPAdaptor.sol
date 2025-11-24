@@ -9,17 +9,9 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseVolatileLPAdaptor(cr) {}
-
-    /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 11;
-    }
+    constructor(
+        ICentralRegistry cr
+    ) BaseVolatileLPAdaptor(cr, "VelodromeVolatileLPAdaptor") {}
 
     /// INTERNAL FUNCTIONS ///
 

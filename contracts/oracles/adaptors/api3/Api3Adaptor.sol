@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
@@ -50,12 +50,12 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "Api3Adaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds an Api3 Price Feed as an asset inside this adaptor.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
@@ -72,7 +72,16 @@ contract Api3Adaptor is BaseOracleAdaptor {
         string memory ticker
     ) external {
         _checkElevatedPermissions();
-        
+        _checkNotZeroAddress(asset);
+
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (heartbeat != 0) {
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
+
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert Api3Adaptor__InvalidHeartbeat();
         }
@@ -102,13 +111,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    function adaptorType() external pure override returns (uint256) {
-        return 5;
     }
 
     /// INTERNAL FUNCTIONS ///

@@ -34,6 +34,8 @@ contract TestOracleManager is TestBaseOracleManager {
         adaptor = new VelodromeVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         adaptor.addAsset(_VELODROME_WETH_USDC);
 
         chainlinkAdaptor.addAsset(
@@ -54,28 +56,42 @@ contract TestOracleManager is TestBaseOracleManager {
             _CHAINLINK_ETH_USD,
             0
         );
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _VELODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
         );
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         uint256 higherPrice;
         uint256 lowerPrice;
         uint256 errorCode;
@@ -112,7 +128,8 @@ contract TestOracleManager is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertGt(lowerPrice, 0);
-        assertEq(higherPrice, lowerPrice);
+        // Prices will differ due to rounding difference on getLower parameter.
+        assertApproxEqAbs(higherPrice, lowerPrice, 5000000);
     }
 
     function testRevertAfterAssetRemove() public {

@@ -67,7 +67,7 @@ contract TestFeeManager is TestBaseFeeManager {
         usdc.approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
 
-        _UNISWAP_V2_ROUTER.call(
+        (bool success, ) =_UNISWAP_V2_ROUTER.call(
             abi.encodeWithSignature(
                 "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
                 _USDC_ADDRESS,
@@ -80,6 +80,8 @@ contract TestFeeManager is TestBaseFeeManager {
                 block.timestamp
             )
         );
+
+        assertTrue(success);
 
         _createLock();
 

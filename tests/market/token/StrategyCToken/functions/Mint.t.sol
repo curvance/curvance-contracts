@@ -13,28 +13,28 @@ contract MintTest is TestBaseStrategyCToken {
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
-        strategyCBALRETH.mint(0, address(this));
+        pendleStrategyCTokenSTETH.mint(0, address(this));
     }
 
     function test_strategyCTokenMint_fail_whenMintIsNotAllowed() public {
-        marketManagerIsolated.setMintPaused(address(strategyCBALRETH), true);
+        marketManagerIsolated.setMintPaused(address(pendleStrategyCTokenSTETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        strategyCBALRETH.mint(100, address(this));
+        pendleStrategyCTokenSTETH.mint(100, address(this));
     }
 
     function test_strategyCTokenMint_success() public {
-        uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = strategyCBALRETH.balanceOf(address(this));
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 underlyingBalance = LP_wstETH_24Dec2025.balanceOf(address(this));
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(address(this));
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit Transfer(address(0), address(this), 100);
 
-        strategyCBALRETH.mint(100, address(this));
+        pendleStrategyCTokenSTETH.mint(100, address(this));
 
-        assertEq(balRETH.balanceOf(address(this)), underlyingBalance - 100);
-        assertEq(strategyCBALRETH.balanceOf(address(this)), balance + 100);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply + 100);
+        assertEq(LP_wstETH_24Dec2025.balanceOf(address(this)), underlyingBalance - 100);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), balance + 100);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply + 100);
     }
 }

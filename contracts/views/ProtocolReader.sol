@@ -4,13 +4,13 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -103,6 +103,7 @@ contract ProtocolReader {
         uint256 debt;
         uint256 positionHealth;
         uint256 cooldown;
+        bool errorCodeHit;
         UserMarketToken[] tokens;
     }
 
@@ -110,15 +111,52 @@ contract ProtocolReader {
         address _address;
         uint256 userAssetBalance;
         uint256 userShareBalance;
+        uint256 userUnderlyingBalance;
         uint256 userCollateral;
+        uint256 exchangeRate;
         uint256 userDebt;
+    }
+
+    /// @notice Data structure returned on hypothetical calculation containing
+    ///         whether there was a collateral surplus or a liquidity deficit,
+    ///         and whether account positions need to be updated.
+    /// @param collateral Total value of `account`'s collateral across
+    ///                    all positions.
+    /// @param maxDebt The maximum amount of debt `account` could take
+    ///                on based on `collateral`.
+    /// @param debt Total value of `account`'s current outstanding debt
+    ///             across all positions.
+    /// @param collateralSurplus Excess collateral when adjusted for debt
+    ///                          obligations.
+    /// @param liquidityDeficit Liquidity deficit when adjusted for debt
+    ///                         obligations.
+    /// @param loanSizeError Whether the desired loan size is insufficient
+    ///                      causing an error.
+    /// @param oracleError Whether an oracle error was hit when pricing assets.
+    struct HypotheticalResult {
+        uint256 collateral;
+        uint256 maxDebt;
+        uint256 debt;
+        uint256 collateralSurplus;
+        uint256 liquidityDeficit;
+        bool loanSizeError;
+        bool oracleError;
     }
 
     /// CONSTANTS ///
 
+    /// @notice Minimum loan size allowed inside Curvance that can be created
+    ///         from a new line of credit inside a market.
+    /// @dev This restriction is to minimize the potential of debt positions
+    ///      being created that cannot not be profitably closed.
+    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 10e18;
     // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
     uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations, in `BPS`.
+    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 9990;
 
     /// STORAGE ///
 
@@ -195,7 +233,7 @@ contract ProtocolReader {
     ) public view returns (uint256 price, uint256 errorCode) {
         (price, errorCode) = _getOracleManager()
             .getPrice(asset, inUSD, getLower);
-        if (errorCode == 2) {
+        if (errorCode == BAD_SOURCE) {
             price = 0;
         }
     }
@@ -222,49 +260,262 @@ contract ProtocolReader {
     {
         address[] memory markets = centralRegistry.marketManagers();
         data = new DynamicMarketData[](markets.length);
-        for (uint256 i; i < markets.length; i++) {
+        for (uint256 i; i < markets.length; ++i) {
             data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
         }
     }
 
-    /// @notice Gets the health factor of a user's position in a market
+    /// @notice Gets the Position health of `account` inside a market (`mm`).
     /// @param mm The market manager to pull data from.
-    /// @param account The user address to get the health factor for.
-    /// @return positionHealth The healthiness of `account`'s position.
+    /// @param account The user address to get the position health of.
+    /// @param cToken Optional collateral token for a hypothetical action.
+    /// @param borrowableCToken Optional debt token for a hypothetical action.
+    /// @param isDeposit Whether `collateralAssets` is for a deposit (true) or
+    ///                  redemption (false).
+    /// @param collateralAssets The amount of assets for a hypothetical action
+    ///                         with `cToken`.
+    /// @param isRepayment Whether `debtAssets` is for a repayment (true) or
+    ///                    borrow (false).
+    /// @param debtAssets The amount of assets for a hypothetical action with
+    ///                   `borrowableCToken`.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
+    /// @return positionHealth The healthiness of `account`'s position inside
+    ///                        `mm`.
+    /// @return errorCodeHit Whether an error code was hit or not, which
+    ///                      would provide incorrect Position Health.
     function getPositionHealth(
         IMarketManager mm,
-        address account
-    ) public view returns (uint256 positionHealth) {
-        (uint256 soft, , uint256 debt, ) = mm.liquidationValuesOf(account);
+        address account,
+        address cToken,
+        address borrowableCToken,
+        bool isDeposit,
+        uint256 collateralAssets,
+        bool isRepayment,
+        uint256 debtAssets,
+        uint256 bufferTime
+    ) public view returns (uint256 positionHealth, bool errorCodeHit) {
+        uint256 soft;
+        uint256 debt;
+        uint256 tempValue;
+        (soft, , debt, , errorCodeHit) = _liquidationValuesOf(mm, account);
 
-        // No debt means infinite position health.
-        if (debt == 0) {
-            return type(uint256).max; 
+        if (mm.isListed(cToken) && collateralAssets != 0) {
+            tempValue = _collateralValue(cToken, collateralAssets);
+            (, uint256 collReqSoft , ) = mm.collConfig(cToken);
+            if (collReqSoft != 0) {
+                tempValue = _mulDiv(tempValue, BPS, collReqSoft);
+                if (tempValue > soft && !isDeposit) {
+                    errorCodeHit = true;
+                } else {
+                    soft = isDeposit ? soft + tempValue : soft - tempValue;
+                }
+            }
         }
 
-        positionHealth = (soft * WAD) / debt;
+        if (mm.isListed(borrowableCToken) && debtAssets != 0) {
+            if (debtAssets == type(uint256).max) {
+                debtAssets = debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime);
+            }
+
+            tempValue = _debtValue(borrowableCToken, debtAssets);
+            if (
+                debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) <
+                debtAssets && isRepayment
+            ) {
+                errorCodeHit = true;
+            } else {
+                debt = isRepayment ? debt - tempValue : debt + tempValue;
+            }
+        }
+
+        if (debt == 0) {
+            positionHealth = type(uint256).max; 
+        } else {
+            positionHealth = (soft * WAD) / debt;
+        }
     }
 
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
-        IVeCVE veCve = IVeCVE(centralRegistry.veCVE());
-        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCve.queryUserLocks(account);
-        data.locks = new UserLock[](lockAmounts.length);
-        for (uint256 i = 0; i < lockAmounts.length; i++) {
-            data.locks[i] = UserLock({
-                lockIndex: i,
-                amount: lockAmounts[i],
-                unlockTime: lockTimestamps[i]
-            });
+        if(centralRegistry.veCVE() != address(0)) {
+            (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) =
+                IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
+            uint256 numLocks = lockAmounts.length;
+            data.locks = new UserLock[](numLocks);
+            for (uint256 i; i < numLocks; ++i) {
+                data.locks[i] = UserLock({
+                    lockIndex: i,
+                    amount: lockAmounts[i],
+                    unlockTime: lockTimestamps[i]
+                });
+            }
         }
         
         address[] memory markets = centralRegistry.marketManagers();
-        data.markets = new UserMarket[](markets.length);
-        for (uint256 i = 0; i < markets.length; i++) {
+        uint256 numMarkets = markets.length;
+        data.markets = new UserMarket[](numMarkets);
+        for (uint256 i = 0; i < numMarkets; ++i) {
             data.markets[i] =
                 _buildUserMarket(MarketManagerIsolated(markets[i]), account);
         }
+    }
+
+    /// @notice Determine the maximum amount of `cTokenRedeemed` that `account`
+    ///         can redeem.
+    /// @param account The account to determine redemptions for.
+    /// @param cTokenRedeemed The cToken to redeem.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
+    /// @return collateralizedSharesRedeemable The amount of collateralized `cTokenModified`
+    ///                                        shares redeemable by `account`.
+    /// @return uncollateralizedShares The amount of uncollateralized `cTokenModified`
+    ///                                shares redeemable by `account`.
+    /// @return oracleError Whether an oracle error was hit when pricing assets.
+    function maxRedemptionOf(
+        address account,
+        address cTokenRedeemed,
+        uint256 bufferTime
+    ) public view returns (
+        uint256 collateralizedSharesRedeemable,
+        uint256 uncollateralizedShares,
+        bool oracleError
+    ) {
+        IMarketManager mm = _marketManager(cTokenRedeemed);
+
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (!mm.isListed(cTokenRedeemed)) {
+            return(0, 0, true);
+        }
+
+        HypotheticalResult memory r =
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+        oracleError = r.oracleError;
+        collateralizedSharesRedeemable =
+            _collateralPosted(cTokenRedeemed, account);
+        uncollateralizedShares = ICToken(cTokenRedeemed).balanceOf(account) -
+            collateralizedSharesRedeemable;
+        if (collateralizedSharesRedeemable > 0) {
+            uint256 redemptionDebt = _mulDiv(
+                _assetValue(
+                    collateralizedSharesRedeemable,
+                    getPriceSafely(cTokenRedeemed, true, true, 2),
+                    10 ** ICToken(cTokenRedeemed).decimals(),
+                    true
+                ),
+                _collateralizationRatio(mm, cTokenRedeemed),
+                BPS
+            );
+
+            if (r.debt + redemptionDebt > r.maxDebt) {
+                // If the account is already at or above debt cap no collateral
+                // can be redeemed.
+                if (r.debt >= r.maxDebt) {
+                    collateralizedSharesRedeemable = 0;
+                } else {
+                    // Else calculate partial redemption.
+                    collateralizedSharesRedeemable = _mulDiv(
+                        collateralizedSharesRedeemable,
+                        _mulDiv(r.maxDebt - r.debt, WAD, redemptionDebt),
+                        WAD
+                    );
+                }
+            }
+        }
+    }
+
+    /// @notice Determine what the account liquidity would be if
+    ///         the given shares were redeemed.
+    /// @param account The account to determine liquidity for.
+    /// @param cTokenModified The cToken to hypothetically redeem.
+    /// @param redemptionShares The number of shares to hypothetically redeem.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
+    /// @return Hypothetical account liquidity in excess of collateral
+    ///         requirements.
+    /// @return Hypothetical account liquidity deficit below collateral
+    ///         requirements.
+    /// @return bool Whether the proposed action is possible. NOTE: NOT
+    ///              whether it passes liquidity constraints or not.
+    /// @return bool Whether an error code was hit.
+    function hypotheticalRedemptionOf(
+        address account,
+        address cTokenModified,
+        uint256 redemptionShares,
+        uint256 bufferTime
+    ) public view returns (uint256, uint256, bool, bool) {
+        IMarketManager mm = _marketManager(cTokenModified);
+
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (
+            IBorrowableCToken(cTokenModified).debtBalance(account) > 0 ||
+            redemptionShares == 0 || !mm.isListed(cTokenModified)
+        ) {
+            return(0, 0, false, false);
+        }
+
+        HypotheticalResult memory r =
+            hypotheticalLiquidityOf(
+                mm,
+                account,
+                cTokenModified,
+                redemptionShares,
+                0,
+                bufferTime
+            );
+        return (r.collateralSurplus, r.liquidityDeficit, true, r.oracleError);
+    }
+
+    /// @notice Determine what the account liquidity would be if
+    ///         the given assets were borrowed.
+    /// @param account The account to determine liquidity for.
+    /// @param borrowableCTokenModified The borrowableCToken to hypothetically
+    ///                                 borrow.
+    /// @param borrowAssets The number of assets to hypothetically borrow.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
+    /// @return Hypothetical account liquidity in excess of collateral
+    ///         requirements.
+    /// @return Hypothetical account liquidity deficit below collateral
+    ///         requirements.
+    /// @return bool Whether the proposed action is possible. NOTE: NOT
+    ///              whether it passes liquidity constraints or not.
+    /// @return bool Whether the desired loan size is insufficient causing an
+    ///              error.
+    /// @return bool Whether an error code was hit.
+    function hypotheticalBorrowOf(
+        address account,
+        address borrowableCTokenModified,
+        uint256 borrowAssets,
+        uint256 bufferTime
+    ) public view returns (uint256, uint256, bool, bool, bool) {
+        IMarketManager mm = _marketManager(borrowableCTokenModified);
+
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (
+            _collateralPosted(borrowableCTokenModified, account) > 0 ||
+            borrowAssets == 0 || !mm.isListed(borrowableCTokenModified)
+        ) {
+            return(0, 0, false, false, false);
+        }
+
+        HypotheticalResult memory r =
+            hypotheticalLiquidityOf(
+                mm,
+                account,
+                borrowableCTokenModified,
+                0,
+                borrowAssets,
+                bufferTime
+            );
+        return (r.collateralSurplus, r.liquidityDeficit, true, r.loanSizeError, r.oracleError);
     }
 
     /// @notice Calculates the hypothetical maximum amount of
@@ -279,6 +530,8 @@ contract ProtocolReader {
     ///                         from to achieve leverage.
     /// @param assets The amount of `cToken` underlying that `account` will
     ///               deposit to leverage against.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return currentLeverage Returns the current leverage multiplier of
     ///                         `account`, in `WAD`.
     /// @return adjustedMaxLeverage Returns the maximum leverage multiplier of
@@ -292,42 +545,49 @@ contract ProtocolReader {
     ///                           allowed from `borrowableCToken`, measured in
     ///                           underlying token amount, after the new
     ///                           hypothetical deposit.
+    /// @return loanSizeError Whether the desired loan size is insufficient
+    ///                       causing an error.
+    /// @return oracleError Whether an oracle error was hit when pricing assets.
     function hypotheticalLeverageOf(
         address account,
         address cToken,
         address borrowableCToken,
-        uint256 assets
+        uint256 assets,
+        uint256 bufferTime
     ) public view returns (
         uint256 currentLeverage,
         uint256 adjustedMaxLeverage,
         uint256 maxLeverage,
-        uint256 maxDebtBorrowable
+        uint256 maxDebtBorrowable,
+        bool loanSizeError,
+        bool oracleError
     ) {
-        IMarketManager mm = ICToken(borrowableCToken).marketManager();
+        IMarketManager mm = _marketManager(borrowableCToken);
 
         // Validate `cToken` and `borrowableCToken` are properly listed.
         if (!mm.isListed(borrowableCToken) || !mm.isListed(cToken)) {
             revert ProtocolReader__TokenNotListed();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
-            mm.statusOf(account);
-        
+        HypotheticalResult memory r = 
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+        loanSizeError = r.loanSizeError;
+        oracleError = r.oracleError;
         // If the account is insolvent or we can immediately return with 0 for
         // everything.
-        if (sumDebt > sumCollateral) {
-            return (0, 0, 0, 0);
+        if (r.debt > r.collateral) {
+            return (0, 0, 0, 0, false, false);
         }
 
-        if (sumDebt == 0 || sumCollateral == 0) {
+        if (r.debt == 0 || r.collateral == 0) {
             currentLeverage = WAD;
         } else {
             currentLeverage =
-                _mulDiv(sumCollateral, WAD, sumCollateral - sumDebt);
+                _mulDiv(r.collateral, WAD, r.collateral - r.debt);
         }
 
         {
-            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
+            uint256 collRatio = _collateralizationRatio(mm, address(cToken));
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
@@ -335,14 +595,9 @@ contract ProtocolReader {
                 revert ProtocolReader__NonCollateralizable();
             }
 
-            uint256 newCollateral = _mulDiv(
-                ICToken(cToken).previewDeposit(assets),
-                getPriceSafely(address(cToken), true, true, 1), // Price the collateralToken.
-                10 ** ICToken(cToken).decimals()
-            );
-
-            sumCollateral += newCollateral;
-            maxDebt += _mulDiv(newCollateral, collRatio, WAD);
+            uint256 newCollateral = _collateralValue(cToken, assets);
+            r.collateral += newCollateral;
+            r.maxDebt += _mulDiv(newCollateral, collRatio, BPS);
         }
 
         // We can calculate terminal leverage by calculating the infinite
@@ -356,20 +611,23 @@ contract ProtocolReader {
         /// NOTE: This can overestimate maximum executeable leverage when
         ///       swapping due to AMM fees and slippage.
         maxDebtBorrowable = _mulDiv(
-            _mulDiv(
-                _mulDiv(maxDebt - sumDebt, sumCollateral, sumCollateral - maxDebt),
-                WAD,
-                getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1) // Price the debt token.
-            ),
-            10 ** IERC20(ICToken(borrowableCToken).asset()).decimals(),
-            WAD
+            r.maxDebt - r.debt,
+            r.collateral,
+            r.collateral - r.maxDebt
         );
 
         // Calculate the theoretical maximum leverage.
         maxLeverage = _mulDiv(
-            sumCollateral + maxDebtBorrowable,
+            r.collateral + maxDebtBorrowable,
             WAD,
-            sumCollateral - sumDebt
+            r.collateral - r.debt
+        );
+
+        // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
+        maxDebtBorrowable = _mulDiv(
+            maxDebtBorrowable,
+            10 ** ICToken(borrowableCToken).decimals(),
+            getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1)
         );
 
         // Calculate the maximum debt borrowable currently.
@@ -382,12 +640,13 @@ contract ProtocolReader {
         );
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
+        // Also convert adjusted maxDebtBorrowable back to WAD from assets denomination.
         if (maxDebtBorrowable > 0) {
             // Calculate the real maximum leverage.
             adjustedMaxLeverage = _mulDiv(
-                sumCollateral + maxDebtBorrowable,
+                r.collateral + _debtValue(borrowableCToken, maxDebtBorrowable),
                 WAD,
-                sumCollateral - sumDebt
+                r.collateral - r.debt
             );
         }
     }
@@ -415,7 +674,7 @@ contract ProtocolReader {
         }
 
         // Pull latest yield information.
-        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim) =
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim, ) =
             bcToken.getYieldInformation();
 
         // If `timestamp` is before block.timestamp, use `block.timestamp`.
@@ -529,7 +788,247 @@ contract ProtocolReader {
         }
     }
 
+    /// @notice Calculates hypothetical liquidity for an account after a
+    ///         potential action such as redemption and borrowing.
+    /// @param mm The market manager to pull hypothetical liquidity values
+    ///           from.
+    /// @param account The account to determine liquidity for.
+    /// @param cTokenModified The cToken to hypothetically redeem/borrow.
+    /// @param redemptionShares The number of tokens to hypothetically redeem,
+    ///                         in `shares`.
+    /// @param borrowAssets The amount of underlying to hypothetically borrow,
+    ///                     in `assets`.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
+    /// @return result Hypothetical results for an action containing:
+    ///                collateral Total value of `account`'s collateral across
+    ///                           all positions.
+    ///                maxDebt The maximum amount of debt `account`
+    ///                        could take on based on `collateral`.
+    ///                debt Total value of `account`'s current outstanding
+    ///                     debt across all positions.
+    ///                collateralSurplus Excess collateral capacity after
+    ///                                  the action.
+    ///                liquidityDeficit Shortfall in collateral capacity after
+    ///                                 the action.
+    ///                positionClosureNeeded Flag indicating if positions need
+    ///                                      to be closed. (0: no, 2: yes)
+    ///                loanSizeError Whether the desired loan size is
+    ///                              insufficient causing an error.
+    ///                oracleError Whether an oracle error was hit when pricing
+    ///                            assets.
+    function hypotheticalLiquidityOf(
+        IMarketManager mm,
+        address account,
+        address cTokenModified,
+        uint256 redemptionShares,
+        uint256 borrowAssets,
+        uint256 bufferTime
+    ) public view returns (HypotheticalResult memory result) {
+        AccountSnapshot[] memory snapshots;
+        uint256[] memory prices;
+        uint256 numAssets;
+        (snapshots, prices, numAssets, result.oracleError) =
+            _assetDataOf(mm, account, 2);
+        AccountSnapshot memory snap;
+        uint256 newDebt;
+
+        uint256 collRatio;
+        for (uint256 i; i < numAssets; ++i) {
+            snap = snapshots[i];
+
+            if (snap.isCollateral) {
+                (collRatio, ,) = mm.collConfig(snap.asset);
+                uint256 collateralValue = _assetValue(
+                    snap.collateralPosted,
+                    prices[i],
+                    10 ** snap.decimals,
+                    true
+                );
+                result.collateral += collateralValue;
+                result.maxDebt += _mulDiv(
+                    collateralValue,
+                    collRatio,
+                    BPS
+                );
+            } else {
+                // Update debt balance for `account` if necessary.
+                snap.debtBalance =
+                    debtBalanceAtTimestamp(account, snap.asset, block.timestamp + bufferTime);
+                // If they have a debt balance, increment their debt.
+                if (snap.debtBalance > 0) {
+                    result.debt += _assetValue(
+                        snap.debtBalance,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+                }
+            }
+
+            // Calculate impact of cTokenModified action.
+            if (cTokenModified == snap.asset) {
+                // If the token is collateral it cannot also be debt position,
+                // but, on a fresh borrow position snapshot can misreport
+                // a debt position as collateral until its fully opened
+                // because debtBalance still equals 0 at getSnapshot level.
+                if (snap.isCollateral && borrowAssets == 0) {
+                    (collRatio, ,) = mm.collConfig(snap.asset);
+                    // Hypothetical redemption action, decreasing collateral
+                    // or more simply adding new debt.
+                    newDebt += _mulDiv(
+                        _assetValue(
+                            redemptionShares,
+                            prices[i],
+                            10 ** snap.decimals,
+                            true
+                        ),
+                        collRatio,
+                        BPS
+                    );
+                } else {
+                    if (snap.isCollateral) {
+                        prices[i] = getPriceSafely(snap.underlying, true, false, 2);
+                    }
+
+                    // Hypothetical borrow action.
+                    newDebt += _assetValue(
+                        borrowAssets,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+
+                    // Initially, we would worry that newDebt can be
+                    // incremented during both borrow and redemption
+                    // actions but actions are done in isolation, so if
+                    // newDebt is increases here then cTokenModified will
+                    // never reach the redemption action block.
+                    // This means we can check terminal newDebt value here
+                    // and know its only including current and
+                    // hypothetical new debt.
+                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                        result.loanSizeError = true;
+                    }
+
+                    // We don't need to check for closing a position here
+                    // since borrow action will only expand a position.
+                }
+            }
+        }
+
+        // Returns excess liquidity on hypothetical positions.
+        if (result.maxDebt > newDebt) {
+            result.collateralSurplus = result.maxDebt - newDebt;
+            return result;
+        }
+
+        // Returns shortfall on hypothetical positions.
+        result.liquidityDeficit = newDebt - result.maxDebt;
+    }
+
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Evaluates collateral and debt positions to determine account
+    ///         health and liquidation parameters.
+    /// @param mm The market manager to pull liquidation values from.
+    /// @param account The address of the account being evaluated for
+    ///                liquidation.
+    /// @return cSoft The account's soft collateral value (collateral
+    ///               adjusted by soft requirements).
+    /// @return cHard The account's hard collateral value (collateral
+    ///               adjusted by hard requirements).
+    /// @return debt The account's total debt value.
+    /// @return lFactor The value that determines liquidation severity.
+    function _liquidationValuesOf(
+        IMarketManager mm,
+        address account
+    ) internal view returns (
+        uint256 cSoft, uint256 cHard, uint256 debt, uint256 lFactor, bool
+    ) {
+        (
+            AccountSnapshot[] memory snapshots,
+            uint256[] memory prices,
+            uint256 numAssets,
+            bool errorCodeHit
+        ) = _assetDataOf(mm, account, 2);
+        AccountSnapshot memory snap;
+
+        for (uint256 i; i < numAssets; ++i) {
+            snap = snapshots[i];
+
+            if (snap.isCollateral) {
+                (cSoft, cHard) = _addLiquidationValues(
+                    snap,
+                    account,
+                    prices[i],
+                    cSoft,
+                    cHard
+                );
+            } else {
+                // If they have a debt balance,
+                // we need to document collateral requirements.
+                if (snap.debtBalance > 0) {
+                    debt += _assetValue(
+                        snap.debtBalance,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+                }
+            }
+        }
+
+        if (AUCTION_BUFFER != 0) {
+            cSoft = _mulDiv(cSoft, AUCTION_BUFFER, BPS);
+            cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
+        }
+
+        // Get `account` lFactor.
+        if (cSoft >= debt) {
+            // Indicates no liquidation.
+            lFactor = 0;
+        } else {
+            lFactor = debt >= cHard ? WAD // Indicates hard liquidation.
+            // Indicates soft liquidation, we round up here in favor of the
+            // protocol, we know that we wont run into a value > WAD due to cHard
+            // being at least 1 higher than debt.
+            : FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
+        }
+
+        return (cSoft, cHard, debt, lFactor, errorCodeHit);
+    }
+
+    /// @notice Calculates and adds soft and hard collateral values for
+    ///         liquidation assessment.
+    /// @param snap Asset snapshot to calculate asset value from.
+    /// @param account The account to query collateral posted for to calculate
+    ///                liquidation values off of.
+    /// @param price The price of the underlying asset, in `WAD`.
+    /// @param softSumPrior The previous sum of soft collateral values.
+    /// @param hardSumPrior The previous sum of hard collateral values.
+    /// @return softSum The updated sum of soft collateral values.
+    /// @return hardSum The updated sum of hard collateral values.
+    function _addLiquidationValues(
+        AccountSnapshot memory snap,
+        address account,
+        uint256 price,
+        uint256 softSumPrior,
+        uint256 hardSumPrior
+    ) internal view returns (uint256 softSum, uint256 hardSum) {
+        address asset = snap.asset;
+        (, uint256 collReqSoft, uint256 collReqHard) =
+            _marketManager(asset).collConfig(asset);
+        uint256 assetValue = _assetValue(
+            _collateralPosted(asset, account),
+            price,
+            10 ** snap.decimals,
+            true
+        ) * BPS;
+
+        softSum = softSumPrior + (assetValue / collReqSoft);
+        hardSum = hardSumPrior + (assetValue / collReqHard);
+    }
 
     function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
         IERC20 asset = IERC20(cToken.asset());
@@ -612,10 +1111,10 @@ contract ProtocolReader {
             asset = cTokenUnderlying;
         }
 
-        address[] memory feeds = om.getPriceFeeds(asset);
+        address[] memory adaptors = om.getPricingAdaptors(asset);
 
-        uint256 numFeeds = feeds.length;
-        if (numFeeds == 0) {
+        uint256 numAdaptors = adaptors.length;
+        if (numAdaptors == 0) {
             return (0, 0);
         }
 
@@ -623,8 +1122,8 @@ contract ProtocolReader {
 
         // If the asset only has one price feed, we know it will be in
         // feed slot 0 so get both prices and return
-        if (numFeeds < 2) {
-            adaptor = feeds[0];
+        if (numAdaptors < 2) {
+            adaptor = adaptors[0];
             if (!om.isApprovedAdaptor(adaptor)) {
                 return (0, 0);
             }
@@ -632,12 +1131,12 @@ contract ProtocolReader {
             return (IOracleAdaptor(adaptor).adaptorType(), 0);
         }
 
-        adaptor = feeds[0];
+        adaptor = adaptors[0];
         uint256 adaptorTypeA = om.isApprovedAdaptor(adaptor)
             ? IOracleAdaptor(adaptor).adaptorType()
             : 0;
 
-        adaptor = feeds[1];
+        adaptor = adaptors[1];
         uint256 adaptorTypeB = om.isApprovedAdaptor(adaptor)
             ? IOracleAdaptor(adaptor).adaptorType()
             : 0;
@@ -649,14 +1148,17 @@ contract ProtocolReader {
         address tokenAddress,
         address account
     ) internal view returns (UserMarketToken memory umt) {
-        ICToken ctoken = ICToken(tokenAddress);
-        uint256 shares = ctoken.balanceOf(account);
+        ICToken cToken = ICToken(tokenAddress);
+        IERC20 underlying = IERC20(cToken.asset());
+        uint256 shares = cToken.balanceOf(account);
 
         umt._address = tokenAddress;
-        umt.userAssetBalance = ctoken.convertToAssets(shares);
-        umt.userShareBalance = ctoken.balanceOf(account);
-        umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
-        umt.userCollateral = ctoken.collateralPosted(account);
+        umt.userAssetBalance = cToken.convertToAssets(shares);
+        umt.userShareBalance = cToken.balanceOf(account);
+        umt.userUnderlyingBalance = underlying.balanceOf(account);
+        umt.userDebt = cToken.isBorrowable() ? IBorrowableCToken(address(cToken)).debtBalance(account) : 0;
+        umt.exchangeRate = cToken.exchangeRate();
+        umt.userCollateral = _collateralPosted(address(cToken), account);
     }
 
     function _buildUserMarket(
@@ -670,10 +1172,18 @@ contract ProtocolReader {
         for (uint256 j; j < numTokens; ++j) {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
-        
-        (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
+
+        HypotheticalResult memory r =
+            hypotheticalLiquidityOf(mm, account, address(0), 0, 0, 0);
+        um.collateral = r.collateral;
+        um.maxDebt = r.maxDebt;
+        um.debt = r.debt;
+        um.errorCodeHit = r.oracleError;
+
         um._address = address(mm);
-        um.positionHealth = getPositionHealth(mm, account);
+        // Get position health without any hypothetical changes.
+        (um.positionHealth, um.errorCodeHit) =
+            getPositionHealth(mm, account, address(0), address(0), false, 0, false, 0, 0);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
@@ -697,7 +1207,7 @@ contract ProtocolReader {
             IDynamicIRM irm = bcToken.IRM();
 
             dmt.debt = bcToken.marketOutstandingDebt();
-            dmt.liquidity = assetsHeld - dmt.debt;
+            dmt.liquidity = assetsHeld;
 
             // Values are given in seconds, and should be multiplied depending
             // on the time frame needed. For example, you might multiply these
@@ -781,6 +1291,129 @@ contract ProtocolReader {
         }
 
         return debtAssets;
+    }
+
+    /// @notice Retrieves the prices and account data of multiple assets
+    ///         inside this market.
+    /// @param account The account to retrieve data for.
+    /// @param errorCodeBreakpoint The error code that will cause liquidity
+    ///                            operations to revert.
+    /// @return Assets data for `account`.
+    /// @return Prices for `account` assets.
+    /// @return The number of assets `account` is in.
+    function _assetDataOf(
+        IMarketManager mm,
+        address account,
+        uint256 errorCodeBreakpoint
+    ) internal view returns (
+        AccountSnapshot[] memory,
+        uint256[] memory,
+        uint256,
+        bool errorCodeHit
+    ) {
+        address[] memory assets = mm.assetsOf(account);
+        uint256 numAssets = assets.length;
+        AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
+        uint256[] memory prices = new uint256[](numAssets);
+
+        address asset;
+        uint256 errorCode;
+        for (uint256 i; i < numAssets; ++i) {
+            asset = assets[i];
+            snapshots[i] = ICToken(asset).getSnapshot(account);
+
+            if (snapshots[i].isCollateral) {
+                (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, true);
+                prices[i] = (prices[i] * ICToken(asset).exchangeRate()) / WAD;
+            } else {
+                (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, false);
+            }
+
+            if (errorCode >= errorCodeBreakpoint && !errorCodeHit) {
+                errorCodeHit = true;
+            }
+
+        }
+
+        return (snapshots, prices, numAssets, errorCodeHit);
+    }
+    
+    function _marketManager(
+        address cToken
+    ) internal view returns (IMarketManager mm) {
+        mm = ICToken(cToken).marketManager();
+    }
+
+    function _collateralPosted(
+        address cToken,
+        address account
+    ) internal view returns (uint256 shares) {
+        shares = ICToken(cToken).collateralPosted(account);
+    }
+
+    function _collateralizationRatio(
+        IMarketManager mm,
+        address cToken
+    ) internal view returns (uint256 collRatio) {
+        (collRatio, ,) = mm.collConfig(cToken);
+    }
+    
+    /// @notice Calculates collateral value based on `cToken` `assets`,
+    ///         querying necessary values like price and decimals.
+    /// @param cToken The address of the cToken to calculate collateral value of.
+    /// @param assets The amount of underlying `cToken` assets.
+    function _collateralValue(
+        address cToken,
+        uint256 assets
+    ) internal view returns(uint256 value) {
+        value = _assetValue(
+            ICToken(cToken).previewDeposit(assets),
+            getPriceSafely(cToken, true, true, 1), // Price `cToken`.
+            10 ** ICToken(cToken).decimals(),
+            true
+        );
+    }
+
+    /// @notice Calculates debt value based on `borrowableCToken` `assets`,
+    ///         querying necessary values like price and decimals.
+    /// @param borrowableCToken The address of the borrowableCToken to
+    ///                         calculate debt value of.
+    /// @param assets The amount of underlying `borrowableCToken` assets.
+    function _debtValue(
+        address borrowableCToken,
+        uint256 assets
+    ) internal view returns(uint256 value) {
+        address underlyingAsset = ICToken(borrowableCToken).asset();
+        value = _assetValue(
+            assets,
+            getPriceSafely(underlyingAsset, true, false, 1), // Price `borrowableCToken`.
+            10 ** ICToken(underlyingAsset).decimals(),
+            false
+        );
+    }
+
+    /// @notice Calculates an assets value based on its `price`,
+    ///         `amount`, and adjusts for decimals.
+    /// @param amount The asset amount to calculate asset value from.
+    /// @param price The asset price to calculate asset value from, in `WAD`.
+    /// @param decimals The asset decimals to adjust asset value
+    ///                 into proper form.
+    /// @param increasesCollateral Whether the asset adds positive value or
+    ///        not to the liquidity check, we round down when increasing
+    ///        collateral value and round up when increasing collateral
+    ///        value/increasing debt.
+    /// @return The calculated asset value.
+    function _assetValue(
+        uint256 amount,
+        uint256 price,
+        uint256 decimals,
+        bool increasesCollateral
+    ) internal pure returns (uint256) {
+        if (increasesCollateral) {
+            return _mulDiv(amount, price, decimals);
+        }
+
+        return FixedPointMathLib.mulDivUp(amount, price, decimals);
     }
 
     /// @dev Returns `floor(x * y / d)`.

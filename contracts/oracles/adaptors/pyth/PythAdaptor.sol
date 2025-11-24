@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
@@ -39,11 +40,15 @@ contract PythAdaptor is BaseOracleAdaptor {
     uint256 public constant DEFAULT_HEARTBEAT =
         1 days + HEARTBEAT_GRACE_PERIOD;
 
-    /// STORAGE ///
+    /// @notice The address of the Native Universal Balance contract linked
+    ///         to the Pyth Adaptor.
+    address public immutable nativeUniversalBalance;
+    /// @notice The address of the Pyth oracle hub on this chain.
+    address public immutable pyth;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
-    address public nativeUniversalBalance;
-    address public pyth;
-    address public wrappedNative;
+    /// STORAGE ///
 
     /// @notice Price feed configuration data for an asset.
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
@@ -55,7 +60,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error PythAdaptor__Unauthorized();
     error PythAdaptor__InvalidHeartbeat();
 
     /// CONSTRUCTOR ///
@@ -67,7 +71,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         address nativeUniversalBalance_,
         address pyth_,
         address wNative
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "PythAdaptor") {
         nativeUniversalBalance = nativeUniversalBalance_;
         pyth = pyth_;
         wrappedNative = wNative;
@@ -78,7 +82,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
@@ -92,8 +96,15 @@ contract PythAdaptor is BaseOracleAdaptor {
         bytes32 priceId
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
 
         if (heartbeat != type(uint256).max) {
+            // Apply `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it
+            // was not missed.
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+
+            // Validate the feed heartbeat is not too long if it is not
+            // using the default value.
             if (heartbeat > DEFAULT_HEARTBEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
@@ -118,22 +129,12 @@ contract PythAdaptor is BaseOracleAdaptor {
         emit AssetAdded(asset, config, isUpdate);
     }
 
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 4;
-    }
-
     function updateFeedsFromUniversalBalance(
         bytes[] calldata priceUpdateData,
         address user
     ) public {
-        if (!centralRegistry.isMulticallProvider(msg.sender)) {
-            revert PythAdaptor__Unauthorized();
-        }
-        
+        IPluginDelegable(nativeUniversalBalance).isDelegate(user, msg.sender);
+
         // Update the prices to the latest available values and pay the
         // required fee for it. The `priceUpdateData` data should be retrieved
         // from our off-chain Price Service API using the `pyth-evm-js`
@@ -142,10 +143,8 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
 
         // Receive oracle update fee from universal balance contract.
-        NativeUniversalBalance(payable(nativeUniversalBalance)).useBalanceForOracleUpdate(
-            user,
-            fee
-        );
+        NativeUniversalBalance(payable(nativeUniversalBalance))
+            .useBalanceForOracleUpdate(user, fee);
 
         uint256 balanceBefore = address(this).balance;
         IWETH(wrappedNative).withdraw(fee);
@@ -214,6 +213,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             return result;
         }
 
+        // Adjust price pulled, if necessary.
         uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,

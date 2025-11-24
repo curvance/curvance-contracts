@@ -12,6 +12,7 @@ import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { StakedFraxAggregator } from "contracts/oracles/adaptors/wrappedAggregators/StakedFraxAggregator.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -79,15 +80,20 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             address(marketManagerIsolated)
         );
 
-        // Price sFRAX using FRAX/USD
+        // Price sFRAX using FRAX with PPS via StakedFraxAggregator
+        StakedFraxAggregator sfrxAgg = new StakedFraxAggregator(
+            _SFRAX_ADDRESS,
+            _FRAX_ADDRESS,
+            _CHAINLINK_FRAX_USD,
+            "SFRAX"
+        );
         chainlinkAdaptor.addAsset(
             _SFRAX_ADDRESS,
             true,
-            _CHAINLINK_FRAX_USD,
+            address(sfrxAgg),
             0
         );
-
-        oracleManager.addAssetPriceFeed(_SFRAX_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
 
         // Price FRAX
@@ -97,7 +103,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _CHAINLINK_FRAX_USD,
             0
         );
-        oracleManager.addAssetPriceFeed(_FRAX_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_FRAX_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         borrowableCFRAX = _deployBorrowableCToken(_FRAX_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCFRAX));
@@ -122,7 +128,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCUSDC)
         ) / 2;
@@ -154,10 +160,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             IUniswapV3Router.exactInput.selector,
             params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         // Execute leverage
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
 
         AccountSnapshot memory debtSnap = borrowableCUSDC.getSnapshot(user1);
         AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
@@ -175,9 +181,6 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         deal(_SFRAX_ADDRESS, user1, 500e18);
         IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
-
-        // Set position manager as delegate
-        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
 
         uint256 amountForLeverage = 800e6;
 
@@ -205,9 +208,9 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             IUniswapV3Router.exactInput.selector,
             params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
-        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.01e18);
 
         AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
         AccountSnapshot memory debtSnap = borrowableCUSDC.getSnapshot(user1);
@@ -236,7 +239,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCFRAX.borrow(50e18, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCUSDC)
         ) / 2;
@@ -249,7 +252,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
 
         // Execute leverage
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
 
         AccountSnapshot memory debtSnap = borrowableCFRAX.getSnapshot(user1);
         AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
@@ -268,8 +271,6 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         deal(_SFRAX_ADDRESS, user1, 500e18);
         IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
 
-        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
-
         uint256 amountForLeverage = 800e18;
 
         VaultPositionManager.LeverageAction memory leverageAction;
@@ -277,7 +278,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
 
-        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.01e18);
 
         AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
         AccountSnapshot memory debtSnap = borrowableCFRAX.getSnapshot(user1);
@@ -310,15 +311,23 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user1);
         AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user1);
 
+        // repay 10% of loan
+        uint256 repayAssets = debtBefore.debtBalance / 10;
+        // convert to USDC
+        // 1. repays 10% of loan (~$60)
+        // 2. swap yields slightly less due to pool fee and price
+        // 3. On this fork, 62_350_000 provides enough headroom to be >= 60e18 repayAssets
+        uint256 usdcToRepay = 62_350_000;
+
         VaultPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCUSDC));
-        deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
+        deleverageAction.collateralAssets = usdcToRepay;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.repayAssets = debtBefore.debtBalance / 10;
+        deleverageAction.repayAssets = repayAssets;
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = address(usdc);
-        deleverageAction.swapActions[0].inputAmount = collBefore.collateralPosted / 5;
+        deleverageAction.swapActions[0].inputAmount = usdcToRepay;
         deleverageAction.swapActions[0].outputToken = address(dai);
         deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
 
@@ -330,18 +339,18 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         );
         params.recipient = address(positionManager);
         params.deadline = block.timestamp + 1 hours;
-        params.amountIn = collBefore.collateralPosted / 5;
+        params.amountIn = usdcToRepay;
         params.amountOutMinimum = 0;
 
         deleverageAction.swapActions[0].call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector,
             params
         );
-        deleverageAction.swapActions[0].slippage = 0.5e18;
+        deleverageAction.swapActions[0].slippage = 0.2e18;
 
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
-        positionManager.deleverage(deleverageAction, 0.5e18);
+        positionManager.deleverage(deleverageAction, 0.01e18);
 
         AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user1);
         AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user1);
@@ -366,7 +375,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -390,10 +399,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
         vm.stopPrank();
     }
 
@@ -409,7 +418,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -422,10 +431,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
         leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         leverageAction.swapAction.call = "";
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
         vm.stopPrank();
     }
 
@@ -441,7 +450,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -463,10 +472,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
         vm.stopPrank();
     }
 
@@ -482,7 +491,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -504,10 +513,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
         vm.stopPrank();
     }
 
@@ -523,7 +532,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -545,10 +554,10 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.01e18;
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.01e18);
         vm.stopPrank();
     }
 
@@ -564,7 +573,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -588,14 +597,25 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 1e18;
+        leverageAction.swapAction.slippage = 0.05e18;
 
         vm.stopPrank();
-        centralRegistry.setSlippageLimit(10000);
+        centralRegistry.setSlippageLimit(2000);
         vm.startPrank(user1);
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        vm.expectRevert(abi.encodeWithSelector(SwapperLib.SwapperLib__Slippage.selector, 1e18));
+        positionManager.leverage(leverageAction, 0.05e18);
+
+        params.recipient = address(positionManager); // correct recipient
+        params.amountIn = 0; // 0 input amount
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.05e18);
+
         vm.stopPrank();
     }
 

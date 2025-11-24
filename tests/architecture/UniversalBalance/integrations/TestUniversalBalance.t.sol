@@ -83,7 +83,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         }
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(address(universalBalance.linkedToken()), address(borrowableCUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
     }

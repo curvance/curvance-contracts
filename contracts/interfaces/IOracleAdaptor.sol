@@ -31,8 +31,8 @@ interface IOracleAdaptor {
     struct PriceGuard {
         uint40 timestampStart;
         uint40 ips;
-        uint96 basePrice;
-        uint80 minPrice;
+        uint88 basePrice;
+        uint88 minPrice;
     }
 
     /// @notice Called by OracleManager to price an asset.

@@ -105,7 +105,7 @@ contract VelodromeZapper is BaseZapper {
         );
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             strategyCToken,
             zapAction.outputToken,
             outAmount,
@@ -197,7 +197,7 @@ contract VelodromeZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             zapAction.inputToken,
             redeemAction.shares,

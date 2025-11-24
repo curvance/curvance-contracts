@@ -11,15 +11,16 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract PriceGuardTest is TestBaseMarketIsolated {
+contract TestPriceGuard is TestBaseMarketIsolated {
 
     function setUp() public virtual override {
         super.setUp();
 
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockAnswer(3500e8);
         // Make ETH feed match WETH for dual adaptor
         chainlinkEthUsd.updateAnswer(3500e8);
+
+        _refreshMockFeeds();
     }
 
     function test_fail_when_timestampStartIsSoonerThanBuffer() public {
@@ -35,7 +36,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     }
 
     function test_fail_whenBasePriceIsLessThanMinPrice() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
@@ -64,7 +65,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     }
 
     function test_fail_whenBasePriceIsTooHigh() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 overflowedBasePrice = uint256(type(uint96).max) + 1;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
@@ -79,11 +80,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     }
 
     function test_fail_whenMinPriceIsTooHigh() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 basePrice = uint256(type(uint80).max) + 2;
         uint256 overflowedMinPrice = uint256(type(uint80).max) + 1;
 
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__MinPriceAboveCurrentPrice.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
@@ -94,8 +95,36 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         );
     }
 
+    function test_fail_whenBasePriceIsZero() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            0,
+            0
+        );
+    }
+
+    function test_fail_whenFeedHasErrorDuringConfig() public {
+        // Force hadError by setting the USD feed to zero
+        chainlinkEthUsd.updateAnswer(0);
+        chainlinkEthUsd.updateRoundData(1, 0, block.timestamp, block.timestamp);
+
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            3600e18,
+            3400e18
+        );
+    }
+
     function test_fail_whenMinPriceIsHigherThanCurrentPrice() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
 
         // minPrice too high: upper bound = 3,300
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__MinPriceAboveCurrentPrice.selector);
@@ -110,14 +139,15 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     }
 
     function test_fail_whenTimestampStartEarlierThanExisting() public {
-        // Initial valid config
+        // Initial valid dynamic config
         uint256 timestampStart1 = block.timestamp - 8 days;
+        uint256 increasePerSecond = 3170979198; // ~10% per year
 
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart1);
-        pg.ips = 0;
-        pg.basePrice = uint96(3600e18);
-        pg.minPrice = uint80(3400e18);
+        pg.ips = uint40(increasePerSecond);
+        pg.basePrice = uint88(3600e18);
+        pg.minPrice = uint88(3400e18);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
         emit BaseOracleAdaptor.PriceGuardUpdated(pg);
@@ -125,19 +155,19 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             timestampStart1,
-            0,
+            increasePerSecond,
             3600e18,
             3400e18
         );
 
-        // Attempt to set with earlier timestampStart
+        // Attempt to set with earlier timestampStart (should revert)
         uint256 timestampStart2 = block.timestamp - 10 days;
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidTimestamp.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _WETH_ADDRESS,
             true,
             timestampStart2,
-            0,
+            increasePerSecond,
             3600e18,
             3400e18
         );
@@ -145,12 +175,12 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
     // Static guard: enforce min and max constraints
     function test_success_StaticGuardAdjustPriceMinMax() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.basePrice = uint96(3600e18);
-        pg.minPrice = uint80(3400e18);
+        pg.basePrice = uint88(3600e18);
+        pg.minPrice = uint88(3400e18);
 
         // Static constraints [3400, 3600]
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -164,11 +194,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             3400e18
         );
 
-        // Below floor: adjust to 3400
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3300e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, 3400e18);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to 3600
         chainlinkEthUsd.updateAnswer(3700e8);
@@ -194,7 +224,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(increasePerSecond);
-        pg.basePrice = uint96(basePrice);
+        pg.basePrice = uint88(basePrice);
         pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -218,11 +248,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         console2.log("minBound", minBound);
         console2.log("maxBound", maxBound);
 
-        // Below floor: adjust to dynamic floor
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3000e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, minBound);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to dynamic cap
         chainlinkEthUsd.updateAnswer(4500e8);
@@ -253,16 +283,16 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         assertEq(err, 0);
         assertEq(price, newMaxBound);
 
-        // Below floor after time: adjust to new, higher dynamic floor
+        // Below floor after time: return error
         chainlinkEthUsd.updateAnswer(3000e8);
         (price, err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, newMinBound);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
     }
 
     // Dynamic guard with zero increase: behaves as static constraints
     function test_success_dynamicGuardZeroIncreaseBehavesStatic() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 increasePerSecond = 0; // No increase per second.
         uint256 basePrice = 3600e18;
         uint256 minPrice = 3400e18;
@@ -270,7 +300,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.basePrice = uint96(basePrice);
+        pg.basePrice = uint88(basePrice);
         pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -285,11 +315,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             minPrice
         );
 
-        // Below floor: adjust to min
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3300e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, minPrice);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to base
         chainlinkEthUsd.updateAnswer(3700e8);
@@ -302,5 +332,21 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         (price, err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
         assertEq(err, 0);
         assertEq(price, 3550e18);
+    }
+
+    function test_fail_whenHigherPriceReturnsError() public {
+        // Force hadError on the higher price check by returning 0
+        chainlinkEthUsd.updateAnswer(0);
+        chainlinkEthUsd.updateRoundData(2, 0, block.timestamp, block.timestamp);
+
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            3600e18,
+            3400e18
+        );
     }
 }

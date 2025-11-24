@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+
+import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+
+import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
 
 contract TestChainlinkAdaptor is TestBaseOracleManager {
 
@@ -29,9 +34,6 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         
         snxEthPriceFeed = new MockV3Aggregator(8, 1e8);
         snxUsdPriceFeed = new MockV3Aggregator(8, 1e8);
-
-        // Reinitialized because we're forking a different block than the base test
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
     }
 
     function test_success_AddPriceFeeds() public {
@@ -65,12 +67,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             assertEq(heartbeat, chainlinkAdaptor.DEFAULT_HEARTBEAT());
         }
 
-        // Add native feed
+        // Add native feed, with 180 heartbeat (without default grace period)
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0
+            180
         );
 
         // Test native configuration
@@ -90,7 +92,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             assertTrue(nativeIsConfigured);
 
             assertEq(nativeDecimals, 8);
-            assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEARTBEAT());
+            assertEq(nativeHeartbeat, 180 + HEARTBEAT_GRACE_PERIOD);
         }
 
         // Verify both configurations are still valid
@@ -103,14 +105,17 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         }
 
         // Should successfully add to oracle manager
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             SNX_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            180,
+            50,
+            180,
+            50
         );
     }
 
     function test_fail_UnauthorizedAddPriceFeed() public {
-
         vm.startPrank(user1);
 
         vm.expectRevert(abi.encodeWithSelector(
@@ -150,8 +155,89 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertEq(heartbeat, 0);
     }
 
-    function test_fail_UnauthorizedRemovePriceFeed() public {
+    function test_removeAsset_success_clearsPriceGuards() public {
+        test_success_AddPriceFeeds();
 
+        // Set static price guard for both USD/Native
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            false,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+
+        // Double check values aren't zero
+        IOracleAdaptor.PriceGuard memory pgUsd = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNative = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+        assertGt(pgUsd.basePrice, 0);
+        assertGt(pgNative.basePrice, 0);
+
+        // Remove asset
+        chainlinkAdaptor.removeAsset(SNX_ADDRESS);
+
+        // Guards should be wiped for both USD and native
+        IOracleAdaptor.PriceGuard memory pgUsdCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNativeCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+        assertEq(pgUsdCleared.basePrice, 0);
+        assertEq(pgUsdCleared.minPrice, 0);
+        assertEq(pgUsdCleared.timestampStart, 0);
+        assertEq(pgUsdCleared.ips, 0);
+
+        assertEq(pgNativeCleared.basePrice, 0);
+        assertEq(pgNativeCleared.minPrice, 0);
+        assertEq(pgNativeCleared.timestampStart, 0);
+        assertEq(pgNativeCleared.ips, 0);
+
+    }
+
+    function test_disableGuardedPriceConfig_success_onlyUSD() public {
+        test_success_AddPriceFeeds();
+
+        // Set static price guard for both USD/Native
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            false,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+
+        // Disable only the USD side
+        chainlinkAdaptor.disableGuardedPriceConfig(SNX_ADDRESS, true);
+
+        IOracleAdaptor.PriceGuard memory pgUsdCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNativeStill = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+
+        assertEq(pgUsdCleared.basePrice, 0);
+        assertEq(pgUsdCleared.minPrice, 0);
+        assertEq(pgUsdCleared.timestampStart, 0);
+        assertEq(pgUsdCleared.ips, 0);
+
+        // Native side remains set
+        assertGt(pgNativeStill.basePrice, 0);
+        assertGt(pgNativeStill.minPrice, 0);
+    }
+
+    function test_fail_UnauthorizedRemovePriceFeed() public {
         test_success_AddPriceFeeds();
 
         vm.startPrank(user1);
@@ -167,12 +253,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
     }
 
     function test_success_UpdateExistingAsset() public {
-
+        // Add native feed, with 3600 heartbeat (without default grace period)
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            3600 // custom heartbeat
+            3600
         );
         
         (
@@ -185,8 +271,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             true
         );
 
-        // Assert initial heartbeat
-        assertEq(heartbeat, 3600);
+        // Assert initial heartbeat, with default grace period added.
+        assertEq(heartbeat, 3600 + HEARTBEAT_GRACE_PERIOD);
 
         vm.expectEmit(true, false, false, false);
 
@@ -195,6 +281,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             ), true
         );
         
+        
+        // Add native feed, with 7200 heartbeat (without default grace period)
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
             true,
@@ -207,7 +295,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true
         );
-        assertEq(updatedHeartbeat, 7200);
+        // Assert updated heartbeat, with default grace period added.
+        assertEq(updatedHeartbeat, 7200 + HEARTBEAT_GRACE_PERIOD);
     }
 
     function test_fail_InvalidHeartbeat() public {
@@ -228,6 +317,63 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
     }
+
+    function test_fail_NegativePrice() public {
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+
+        // Test negative price
+        snxUsdPriceFeed.updateAnswer(-100e8);
+        snxUsdPriceFeed.updateRoundData(1, -100e8, block.timestamp, block.timestamp);
+        IOracleAdaptor.PricingResult memory result =
+            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+    }
+
+    function test_fail_StalePrice() public {
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+
+        // Test stale price
+        snxUsdPriceFeed.updateAnswer(150e8);
+        snxUsdPriceFeed.updateRoundData(
+            1, 
+            150e8, 
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1
+            , block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1);
+        
+        IOracleAdaptor.PricingResult memory result =
+            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+    }
+
+    function test_fail_ZeroPrice() public {
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+
+        // Test zero price
+        snxUsdPriceFeed.updateAnswer(0);
+        snxUsdPriceFeed.updateRoundData(1, 0, block.timestamp, block.timestamp);
+        IOracleAdaptor.PricingResult memory result =
+            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+    }
+
 
     function test_success_GetPriceUSD() public {
 
@@ -351,62 +497,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertGt(nativePriceData.price, 0);
     }
 
-    function test_fail_NegativePrice() public {
-
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(snxUsdPriceFeed),
-            0
-        );
-
-        // Test negative price
-        snxUsdPriceFeed.updateAnswer(-100e8);
-        snxUsdPriceFeed.updateRoundData(1, -100e8, block.timestamp, block.timestamp);
-        IOracleAdaptor.PricingResult memory result =
-            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.addAsset(address(0), true, address(snxUsdPriceFeed), 0);
     }
 
-    function test_fail_StalePrice() public {
-
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(snxUsdPriceFeed),
-            0
-        );
-
-        // Test stale price
-        snxUsdPriceFeed.updateAnswer(150e8);
-        snxUsdPriceFeed.updateRoundData(
-            1, 
-            150e8, 
-            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1
-            , block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1);
-        
-        IOracleAdaptor.PricingResult memory result =
-            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_ZeroPrice() public {
-
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(snxUsdPriceFeed),
-            0
-        );
-
-        // Test zero price
-        snxUsdPriceFeed.updateAnswer(0);
-        snxUsdPriceFeed.updateRoundData(1, 0, block.timestamp, block.timestamp);
-        IOracleAdaptor.PricingResult memory result =
-            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
 }

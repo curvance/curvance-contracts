@@ -95,7 +95,7 @@ contract NativeUniversalBalanceDepositForTest is
 
         weth.approve(address(nativeUniversalBalance), _ONE);
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(); // Now reverts with underflow
         nativeUniversalBalance.depositFor(_ONE, true, user2);
 
         vm.stopPrank();

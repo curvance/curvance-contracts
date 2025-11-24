@@ -21,11 +21,11 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
         _prepareUSDC(address(this), 1000e6 + 77777);
         deal(user1, _ONE);
 
-        _prepareBALRETH(address(this), 1000e18);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
 
         usdc.approve(address(borrowableCUSDC), 1000e6 + 77777);
-        balRETH.approve(address(strategyCBALRETH), 1000e18);
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         console2.log(" SET UP DEPOSIT");
         borrowableCUSDC.deposit(1000e6, address(this));

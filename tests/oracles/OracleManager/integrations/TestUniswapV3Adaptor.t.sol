@@ -31,6 +31,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -56,27 +57,45 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             IStaticOracle(_UNISWAP_V3_ORACLE),
             _WETH_ADDRESS
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        
         UniswapV3Adaptor.AssetConfig memory assetConfig;
         assetConfig.priceSource = _WBTC_WETH;
         assetConfig.secondsAgo = 3600;
         adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100, 
+            50,
+            100,
+            50
+            );
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {
@@ -90,7 +109,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assertEq(errorCode, 2);
     }
 
-    function testReturnsCorrectPriceInUSD() public {
+    function testReturnsCorrectPriceInUSD() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -100,7 +119,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assertGt(price, 0);
     }
 
-    function testReturnsCorrectPriceInETH() public {
+    function testReturnsCorrectPriceInETH() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             false,
@@ -194,5 +213,13 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
         adaptor.removeAsset(_WBTC_ADDRESS);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), assetConfig);
     }
 }

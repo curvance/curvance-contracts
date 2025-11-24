@@ -5,7 +5,7 @@ import { VelodromeStableCToken } from "contracts/market/token/VelodromeStableCTo
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromePositionManager } from "contracts/market/position-management/VelodromePositionManager.sol";
-import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/OdosCalldataChecker.sol";
+import { OdosV2CalldataChecker } from "contracts/calldata-checker/swap-checker/OdosV2CalldataChecker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -30,6 +30,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     address internal _VELODROME_DAI_USDC =
         0x19715771E30c93915A5bbDa134d782b81A820076;
     address public odosRouterV2 = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
+    address public odosExecutor = 0xB8fc6Bf89E16e66b5FA9aA44b8393a588Cf1e77c;
     IVeloGauge public gauge =
         IVeloGauge(0x6998089F6bDd9c74C7D8d01b99d7e379ccCcb02D);
     IVeloPairFactory public veloPairFactory =
@@ -37,7 +38,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     IVeloRouter public veloRouter =
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-    OdosCalldataChecker public odosCallDataChecker;
+    OdosV2CalldataChecker public odosCallDataChecker;
     VelodromeStableCToken public strategyCTokenUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     VelodromePositionManager public positionManager;
@@ -92,9 +93,13 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             address(chainlinkDaiUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -103,9 +108,13 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             address(chainlinkUsdcUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeStableLPAdaptor(
@@ -113,7 +122,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -165,7 +174,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         _provideEnoughLiquidityForLeverage();
 
-        odosCallDataChecker = new OdosCalldataChecker(odosRouterV2);
+        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         centralRegistry.setExternalCalldataChecker(
             odosRouterV2,
@@ -198,7 +207,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -219,7 +228,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             address(positionManager),
             5 // 0.5%
         );
-        (uint256 minUsdcOut, bytes memory odosCallData) = abi.decode(
+        (, bytes memory odosCallData) = abi.decode(
             result,
             (uint256, bytes)
         );

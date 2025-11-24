@@ -17,12 +17,14 @@ contract IsolatedMarketManagerDeploymentTest is TestBaseMarketIsolated {
             CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
                 .selector
         );
-        new MarketManagerIsolated(ICentralRegistry(address(0)));
+        new MarketManagerIsolated(ICentralRegistry(address(0)), 10e18, false);
     }
 
     function test_marketManagerDeployment_success() public {
         marketManagerIsolated = new MarketManagerIsolated(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            10e18,
+            false
         );
 
         assertEq(address(borrowableCUSDC.centralRegistry()), address(centralRegistry));

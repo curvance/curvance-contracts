@@ -44,10 +44,12 @@ interface IBorrowableCToken {
     /// @return vestingEnd When the current vesting period ends and interest
     ///                    rates paid will update.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
+    /// @return debtIndex The current market debt index.
     function getYieldInformation() external view returns (
         uint256 vestingRate,
         uint256 vestingEnd,
-        uint256 lastVestingClaim
+        uint256 lastVestingClaim,
+        uint256 debtIndex
     );
 
     /// @notice Get a snapshot of `account` data in this Curvance token.
@@ -250,7 +252,18 @@ interface IBorrowableCToken {
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
     /// @return result The current outstanding debt balance of `account`.
-    function debtBalance(address account) external view returns (uint256);
+    function debtBalance(
+        address account
+    ) external view returns (uint256 result);
+
+    /// @notice Updates pending interest and returns the current outstanding
+    ///         debt owed by `account`.
+    /// @param account The address whose debt balance should be calculated.
+    /// @return result The current outstanding debt of `account`, with pending
+    ///                interest applied.
+    function debtBalanceUpdated(
+        address account
+    ) external returns (uint256 result);
 
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the BorrowableCToken.

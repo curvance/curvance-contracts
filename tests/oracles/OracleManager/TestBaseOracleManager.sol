@@ -30,11 +30,16 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         ] = new ChainlinkAdaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             block.chainid
         ] = new ChainlinkAdaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -90,24 +95,36 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             _USDC_ADDRESS
         );
         centralRegistry.transferEmergencyCouncil(address(this));
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function _addSinglePriceFeed() internal initMainVariables {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        if (!oracleManager.isApprovedAdaptor(address(chainlinkAdaptor))) {
+            oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        }
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            180,  // badSourceBoundUSD
+            130,  // cautionBoundUSD
+            180,  // badSourceBoundNative
+            130   // cautionBoundNative
         );
     }
 
     function _addDualPriceFeed() internal initMainVariables {
         _addSinglePriceFeed();
 
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        if (!oracleManager.isApprovedAdaptor(address(dualChainlinkAdaptor))) {
+            oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        }
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
+            address(dualChainlinkAdaptor),
+            180,  // badSourceBoundUSD
+            130,  // cautionBoundUSD
+            180,  // badSourceBoundNative
+            130   // cautionBoundNative
         );
     }
 }

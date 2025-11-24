@@ -25,7 +25,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     IUniswapV3Router.ExactInputSingleParams public params;
 
     function setUp() public override {
-        _fork(19140000);
+        _fork(20287400);
 
         _init();
 
@@ -73,9 +73,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
@@ -87,15 +85,15 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         }
 
-        // Setup strategyCBALRETH.
+        // Setup pendleStrategyCTokenSTETH.
         {
-            _prepareBALRETH(address(this), _ONE);
-            balRETH.approve(address(strategyCBALRETH), _ONE);
+            deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
         }
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
         
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigLowValues(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity
@@ -120,17 +118,17 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         // Support chainId 42161.
         centralRegistry.addChain(42161, config);
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
@@ -238,22 +236,20 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        _harvestAuraStrategyRewards(1 weeks);
-
         assertEq(user1.balance, balance - messageFee);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 200000e18);
         borrowableCDAI.deposit(200000e18, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

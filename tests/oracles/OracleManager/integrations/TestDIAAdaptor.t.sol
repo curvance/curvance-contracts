@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { DIAAdaptor } from "contracts/oracles/adaptors/dia/DIAAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
@@ -22,6 +23,8 @@ contract TestDIAAdaptor is TestBaseOracleManager {
             _DIA_ORACLE
         );
 
+        oracleManager.addApprovedAdaptor(address(adaptor));
+
         DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;
         data.decimals = 8;
@@ -29,11 +32,11 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         data.key = "BTC/USD";
         adaptor.addAsset(_WBTC_ADDRESS, true, data);
 
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50, 100, 50);
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -41,5 +44,15 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertGt(price, 0);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        DIAAdaptor.AssetConfig memory data;
+        data.isConfigured = true;
+        data.decimals = 8;
+        data.heartbeat = 24 hours;
+        data.key = "BTC/USD";
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, data);
     }
 }

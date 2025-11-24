@@ -33,6 +33,8 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         adaptor = new VelodromeVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         adaptor.addAsset(_VELODROME_WETH_USDC);
 
         chainlinkAdaptor.addAsset(
@@ -54,24 +56,37 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
             0
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _VELODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
         );
     }
 
@@ -82,7 +97,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         oracleManager.getPrice(_VELODROME_WETH_USDC, true, false);
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _VELODROME_WETH_USDC,
             true,
@@ -197,5 +212,10 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
             BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0));
     }
 }

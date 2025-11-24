@@ -3,11 +3,11 @@ pragma solidity 0.8.28;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
+import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -17,11 +17,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant.
-///         However, they follow their own design modifying underlying
+/// @notice Curvance's cTokens (Curvance Tokens) follow their own design modifying underlying
 ///         mechanisms such as `totalAssets` following an asset vesting system
 ///         in both external strategies and lender interest accrual from
 ///         borrowers.
+///
+///         "Weird tokens" that do not properly implement ERC-20 are not
+///         intended to be supported such as where name() or decimals()
+///         returns in unconventional forms.
 ///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
@@ -46,14 +49,24 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         View functions are "safe" by introducing reentry and update
 ///         protection to minimize risks when integrating with Curvance.
 ///
-/// @dev `Asset()` Positions must have all assets ready for withdraw,
+/// @dev Curvance cTokens are partially ERC-4626 compliant:
+///      - Zero-amount transfers are blocked.
+///      - `convertToShares()` and `convertToAssets()` use `nonReadReentrant`, which may revert
+///        under reentrancy, deviating from ERC-4626 view requirements.
+///      - `maxWithdraw()` and `maxRedeem()` do not reflect global withdrawal limits.
+///      These deviations are intentional to prioritize protocol-level risk controls,
+///      reentrancy protection, and flexibility. Integrators should not rely on strict
+///      ERC-4626 behavior.
+///      
+///      `Asset()` Positions must have all assets ready for withdraw,
 ///      IE assets can NOT be locked.
 ///      This way assets can be easily liquidated when loans default.
 abstract contract BaseCToken is
     ERC4626,
     PluginDelegable,
     ReentrancyGuard,
-    Multicall
+    Multicall,
+    ERC165
 {
     /// CONSTANTS ///
 
@@ -115,6 +128,7 @@ abstract contract BaseCToken is
     error BaseCToken__Unauthorized();
     error BaseCToken__UnsupportedChain();
     error BaseCToken__InvalidMarketManager();
+    error BaseCToken__InvariantError();
 
     /// CONSTRUCTOR ///
 
@@ -191,9 +205,8 @@ abstract contract BaseCToken is
 
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // yield are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(assets, owner, ta);
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
@@ -212,7 +225,7 @@ abstract contract BaseCToken is
 
     /// @notice Caller deposits `assets` into the market, `receiver` receives
     ///         shares, and collateralization of `assets` is enabled.
-    /// @dev The caller must be depositing for themselves, or be managing
+    /// @dev The caller must be collateralizing for themselves, or be managing
     ///      their position through a Position Manager contract.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
@@ -415,51 +428,53 @@ abstract contract BaseCToken is
         marketCollateralPosted = marketCollateralPosted - totalShares;
     }
 
-    /// @notice Rescue any token sent by mistake.
-    /// @param token token to rescue.
-    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions();
-
-        if (token == asset()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        RescueLib._rescueToken(centralRegistry, token, amount);
-    }
-
-    /// @notice Returns share -> asset exchange rate, in `WAD`, safely.
+    /// @notice Updates pending assets and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRateSafe() external view nonReadReentrant returns (
-        uint256 r
-    ) {
-        r = _convertToAssets(WAD, _getTotalAssets());
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRateUpdated() external returns (uint256 result) {
+        _accrueIfNeeded();
+        
+        result = _convertToAssets(WAD, _getTotalAssets());
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
-    /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRate() external view returns (uint256 r) {
-        r = _convertToAssets(WAD, _getTotalAssets());
+    /// @notice Returns the up-to-date exchange rate from the underlying to
+    ///         the BorrowableCToken.
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRate() external view returns (uint256 result) {
+        result = _convertToAssets(WAD, _getTotalAssets());
     }
 
-    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @notice Updates pending assets and returns a snapshot of the cToken
+    ///         and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 except in `borrowableCToken`.
     /// @return result The snapshot of the cToken and `account` data.
+    function getSnapshotUpdated(
+        address account
+    ) external returns (AccountSnapshot memory result) {
+        _accrueIfNeeded();
+
+        result = getSnapshot(account);
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @dev debtBalance always return 0 except in `borrowableCToken`.
+    ///      NOTE: Does not accrue pending assets as part of the call.
+    /// @return result The snapshot of the cToken and `account` data.
     function getSnapshot(
         address account
-    ) external view virtual returns (AccountSnapshot memory result) {
+    ) public view virtual returns (AccountSnapshot memory result) {
         result.asset = address(this);
+        result.underlying = address(_asset);
         result.decimals = decimals();
         // Can only be true for non-BorrowableCTokens.
         result.isCollateral = true;
         result.collateralPosted = collateralPosted[account];
         // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the name of the token.
     /// @return The name of the token.
@@ -474,9 +489,9 @@ abstract contract BaseCToken is
     }
 
     /// @notice Returns the address of the underlying asset.
-    /// @return The address of the underlying asset.
-    function asset() public view override returns (address) {
-        return address(_asset);
+    /// @return result The address of the underlying asset.
+    function asset() public view override returns (address result) {
+        result = address(_asset);
     }
 
     /// @notice Returns the maximum assets that can be deposited at a time.
@@ -626,9 +641,9 @@ abstract contract BaseCToken is
 
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
-    /// @return Whether this token is borrowable or not.
-    function isBorrowable() public pure virtual returns (bool) {
-        return false;
+    /// @return result Whether this token is borrowable or not.
+    function isBorrowable() public pure virtual returns (bool result) {
+        result = false;
     }
 
     /// @dev Returns true that this contract implements both ERC4626
@@ -637,17 +652,18 @@ abstract contract BaseCToken is
     /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public pure virtual returns (bool result) {
+    ) public view virtual override returns (bool result) {
         result = interfaceId == type(ICToken).interfaceId ||
-            interfaceId == type(ERC4626).interfaceId;
+            interfaceId == type(ERC4626).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /// @notice Returns the total number of assets backing shares.
-    /// @return The total number of assets backing shares.
+    /// @return result The total number of assets backing shares.
     function totalAssets() public view nonReadReentrant override returns (
-        uint256
+        uint256 result
     ) {
-        return _getTotalAssets();
+        result = _getTotalAssets();
     }
 
     /// @notice Returns the amount of shares that would be exchanged
@@ -738,7 +754,6 @@ abstract contract BaseCToken is
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
         _checkZeroAmount(shares = _convertToShares(assets, _getTotalAssets()));
-        _checkDeposit(receiver);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
         // check reviewing isListed and mintPaused != 2.
@@ -761,7 +776,6 @@ abstract contract BaseCToken is
         _accrueIfNeeded();
 
         _checkZeroAmount(shares);
-        _checkDeposit(receiver);
 
         // Fail if mint not allowed, this stands in for a maxMint
         // check reviewing isListed and mintPaused != 2.
@@ -769,10 +783,8 @@ abstract contract BaseCToken is
 
         // Execute deposit.
         // No need to check for rounding error, previewMint rounds up.
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
         _processDeposit(
-            assets = _previewMint(shares, _totalAssets),
+            assets = _previewMint(shares, _getTotalAssets()),
             shares,
             msg.sender,
             receiver
@@ -799,9 +811,8 @@ abstract contract BaseCToken is
     ) internal virtual returns (uint256 shares) {
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(assets, owner, ta);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
@@ -856,9 +867,8 @@ abstract contract BaseCToken is
     ) internal virtual returns (uint256 assets) {
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(
             assets = _convertToAssets(shares, ta),
             owner,
@@ -943,7 +953,7 @@ abstract contract BaseCToken is
         address by,
         address receiver
     ) internal {
-        // Need to transfer before minting or ERC777s could reenter.
+        // Transfer the underlying assets to the contract.
         SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
 
         // Vests any rewards,if there are any, then update `_totalAssets`
@@ -1029,6 +1039,10 @@ abstract contract BaseCToken is
             action
         );
 
+        if (balancePrior != balanceOf(owner) + shares) {
+            revert BaseCToken__InvariantError();
+        }
+
         // Fails if redemption not allowed.
         uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
@@ -1113,11 +1127,11 @@ abstract contract BaseCToken is
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(cTokenAddress, shares);
+        _mint(address(0), shares);
         _totalAssets = assets;
 
-        emit Deposit(cTokenAddress, cTokenAddress, assets, shares);
-        _afterDepositAction(shares, cTokenAddress);
+        emit Deposit(by, address(0), assets, shares);
+        _afterDepositAction(shares, address(0));
     }
 
     /// @notice Updates the allowance for the caller.
@@ -1132,6 +1146,11 @@ abstract contract BaseCToken is
     /// @dev Returns the decimals of the underlying asset.
     function _underlyingDecimals() internal view override returns (uint8) {
         return _decimals;
+    }
+
+    /// @dev Override to disable virtual shares since _decimalsOffset is 0.
+    function _useVirtualShares() internal pure override returns (bool) {
+        return false;
     }
 
     /// @notice Returns the total amount of the underlying asset in the vault,
@@ -1293,6 +1312,8 @@ abstract contract BaseCToken is
         address receiver,
         address owner
     ) internal {
+        _accrueIfNeeded();
+
         _checkZeroAmount(shares);
         if (owner == receiver) {
             revert BaseCToken__TransferError();
@@ -1304,7 +1325,7 @@ abstract contract BaseCToken is
         uint256 collateralRedeemed = marketManager.canTransfer(
             address(this),
             shares,
-            msg.sender,
+            owner,
             balanceOf(owner),
             collateralOf,
             collateralOf > 0 ? true : false
@@ -1316,10 +1337,6 @@ abstract contract BaseCToken is
         
         _beforeTransferAction(shares, receiver, owner);
     }
-
-    /// @notice An optional set of instructions to check before processing
-    ///         a deposit of assets.
-    function _checkDeposit(address /* owner */) internal view virtual {}
 
     /// @notice Returns the total assets invariant, any pending rewards for
     ///         depositors and other values to process a withdrawal.
@@ -1371,6 +1388,16 @@ abstract contract BaseCToken is
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+    }
+
+    /// @dev Returns `ceil(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDivUp(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDivUp(x, y, d);
     }
 
     /// @dev Returns `floor(x * y / d)`.

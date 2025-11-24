@@ -12,14 +12,14 @@ contract TransferTest is TestBaseStrategyCToken {
     function setUp() public override {
         super.setUp();
 
-        strategyCBALRETH.mint(100, address(this));
+        pendleStrategyCTokenSTETH.mint(100, address(this));
     }
 
     function test_strategyCTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        strategyCBALRETH.transfer(user1, 0);
+        pendleStrategyCTokenSTETH.transfer(user1, 0);
     }
 
     function test_strategyCTokenTransfer_fail_whenTransferIsNotAllowed()
@@ -28,19 +28,19 @@ contract TransferTest is TestBaseStrategyCToken {
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        strategyCBALRETH.transfer(user1, 1e18);
+        pendleStrategyCTokenSTETH.transfer(user1, 1e18);
     }
 
     function test_strategyCTokenTransfer_success() public {
-        uint256 balance = strategyCBALRETH.balanceOf(address(this));
-        uint256 user1Balance = strategyCBALRETH.balanceOf(user1);
+        uint256 balance = pendleStrategyCTokenSTETH.balanceOf(address(this));
+        uint256 user1Balance = pendleStrategyCTokenSTETH.balanceOf(user1);
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit Transfer(address(this), user1, 100);
 
-        strategyCBALRETH.transfer(user1, 100);
+        pendleStrategyCTokenSTETH.transfer(user1, 100);
 
-        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100);
-        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), balance - 100);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), user1Balance + 100);
     }
 }

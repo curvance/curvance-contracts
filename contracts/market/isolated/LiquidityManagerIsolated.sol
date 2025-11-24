@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -25,7 +26,8 @@ abstract contract LiquidityManagerIsolated {
     ///                          `account` performed a liquidity focused
     ///                          action, which activates a cooldown period on
     ///                          redemptions/repayment/collateral removal.
-    /// @param assets Array of account assets.
+    /// @param assets Array containing all Curvance tokens an account has
+    ///               active liquidity positions in.
     struct AccountData {
         uint256 cooldownTimestamp;
         address[] assets;
@@ -115,21 +117,6 @@ abstract contract LiquidityManagerIsolated {
         uint256 errorCodeBreakpoint;
     }
 
-    /// @notice Data structure returned on hypothetical calculation containing
-    ///         whether there was a collateral surplus or a liquidity deficit,
-    ///         and whether account positions need to be updated.
-    /// @param collateralSurplus Excess collateral when adjusted for debt
-    ///                          obligations.
-    /// @param liquidityDeficit Liquidity deficit when adjusted for debt
-    ///                         obligations.
-    /// @param positionClosureNeeded Whether account positions need to be
-    ///                              updated.
-    struct HypotheticalResult {
-        uint256 collateralSurplus;
-        uint256 liquidityDeficit;
-        uint256 positionClosureNeeded;
-    }
-
     /// @notice Data structure returned on liquidation threshold calculation
     ///         containing an accounts collateral values under specific
     ///         (soft liquidation versus hard liquidation) methodology
@@ -184,17 +171,18 @@ abstract contract LiquidityManagerIsolated {
     ///                          below this will cause a soft liquidation.
     /// @param collateralReqHard The collateral requirement where dipping
     ///                          below this will cause a hard liquidation.
-    /// @param collateralSharesPrice The current price of `collateralToken`.
+    /// @param collateralSharesPrice The current price of `collateralToken`,
+    ///                              in `shares`.
     /// @param collateralDecimals The decimals that `collateralToken` is
     ///                           measured in.
     /// @param debtToken The address of the Curvance token to be repaid during
     ///                  the liquidation.
     /// @param debtDecimals The decimals that `debtToken` is measured in.
     /// @param debtUnderlyingPrice The current price of the underlying token
-    ///                            of `debtToken`.
-    /// @param auctionBuffer The current buffer that `cSoft` is multiplied
-    ///                      against, 10 bps, or 0 if not an auction-based
-    ///                      liquidation.
+    ///                            of `debtToken`, in `assets`.
+    /// @param auctionBuffer The current buffer that `cSoft` and `cHard` are 
+    ///                      multiplied against, 10 bps, or 0 if not an 
+    ///                      auction-based liquidation.
     struct TokenLiqData {
         address collateralToken;
         uint256 collateralReqSoft;
@@ -209,16 +197,61 @@ abstract contract LiquidityManagerIsolated {
 
     /// CONSTANTS ///
 
+    /// @notice Maximum collateralization ratio, in `BPS`.
+    /// @dev 9750 = 97.50%.
+    ///      ~40x leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public constant MAX_COLL_RATIO_CORRELATED = 9750;
+    /// @notice Maximum collateralization ratio, in `BPS`.
+    /// @dev 9696 = 96.96%.
+    ///      ~33x leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public constant MAX_COLL_RATIO_UNCORRELATED = 9696;
     /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations, in `BPS`.
-    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 9990;
+    ///         priority versus basic liquidations, for correlated assets,
+    ///         in `BPS`.
+    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer
+    ///                    auction liquidation priority for correlated assets.
+    uint256 public constant AUCTION_BUFFER_CORRELATED = 9990;
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations, for uncorrelated assets,
+    ///         in `BPS`.
+    /// @dev 9950 = 99.5%. Multiplied then divided by `BPS` = 50 bps buffer
+    ///                    auction liquidation priority for uncorrelated assets.
+    uint256 public constant AUCTION_BUFFER_UNCORRELATED = 9950;
+    /// @notice Minimum Liquidity buffer provided to maximally leveraged users
+    ///         before a liquidation can occur. This value is adjusted by
+    ///         `AUCTION_BUFFER` to calculate `MIN_LIQUIDATION_BUFFER_REQUIRED`
+    ///         inside a market, in `BPS`.
+    /// @dev 9960 = 0.4% buffer. An additional 40 basis points buffer before a
+    ///      liquidation can trigger (Then modified by `AUCTION_BUFFER`).
+    uint256 public constant EXTRA_BUFFER_BEFORE_LIQUIDATION = 9960;
+
+    /// @notice Enforced buffer provided to maximally leveraged users before a
+    ///         liquidation can occur, stored in `BPS`^2.
+    /// @dev 99,500,000 = ~99.5% bps^2 = 0.5% buffer. An additional 50 basis
+    ///      points buffer before a liquidation can trigger.
+    uint256 public immutable MIN_LIQUIDATION_BUFFER;
+    /// @notice Whether this market is for correlated assets or not, this
+    ///         impacts auction buffer and maximum theoretical
+    ///         collateralization ratio allowed.
+    bool public immutable IS_CORRELATED_ASSET_MARKET;
+    /// @notice Maximum collateralization ratio ratio allowed for any asset
+    ///         inside this market, in `BPS`, e.g. 9696 = 96.96%, or ~33x
+    ///         leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public immutable MAX_COLL_RATIO;
+    /// @notice Buffer to ensure auction-based liquidations have priority
+    ///         versus basic liquidations by multiplying a user's active
+    ///         collateral $ value by `AUCTION_BUFFER` then dividing by `BPS`.
+    ///         Denominated in `BPS`, e.g. 9990 = 99.9% -> 10 bps priority.
+    uint256 public immutable AUCTION_BUFFER;
+    /// @notice Minimum excess collateral requirement before soft liquidation
+    ///         can occur, in `BPS`, e.g. 9950 = 99.5% -> 50 bps drop before a
+    ///         liquidation can step in, used during `updateTokenConfig`.
+    uint256 public immutable MIN_LIQUIDATION_BUFFER_REQUIRED;
     /// @notice Minimum loan size allowed inside Curvance that can be created
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions
     ///      being created that cannot not be profitably closed.
-    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 10e18;
-
+    uint256 public immutable MIN_LOAN_SIZE;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -244,11 +277,40 @@ abstract contract LiquidityManagerIsolated {
     /// ERRORS ///
 
     error LiquidityManager__InsufficientLoanSize();
+    error LiquidityManager__PriceError();
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) {
+    /// @param minLoanSize The minimum active loan size for this isolated
+    ///                    market, must be between $10 - $100 in `WAD`.
+    /// @param isCorrelatedMarket Whether this market is for correlated assets
+    ///                           or not, this impacts auction buffer and
+    ///                           maximum theoretical collateralization
+    ///                           ratio allowed.
+    constructor(
+        ICentralRegistry cr,
+        uint256 minLoanSize,
+        bool isCorrelatedMarket
+    ) {
+        if (minLoanSize < 10e18 || minLoanSize > 100e18) {
+            revert LiquidityManager__InsufficientLoanSize();
+        }
         CentralRegistryLib._isCentralRegistry(cr);
+
         centralRegistry = cr;
+        MIN_LOAN_SIZE = minLoanSize;
+        IS_CORRELATED_ASSET_MARKET = isCorrelatedMarket;
+        MAX_COLL_RATIO = isCorrelatedMarket ?
+            MAX_COLL_RATIO_CORRELATED :
+            MAX_COLL_RATIO_UNCORRELATED;
+        AUCTION_BUFFER = isCorrelatedMarket ? AUCTION_BUFFER_CORRELATED :
+            AUCTION_BUFFER_UNCORRELATED;
+        
+        // Calculates the minimum liquidation buffer the market needs to give
+        // users before liquidation. E.g. 9960 extra buffer * 10 bps auction
+        // buffer = 9960 * 9990 = 99.5 bps^2 or ~50 bps buffer from max
+        // leverage to liquidation.
+        MIN_LIQUIDATION_BUFFER =
+            EXTRA_BUFFER_BEFORE_LIQUIDATION * AUCTION_BUFFER;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -260,7 +322,7 @@ abstract contract LiquidityManagerIsolated {
     ///                 could take on based on `collateral`.
     /// @return debt Total value of `account`'s current outstanding
     ///              debt across all positions.
-    function _statusOf(address account) internal view returns (
+    function _statusOf(address account) internal returns (
         uint256 collateral,
         uint256 maxDebt,
         uint256 debt
@@ -269,7 +331,7 @@ abstract contract LiquidityManagerIsolated {
             AccountSnapshot[] memory snapshots,
             uint256[] memory prices,
             uint256 numAssets
-        ) = _assetDataOf(account, 2);
+        ) = _assetDataOf(account, BAD_SOURCE);
         AccountSnapshot memory snap;
 
         for (uint256 i; i < numAssets; ++i) {
@@ -315,28 +377,17 @@ abstract contract LiquidityManagerIsolated {
     ///                            borrow, in `assets`.
     ///               errorCodeBreakpoint The error code that will cause
     ///                                   liquidity operations to revert.
-    /// @return result Hypothetical results for an action containing:
-    ///                collateralSurplus Excess collateral capacity after
-    ///                                  the action.
-    ///                liquidityDeficit Shortfall in collateral capacity after
-    ///                                 the action.
-    ///                positionClosureNeeded Flag indicating if positions need
-    ///                                      to be closed. (0: no, 2: yes)
-    /// @return positionsToClose Boolean array indicating which positions
-    ///                          would need to be closed.
+    /// @return uint256 Excess collateral capacity after the action.
+    ///         uint256 Shortfall in collateral capacity after the action.
     function _hypotheticalLiquidityOf(
         address account,
         HypotheticalAction memory action
-    ) internal view returns (
-        HypotheticalResult memory result,
-        bool[] memory
-    ) {
+    ) internal returns (uint256, uint256) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory prices,
             uint256 numAssets
         ) = _assetDataOf(account, action.errorCodeBreakpoint);
-        bool[] memory positionsToClose = new bool[](numAssets);
         AccountSnapshot memory snap;
         uint256 maxDebt;
         uint256 newDebt;
@@ -344,171 +395,86 @@ abstract contract LiquidityManagerIsolated {
         for (uint256 i; i < numAssets; ++i) {
             snap = snapshots[i];
 
+            // Generally `isCollateral` tells us if an entry is collateral or
+            // debt, but, on a fresh borrow position snapshot misreports
+            // `isCollateral` as true until its action is fully processed
+            // because debtBalance still equals 0 at getSnapshotUpdated level.
+            if (
+                action.cTokenModified == snap.asset && snap.isCollateral &&
+                action.borrowAssets > 0
+            ) {
+                uint256 errorCode;
+                (prices[i], errorCode) =
+                    CommonLib._oracleManager(centralRegistry).
+                        getPrice(snap.underlying, true, false);
+
+                if (errorCode >= action.errorCodeBreakpoint) {
+                    revert LiquidityManager__PriceError();
+                }
+
+                // Adjust `isCollateral` to be false since this is a debt
+                // entry not a collateral entry.
+                delete snap.isCollateral;
+            }
+
             if (snap.isCollateral) {
-                // If there is no collateral posted and its not a
-                // position to be modified, clean up the position
-                // entry as the user was liquidated.
-                if (snap.collateralPosted == 0) {
-                    // If there is no collateral posted and its not a
-                    // position to be modified, clean up the position
-                    // entry as the user was liquidated.
-                    if (action.cTokenModified != snap.asset) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
-                    }
-                } else {
-                    // There is collateral posted in this cToken,
-                    // increasing collateral, or more simply the user
-                    // can take on more debt.
-                    maxDebt += _collateralValue(
-                        snap.collateralPosted,
-                        prices[i],
-                        10 ** snap.decimals,
+                // If the user is redeeming collateral, offset their
+                // collateral posted.
+                if (action.cTokenModified == snap.asset) {
+                    snap.collateralPosted -= action.redemptionShares;
+                }
+
+                // CASE: There is no collateral posted. Either the position
+                // will be closed through a full redemption, or the user
+                // already had their position closed via liquidation.
+                if (snap.collateralPosted > 0) {
+                    // CASE: There is collateral posted in this cToken,
+                    // the user can take on more debt from lenders.
+                    maxDebt += _mulDiv(
+                        _assetValue(
+                            snap.collateralPosted,
+                            prices[i],
+                            10 ** snap.decimals,
+                            true
+                        ),
                         _tokenConfig[snap.asset].collRatio,
-                        true
+                        BPS
                     );
                 }
             } else {
-                // If they have a debt balance, increment their debt.
+                if (action.cTokenModified == snap.asset) {
+                    snap.debtBalance += action.borrowAssets;
+                }
+
+                // CASE: There is no outstanding debt, clean up the position
+                // entry as the user was liquidated, otherwise add to the
+                // user's outstanding debt.
                 if (snap.debtBalance > 0) {
+                    // CASE: There is outstanding debt to lenders, add it to
+                    // `newDebt` to check against `maxDebt`.
                     newDebt += _assetValue(
                         snap.debtBalance,
                         prices[i],
                         10 ** snap.decimals,
                         false
                     );
-                } else {
-                    // If there is no debt and its not a position
-                    // to be modified, clean up the position entry as the
-                    // user was liquidated (bad debt insolvency).
-                    if (action.cTokenModified != snap.asset) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
-                    }
-                }
-            }
 
-            // Calculate impact of cTokenModified action.
-            if (action.cTokenModified == snap.asset) {
-                // If the token is collateral it cannot also be debt position,
-                // but, on a fresh borrow position snapshot can misreport
-                // a debt position as collateral until its fully opened
-                // because debtBalance still equals 0 at getSnapshot level.
-                if (snap.isCollateral && action.borrowAssets == 0) {
-                    // If they are trying to redeem more tokens than
-                    // they have, the transaction will fail before it
-                    // gets to this point, so no special case needed.
-                    if (snap.collateralPosted == action.redemptionShares) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
-                    }
-
-                    // Hypothetical redemption action, decreasing collateral
-                    // or more simply adding new debt.
-                    newDebt += _collateralValue(
-                        action.redemptionShares,
-                        prices[i],
-                        10 ** snap.decimals,
-                        _tokenConfig[snap.asset].collRatio,
-                        false
-                    );
-                } else {
-                    // Hypothetical borrow action.
-                    newDebt += _assetValue(
-                        action.borrowAssets,
-                        prices[i],
-                        10 ** snap.decimals,
-                        false
-                    );
-
-                    // Initially, we would worry that newDebt can be
-                    // incremented during both borrow and redemption
-                    // actions but actions are done in isolation, so if
-                    // newDebt is increases here then cTokenModified will
-                    // never reach the redemption action block.
-                    // This means we can check terminal newDebt value here
-                    // and know its only including current and
-                    // hypothetical new debt.
-                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                    // Check `newDebt` to make sure the loan size will not be
+                    // too small for us to allow issuing the loan.
+                    if (newDebt < MIN_LOAN_SIZE) {
                         revert LiquidityManager__InsufficientLoanSize();
                     }
-
-                    // We don't need to check for closing a position here
-                    // since borrow action will only expand a position.
                 }
             }
         }
 
         // Returns excess liquidity on hypothetical positions.
         if (maxDebt > newDebt) {
-            result.collateralSurplus = maxDebt - newDebt;
-            return (result, positionsToClose);
+            return (maxDebt - newDebt, 0);
         }
 
         // Returns shortfall on hypothetical positions.
-        result.liquidityDeficit = newDebt - maxDebt;
-        return (result, positionsToClose);
-    }
-
-    /// @notice Evaluates collateral and debt positions to determine account
-    ///         health and liquidation parameters.
-    /// @param account The address of the account being evaluated for
-    ///                liquidation.
-    /// @return result Hypothetical results for an action containing:
-    ///                cSoft The account's soft collateral value (collateral
-    ///                      adjusted by soft requirements).
-    ///                cHard The account's hard collateral value (collateral
-    ///                      adjusted by hard requirements).
-    ///                debt The account's total debt value.
-    /// @return lFactor The value that determines liquidation severity.
-    function _liquidationValuesOf(address account) internal view returns (
-        AccountLiqResult memory result,
-        uint256 lFactor
-    ) {
-        (
-            AccountSnapshot[] memory snapshots,
-            uint256[] memory prices,
-            uint256 numAssets
-        ) = _assetDataOf(account, 2);
-        AccountSnapshot memory snap;
-
-        for (uint256 i; i < numAssets; ++i) {
-            snap = snapshots[i];
-
-            if (snap.isCollateral) {
-                (result.cSoft, result.cHard) = _addLiquidationValues(
-                    snap,
-                    account,
-                    prices[i],
-                    result.cSoft,
-                    result.cHard
-                );
-            } else {
-                // If they have a debt balance,
-                // we need to document collateral requirements.
-                if (snap.debtBalance > 0) {
-                    result.debt += _assetValue(
-                        snap.debtBalance,
-                        prices[i],
-                        10 ** snap.decimals,
-                        false
-                    );
-                }
-            }
-        }
-
-        if (AUCTION_BUFFER != 0) {
-            result.cSoft = _mulDiv(result.cSoft, AUCTION_BUFFER, BPS);
-            result.cHard = _mulDiv(result.cHard, AUCTION_BUFFER, BPS);
-        }
-
-        lFactor = _getLFactor(result.cSoft, result.cHard, result.debt);
+        return (0, newDebt - maxDebt);
     }
 
     /// @notice Evaluates an account's collateral and debt positions to
@@ -538,55 +504,58 @@ abstract contract LiquidityManagerIsolated {
     ///                           in.
     ///              debtUnderlyingPrice The current price of the underlying
     ///                                  token of `debtToken`.
-    ///              auctionBuffer The current buffer that `cSoft` is
-    ///                            multiplied against, 10 bps, or 0  if not
+    ///              auctionBuffer The current buffer that `cSoft` and `cHard` 
+    ///                            are multiplied against, 10 bps, or 0 if not
     ///                            an auction-based liquidation.
-    ///  @return lFactor The liquidation factor for `account`.
+    ///  @return lFactor The liquidation factor where:
+    ///                  0: No liquidation (account is healthy).
+    ///                  1 to WAD - 1: Soft liquidation (partial liquidation
+    ///                                allowed).
+    ///                  WAD: Hard liquidation (full liquidation, possibly
+    ///                       including bad debt).
     ///  @return debt The current debt position in `liqData.debtToken` for
     ///               `account`.
-    function _liquidationValuesOfCached(
+    function _liquidationValuesOf(
         address account,
         TokenLiqData memory tData
     ) internal view returns (uint256 lFactor, uint256 debt) {
         AccountLiqResult memory r;
         address[] memory assets = accountAssets[account].assets;
 
-        {
-            address asset;
-            uint256 numAssets = assets.length;
-            for (uint256 i; i < numAssets; ) {
-                asset = assets[i++];
-                if (asset == tData.collateralToken) {
-                    (r.cSoft, r.cHard) = _addLiquidationValuesCached(
-                        tData.collateralDecimals,
-                        tData.collateralReqSoft,
-                        tData.collateralReqHard,
-                        tData.collateralSharesPrice,
-                        ICToken(tData.collateralToken).collateralPosted(account),
-                        r.cSoft,
-                        r.cHard
-                    );
-                } else {
-                    // If the asset is not `collateralToken`, the asset must
-                    // be the `debtToken` debt position because this market
-                    // only has two tokens.
-                    debt =
-                        IBorrowableCToken(tData.debtToken).debtBalance(account);
+        address asset;
+        uint256 numAssets = assets.length;
+        for (uint256 i; i < numAssets; ) {
+            asset = assets[i++];
+            if (asset == tData.collateralToken) {
+                (r.cSoft, r.cHard) = _addLiquidationValues(
+                    tData.collateralDecimals,
+                    tData.collateralReqSoft,
+                    tData.collateralReqHard,
+                    tData.collateralSharesPrice,
+                    ICToken(tData.collateralToken).collateralPosted(account),
+                    r.cSoft,
+                    r.cHard
+                );
+            } else {
+                // If the asset is not `collateralToken`, the asset must
+                // be the `debtToken` debt position because this market
+                // only has two tokens.
+                debt =
+                    IBorrowableCToken(tData.debtToken).debtBalance(account);
 
-                    // If they have a debt balance, document additional
-                    // collateral requirements.
-                    if (debt > 0) {
-                        r.debt += _assetValue(
-                            debt,
-                            tData.debtUnderlyingPrice,
-                            tData.debtDecimals,
-                            false
-                        );
-                    }
+                // If they have a debt balance, document additional
+                // collateral requirements.
+                if (debt > 0) {
+                    r.debt += _assetValue(
+                        debt,
+                        tData.debtUnderlyingPrice,
+                        tData.debtDecimals,
+                        false
+                    );
                 }
             }
         }
-
+        
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
         if (tData.auctionBuffer != 0) {
@@ -594,42 +563,17 @@ abstract contract LiquidityManagerIsolated {
             r.cHard = _mulDiv(r.cHard, tData.auctionBuffer, BPS);
         }
 
-        lFactor = _getLFactor(r.cSoft, r.cHard, r.debt);
-    }
-
-    ///  @notice Calculates the liquidation factor (LFactor) for an account
-    ///          based on their collateral and debt positions.
-    ///  @dev Determines whether an account is in a no-liquidation,
-    ///       soft-liquidation, or hard-liquidation state.
-    ///  @param cSoft The account's soft collateral value (collateral adjusted
-    ///               by soft requirements).
-    ///  @param cHard The account's hard collateral value (collateral adjusted
-    ///               by hard requirements).
-    ///  @param debt The account's total outstanding debt value.
-    ///  @return The liquidation factor where:
-    ///          0: No liquidation (account is healthy).
-    ///          1 to WAD-1: Soft liquidation (partial liquidation allowed).
-    ///          WAD: Hard liquidation (full liquidation, possibly including
-    ///               bad debt).
-    function _getLFactor(
-        uint256 cSoft,
-        uint256 cHard,
-        uint256 debt
-    ) internal pure returns (uint256) {
-        // Indicates no liquidation.
-        if (cSoft >= debt) {
-            return 0;
+        // Get `account` lFactor.
+        if (r.cSoft >= r.debt) {
+            // Indicates no liquidation.
+            lFactor = 0;
+        } else {
+            lFactor = r.debt >= r.cHard ? WAD // Indicates hard liquidation.
+            // Indicates soft liquidation, we round up here in favor of the
+            // protocol, we know that we wont run into a value > WAD due to
+            // cHard being at least 1 higher than debt.
+            : FixedPointMathLib.mulDivUp(r.debt - r.cSoft, WAD, r.cHard - r.cSoft);
         }
-
-        // Indicates hard liquidation.
-        if (debt >= cHard) {
-            return WAD;
-        }
-
-        // Indicates soft liquidation, we round up here in favor of the
-        // protocol, we know that we wont run into a value > WAD due to cHard
-        // being at least 1 higher than debt.
-        return FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
     }
 
     /// @notice Retrieves the prices and account data of multiple assets
@@ -642,7 +586,6 @@ abstract contract LiquidityManagerIsolated {
     /// @return The number of assets `account` is in.
     function _assetDataOf(address account, uint256 errorCodeBreakpoint)
         internal
-        view
         returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
         return CommonLib._oracleManager(centralRegistry).getPricesForMarket(
             account,
@@ -675,62 +618,6 @@ abstract contract LiquidityManagerIsolated {
         return FixedPointMathLib.mulDivUp(amount, price, decimals);
     }
 
-    /// @notice Calculates collateral value based on `shares`, `price`,
-    ///         `collRatio`, and adjusts for token decimals.
-    /// @param shares The cToken shares to calculate collateral value of.
-    /// @param price The asset's price, in `WAD`.
-    /// @param decimals The asset's decimals to adjust redemption value
-    ///                 into proper form.
-    /// @param collRatio The collateralization ratio of the asset, in `BPS`.
-    /// @return result The calculated collateral value.
-    function _collateralValue(
-        uint256 shares,
-        uint256 price,
-        uint256 decimals,
-        uint256 collRatio,
-        bool increasesCollateral
-    ) internal pure returns (uint256 result) {
-        result = _mulDiv(
-            _assetValue(
-                shares,
-                price,
-                decimals,
-                increasesCollateral
-            ),
-            collRatio,
-            BPS
-        );
-    }
-
-    /// @notice Calculates and adds soft and hard collateral values for
-    ///         liquidation assessment.
-    /// @param snap Asset snapshot to calculate asset value from.
-    /// @param account The account to query collateral posted for to calculate
-    ///                liquidation values off of.
-    /// @param price The price of the underlying asset, in `WAD`.
-    /// @param softSumPrior The previous sum of soft collateral values.
-    /// @param hardSumPrior The previous sum of hard collateral values.
-    /// @return uint256 The updated sum of soft collateral values.
-    /// @return uint256 The updated sum of hard collateral values.
-    function _addLiquidationValues(
-        AccountSnapshot memory snap,
-        address account,
-        uint256 price,
-        uint256 softSumPrior,
-        uint256 hardSumPrior
-    ) internal view returns (uint256, uint256) {
-        address asset = snap.asset;
-        return _addLiquidationValuesCached(
-            10 ** snap.decimals,
-            _tokenConfig[asset].collReqSoft,
-            _tokenConfig[asset].collReqHard,
-            price,
-            ICToken(asset).collateralPosted(account),
-            softSumPrior,
-            hardSumPrior
-        );
-    }
-
     /// @notice Calculates and adds soft and hard collateral values for
     ///         liquidation assessment with cached data.
     /// @param decimals The number of decimals for the collateral token.
@@ -743,7 +630,7 @@ abstract contract LiquidityManagerIsolated {
     /// @param hardSumPrior The previous sum of hard collateral values.
     /// @return softSum The updated sum of soft collateral values.
     /// @return hardSum The updated sum of hard collateral values.
-    function _addLiquidationValuesCached(
+    function _addLiquidationValues(
         uint256 decimals,
         uint256 collReqSoft,
         uint256 collReqHard,

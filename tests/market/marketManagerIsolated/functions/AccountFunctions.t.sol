@@ -14,24 +14,26 @@ contract AccountFunctionsTest is TestBaseLiquidations {
         _prepareLiquidation();
     }
 
-    function test_assetsOf() public {
+    function test_assetsOf() public view {
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
-        assertEq(address(assets[0]), address(strategyCBALRETH));
+        assertEq(address(assets[0]), address(pendleStrategyCTokenSTETH));
         assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
     function test_statusOf() public {
         mockUsdcFeed.setMockAnswer(1e8); // reset price back to $1
 
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
+        borrowableCUSDC.accrueIfNeeded();
+
         (uint256 accountCollateral, uint256 maxDebt, uint256 accountDebt) = marketManagerIsolated.statusOf(user1);
 
         uint256 expectedMaxDebt = 7000 * accountCollateral / 10000; // 70% LTV
-
         assertEq(maxDebt, expectedMaxDebt,"max debt mismatch");
 
-        assertEq(accountDebt, 1e21, "account debt mismatch");
-
+        uint256 expectedDebt = borrowableCUSDC.debtBalance(user1) * 1e12;
+        assertEq(accountDebt, expectedDebt, "account debt mismatch");
     }
 
 }

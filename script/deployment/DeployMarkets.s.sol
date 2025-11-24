@@ -17,11 +17,10 @@ contract DeployMarkets is DeployScript {
     struct DynamicInterestRateConfig {
         uint256 baseRatePerYear;
         uint256 vertexRatePerYear;
-        uint256 vertexUtilStart;
-        uint256 adjustmentRate;
+        uint256 vertexStart;
         uint256 adjustmentVelocity;
+        uint256 decayPerAdjustment;
         uint256 vertexMultiplierMax;
-        uint256 decayRate;
     }
 
     AddPlugins internal plugin_deployer;
@@ -41,7 +40,7 @@ contract DeployMarkets is DeployScript {
         address centralRegistry,
         string[] memory names,
         ListConfig[][] memory tokens,
-        uint256[] memory interestFees,
+        bool[] memory isCorrelatedMarkets,
         address wrappedNative,
         AddPlugins.AvailablePlugins[] memory plugins
     ) external recordEvents {
@@ -53,8 +52,8 @@ contract DeployMarkets is DeployScript {
             string memory name = string.concat("markets.", names[i]);
             ListConfig[] memory tokens = tokens[i];
 
-            MarketManagerIsolated market = new MarketManagerIsolated(icr);
-            registry.addMarketManager(address(market), interestFees[i]);
+            MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18, isCorrelatedMarkets[i]);
+            registry.addMarketManager(address(market));
             emit ContractDeployed(
                 address(market),
                 string.concat(name, ".address")
@@ -82,7 +81,7 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address[] memory cTokens) {
+    ) public useDeployer returns (address[] memory cTokens) {
         cTokens = new address[](tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -114,7 +113,7 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address) {
+    ) public useDeployer returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         address cToken = address(
@@ -135,16 +134,16 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address) {
+    ) public useDeployer returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         DynamicIRM IRM = new DynamicIRM(
                 icr,
                 config.interestConfig.baseRatePerYear,
                 config.interestConfig.vertexRatePerYear,
-                config.interestConfig.vertexUtilStart,
+                config.interestConfig.vertexStart,
                 config.interestConfig.adjustmentVelocity,
-                config.interestConfig.decayRate,
+                config.interestConfig.decayPerAdjustment,
                 config.interestConfig.vertexMultiplierMax
             );
         emit ContractDeployed(

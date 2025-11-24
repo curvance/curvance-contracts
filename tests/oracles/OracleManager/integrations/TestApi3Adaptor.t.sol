@@ -30,6 +30,11 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         adaptor = new Api3Adaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        
         adaptor.addAsset(
             _ARB_ADDRESS,
             true,
@@ -38,13 +43,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             _ARB_TICKER
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_ARB_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), 100, 50, 100, 50);
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _ARB_ADDRESS,
             true,
@@ -110,5 +112,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     function testRevertGetPriceInETH__NotSupported() public {
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPrice(_ARB_ADDRESS, false, false);
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, _DAPI_PROXY_ARB_USD, 0, _ARB_TICKER);
     }
 }

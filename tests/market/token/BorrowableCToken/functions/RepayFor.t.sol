@@ -10,11 +10,11 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
     function setUp() public override {
         super.setUp();
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
@@ -26,7 +26,7 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
         borrowableCUSDC.borrow(100e6, address(this));
 
         // skip 20 min hold period in harvestAuraStrategyRewards
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
     }
 
 

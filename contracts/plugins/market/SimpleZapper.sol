@@ -77,7 +77,7 @@ contract SimpleZapper is BaseZapper {
             swapAction.inputToken = address(wrappedNative);
         }
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
@@ -85,7 +85,7 @@ contract SimpleZapper is BaseZapper {
         }
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             cToken,
             swapAction.outputToken,
             outAmount,
@@ -136,17 +136,15 @@ contract SimpleZapper is BaseZapper {
             swapAction.inputToken = address(wrappedNative);
         }
 
-        // Validate token address parameters are valid.
-        _checkAddresses(borrowableCToken, swapAction.outputToken);
-
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        // Repay `repayAssets` outstanding debt.
+        // Repay `repayAssets` outstanding debt, 0 defaults to repaying
+        // everything.
         outAmount = _repayDebt(
             borrowableCToken,
             swapAction.outputToken,
@@ -186,7 +184,7 @@ contract SimpleZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             swapAction.inputToken,
             redeemAction.shares,
@@ -195,7 +193,7 @@ contract SimpleZapper is BaseZapper {
             receiver
         );
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
@@ -233,7 +231,7 @@ contract SimpleZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             swapAction.inputToken,
             redeemAction.shares,
@@ -242,7 +240,7 @@ contract SimpleZapper is BaseZapper {
             receiver
         );
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into `swapAction.outputToken` which should be
@@ -251,7 +249,7 @@ contract SimpleZapper is BaseZapper {
         }
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             cToken,
             swapAction.outputToken,
             outAmount,

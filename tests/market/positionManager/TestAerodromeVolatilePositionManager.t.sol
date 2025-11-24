@@ -61,9 +61,13 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(chainlinkDaiUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -72,9 +76,13 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(chainlinkUsdcUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8);
@@ -90,13 +98,21 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(chainlinkEthUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
@@ -104,9 +120,13 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_WETH_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         owner = address(this);
@@ -168,10 +188,10 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)
@@ -200,7 +220,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -230,7 +250,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
@@ -254,9 +274,6 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             0.0001 ether
         );
-
-        // allow delegation for postCollateral
-        strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 1.204e22;
@@ -286,7 +303,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
@@ -311,10 +328,13 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
+
         IERC20(_AERODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 0.0001 ether);
         assertGt(strategyCTokenWETHUSDC.deposit(0.0001 ether, user), 0);
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
+
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
@@ -330,7 +350,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 99% of limit.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = (_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) * 99) / 100;
@@ -360,7 +380,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
@@ -385,12 +405,16 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
+
         IERC20(_AERODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 0.0001 ether);
         assertGt(strategyCTokenWETHUSDC.deposit(0.0001 ether, user), 0);
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
+
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(100 ether, user);
+        
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -404,7 +428,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -434,7 +458,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
@@ -477,7 +501,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = 0.6 ether;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _WETH_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
@@ -495,7 +519,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[1].inputAmount = 3098e6;
         deleverageAction.swapActions[1].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[1].target = address(aeroRouter);
-        deleverageAction.swapActions[1].slippage = 1e18;
+        deleverageAction.swapActions[1].slippage = 0.05e18;
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
@@ -549,7 +573,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -579,7 +603,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.setDelegateApproval(address(user2), true);
@@ -620,7 +644,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = 0.6 ether;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _WETH_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
@@ -638,7 +662,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[1].inputAmount = 3098e6;
         deleverageAction.swapActions[1].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[1].target = address(aeroRouter);
-        deleverageAction.swapActions[1].slippage = 1e18;
+        deleverageAction.swapActions[1].slippage = 0.05e18;
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;

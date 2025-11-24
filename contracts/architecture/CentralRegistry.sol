@@ -32,11 +32,12 @@ import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 ///        operating team for any action, or the "Emergency Council" made up
 ///        of both Curvance Collective members and external stakeholders.
 ///
-///      All values inside Curvance are entered in basis point form. However,
-///      Fees are recorded internally in `WAD` format, or 1e18. Rather than
-///      `BPS`, or 1e4, for improved precision in calculations.
-///      As a result, you will see multiplier values stored in 1e4 form,
-///      and fees stored in 1e18 form.
+///      All values inside Curvance are entered and stored in
+///      `BPS` (basis points) form. However, fees are often accessed
+///      simultaneously at run time while multipliers are accessed separately
+///      meaning we store multipliers in uint256 storage slots to save
+///      conversion costs and save fees in uint16 storage slots to saved SLOAD
+///      costs. 
 ///
 ///      The Central Registry manages the plugin system, creating a new
 ///      primitive allowing for "delegation" of specific actions to any
@@ -110,7 +111,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///         vote outcomes to update onchain across all blockchains.
     address public votingHub;
 
-    /// @notice Array of all the addresses for all Curvance market managers
+    /// @notice Array of all the addresses for all Curvance Market Managers
     ///         on this chain.
     address[] internal _marketManagers;
 
@@ -129,14 +130,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // SLIPPAGE VALUES
 
-    /// @notice Protocol slippage limit for `swapSafe`.
-    /// @dev 1000 = 10%.
+    /// @notice Protocol slippage limit for "untrusted" strategy managers,
+    ///         addresses with `hasHarvestPermissions`, in WAD.
+    /// @dev 300e14 = 3%.
     ///      This slippage configurable variable is not for an end all be all
     ///      slippage check, any external swap natively includes slippage and
     ///      only acts as a protective layer against secondary actions such as
     ///      providing liquidity into an LP token or from untrusted executed
     ///      like a harvester that could at some point be compromised.
-    uint16 public slippageLimit = 1000;
+    uint256 public slippageLimit = 300e14;
 
     // PROTOCOL VALUES
 
@@ -155,10 +157,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol fee on leverage usage, in `BPS`.
     uint16 public protocolLeverageFee;
 
-    /// @notice % fee on accrued interest payments from borrowers inside
-    ///         permissionless Curvance Markets.
-    /// @dev Market Manager => Protocol Accrued interest fee, in `BPS`.
-    mapping(address => uint256) public protocolInterestFee;
+    /// @notice Returns default fee on interest generated from active loans,
+    ///         in `BPS`.
+    /// @dev 2000 = 20%. Can be overridden inside particular token contracts.
+    uint16 public defaultProtocolInterestFee = 2000;
 
     // AUCTION TRANSACTION STORAGE
 
@@ -183,8 +185,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Stored redundantly to reduce gas overhead.
     uint256 public supportedChains;
 
-    /// @notice Array of Chain IDs recorded in the Crosschain Protocol's Chain
-    ///         ID format.
+    /// @notice Array of Chain IDs recorded in GETH format.
     /// @dev Stored redundantly to reduce gas overhead.
     uint256[] internal _foreignChainIds;
     
@@ -209,12 +210,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // CONTRACT MAPPINGS
     
-    /// @notice Indicates if an address is a market manager or not.
+    /// @notice Indicates if an address is a Market Manager or not.
     /// @dev Address => Market Manager status.
     mapping(address => bool) public isMarketManager;
-    /// @notice Indicates if an address is a multicall provider or not.
-    /// @dev Address => Multicall provider status.
-    mapping(address => bool) public isMulticallProvider;
 
     /// @notice Maps an intent target address to the contract that will
     ///         inspect provided external calldata.
@@ -254,7 +252,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     event GenesisEpochUpdated(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
     event FeeTokenSet(address newAddress);
-    event InterestFeeSet(address indexed market, uint256 newFee);
+    event DefaultInterestFeeSet(uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
     event SlippageLimit(uint256 newSlippage);
     event CoreContractUpdated(string indexed coreType, address core);
@@ -281,7 +279,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address targetAddress,
         address calldataChecker
     );
-    event MulticallProviderSet(address provider, bool isSupported);
     event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
@@ -361,7 +358,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// @notice Sets a new genesis epoch.
-    /// @dev Only callable by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {GenesisEpochUpdated} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
@@ -384,7 +381,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the fee token address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {FeeTokenSet} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {FeeTokenSet} event.
     /// @param newFeeToken The new address of fee token.
     function setFeeToken(address newFeeToken) external {
         _checkCanSetCoreContract(feeToken);
@@ -396,7 +394,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the CVE contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractUpdated} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
         _checkCanSetCoreContract(cve);
@@ -408,7 +407,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the veCVE contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractUpdated} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
         _checkCanSetCoreContract(veCVE);
@@ -420,8 +420,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the Reward Manager contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Settable before genesis epoch start.
     ///      Emits a {CoreContractUpdated} event.
-    ///      Can only be set once.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
         _checkCanSetCoreContract(rewardManager);
@@ -433,8 +433,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the Gauge Manager contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Settable before genesis epoch start.
     ///      Emits a {CoreContractUpdated} event.
-    ///      Can only be set once.
     /// @param newGaugeManager The new address of Gauge Manager.
     function setGaugeManager(address newGaugeManager) external {
         _checkCanSetCoreContract(gaugeManager);
@@ -609,12 +609,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the fee taken by Curvance DAO on interest generated.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 60%.
-    ///      Emits an {InterestFeeSet} event.
-    /// @param market The address of the market manager to configure
-    ///               interest fees of.
+    ///      Emits an {DefaultInterestFeeSet} event.
+    ///      NOTE: `protocolInterestFee` is only used for new markets deployed
+    ///            after this function is called and will not impact already
+    ///            deployed markets or borrowableCTokens.
     /// @param value The new fee to take on interest generated
     ///              by a debt token, in `BPS`.
-    function setProtocolInterestFee(address market, uint256 value) external {
+    function setDefaultProtocolInterestFee(uint256 value) external {
         _checkElevatedPermissions();
 
         // Interest fee cannot be more than 60%.
@@ -622,13 +623,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Validate that you're setting the fee for an actual market manager.
-        if (!isMarketManager[market]) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
-        protocolInterestFee[market] = value;
-        emit InterestFeeSet(market, value);
+        defaultProtocolInterestFee = uint16(value);
+        emit DefaultInterestFeeSet(value);
     }
 
     /// @notice Sets the early unlock penalty value for when users unlock
@@ -659,7 +655,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the voting power boost received by locks using
     ///         Continuous Lock mode.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must be a positive boost i.e. > 1.01 or greater multiplier.
+    ///      must be a positive boost i.e. > 1 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new voting power boost for continuous lock mode
     ///              vote escrowed cve positions, in `BPS`.
@@ -680,7 +676,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the emissions boost received by choosing to lock
     ///         emissions in veCVE.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must be a positive boost i.e. > 1.01 or greater multiplier.
+    ///      must be a positive boost i.e. > 1 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new emissions boost for opting to take emissions
     ///              in a vote escrowed cve position instead of liquid CVE,
@@ -702,19 +698,21 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the maximum slippage users can input with swap
     ///         instructions.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must have a minimum value of 4%.
+    ///      must have a minimum value of 1%, and a maximum value of 20%.
     ///      Emits a {SlippageLimit} event.
     /// @param value The new slippage limit users can input on swap
     ///              instructions, in `BPS`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Slippage limit cannot be less than 4%.
-        if (value < 400) {
+        // Slippage limit cannot be less than 1%, or more than 20%.
+        if (value < 100 || value > 2000) {
             revert CentralRegistry__InvalidParameter();
         }
 
-        slippageLimit = uint16(value);
+        // Convert input into `WAD` denomination for consistency with strategy
+        // calldata denomination.
+        slippageLimit = value * 1e14;
         emit SlippageLimit(value);
     }
 
@@ -738,7 +736,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// @notice Sets the target token emissions for each Protocol Era.
-    /// @dev Only callable by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     /// @param epochEmissions The initial token emissions value that the
     ///                       protocol should allocate, per epoch.
     function setEraTargetEmissions(uint256 epochEmissions) external {
@@ -820,13 +818,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // for some reason, do not remove their elevated permissioning.
         if (previousTimelock != emergencyCouncil) {
             delete hasElevatedPermissions[previousTimelock];
+            delete hasMarketPermissions[previousTimelock];
+            emit PermissionsUpdated("Market", previousTimelock, false);
 
             // If the previous Timelock also has DAO permissions
             // for some reason, do not remove their permissioning.
             if (previousTimelock != daoAddress) {
                 delete hasDaoPermissions[previousTimelock];
-                delete hasMarketPermissions[previousTimelock];
-                emit PermissionsUpdated("Market", previousTimelock, false);
             }
         }
 
@@ -845,6 +843,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
             hasMarketPermissions[newTimelock] = true;
             emit PermissionsUpdated("Market", newTimelock, true);
         }
+
+        // Update timelock roles.
+        ITimelock(newTimelock).updateRoles();
     }
 
     /// @notice Transfers Emergency Council permissions to another address.
@@ -857,22 +858,22 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Cache old emergency council.
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
-
+        
         // If the previous Emergency Council also has timelock permissions
         // for some reason, do not remove their elevated permissioning.
         if (previousEmergencyCouncil != timelock) {
             delete hasElevatedPermissions[previousEmergencyCouncil];
+            delete hasMarketPermissions[previousEmergencyCouncil];
+            emit PermissionsUpdated(
+                "Market",
+                previousEmergencyCouncil,
+                false
+            );
 
             // If the previous Emergency Council also has DAO permissions
             // for some reason, do not remove their permissioning.
             if (previousEmergencyCouncil != daoAddress) {
                 delete hasDaoPermissions[previousEmergencyCouncil];
-                delete hasMarketPermissions[previousEmergencyCouncil];
-                emit PermissionsUpdated(
-                    "Market",
-                    previousEmergencyCouncil,
-                    false
-                );
             }
         }
 
@@ -891,23 +892,26 @@ contract CentralRegistry is ERC165, ActionRegistry {
             hasMarketPermissions[newEmergencyCouncil] = true;
             emit PermissionsUpdated("Market", newEmergencyCouncil, true);
         }
+
+        // Notify Timelock of an Emergency Council address update.
+        if (timelock != address(0)) {
+            if (
+                ERC165Checker.supportsInterface(
+                    timelock,
+                    type(ITimelock).interfaceId
+                )
+            ) {
+                ITimelock(timelock).updateRoles();
+            }
+        }
     }
 
-    /// @notice Adds a new Market Manager and corresponding interest fee
-    ///         configurations.
-    /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 60% interest fee.
-    ///      Cannot be a supported Market Manager contract prior.
-    ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
+    /// @notice Adds a new Market Manager.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {PermissionsUpdated} events.
     /// @param newMarket The new Market Manager contract to support for use
     ///                  in Curvance.
-    /// @param marketInterestFee The portion of interest paid by borrowers
-    ///                          that goes to the protocol, for this Market
-    ///                          Manager.
-    function addMarketManager(
-        address newMarket,
-        uint256 marketInterestFee
-    ) external virtual {
+    function addMarketManager(address newMarket) external virtual {
         _checkElevatedPermissions();
 
         // Validate `newMarket` is not currently supported.
@@ -915,7 +919,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Ensure that `newMarket` is a market manager.
+        // Validate that `newMarket` is a Market Manager.
         if (
             !ERC165Checker.supportsInterface(
                 newMarket,
@@ -925,21 +929,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        /// Interest fee cannot be more than 60%.
-        if (marketInterestFee > 6000) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
         // We store supported markets semi redundantly for offchain querying.
         _marketManagers.push(newMarket);
-        protocolInterestFee[newMarket] = marketInterestFee;
         isMarketManager[newMarket] = true;
 
         emit PermissionsUpdated("Market Manager", newMarket, true);
-        emit InterestFeeSet(newMarket, marketInterestFee);
     }
 
-    /// @notice Removes a current market manager from Curvance.
+    /// @notice Removes a current Market Manager from Curvance.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Has to be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} event.
@@ -948,7 +945,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function removeMarketManager(address marketApproved) public virtual {
         _checkElevatedPermissions();
 
-        // Validate `marketApproved` is currently supported.
+        // Validate `marketApproved` is a currently recognized Market Manager.
         if (!isMarketManager[marketApproved]) {
             revert CentralRegistry__InvalidParameter();
         }
@@ -1055,11 +1052,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit PermissionsUpdated("Auction", addressApproved, false);
     }
 
-    //// @notice Authorizes an address to manage markets.
-    /// @notice Adds a Harvester contract for use in Curvance.
+    /// @notice Authorizes an address to manage markets.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Cannot be a supported Harvester contract prior.
     ///      Emits a {PermissionsUpdated} event.
+    ///      NOTE: Market Permissioned contracts should have corresponding
+    ///            restrictions handled within the contract itself such as
+    ///            enforcing a specific party to pause but not unpause
+    ///            markets.
     /// @param newAddress The address to add market permissions to
     ///                   inside Curvance.
     function addMarketPermissions(address newAddress) external {
@@ -1076,8 +1076,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     //// @notice Deauthorizes an address to manage markets.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Has to be a supported Harvester contract prior.
     ///      Emits a {PermissionsUpdated} event.
+    ///      NOTE: Market Permissioned contracts should have corresponding
+    ///            restrictions handled within the contract itself such as
+    ///            enforcing a specific party to pause but not unpause
+    ///            markets.
     /// @param addressApproved The address to remove market permissions from
     ///                        inside Curvance.
     function removeMarketPermissions(address addressApproved) external {
@@ -1158,6 +1161,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
+        // Prevent `chainId` from being 0 to avoid confusion with
+        // non-existent mappings.
+        if (chainId == 0) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Ensure `messagingChainId` is not already mapped to another chain.
+        if (messagingToGETHChainId[config.messagingChainId] != 0) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
         chainConfig[chainId] = config;
         messagingToGETHChainId[config.messagingChainId] = chainId;
         _foreignChainIds.push(chainId);
@@ -1179,9 +1193,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address expectedMessagingHub,
         address expectedVotingHub
     ) external {
-        // Lower permissioning on removing chains as it will reduce risk to
-        // the system.
-        _checkDaoPermissions();
+        _checkElevatedPermissions();
 
         ChainConfig memory c = chainConfig[chainId];
 
@@ -1232,15 +1244,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// AUCTION CONFIGURATION LOGIC
 
     /// @notice Unlocks a market to process auction-based liquidations.
-    /// @param marketToUnlock The address of the market manager to unlock
-    ///                       auction-based liquidations with a specific
-    ///                       liquidation bonus.
+    /// @param marketToUnlock The address of the Market Manager to unlock
+    ///                       auction-based liquidations.
     function unlockAuctionForMarket(address marketToUnlock) external {
         if (!hasAuctionPermissions[msg.sender]) {
             revert CentralRegistry__Unauthorized();
         }
 
-        // Validate that you're unlocking an approved market manager.
+        // Validate that they are unlocking an approved Market Manager.
         if (!isMarketManager[marketToUnlock]) {
             revert CentralRegistry__InvalidParameter();
         }
@@ -1249,6 +1260,32 @@ contract CentralRegistry is ERC165, ActionRegistry {
         /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlockUint)
+        }
+    }
+
+    /// @notice Relocks a market for auction-based liquidations.
+    /// @param marketToLock The address of the Market Manager to lock
+    ///                     auction-based liquidations.
+    function resetAuctionForMarket(address marketToLock) external {
+        if (!hasAuctionPermissions[msg.sender]) {
+            revert CentralRegistry__Unauthorized();
+        }
+
+        uint256 result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_MARKET_UNLOCKED_KEY)
+        }
+
+        // Validate that they are locking the currently unlocked
+        // Market Manager.
+        if (uint256(uint160(marketToLock)) != result) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, 0)
         }
     }
 
@@ -1306,35 +1343,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit CalldataCheckerSet("Multicall", target, checker);
     }
 
-    /// @notice Sets multicall provider contracts, either enabling,
-    ///         or disabling support inside the Curvance Protocol.
-    /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Emits one or many {MulticallProviderSet} events.
-    /// @param providers Array containing the addresses of multicall provider
-    ///                  contracts such as collateral or debt token contracts.
-    /// @param supported Whether a provider should be supported or not.
-    function setMulticallProviders(
-        address[] calldata providers,
-        bool supported
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numProviders = providers.length;
-        address cachedProvider;
-
-        for (uint256 i; i < numProviders; ++i) {
-            cachedProvider = providers[i];
-            if (isMulticallProvider[cachedProvider] == supported) {
-                revert CentralRegistry__InvalidParameter();
-            }
-
-            isMulticallProvider[cachedProvider] = supported;
-            emit MulticallProviderSet(cachedProvider, supported);
-        }
-    }
-
-    /// @notice Returns an array of Chain IDs recorded in the Crosschain
-    /// Protocol's Chain ID format.
+    /// @notice Returns an array of Chain IDs recorded in the GETH format.
     function foreignChainIds() external view returns (uint256[] memory) {
         return _foreignChainIds;
     }

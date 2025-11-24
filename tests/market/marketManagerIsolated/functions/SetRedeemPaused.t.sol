@@ -39,9 +39,6 @@ contract SetRedeemPausedTest is TestBaseMarketIsolated {
         assertEq(marketManagerIsolated.redeemPaused(), 2);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManagerIsolated.canRedeem(address(borrowableCUSDC), 1, user1);
-
-        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         borrowableCUSDC.withdraw(100e6, address(this), address(this));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);

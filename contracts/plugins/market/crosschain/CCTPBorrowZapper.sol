@@ -169,6 +169,8 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         ChainConfig memory config = _chainConfig(dstChainId);
 
         address feeToken = centralRegistry.feeToken();
+
+        // Approve `feeToken` transfer to `tokenMessager` contract, if needed.
         SwapperLib._approveIfNeeded(
             feeToken,
             address(tokenMessager),
@@ -181,6 +183,12 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             bytes32(uint256(uint160(msg.sender))),
             feeToken,
             bytes32(uint256(uint160(config.crosschainRelayer)))
+        );
+
+        // Remove any leftover approval, if any.
+        SwapperLib._removeApprovalIfNeeded(
+            feeToken,
+            address(tokenMessager)
         );
 
         IWormholeRelayer.MessageKey[]

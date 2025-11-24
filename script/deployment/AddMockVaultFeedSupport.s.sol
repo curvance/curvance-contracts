@@ -42,7 +42,7 @@ contract AddMockVaultFeedSupport is DeployScript {
         );
         oracleManager.addApprovedAdaptor(address(adaptor));
         adaptor.addAsset(assetToken, true, fakeAgg, 0);
-        oracleManager.addAssetPriceFeed(assetToken, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(assetToken, address(adaptor), 100, 50, 100, 50);
 
         for (uint256 i = 0; i < vaultTokens.length; i++) {
             address vaultToken = vaultTokens[i];
@@ -53,7 +53,7 @@ contract AddMockVaultFeedSupport is DeployScript {
                 ? 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
                 : assetToken;
             address vaultAgg = address(
-                new VaultAggregator(vaultToken, vaultAssetToken, fakeAgg)
+                new VaultAggregator(vaultToken, vaultAssetToken, fakeAgg, "100")
             );
             emit ContractDeployed(
                 vaultAgg,
@@ -66,7 +66,7 @@ contract AddMockVaultFeedSupport is DeployScript {
             );
 
             adaptor.addAsset(vaultToken, true, vaultAgg, 0);
-            oracleManager.addAssetPriceFeed(vaultToken, address(adaptor));
+            oracleManager.addAssetPricingAdaptor(vaultToken, address(adaptor), 100, 50, 100, 50);
         }
     }
 }

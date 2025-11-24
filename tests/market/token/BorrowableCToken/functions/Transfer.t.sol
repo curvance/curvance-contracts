@@ -27,6 +27,24 @@ contract BorrowableCTokenTransferTest is TestBaseBorrowableCToken {
         borrowableCUSDC.transfer(user1, 10e6);
     }
 
+    function test_borrowableCTokenTransfer_success_whenRedemptionsPaused() public {
+        deal(address(borrowableCUSDC), address(this), 100e6);
+
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
+
+        // Pause redemptions which should not impact transfer actions.
+        marketManagerIsolated.setRedeemPaused(true);
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Transfer(address(this), user1, 100e6);
+
+        borrowableCUSDC.transfer(user1, 100e6);
+
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
+    }
+
     function test_borrowableCTokenTransfer_success() public {
         deal(address(borrowableCUSDC), address(this), 100e6);
 

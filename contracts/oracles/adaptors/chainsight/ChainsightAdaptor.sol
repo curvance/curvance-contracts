@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
@@ -56,7 +56,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param proxy The proxy address location for Chainsight's oracles.
-    constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr) {
+    constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr, "ChainsightAdaptor") {
         // Sanity checks calls to `proxy` to make sure its Chainsight's proxy.
         IManagementOracle(proxy)
             .readAsUint256WithTimestamp(address(0), bytes32(0));
@@ -69,7 +69,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
@@ -90,37 +90,47 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         bytes32 feedKey
     ) external {
         _checkElevatedPermissions();
+        _checkNotZeroAddress(asset);
+
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (heartbeat != 0) {
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
         
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert ChainsightAdaptor__InvalidHeartbeat();
         }
 
-        // Validate that the Chainsight sender and feedKey from frontend
-        // properly return data as expected.
-        (
-            uint256 readPriceUnsigned,
-        ) = MANAGEMENT_ORACLE.readAsUint256WithTimestamp(sender, feedKey);
+        {
+            // Validate that the Chainsight sender and feedKey from frontend
+            // properly return data as expected.
+            (
+                uint256 readPriceUnsigned,
+            ) = MANAGEMENT_ORACLE.readAsUint256WithTimestamp(sender, feedKey);
 
-        (
-            int256 readPriceSigned,
-            uint256 readTimestampSigned
-        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(sender, feedKey);
+            (
+                int256 readPriceSigned,
+                uint256 readTimestampSigned
+            ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(sender, feedKey);
 
-        if (uint256(readPriceSigned) != readPriceUnsigned) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
+            if (uint256(readPriceSigned) != readPriceUnsigned) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
+
+            if (readPriceSigned <= 0) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
+
+            if (block.timestamp - readTimestampSigned > heartbeat) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
         }
-
-        if (readPriceSigned <= 0) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
-        }
-
+        
         AssetConfig storage config = assetConfig[asset][inUSD];
-
         config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
-
-        if (block.timestamp - readTimestampSigned > heartbeat) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
-        }
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
@@ -137,14 +147,6 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 7;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -183,12 +185,9 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(price),
-            c.decimals
-        );
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, uint256(price), c.decimals);
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = adjustedPrice;

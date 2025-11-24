@@ -7,6 +7,11 @@ import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/Redston
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
+    /// CONSTANTS ///
+
+    uint256 public constant _REDSTONE_ADAPTOR_TYPE =
+        uint256(keccak256(abi.encode("RedstoneCoreAdaptor")));
+
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Central Registry contract.
@@ -28,7 +33,10 @@ contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     ) external view override {
         // Validate `target` is actually a Redstone Core adaptor. This will
         // also fail if `target` does not properly implement `IOracleAdaptor`.
-        _checkIsApprovedAdaptor(target, 2);
+        _checkIsApprovedAdaptor(
+            target,
+            _REDSTONE_ADAPTOR_TYPE
+        );
 
         if (_getFuncSigHash(data) != RedstoneCoreAdaptor.writePrice.selector) {
             revert MulticallChecker__InvalidFuncSig();

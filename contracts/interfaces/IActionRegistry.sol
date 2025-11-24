@@ -12,13 +12,13 @@ interface IActionRegistry {
         address user
     ) external view returns (bool result);
 
-    /// @notice Checks whether `user` has delegation enabled or disabled
-    ///         for user actions inside Curvance.
+    /// @notice Checks whether `user` has disabled creating new delegations
+    ///         for actions inside Curvance.
     /// @param user The address to check whether delegation is enabled or
     ///             disabled for.
     /// @return result Indicates whether `user` has delegation disabled
     ///                or not, true = disabled, false = not disabled.
-    function checkDelegationDisabled(
+    function checkNewDelegationDisabled(
         address user
     ) external view returns (bool result);
 

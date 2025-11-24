@@ -16,14 +16,14 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         super.setUp();
 
         _prepareUSDC(address(this), 77777);
-        _prepareBALRETH(address(this), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
         
         usdc.approve(address(borrowableCUSDC), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         liquidityProvider = makeAddr("liqProvider");
@@ -35,22 +35,20 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         vm.stopPrank();
 
         mockUsdcFeed.setMockAnswer(1e9);
-        mockRethFeed.setMockAnswer(2000e9);
-        mockWethFeed.setMockAnswer(2000e9);
 
         daoAddress = centralRegistry.daoAddress();
     }
     
     function test_success_accrueIfNeeded_singleVestingPeriod() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -58,7 +56,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(5 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 midVestEnd, uint256 midLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 midVestEnd, uint256 midLastVest,) = borrowableCUSDC.getYieldInformation();
 
         assertEq(midVestEnd, initialVestEnd + 600, "First vesting period should advance by 600 seconds");
         assertEq(midLastVest, block.timestamp, "Last vest claim should update to current timestamp");
@@ -67,7 +65,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(5 minutes + 1 seconds);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -79,14 +77,14 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_multipleVestingPeriods() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -94,7 +92,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(25 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -106,20 +104,20 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_noTimeElapsed() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
-        (uint256 beforeRate, uint256 beforeVestEnd, uint256 beforeLastVest) = borrowableCUSDC.getYieldInformation();
+        (uint256 beforeRate, uint256 beforeVestEnd, uint256 beforeLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 beforeDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 beforeTotalAssets = borrowableCUSDC.totalAssets();
 
         borrowableCUSDC.accrueIfNeeded();
 
-        (uint256 afterRate, uint256 afterVestEnd, uint256 afterLastVest) = borrowableCUSDC.getYieldInformation();
+        (uint256 afterRate, uint256 afterVestEnd, uint256 afterLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 afterDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -134,15 +132,15 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_vestingPeriodTransition() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
         // at block.timestamp
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -156,7 +154,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(10 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 midVestEnd, uint256 midLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 midVestEnd, uint256 midLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 midMarketDebt = borrowableCUSDC.marketOutstandingDebt();
 
         // Should advance by 2 periods,1200 seconds 
@@ -179,7 +177,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(1 seconds);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd, uint256 finalLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd, uint256 finalLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -198,10 +196,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_verifyAccountingAllParties() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -247,15 +245,20 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 expectedYield = (initialMarketDebt * borrowRate * timeElapsed) / 1e18;
         assertEq(assetIncrease, expectedYield, "actual yield should match calculated yield");
         
-        // dao gets 10% of interest as new shares
-        uint256 expectedProtocolFee = (assetIncrease * 1000) / 10000;
+        // dao gets 20% of interest as new shares, rounded up like the contract
+        uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+            assetIncrease,
+            borrowableCUSDC.interestFee(),
+            BPS
+        );
         uint256 actualProtocolFee = borrowableCUSDC.convertToAssets(afterDaoShares);  
-        assertEq(actualProtocolFee, expectedProtocolFee, "Protocol fee should be 10% of interest");
+        assertEq(actualProtocolFee, expectedProtocolFee, "Protocol fee should equal fee% of interest");
         
-        // LP gets their 90% through increased exchange value
+        // LP gets their 80% through increased exchange value
         uint256 lpValueIncrease = borrowableCUSDC.convertToAssets(1000e6) - 1000e6;
-        uint256 expectedLpIncrease = (assetIncrease * 9000) / 10000;
-        assertEq(lpValueIncrease, expectedLpIncrease, "LP should get 90% of interest");
+        uint256 expectedLpIncrease = (assetIncrease * (0.8e18)) / 1e18;
+        assertLe(lpValueIncrease, expectedLpIncrease, "LP should get 80% of interest");
+        assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "Debt should be at most 1 wei higher than lp value from rounding");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6 + assetIncrease, "Borrower debt should increase by total interest amount");
         assertEq(borrowableCUSDC.balanceOf(liquidityProvider), 1000e6, "LP shares should not change");
@@ -267,10 +270,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
     // More targeted assertions for dao
     function test_success_accrueIfNeeded_protocolFeeAccounting() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -308,11 +311,15 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 expectedYield = (initialMarketDebt * borrowRate * 30 minutes) / 1e18;
         assertEq(totalAssetsIncrease, expectedYield, "Actual yield should match calculated yield");
 
-        // dao gets exactly 10% of interest as new shares
+        // dao gets exactly 20% of interest as new shares (rounded up)
         uint256 protocolFeeAssetValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-        uint256 expectedProtocolFee = (totalAssetsIncrease * 1000) / 10000;
+        uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+            totalAssetsIncrease,
+            borrowableCUSDC.interestFee(),
+            BPS
+        );
         
-        assertEq(protocolFeeAssetValue, expectedProtocolFee,"Protocol fee should be exactly 10% of interest");
+        assertEq(protocolFeeAssetValue, expectedProtocolFee,"Protocol fee should be exactly 20% of interest");
         
         // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
         assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, " TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
@@ -323,10 +330,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         // set protocol fee to 0
         borrowableCUSDC.setInterestFee(0);
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -386,10 +393,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(50000e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, 2500e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 2500e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 2500e18);
-        strategyCBALRETH.depositAsCollateral(2500e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 2500e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(2500e18, user1);
         borrowableCUSDC.borrow(25000e6, user1);
         vm.stopPrank();
 
@@ -397,7 +404,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         uint256 initialDaoShares = borrowableCUSDC.balanceOf(daoAddress);
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         
 
         // Loop 20 times, skipping 5 minutes each loop, 100 minutes total
@@ -430,10 +437,14 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             // assert yield
             assertEq(debtIncrease, expectedYield, "Yield should match for loop");
             
-            // assert protocol fee
+            // assert protocol fee (rounded up)
             uint256 protocolFeeValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-            uint256 expectedProtocolFee = (debtIncrease * borrowableCUSDC.interestFee()) / BPS;
-            assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 10% per loop");
+            uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+                debtIncrease,
+                borrowableCUSDC.interestFee(),
+                BPS
+            );
+            assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 20% per loop");
             
             // LP value validation with 1-unit tolerance
             // Protocol uses mulDivUp for debt/fee calculations,(which favors protocol), and mulDiv for 
@@ -441,8 +452,9 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             // differences that compound across multiple accruals
             uint256 currentLpValue = borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(liquidityProvider));
             uint256 lpValueIncrease = currentLpValue - previousLpValue;
-            uint256 expectedLpIncrease = (debtIncrease * (0.9e18)) / 1e18;
-            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "LP should get ~90% per loop");
+            uint256 expectedLpIncrease = (debtIncrease * (0.8e18)) / 1e18;
+            assertLe(lpValueIncrease, expectedLpIncrease, "LP should get ~80% per loop");
+            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "Debt should be at most 1 wei higher than lp value from rounding");
             console2.log("lpValueIncrease", lpValueIncrease);
             console2.log("expectedLpIncrease", expectedLpIncrease);
             
@@ -454,7 +466,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
 
         // validate vesting period, 100 minutes + initial period = 11 periods
         assertEq(finalVestEnd - initialVestEnd, 6600, "Should advance by 11 full vesting periods");
@@ -487,24 +499,24 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(80000e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, 2000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 2000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 2000e18);
-        strategyCBALRETH.depositAsCollateral(2000e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 2000e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(2000e18, user1);
         borrowableCUSDC.borrow(35000e6, user1);
         vm.stopPrank();
 
-        _prepareBALRETH(user2, 1000e18);
+        deal(address(LP_wstETH_24Dec2025), user2, 1000e18);
         vm.startPrank(user2);
-        balRETH.approve(address(strategyCBALRETH), 1000e18);
-        strategyCBALRETH.depositAsCollateral(1000e18, user2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1000e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1000e18, user2);
         borrowableCUSDC.borrow(20000e6, user2);
         vm.stopPrank();
 
-        _prepareBALRETH(user3, 500e18);
+        deal(address(LP_wstETH_24Dec2025), user3, 500e18);
         vm.startPrank(user3);
-        balRETH.approve(address(strategyCBALRETH), 500e18);
-        strategyCBALRETH.depositAsCollateral(500e18, user3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 500e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(500e18, user3);
         borrowableCUSDC.borrow(10000e6, user3);
         vm.stopPrank();
 
@@ -541,5 +553,34 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         console2.log("Sum user assets: ", sumUserAssets);
         console2.log("Total vault assets: ", totalVaultAssets);
         console2.log("Protocol asset advantage (should be >= 0): ", totalVaultAssets - sumUserAssets);
+    }
+
+    function test_assetsHeld_ignoresPendingInterest() public {
+
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 5000e6);
+        borrowableCUSDC.deposit(5000e6, liquidityProvider);
+        vm.stopPrank();
+
+        deal(address(LP_wstETH_24Dec2025), user1, 10e18);
+        vm.startPrank(user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(10e18, user1);
+        vm.stopPrank();
+
+        _harvestPendleLP(1 weeks);
+
+        // Borrow
+        uint256 borrowAmount = 5000e6;
+        vm.prank(user1);
+        borrowableCUSDC.borrow(borrowAmount, user1);
+
+        uint256 heldBefore = borrowableCUSDC.assetsHeld();
+
+        // Skip a lot of time but do not accrue interest
+        skip(90 days);
+
+        uint256 heldAfter = borrowableCUSDC.assetsHeld();
+        assertEq(heldBefore, heldAfter, "assetsHeld should ignore pending interest");
     }
 }

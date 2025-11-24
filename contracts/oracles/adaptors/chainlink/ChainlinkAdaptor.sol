@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
@@ -51,12 +51,12 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "ChainlinkAdaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset` via a new Chainlink feed.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
@@ -72,7 +72,16 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
-        
+        _checkNotZeroAddress(asset);
+
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (heartbeat != 0) {
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
+
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert ChainlinkAdaptor__InvalidHeartbeat();
         }
@@ -94,14 +103,6 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 1;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -139,12 +140,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(price),
-            c.decimals
-        );
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, uint256(price), c.decimals);
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = adjustedPrice;

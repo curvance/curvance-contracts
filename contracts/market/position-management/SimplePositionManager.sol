@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { BasePositionManager, SwapperLib, ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 /// @title Curvance Simple Position Manager.
 /// @notice Simple Asset-specific contract for executing leverage related
@@ -65,14 +66,17 @@ contract SimplePositionManager is BasePositionManager {
         LeverageAction memory action,
         address /* receiver */
     ) internal virtual override {
-        SwapperLib.Swap memory swapAction = action.swapAction;
         address debtAsset = action.borrowableCToken.asset();
         address collateralAsset = action.cToken.asset();
 
-        if (debtAsset == collateralAsset) {
-            return;
+        // This check implies they have selected the same cToken as both
+        // cToken and borrowableCToken, otherwise its not possible to have
+        // the same underlying.
+        if (CommonLib._isMatchingToken(debtAsset, collateralAsset)) {
+            revert BasePositionManager__InvalidParam();
         }
 
+        SwapperLib.Swap memory swapAction = action.swapAction;
         if (
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
@@ -109,21 +113,23 @@ contract SimplePositionManager is BasePositionManager {
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory action
     ) internal virtual override {
-        SwapperLib.Swap[] memory swapActions = action.swapActions;
+        address collateralAsset = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
         
-        // For simple actions there should only ever be one swap.
-        if (swapActions.length != 1) {
+        // This check implies they have selected the same cToken as both
+        // cToken and borrowableCToken, otherwise its not possible to have
+        // the same underlying.
+        if (CommonLib._isMatchingToken(debtAsset, collateralAsset)) {
             revert BasePositionManager__InvalidParam();
         }
 
-        address collateralAsset = action.cToken.asset();
-        address debtAsset = action.borrowableCToken.asset();
-        SwapperLib.Swap memory swapAction = swapActions[0];
-
-        if (debtAsset == collateralAsset) {
-            return;
+        // For simple actions there should only ever be one swap.
+        if (action.swapActions.length != 1) {
+            revert BasePositionManager__InvalidParam();
         }
 
+        // Load the one swap action.
+        SwapperLib.Swap memory swapAction = action.swapActions[0];
         if (
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||

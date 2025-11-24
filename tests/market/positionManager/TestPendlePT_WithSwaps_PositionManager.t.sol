@@ -70,7 +70,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
             _CHAINLINK_STETH_USD,
             0
         );
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -92,7 +92,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         adaptor.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_PT_STETH, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -137,16 +137,8 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         marketManagerIsolated.addPositionManager(address(positionManager));
 
-        _provideEnoughLiquidityForLeverage();
-        
-        
+        _provideEnoughLiquidityForLeverage();   
     }
-
-    function _preparePT(address _user, uint256 _amount) internal {
-        deal(_PT_STETH, _user, _amount);
-    }
-
-    event debugUint(string, uint256);
 
     function _createLeverage() public {
         _setUpMarket(1);
@@ -168,7 +160,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 20% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 5;
@@ -214,25 +206,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        _preparePT(liquidityProvider, 10 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Deposit borrowableCDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Deposit Pendle PT stETH.
-        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
-        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
-
     function testLeverageWithPreSwap_Success() public {
         _setUpMarket(0);
 
@@ -255,7 +228,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 20% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 5;
@@ -263,8 +236,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         address[] memory path = new address[](2);
         path[0] = _DAI_ADDRESS;
         path[1] = _USDC_ADDRESS;
-
-        address uniswapV2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
         uint256 estimatedUniswapOutputAmount = 778457529;
 
@@ -413,4 +384,26 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function _preparePT(address _user, uint256 _amount) internal {
+        deal(_PT_STETH, _user, _amount);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _preparePT(liquidityProvider, 10 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Deposit borrowableCDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Deposit Pendle PT stETH.
+        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
+        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
+
+        vm.stopPrank();
+    }
 }

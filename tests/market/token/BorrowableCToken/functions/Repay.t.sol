@@ -3,18 +3,19 @@ pragma solidity 0.8.28;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 
 contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
-    event Repay(uint256 repayAmount, address payer, address borrower);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
 
     function setUp() public override {
         super.setUp();
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
@@ -45,17 +46,14 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRepay_success() public {
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
-        borrowableCUSDC.accrueIfNeeded();
-        
-        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalanceUpdated(address(this));
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
-        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+
         assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
         
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
@@ -67,23 +65,46 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         uint256 totalSupply = borrowableCUSDC.totalSupply();
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
-        vm.expectEmit(true, true, true, true, address(borrowableCUSDC)    );
-        emit Repay(100e6, address(this), address(this));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(50e6, debtAfterAccrual - 50e6, address(this), address(this));
 
-        borrowableCUSDC.repay(100e6);
+        borrowableCUSDC.repay(50e6);
 
-        assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance - 50e6);
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
-        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - 50e6);
         
         // Verify remaining debt after partial repayment
         uint256 remainingDebt = borrowableCUSDC.debtBalance(address(this));
-        assertEq(remainingDebt, debtAfterAccrual - 100e6, "Remaining debt should equal accrued debt minus repayment");
+        assertEq(remainingDebt, debtAfterAccrual - 50e6, "Remaining debt should equal accrued debt minus repayment");
+    }
+
+    function test_borrowableCTokenRepay_fail_whenBelowMinLoanSize() public {
+        _harvestPendleLP(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalanceUpdated(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
+
+        uint256 underlyingBalance = usdc.balanceOf(address(this));
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
+        uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
+
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
+        borrowableCUSDC.repay(100e6);
     }
 
     function test_borrowableCTokenRepay_success_whenRepayAll() public {
-
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
         
@@ -115,7 +136,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         }
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(debtBalance, address(this), address(this));
+        emit Repay(debtBalance, 0, address(this), address(this));
 
         borrowableCUSDC.repay(0);
         
@@ -134,7 +155,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     function test_borrowers_repayAllDebts() public {
         uint256 _BASE_UNDERLYING_RESERVE = 77777;
         uint256 initialUsdcReserves = 1000e6;
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         uint256 addUsdcAmount = 1500e6;
         borrowableCUSDC.mint(
@@ -153,16 +174,16 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         // 1. users post collateral and borrow 100 usdc
         for (uint i; i < 3; ++i) {
             address user = users[i];
-            deal(address(strategyCBALRETH), user, 1e18);
+            deal(address(pendleStrategyCTokenSTETH), user, 1e18);
             vm.startPrank(user);
-            strategyCBALRETH.postCollateral(1e18 - 1);
+            pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
             borrowableCUSDC.borrow(100e6, user);
             vm.stopPrank();
         }
 
         // 2. repay user101 and user102 all debt after two days
         skip(2 days);
-        _harvestAuraStrategyRewards(2 weeks);
+        _harvestPendleLP(2 weeks);
         for (uint i; i < 2; ++i) {
             address user = users[i];
             vm.startPrank(user);
@@ -182,8 +203,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         _prepareUSDC(users[2], 1000e6);
         vm.startPrank(users[2]);
         usdc.approve(address(borrowableCUSDC), type(uint256).max);
-        // 3. user103 repay all his debt would revert because overflow
-        // vm.expectRevert();
+        // 3. user103 repay all his debt
         borrowableCUSDC.repay(0);
         vm.stopPrank();
     }

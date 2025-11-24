@@ -69,9 +69,13 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(chainlinkDaiUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -80,9 +84,13 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(chainlinkUsdcUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeStableLPAdaptor(
@@ -90,7 +98,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -138,8 +146,6 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         marketManagerIsolated.addPositionManager(address(positionManager));
 
-
-
         _provideEnoughLiquidityForLeverage();
 
         centralRegistry.setExternalCalldataChecker(
@@ -152,10 +158,10 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)
@@ -184,7 +190,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -247,7 +253,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -459,7 +465,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;

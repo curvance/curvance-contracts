@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -47,28 +48,28 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
-            "ETH"
+            "ETH",
+            1 minutes
         );
-        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
-        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, "WBTC");
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, "WBTC");
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
-    function test_fail_AddAsset__InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEARTBEAT.
-        uint256 invalidHeartbeat = adaptor.DEFAULT_HEARTBEAT() + 1;
+    // function test_fail_AddAsset__InvalidHeartbeat() public {
+    //     // Should revert when heartbeat > DEFAULT_HEARTBEAT.
+    //     uint256 invalidHeartbeat = adaptor.DEFAULT_HEARTBEAT() + 1;
         
-        vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
-        adaptor.addAsset(
-            _WBTC_ADDRESS,
-            true,
-            8,
-            invalidHeartbeat
-        );
-    }
+    //     vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
+    //     adaptor.addAsset(
+    //         _WBTC_ADDRESS,
+    //         true,
+    //         8
+    //     );
+    // }
 
     function testAddNewSignersUpdatePriceWithNewSigners() public {
         address[] memory newSigners = new address[](3);
@@ -118,7 +119,14 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+            );
 
         // Verify price was updated correctly
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
@@ -185,8 +193,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WBTC"));
+        (bytes32 dataFeedId,,,) = adaptor.assetConfig(_WBTC_ADDRESS, true);
+        assertEq(dataFeedId, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
@@ -205,7 +213,14 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
         
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+            );
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
@@ -216,20 +231,17 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
     }
 
-    function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
-        adaptor.addAsset(_WETH_ADDRESS, true, 8, 0);
 
+    function test_PriceGuard_success_staticCap_basePrice_showsOnRead() public {
+        // Write initial price: $60,000
         bytes memory redstonePayload = getRedstonePayload(
-            "WETH:3000:8",
+            "WBTC:60000:8",
             redstoneSignerKeys
         );
 
-        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WETH"));
-
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
-            _WETH_ADDRESS,
+            _WBTC_ADDRESS,
             true,
             uint48(block.timestamp * 1000)
         );
@@ -238,29 +250,254 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstonePayload
         );
 
-        // Securely getting oracle value
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
+        assertTrue(success);
 
-        oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
+        // Register adaptor
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+            );
+
+        // Set a static guard with basePrice below stored price
+        uint256 basePrice = 55000e18;
+        uint256 minPrice = 10000e18;
+        adaptor.setGuardedPriceConfig(
+            _WBTC_ADDRESS,
+            true,
+            0, // timestampStart (static mode requires 0)
+            0, // ips = 0 (static)
+            basePrice,
+            minPrice
+        );
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
+            _WBTC_ADDRESS,
             true,
             false
         );
-        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
-        assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
 
-        vm.warp(block.timestamp + 1);
+        // Happy path, price should be the base price if current price is above base price
+        assertEq(errorCode, 0);
+        assertEq(price, basePrice);
+
+        skip(1);
+
+        // Write a price below the base price to bound read price.
+        bytes memory redstonePayloadBelow = getRedstonePayload(
+            "WBTC:50000:8",
+            redstoneSignerKeys
+        );
+        bytes memory encodedFunctionBelow = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayloadBelow = abi.encodePacked(
+            encodedFunctionBelow,
+            redstonePayloadBelow
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayloadBelow
+        );
+        assertTrue(success);
+
         (price, errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
+            _WBTC_ADDRESS,
             true,
             false
         );
 
-        assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
+        // Happy path
+        assertEq(errorCode, 0, "Should have had no error code returned");
+        assertEq(price, 50_000e18, "Price should be 50k because it's below the base price and above the min price");
+    }
+
+    function test_PriceGuard_success_priceError_belowMinReturnsBadSource() public {
+        // Write initial price: $60,000
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        // Register adaptor
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+        );
+
+        uint256 basePrice = 55000e18;
+        uint256 minPrice = 54000e18;
+        adaptor.setGuardedPriceConfig(
+            _WBTC_ADDRESS,
+            true,
+            0, // static
+            0, // static
+            basePrice,
+            minPrice
+        );
+
+        skip(1);
+
+        redstonePayload = getRedstonePayload(
+            "WBTC:50000:8",
+            redstoneSignerKeys
+        );
+
+        encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+
+        assertEq(errorCode, 2);
+        assertEq(price, 0, "Price should be 0 because it's below the min price");
+    }
+
+    function test_PriceGuard_success_dynamicGuardShowsOnRead() public {
+        // Write initial price: $60,000
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        // Register adaptor
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            100,
+            50,
+            100,
+            50
+            );
+
+        // Set dynamic price guard: basePrice below stored price
+        uint256 basePrice = 55000e18;
+        uint256 minPrice = 10000e18;
+        uint256 ips = 1e11;
+        uint256 start = block.timestamp - 8 days;
+
+        adaptor.setGuardedPriceConfig(
+            _WBTC_ADDRESS,
+            true,
+            start,
+            ips,
+            basePrice,
+            minPrice
+        );
+
+        // Compute adjusted price cap
+        // FixedPointMathLib.fullMulDiv(price, ((timePassed * ips) + WAD), WAD);
+        uint256 timePassed0 = block.timestamp - start;
+        uint256 cap0 = (basePrice * ((timePassed0 * ips) + 1e18)) / 1e18;
+        (uint256 price0, uint256 err0) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(err0, 0);
+        // Should cap below 60,000 and equal computed cap
+        assertLt(price0, 60000e18);
+        assertEq(price0, cap0, "Price should be capped to dynamic max");
+
+        // Skip 1 day, test that dynamic cap works and shows on read.
+        skip(1 days);
+        redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        // re-write price to update the timestamp
+        encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        uint256 timePassed1 = block.timestamp - start;
+        uint256 cap1 = (basePrice * ((timePassed1 * ips) + 1e18)) / 1e18;
+        (uint256 price1, uint256 err1) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(err1, 0);
+        assertGt(price1, price0, "Dynamic cap should increase with time on read");
+        assertEq(price1, cap1, "Price should be capped to dynamic max");
+    }
+
+    function testRevertAddAsset__ZeroAddress() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        adaptor.addAsset(address(0), true, 8, "WBTC");
     }
 }

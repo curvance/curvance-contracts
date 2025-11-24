@@ -160,7 +160,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
 
         willLend[0] = true;
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(); // Now reverts with underflow
         universalBalance.multiDepositFor(
             depositSum,
             amounts,

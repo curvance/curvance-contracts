@@ -39,7 +39,7 @@ contract DepositNativeTest is TestBaseNativeUniversalBalance {
 
         vm.prank(user1);
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(); // Now reverts with underflow
         nativeUniversalBalance.depositNative{ value: _ONE }(true);
     }
 

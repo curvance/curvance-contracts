@@ -29,7 +29,8 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
         aggregator = new WstETHAggregator(
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
-            _CHAINLINK_ETH_USD
+            _CHAINLINK_ETH_USD,
+            "100"
         );
         console2.log("Deployed WstETH Aggregator");
     }
@@ -38,6 +39,9 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
@@ -56,18 +60,29 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
             address(aggregator),
             0
         );
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _STETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WSTETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(

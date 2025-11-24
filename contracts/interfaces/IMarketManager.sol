@@ -142,18 +142,6 @@ interface IMarketManager {
     ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
-    ///         in the given market.
-    /// @param cToken The market to verify the redeem against.
-    /// @param shares The number of cTokens to exchange
-    ///               for the underlying asset in the market.
-    /// @param account The account which would redeem `shares`.
-    function canRedeem(
-        address cToken,
-        uint256 shares,
-        address account
-    ) external;
-
-    /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the cToken itself.
     /// @param cToken The token to verify the redemption against.
@@ -207,10 +195,20 @@ interface IMarketManager {
     ) external;
 
     /// @notice Checks if the account should be allowed to repay a borrow
-    ///         in the given market.
-    /// @param cToken The market to verify the repay against.
+    ///         in the given market, may clean up positions.
+    /// @param cToken The Curvance token to verify the repayment of.
+    /// @param newNetDebt The new debt amount owed by `account` after
+    ///                   repayment.
+    /// @param debtAsset The debt asset being repaid to `cToken`.
+    /// @param decimals The decimals that `debtToken` is measured in.
     /// @param account The account who will have their loan repaid.
-    function canRepay(address cToken, address account) external;
+    function canRepayWithReview(
+        address cToken,
+        uint256 newNetDebt,
+        address debtAsset,
+        uint256 decimals,
+        address account
+    ) external;
 
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many collateralized shares should be seized
@@ -256,7 +254,7 @@ interface IMarketManager {
         address liquidator,
         address[] calldata accounts,
         IMarketManager.LiqAction memory action
-    ) external view returns (LiqResult memory, uint256[] memory);
+    ) external returns (LiqResult memory, uint256[] memory);
 
     /// @notice Checks if the seizing of `collateralToken` by repayment of
     ///         `debtToken` should be allowed.
@@ -333,18 +331,5 @@ interface IMarketManager {
     /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
-    ) external view returns (uint256, uint256, uint256);
-
-    /// @notice Determine `account`'s current collateral and debt values
-    ///         in the market.
-    /// @param account The account to calculate liquidation values for.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by soft liquidation requirements.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by hard liquidation requirements.
-    /// @return The total outstanding debt value of `account`.
-    /// @return The value that determines liquidation severity.
-    function liquidationValuesOf(
-        address account
-    ) external view returns (uint256, uint256, uint256, uint256);
+    ) external returns (uint256, uint256, uint256);
 }

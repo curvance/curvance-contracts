@@ -15,12 +15,12 @@ contract SetIRMTest is TestBaseBorrowableCToken {
 
         newDynamicIRM = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
-            1000, // baseRatePerYear
-            1000, // vertexRatePerYear
-            5000, // vertexUtilizationStart
-            1000, // adjustmentVelocity
-            100, // decayRate
-            100000000 // 1000x maximum vertex multiplier
+            1000, // 10% baseRatePerYear
+            1000, // 10% vertexRatePerYear
+            5000, // 50% vertexUtilizationStart
+            1000, // 10% adjustmentVelocity
+            100, // 1% decayRate
+            100000 // 10x maximum vertex multiplier
         );
     }
 
@@ -57,10 +57,10 @@ contract SetIRMTest is TestBaseBorrowableCToken {
     function test_setIRM_success_withOutstandingDebt() public {
         _prepareUSDC(address(this), 2000e6);
         borrowableCUSDC.deposit(2000e6, address(this));
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
         borrowableCUSDC.borrow(1000e6, address(this));
 
-        _harvestAuraStrategyRewards(4 weeks);
+        _harvestPendleLP(4 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();

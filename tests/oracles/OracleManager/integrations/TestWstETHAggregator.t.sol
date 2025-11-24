@@ -5,7 +5,7 @@ import { WstETHAggregator } from "contracts/oracles/adaptors/wrappedAggregators/
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IWstETH } from "contracts/interfaces/external/lido/IWstETH.sol";
-
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBase } from "tests/utils/TestBase.sol";
 
 contract TestWstETHAggregator is TestBase {
@@ -23,11 +23,12 @@ contract TestWstETHAggregator is TestBase {
         aggregator = new WstETHAggregator(
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
-            _CHAINLINK_STETH_USD
+            _CHAINLINK_STETH_USD,
+            "wstETH"
         );
     }
     
-    function testLatestRoundData() public {
+    function testLatestRoundData() public view {
         (, int256 wstethPrice, , , ) = aggregator.latestRoundData();
         (, int256 stethPrice, , , ) = IChainlink(_CHAINLINK_STETH_USD)
             .latestRoundData();
@@ -35,6 +36,35 @@ contract TestWstETHAggregator is TestBase {
             uint256(wstethPrice),
             (uint256(stethPrice) *
                 IWstETH(_WSTETH_ADDRESS).getStETHByWstETH(1e18)) / 1e18
+        );
+    }
+
+    function testWstETHAggregator_DifferentDecimals() public {
+
+        uint8 newDecimals = 6;
+
+        vm.mockCall(
+            _STETH_ADDRESS,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(uint8(newDecimals))
+        );
+
+        assertEq(IERC20(_STETH_ADDRESS).decimals(), newDecimals);
+
+        aggregator = new WstETHAggregator(
+            _WSTETH_ADDRESS,
+            _STETH_ADDRESS,
+            _CHAINLINK_STETH_USD,
+            "100"
+        );
+
+        (, int256 wstethPrice, , , ) = aggregator.latestRoundData();
+        (, int256 stethPrice, , , ) = IChainlink(_CHAINLINK_STETH_USD)
+            .latestRoundData();
+        assertEq(
+            uint256(wstethPrice),
+            (uint256(stethPrice) *
+                IWstETH(_WSTETH_ADDRESS).getStETHByWstETH(1e18)) / 1e6
         );
     }
 }

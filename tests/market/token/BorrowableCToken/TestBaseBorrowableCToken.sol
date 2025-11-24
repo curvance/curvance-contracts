@@ -11,47 +11,48 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         super.setUp();
 
         _prepareUSDC(address(this), _ONE + 77777);
-        _prepareBALRETH(address(this), 10e18 + 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 10e18 + 77777);
         
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
-        balRETH.approve(address(strategyCBALRETH), 10e18 + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18 + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
-        strategyCBALRETH.mint(_ONE, address(this));
+        pendleStrategyCTokenSTETH.mint(_ONE, address(this));
     }
 
     function _prepareLiquidation() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         
         // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE - 1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE - 1);
 
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(5000e6, user1);
         vm.stopPrank();
 
         // skip 20 min hold period in harvestAuraStrategyRewards
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         mockUsdcFeed.setMockAnswer(2e8);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user2, 250e6);
     }

@@ -11,6 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
 contract DeployBase is DeployScript  {
     struct Config {
@@ -39,7 +40,9 @@ contract DeployBase is DeployScript  {
         Config memory config,
         address harvester,
         Adaptors calldata adaptors,
-        address wrappedNative
+        address wrappedNative,
+        string memory mockOracleName,
+        bool testnet
     ) external recordEvents {
         CentralRegistry centralRegistry = new CentralRegistry(
             config.daoAddress,
@@ -56,16 +59,30 @@ contract DeployBase is DeployScript  {
         centralRegistry.setOracleManager(address(oracleManager));
         emit ContractDeployed(address(oracleManager), "OracleManager");
 
-        _deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
-        _deployZappers(icr, wrappedNative);
+        deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
+        deployZappers(icr, wrappedNative);
+        deployMockOracle(icr, oracleManager, mockOracleName, testnet);
     }
 
-    function _deployAdaptors(
+    function deployMockOracle(
+        ICentralRegistry icr, 
+        OracleManager oracleManager, 
+        string memory name,
+        bool testnet
+    ) public useDeployer {
+        if (testnet) {
+            MockOracleAdaptor adaptor = new MockOracleAdaptor(icr, name);
+            oracleManager.addApprovedAdaptor(address(adaptor));
+            emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
+        }
+    }
+
+    function deployAdaptors(
         ICentralRegistry icr,
         CentralRegistry registry,
         Adaptors memory adaptors, 
         OracleManager oracleManager
-    ) internal {
+    ) public useDeployer {
         if (adaptors.chainlink) {
             chainlinkSupport.deployChainlinkAdaptor(icr, oracleManager);
         }
@@ -79,7 +96,7 @@ contract DeployBase is DeployScript  {
         }
     }
 
-    function _deployZappers(ICentralRegistry icr, address wrappedNative) internal {
+    function deployZappers(ICentralRegistry icr, address wrappedNative) public useDeployer {
         NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
         emit ContractDeployed(
             address(nativeVaultZapper),

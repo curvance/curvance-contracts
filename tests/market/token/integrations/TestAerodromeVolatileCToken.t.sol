@@ -79,9 +79,13 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(chainlinkAERO),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         chainlinkWETH = new MockV3Aggregator(8, 2700e8);
@@ -91,9 +95,13 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(chainlinkWETH),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         chainlinkUSDC = new MockV3Aggregator(8, 1e8);
@@ -103,9 +111,13 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(chainlinkUSDC),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
@@ -113,12 +125,16 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_WETH_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testWethUsdcVolatilePool_fuzzed(uint256 amount1) public {
@@ -240,7 +256,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         aeroCTokenWETHUSDC.harvest(abi.encode(swapAction, 1e7));
 

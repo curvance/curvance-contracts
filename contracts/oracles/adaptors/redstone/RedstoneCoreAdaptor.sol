@@ -14,42 +14,47 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
-    /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  type(uint256).max defaults to using
-    ///                  `DEFAULT_HEARTBEAT`.
+    /// @param dataFeedId bytes32 value that uniquely identifies the Redstone
+    ///                   Core asset data feed.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
     ///                          signers, in milliseconds.
     /// @param price The price recorded for an asset, in `WAD`.
-    /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
+        bytes32 dataFeedId;
         uint8 decimals;
-        uint16 heartbeat;
         uint48 redstoneTimestamp;
-        uint184 price;
-        bytes32 symbolHash;
+        uint200 price;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If type(uint256).max is specified for an asset heartbeat,
-    ///         `DEFAULT_HEARTBEAT` is used instead.
-    /// @dev 10 minutes = 600 seconds.
-    ///      We use type(uint256).max instead of 0 for trigger as we may want
-    ///      0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEARTBEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
     /// @notice The maximum number of signers allowed inside this adaptor.
     uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
-    /// @notice The maximum timestamp delay from block.timestamp that is
-    ///         acceptable.
-    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS = 3 minutes;
+    /// @notice The maximum possible value settable on deployment for this
+    ///         Redstone Core Adaptor's maximum timestamp delay from
+    ///         block.timestamp that is acceptable.
+    uint256 constant MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED = 1 minutes;
     /// @notice The maximum timestamp ahead from block.timestamp that is
     ///         acceptable.
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
+
+    /// @notice The maximum timestamp delay from block.timestamp that is
+    ///         acceptable, in seconds.
+    /// @dev This is one value for all assets because its tied to user sourced
+    ///      offchain prices being processed in time by the blockchain not
+    ///      onchain procedural/deviation updates like models like Chainlink
+    ///      price feeds or Redstone classic. If theres a real argument for
+    ///      different `DEFAULT_HEARTBEAT` values due to asset volatility
+    ///      multiple redstone core adaptors can be deployed.
+    ///      Its intentional that this is not configurable via a setter, if a
+    ///      chain speeds up its block times a new adaptor version can be
+    ///      deployed and updated in the Oracle Manager.
+    uint256 public immutable DEFAULT_HEARTBEAT;
 
     /// STORAGE ///
 
@@ -105,8 +110,12 @@ contract RedstoneCoreAdaptor is
         ICentralRegistry cr,
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
-        string memory nativeSymbol
-    ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase() {
+        string memory nativeSymbol,
+        uint256 defaultHeartbeat
+    ) BaseOracleAdaptor(
+        cr,
+        "RedstoneCoreAdaptor"
+    ) PrimaryProdDataServiceConsumerBase() {
         _nativeSymbol = nativeSymbol;
 
         // Validate that unique signer threshold is within acceptable limits.
@@ -126,6 +135,17 @@ contract RedstoneCoreAdaptor is
         if (MAXIMUM_SIGNERS_ALLOWED < numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
+
+        // Validate that the attached heartbeat is not too long as this
+        // potentially opens up price selection attack vectors if too long.
+        if (defaultHeartbeat > MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        // Enforce maximum default heartbeat allowed for Ethereum L1 whereas
+        // other chains can potentially be lower due to shorter block times.
+        DEFAULT_HEARTBEAT = block.chainid == 1 ?
+            MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED : defaultHeartbeat;
 
         for (uint256 i; i < numSigners; ++i) {
             address signer = signers[i];
@@ -176,17 +196,15 @@ contract RedstoneCoreAdaptor is
             tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, redstoneTimestamp)
         }
 
-        uint256 price = getOracleNumericValueFromTxMsg(config.symbolHash);
-        // Adjust price pulled if necessary.
-        price = _adjustPrice(asset, inUSD, price, config.decimals);
+        uint256 price = getOracleNumericValueFromTxMsg(config.dataFeedId);
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price > type(uint184).max) {
+        if (price == 0 || price > type(uint200).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        config.price = uint184(price);
+        config.price = uint200(price);
         config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
@@ -215,50 +233,35 @@ contract RedstoneCoreAdaptor is
     }
 
     /// @notice Add a Redstone Core Price Feed as an asset.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
+    ///      NOTE: BE VERY CAREFUL SETTING `id`, AN INCORRECT VALUE CAN BLOCK
+    ///            PRICING UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     /// @param decimals The number of decimals the redstone core feed
     ///                 prices in.
+    /// @param id The dataFeedId of the token to add pricing for,
+    ///           in string form.
     function addAsset(
         address asset,
         bool inUSD,
         uint8 decimals,
-        uint256 heartbeat
+        string memory id
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != type(uint256).max) {
-            if (heartbeat > DEFAULT_HEARTBEAT) {
-                revert RedstoneCoreAdaptor__InvalidConfiguration();
-            }
-        }
-
-        bytes32 symbolHash;
-        if (inUSD) {
-            // Redstone Core does not append anything at the end of USD
-            // denominated feeds, so we use toBytes32 here.
-            symbolHash = Bytes32Helper._toBytes32(asset);
-        } else {
-            // Redstone Core appends "/" + the native chain token's symbol at
-            // the end of native denominated feeds, so we can compute the
-            // output with `toBytes32Symbol`.
-            symbolHash = Bytes32Helper._toBytes32Symbol(asset, _nativeSymbol);
-        }
+        _checkNotZeroAddress(asset);
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        config.symbolHash = symbolHash;
-        config.heartbeat = uint16(heartbeat != type(uint256).max ?
-            heartbeat : DEFAULT_HEARTBEAT);
+        config.dataFeedId = Bytes32Helper.toBytes32(id);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
-
+        
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
         if (isSupportedAsset[asset]) {
@@ -367,13 +370,6 @@ contract RedstoneCoreAdaptor is
         emit SignerUpdated(currentSigner, false);
     }
 
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    function adaptorType() external pure override returns (uint256) {
-        return 2;
-    }
-
     /// PUBLIC FUNCTIONS ///
 
     function getAuthorisedSignerIndex(
@@ -423,18 +419,24 @@ contract RedstoneCoreAdaptor is
 
         AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
-        
-        // Validate the price returned is not stale.
+
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, config.price, config.decimals);
+
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
+        // Validate the price returned is not stale, and that the price was
+        // not reduced to 0 by the price guard minimum price, giving us parity
+        // with BaseOracleAdaptor's `_verifyData`.
         if (
-            timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > config.heartbeat
+            (timestampInSeconds < block.timestamp &&
+                block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT) ||
+            adjustedPrice == 0
         ) {
             result.hadError = true;
-            return result;
         }
 
-        result.price = config.price;
+        result.price = adjustedPrice;
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
@@ -460,8 +462,7 @@ contract RedstoneCoreAdaptor is
                 revert RedstoneCoreAdaptor__StalePrice();
             }
         } else if (
-            (block.timestamp - receivedTimestampSeconds) >
-            DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS
+            (block.timestamp - receivedTimestampSeconds) > DEFAULT_HEARTBEAT
         ) {
             revert RedstoneCoreAdaptor__StalePrice();
         }

@@ -49,6 +49,7 @@ abstract contract BaseSwapChecker is
     error CalldataChecker__InputAmountError();
     error CalldataChecker__OutputTokenError();
     error CalldataChecker__InvalidFuncSig();
+    error CalldataChecker__ReferralError();
 
     /// STORAGE ///
     

@@ -90,7 +90,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCWMON.borrow(1 ether, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCWMON)
         ) / 2;
@@ -121,8 +121,6 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         deal(SHMON_ADDRESS, user1, 500e18);
         IERC20(SHMON_ADDRESS).approve(address(positionManager), type(uint256).max);
-
-        simpleCSHMON.setDelegateApproval(address(positionManager), true);
 
         uint256 amountForLeverage = 100 ether;
 
@@ -218,7 +216,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -251,7 +249,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -284,7 +282,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -317,7 +315,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -370,11 +368,11 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         oracleManager.addApprovedAdaptor(address(adaptor));
 
         adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPriceFeed(SHMON_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
         adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPriceFeed(WMON_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
 
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCWMON));
@@ -465,11 +463,11 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         oracleManager.addApprovedAdaptor(address(adaptor));
 
         adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPriceFeed(SHMON_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
         adaptor.addAsset(_USDC_ADDRESS_MONAD, true, _CHAINLINK_USDC_USD_MONAD, 0);
-        oracleManager.addAssetPriceFeed(_USDC_ADDRESS_MONAD, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS_MONAD, address(adaptor), 100, 50, 100, 50);
 
         borrowableCUSDC_monad = _deployBorrowableCToken(_USDC_ADDRESS_MONAD);
         oracleManager.addCTokenSupport(address(borrowableCUSDC_monad));

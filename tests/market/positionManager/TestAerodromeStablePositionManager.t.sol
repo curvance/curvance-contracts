@@ -62,9 +62,13 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(chainlinkDaiUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -73,9 +77,13 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(chainlinkUsdcUsd),
             0
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
 
         adaptor = new VelodromeStableLPAdaptor(
@@ -83,7 +91,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_AERODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_AERODROME_DAI_USDC, address(adaptor), 100, 50, 100, 50);
 
         owner = address(this);
         user = user1;
@@ -147,10 +155,10 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)
@@ -179,7 +187,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -218,9 +226,6 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             0.0001 ether
         );
 
-        // allow delegation for postCollateral
-        strategyCTokenUSDCDAI.setDelegateApproval(address(positionManager), true);
-
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 0.66e20;
 
@@ -258,12 +263,16 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow (~1k collateral and 500 debt)
         deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+
         IERC20(_AERODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 0.001 ether);
         strategyCTokenUSDCDAI.deposit(0.001 ether, user);
         strategyCTokenUSDCDAI.postCollateral(0.001 ether);
+
         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(500 ether, user);
+        
         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -277,7 +286,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 99% of limit.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = (_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) * 99) / 100;
@@ -316,12 +325,16 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow (~1k collateral and 500 debt)
         deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+
         IERC20(_AERODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 0.001 ether);
         strategyCTokenUSDCDAI.deposit(0.001 ether, user);
         strategyCTokenUSDCDAI.postCollateral(0.001 ether);
+
         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(500 ether, user);
+
         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -335,7 +348,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -393,7 +406,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
         deleverageAction.swapActions[0].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
@@ -453,7 +466,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -511,7 +524,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
         deleverageAction.swapActions[0].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
