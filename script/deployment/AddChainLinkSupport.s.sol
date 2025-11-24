@@ -41,7 +41,7 @@ contract AddChainLinkSupport is DeployScript {
             adaptor.setGuardedPriceConfig(
                 asset,
                 guardConfig.inUSD,
-                block.timestamp - guardConfig.timestampSubtract,
+                guardConfig.timestampSubtract > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
                 guardConfig.ips,
                 guardConfig.basePrice,
                 guardConfig.minPrice
