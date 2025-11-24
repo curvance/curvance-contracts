@@ -26,7 +26,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
         IERC20 vault = IERC20(vaultToken);
 
         address vaultAgg = address(
-            new VaultAggregator(address(vault), address(asset), feed, feedId)
+            new VaultAggregator(address(vault), address(asset), feed, "")
         );
 
         emit ContractDeployed(
@@ -39,7 +39,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
             )
         );
 
-        chainlink.addAsset(vaultToken, inUSD, vaultAgg, 0, feedId);
+        chainlink.addAsset(vaultToken, inUSD, vaultAgg, 0);
         oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
     }
 }
