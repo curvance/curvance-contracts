@@ -194,6 +194,9 @@ contract CombinedAggregator is BaseWrappedAggregator {
         delete pg;
     }
 
+    /// @notice Sets an heartbeat to check `secondaryAggregator` against.
+    /// @param heartbeat The heartbeat to use when validating prices
+    ///                  for `secondaryAggregator`. 0 = `DEFAULT_HEARTBEAT`.
     function setSecondaryHeartbeat(uint256 heartbeat) external {
         _checkMarketPermissions();
         secondaryHeartbeat = _setSecondaryHeartbeat(heartbeat);
@@ -266,6 +269,11 @@ contract CombinedAggregator is BaseWrappedAggregator {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Validates heartbeat value to compare `secondaryAggregator`
+    ///         against.
+    /// @param heartbeat The heartbeat to use when validating prices
+    ///                  for `secondaryAggregator`. 0 = `DEFAULT_HEARTBEAT`.
+    /// @return The heartbeat value.
     function _setSecondaryHeartbeat(
         uint256 heartbeat
     ) internal pure returns (uint256) {
@@ -315,7 +323,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
         // Calculate how much to shift up minimum and maximum values from
         // scaling guarded prices.
         uint256 timePassed = block.timestamp - p.timestampStart;
-        uint256 min = _guardedPrice(timePassed, p.ips, pg.minPrice);
+        uint256 min = _guardedPrice(timePassed, p.ips, p.minPrice);
 
         // If the price of the token drops below the minimum we return 0 to
         // immediately bubble up a pricing error.
@@ -323,7 +331,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
             return 0;
         }
         
-        uint256 max = _guardedPrice(timePassed, pg.ips, pg.basePrice);
+        uint256 max = _guardedPrice(timePassed, p.ips, p.basePrice);
         return price > max ? max : price;
     }
 
