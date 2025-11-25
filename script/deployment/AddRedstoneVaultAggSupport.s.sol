@@ -10,6 +10,15 @@ import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/Reds
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddRedstoneVaultAggSupport is DeployScript {
+    struct PriceGuard {
+        bool enabled;
+        bool inUSD;
+        uint256 timestampSubtract;
+        uint256 ips;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     function run(
         address registry,
         address adaptor,
@@ -17,12 +26,13 @@ contract AddRedstoneVaultAggSupport is DeployScript {
         address assetToken,
         address feed,
         string memory feedId,
-        bool inUSD
+        bool inUSD,
+        PriceGuard memory guardConfig
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(icr.oracleManager());
         RedstoneClassicAdaptor redstone = RedstoneClassicAdaptor(adaptor);
-    
+
         IERC20 asset = IERC20(assetToken);
         IERC20 vault = IERC20(vaultToken);
 
@@ -42,5 +52,16 @@ contract AddRedstoneVaultAggSupport is DeployScript {
 
         redstone.addAsset(vaultToken, inUSD, vaultAgg, 0, feedId);
         oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 }

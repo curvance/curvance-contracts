@@ -10,13 +10,23 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddChainlinkVaultAggSupport is DeployScript {
+    struct PriceGuard {
+        bool enabled;
+        bool inUSD;
+        uint256 timestampSubtract;
+        uint256 ips;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     function run(
         address registry,
         address adaptor,
         address vaultToken,
         address assetToken,
         address feed,
-        bool inUSD
+        bool inUSD,
+        PriceGuard memory guardConfig
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(icr.oracleManager());
@@ -41,5 +51,16 @@ contract AddChainlinkVaultAggSupport is DeployScript {
 
         chainlink.addAsset(vaultToken, inUSD, vaultAgg, 0);
         oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
+
+        if(guardConfig.enabled) {
+            adaptor.setGuardedPriceConfig(
+                asset,
+                guardConfig.inUSD,
+                guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
+                guardConfig.ips,
+                guardConfig.basePrice,
+                guardConfig.minPrice
+            );
+        }
     }
 }
