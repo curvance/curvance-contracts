@@ -83,6 +83,7 @@ abstract contract BaseWrappedAggregator is IChainlink, IRedstone {
     function latestRoundData()
         external
         view
+        virtual
         override (IChainlink, IRedstone)
         returns (
             uint80 roundId,
@@ -139,13 +140,15 @@ abstract contract BaseWrappedAggregator is IChainlink, IRedstone {
         result = _dataFeedId;
     }
 
-    /// PUBLIC FUNCTIONS TO OVERRIDE ///
+    /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the underlying aggregator address.
     /// @return result The underlying aggregator address.
     function underlyingAggregator() public view returns (IChainlink result) {
         result = _assetAggregator;
     }
+
+    /// PUBLIC FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the adjusted `answer` based on the current exchange
     ///         rate between the wrapped asset and the underlying aggregator.
