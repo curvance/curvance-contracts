@@ -45,9 +45,6 @@ contract TestCombinedAggregator is Test {
             0, // use DEFAULT_HEARTBEAT for secondary
             ASSET_ID
         );
-
-         // Ensure a sane heartbeat
-         combined.setSecondaryHeartbeat(1 days);
     }
 
     function test_combinedAggregator_correctlyCombinesPrices() public {
@@ -92,6 +89,64 @@ contract TestCombinedAggregator is Test {
         // When secondary is stale, CombinedAggregator bubbles updatedAt = 0
         assertEq(updatedAt, 0, "updatedAt should be zero when secondary is stale");
     }
+
+    function test_combinedAggregator_setSecondaryHeartbeat_fail_invalidHeartbeat() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+
+        // Will fail if heartbeat is greater than DEFAULT_HEARTBEAT
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
+        uint256 invalidHeartbeat = DEFAULT_HEARTBEAT + 1;
+        combined.setSecondaryHeartbeat(invalidHeartbeat);
+    }
+
+    function test_combinedAggregator_setSecondaryHeartbeat_success_defaultHeartbeat() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+        combined.setSecondaryHeartbeat(0);
+
+        // Ensure the heartbeat is set to DEFAULT_HEARTBEAT
+        assertEq(combined.secondaryHeartbeat(), DEFAULT_HEARTBEAT);
+    }
+
+    function test_combinedAggregator_setSecondaryHeartbeat_success_customHeartbeat() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+        uint256 customHeartbeat = 1 hours;
+        combined.setSecondaryHeartbeat(customHeartbeat);
+
+        // Ensure the secondary heartbeat is set to the custom heartbeat + HEARTBEAT_GRACE_PERIOD
+        // heartbeat = heartbeat != 0 ?
+        //    heartbeat + HEARTBEAT_GRACE_PERIOD : DEFAULT_HEARTBEAT;
+        assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD);
+    }
+
+    function test_combinedAggregator_constructor_fail_invalidHeartbeat() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
+        new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAgg),
+            address(secondaryAgg),
+            1 days + 1, // right at the edge of default heartbeat
+            ASSET_ID
+        );
+    }
+
+    function test_combinedAggregator_constructor_success_customHeartbeat() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+        uint256 customHeartbeat = 1 hours;
+        new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAgg),
+            address(secondaryAgg),
+            customHeartbeat,
+            ASSET_ID
+        );
+
+        assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD);
+    }
+
 }
-
-
