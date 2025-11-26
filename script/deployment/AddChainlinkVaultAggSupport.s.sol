@@ -54,7 +54,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
 
         if(guardConfig.enabled) {
             chainlink.setGuardedPriceConfig(
-                address(vaultAgg),
+                address(asset),
                 guardConfig.inUSD,
                 guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
                 guardConfig.ips,
