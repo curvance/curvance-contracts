@@ -490,7 +490,7 @@ contract MarketManagerIsolated is
         address debtAsset,
         uint256 decimals,
         address account
-    ) external {
+    ) external view {
         _checkIsToken(cToken);
         _checkIsListedToken(cToken);
         _checkHoldPeriod(account);

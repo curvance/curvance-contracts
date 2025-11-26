@@ -208,7 +208,7 @@ interface IMarketManager {
         address debtAsset,
         uint256 decimals,
         address account
-    ) external;
+    ) external view;
 
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many collateralized shares should be seized
