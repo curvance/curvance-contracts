@@ -7,6 +7,8 @@ import { CombinedAggregator } from "contracts/oracles/adaptors/wrappedAggregator
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestCombinedAggregator is Test {
     // Chainlink addresses
@@ -106,7 +108,7 @@ contract TestCombinedAggregator is Test {
         combined.setSecondaryHeartbeat(0);
 
         // Ensure the heartbeat is set to DEFAULT_HEARTBEAT
-        assertEq(combined.secondaryHeartbeat(), DEFAULT_HEARTBEAT);
+        assertEq(combined.secondaryHeartbeat(), DEFAULT_HEARTBEAT, "secondary heartbeat mismatch");
     }
 
     function test_combinedAggregator_setSecondaryHeartbeat_success_customHeartbeat() public {
@@ -118,7 +120,7 @@ contract TestCombinedAggregator is Test {
         // Ensure the secondary heartbeat is set to the custom heartbeat + HEARTBEAT_GRACE_PERIOD
         // heartbeat = heartbeat != 0 ?
         //    heartbeat + HEARTBEAT_GRACE_PERIOD : DEFAULT_HEARTBEAT;
-        assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD);
+        assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD, "secondary heartbeat mismatch");
     }
 
     function test_combinedAggregator_constructor_fail_invalidHeartbeat() public {
@@ -138,7 +140,7 @@ contract TestCombinedAggregator is Test {
         uint256 HEARTBEAT_GRACE_PERIOD = 120;
         uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
         uint256 customHeartbeat = 1 hours;
-        new CombinedAggregator(
+        CombinedAggregator combined2 = new CombinedAggregator(
             ICentralRegistry(address(centralRegistry)),
             address(primaryAgg),
             address(secondaryAgg),
@@ -146,7 +148,281 @@ contract TestCombinedAggregator is Test {
             ASSET_ID
         );
 
-        assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD);
+        assertEq(combined2.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD, "secondary heartbeat mismatch");
     }
 
+    function test_combinedAggregator_constructor_success_stateCorrectlySet() public {
+        uint256 HEARTBEAT_GRACE_PERIOD = 120;
+        uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+        uint256 customHeartbeat = 1 hours;
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAgg),
+            address(secondaryAgg),
+            customHeartbeat,
+            ASSET_ID
+        );
+
+        // Check custom heartbeat is set correctly
+        assertEq(combined2.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD, "secondary heartbeat mismatch");
+        // Check secondary aggregator is set correctly
+        assertEq(address(combined2.secondaryAggregator()), address(secondaryAgg), "secondary aggregator mismatch");
+        // Check central registry is set correctly
+        assertEq(address(combined2.centralRegistry()), address(centralRegistry), "central registry mismatch");
+        // Check underlying aggregator is set correctly
+        assertEq(address(combined2.underlyingAggregator()), address(primaryAgg), "underlying aggregator mismatch");
+        // Check decimals are set correctly
+        assertEq(combined2.decimals(), primaryAgg.decimals(), "decimals mismatch");
+        // Check the DataFeedId is set correctly
+        // assertEq(combined.getDataFeedId(), ASSET_ID, "data feed id mismatch");
+    }
+
+    function test_priceGuard_static_success_clampsSecondaryMax() public {
+        // primary = ETH/USD at 4000, secondary = ezETH/ETH at 1.5
+        MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8)); // ETH/USD
+        MockV3Aggregator ezETH_ETH_Mock = new MockV3Aggregator(8, int256(1.5e8)); // 1.5
+
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(ETH_USDC_Mock),
+            address(ezETH_ETH_Mock),
+            0,
+            "MOCK/USD"
+        );
+
+        // Configure static guard on secondary
+        uint256 basePrice = 1.2e8; // 1.2
+        uint256 minPrice = 1e8;    // 1.0
+        combined2.setGuardedPriceConfig(
+            0, // timestampStart must be 0 for static guard
+            0, // ips = 0
+            basePrice,
+            minPrice
+        );
+
+        // Secondary=1.5 and base=1.2, adjusted secondary should clamp to 1.2
+        (, int256 answer,,,) = combined2.latestRoundData();
+
+        // expected combined = ETH/USD (4000) * (1.2) = 4800
+        assertEq(uint256(answer), 4800e8, "unexpected combined price after clamp");
+
+        // Explicitly check that the getAdjustedAnswer function works correctly
+        int256 adjusted = combined2.getAdjustedAnswer(int256(4000e8));
+        assertEq(uint256(adjusted), 4800e8, "static guard failed to clamp to base");
+
+        // Push secondary higher (2.0) and verify it is still clamped to 1.2
+        ezETH_ETH_Mock.updateAnswer(int256(2e8)); // 2.0
+        (, int256 answer2,,,) = combined2.latestRoundData();
+        assertEq(uint256(answer2), 4800e8, "combined price should remain clamped after secondary rises");
+        int256 adjusted2 = combined2.getAdjustedAnswer(int256(4000e8));
+        assertEq(uint256(adjusted2), 4800e8, "clamp not enforced after secondary increase");
+    }
+
+    function test_priceGuard_static_success_zeroWhenBelowMin() public {
+
+        MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8)); // ETH/USD
+        MockV3Aggregator ezETH_ETH_Mock = new MockV3Aggregator(8, int256(1.2e8));   // 1.2
+
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(ETH_USDC_Mock),
+            address(ezETH_ETH_Mock),
+            0,
+            "MOCK/USD"
+        );
+
+        uint256 basePrice = 2e8;
+        uint256 minPrice = 1e8;
+        combined2.setGuardedPriceConfig(
+            0,
+            0,
+            basePrice,
+            minPrice
+        );
+
+        ezETH_ETH_Mock.updateAnswer(int256(0.5e8)); // 0.5
+
+        // secondary = 0.5 < min of 1.0 soshould return 0
+        (, int256 answer,,,) = combined2.latestRoundData();
+        assertEq(uint256(answer), 0, "expected combined answer to be zero when below min");
+    }
+
+    function test_priceGuard_dynamic_success_increasesMaxOverTimeAndClamps() public {
+
+        MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8));
+        MockV3Aggregator ezETH_ETH_Mock = new MockV3Aggregator(8, int256(1.5e8));
+
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(ETH_USDC_Mock),
+            address(ezETH_ETH_Mock),
+            0,
+            "MOCK/USD"
+        );
+
+        uint256 ips = 1e9;
+        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 basePrice = 1.5e8; // 1.3, below 1.5 so clamp triggers
+        uint256 minPrice = 1e8;    // 1.0
+        combined2.setGuardedPriceConfig(
+            timestampStart,
+            ips,
+            basePrice,
+            minPrice
+        );
+
+        // Compute expected dynamic max
+        uint256 timePassed = block.timestamp - timestampStart;
+        uint256 dynamicMax = (basePrice * (timePassed * ips + 1e18)) / 1e18;
+
+        int256 adjusted = combined2.getAdjustedAnswer(int256(4000e8));
+        uint256 expected = (4000e8 * (1.5e8)) / 1e8;
+        assertEq(uint256(adjusted), expected, "dynamic guard failed to clamp");
+
+        // Advance time and verify dynamic max increases again
+        skip(3 days);
+
+        timePassed = block.timestamp - timestampStart;
+        dynamicMax = (basePrice * (timePassed * ips + 1e18)) / 1e18;
+        adjusted = combined2.getAdjustedAnswer(int256(4000e8));
+        expected = (4000e8 * (1.5e8)) / 1e8;
+        assertEq(uint256(adjusted), expected, "dynamic guard clamp after time advance mismatch");
+    }
+
+    function test_priceGuard_setGuardedPriceConfig_fail_sanityChecks() public {
+
+        MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8));
+        MockV3Aggregator ezETH_ETH_Mock = new MockV3Aggregator(8, int256(1.5e8));
+
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(ETH_USDC_Mock),
+            address(ezETH_ETH_Mock),
+            0,
+            "MOCK/USD"
+        );
+
+        // force the secondary answer to zero
+        ezETH_ETH_Mock.updateAnswer(0);
+
+        // Expect revert because setGuardedPriceConfig must have > 0 answer
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            1,       // ips != 0 to avoid static timestamp rule
+            1.2e8,
+            1e8
+        );
+        // bring secondary answer back to 1.5
+        ezETH_ETH_Mock.updateAnswer(1.5e8);
+
+        // ips == 0 requires timestampStart == 0
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidTimestamp.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            0,
+            1.2e8,
+            1e8
+        );
+
+        // ips != 0 requires timestampStart != 0
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidTimestamp.selector);
+        combined2.setGuardedPriceConfig(
+            0,
+            1,
+            1.2e8,
+            1e8
+        );
+
+        // ips != 0 requires timestampStart <= now and >= 7 days ago
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidTimestamp.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp + 1,
+            1,
+            1.2e8,
+            1e8
+        );
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidTimestamp.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 1 days,
+            1,
+            1.2e8,
+            1e8
+        );
+
+        // ips must fit in uint40
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            uint256(type(uint40).max) + 1,
+            1.2e8,
+            1e8
+        );
+
+        // basePrice cannot be 0 and must fit in uint88
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            1,
+            0,
+            1e8
+        );
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            1,
+            uint256(type(uint88).max) + 1,
+            1e8
+        );
+
+        // minPrice cannot be > basePrice
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            block.timestamp - 9 days,
+            1,
+            1e8,
+            2e8
+        );
+
+        // MinPriceAboveCurrentPrice when min > current answer and <= basePrice
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__MinPriceAboveCurrentPrice.selector);
+        combined2.setGuardedPriceConfig(
+            0,
+            0,
+            3e8,
+            2e8 // > 1.5e8 answer
+        );
+
+        // Stale secondary
+        combined2.setSecondaryHeartbeat(1); // heartbeat very small
+        skip(2 days);
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        combined2.setGuardedPriceConfig(
+            0,
+            0,
+            1.2e8,
+            1e8
+        );
+
+        // Reset heartbeat to default
+        combined2.setSecondaryHeartbeat(0);
+        ezETH_ETH_Mock.updateAnswer(1.5e8);
+
+        // set a valid dynamic config
+        uint256 timestampStart = block.timestamp - 9 days;
+        combined2.setGuardedPriceConfig(
+            timestampStart,
+            1,
+            2e8,
+            1e8
+        );
+        // New timestampStart must not be earlier than existing timestampStart when > 0
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidTimestamp.selector);
+        combined2.setGuardedPriceConfig(
+            timestampStart - 1 days,
+            1,
+            2e8,
+            1e8
+        );
+    }
 }
