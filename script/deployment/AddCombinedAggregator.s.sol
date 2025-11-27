@@ -20,19 +20,20 @@ contract AddCombinedAggregator is DeployScript {
 
     function run(
         address asset,
+        // ====== CombinedAggregator Parameters ======
         address centralRegistry,
         address primaryAggregator,
         address secondaryAggregator,
         uint256 secondaryHeartbeat,
-        address adaptorAddress,
-        address oracleManager,
         string memory assetId,
-        uint256 heartbeat,
-        bool inUSD,
-        PriceGuard memory adaptorGuardConfig,
-        PriceGuard memory combinedGuardConfig
+        PriceGuard memory combinedGuardConfig,
+        // ====== ChainlinkAdaptor Parameters ======
+        address adaptorAddress,
+        uint256 heartbeat
     ) external recordEvents {
         IERC20 token = IERC20(asset);
+
+        // ====== Deploy and configure CombinedAggregator ======
         address agg = address(
             new CombinedAggregator(
                 ICentralRegistry(address(centralRegistry)),
@@ -44,26 +45,7 @@ contract AddCombinedAggregator is DeployScript {
         );
         emit ContractDeployed(agg, string.concat("CombinedAggregator-", token.symbol()));
 
-        // Register on chainlink adaptor and OracleManager
-        ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
-        adaptor.addAsset(asset, inUSD, agg, heartbeat);
-
-        OracleManager manager = OracleManager(oracleManager);
-        manager.addAssetPricingAdaptor(asset, address(adaptor), 250, 220, 250, 220);
-
-        // First: apply adaptor-level PriceGuard on ChainlinkAdaptor
-        if(adaptorGuardConfig.enabled) {
-            adaptor.setGuardedPriceConfig(
-                asset,
-                adaptorGuardConfig.inUSD,
-                adaptorGuardConfig.ips > 0 ? block.timestamp - adaptorGuardConfig.timestampSubtract : 0,
-                adaptorGuardConfig.ips,
-                adaptorGuardConfig.basePrice,
-                adaptorGuardConfig.minPrice
-            );
-        }
-
-        // Second: apply PriceGuard on CombinedAggregator
+        // Configure PriceGuard on CombinedAggregator
         if (combinedGuardConfig.enabled) {
             CombinedAggregator(agg).setGuardedPriceConfig(
                 combinedGuardConfig.ips > 0 ? block.timestamp - combinedGuardConfig.timestampSubtract : 0,
@@ -72,6 +54,17 @@ contract AddCombinedAggregator is DeployScript {
                 combinedGuardConfig.minPrice
             );
         }
+
+        // ====== Re-configure ChainlinkAdaptor ======
+
+        // Start adaptor instance
+        ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
+        
+        // remove priceguard from adaptor level
+        adaptor.disableGuardedPriceConfig(asset, true);
+        
+        // Update adaptor to use new CombinedAggregator
+        adaptor.addAsset(asset, true, agg, heartbeat);
         
     }
 }
