@@ -54,8 +54,8 @@ contract AddRedstoneVaultAggSupport is DeployScript {
         oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
 
         if(guardConfig.enabled) {
-            adaptor.setGuardedPriceConfig(
-                asset,
+            redstone.setGuardedPriceConfig(
+                address(vault),
                 guardConfig.inUSD,
                 guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
                 guardConfig.ips,
