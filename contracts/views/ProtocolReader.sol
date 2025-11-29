@@ -113,8 +113,9 @@ contract ProtocolReader {
         uint256 userShareBalance;
         uint256 userUnderlyingBalance;
         uint256 userCollateral;
-        uint256 exchangeRate;
         uint256 userDebt;
+        uint256 liquidationPrice;
+        uint256 exchangeRate;
     }
 
     /// @notice Data structure returned on hypothetical calculation containing
@@ -153,10 +154,6 @@ contract ProtocolReader {
     // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
     uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
-    /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations, in `BPS`.
-    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 9990;
 
     /// STORAGE ///
 
@@ -298,7 +295,7 @@ contract ProtocolReader {
         uint256 soft;
         uint256 debt;
         uint256 tempValue;
-        (soft, , debt, , errorCodeHit) = _liquidationValuesOf(mm, account);
+        (soft, , debt, , errorCodeHit) = liquidationValuesOf(mm, account);
 
         if (mm.isListed(cToken) && collateralAssets != 0) {
             tempValue = _collateralValue(cToken, collateralAssets);
@@ -333,6 +330,84 @@ contract ProtocolReader {
             positionHealth = type(uint256).max; 
         } else {
             positionHealth = (soft * WAD) / debt;
+        }
+    }
+
+    function getLiquidationPrice(
+        address account,
+        address cToken,
+        bool long
+    ) public view returns (uint256 price, bool errorCodeHit) {
+        MarketManagerIsolated mm =
+            MarketManagerIsolated(address(_marketManager(cToken)));
+        price = type(uint256).max;
+        uint256 amount;
+        uint256 offset;
+        uint256 currPrice;
+        
+        // If its a long liquidation need to calc margin requirement whereas
+        // debt is valued 1:1.
+        // Temporarily use offset to hold error code.
+        if (long) {
+            (currPrice, offset) = getPrice(cToken, true, true);
+            if (offset == 2) {
+                return (price, errorCodeHit);
+            }
+            (, offset,) = mm.collConfig(cToken);
+            amount = _collateralPosted(cToken, account);
+            if (amount == 0) {
+                 return (price, false);
+            }
+        } else {
+            (currPrice, offset) = getPrice(cToken, true, false);
+            if (offset == 2) {
+                return (price, errorCodeHit);
+            }
+            offset = BPS;
+            amount = debtBalanceAtTimestamp(account, cToken, block.timestamp);
+            if (amount == 0) {
+                 return (price, false);
+            }
+        }
+
+        if (!mm.isListed(cToken) || amount == 0) {
+            return (price, errorCodeHit);
+        }
+        
+        uint256 margin;
+        uint256 debt;
+        (margin, , debt, , errorCodeHit) = liquidationValuesOf(mm, account);
+
+        if (debt == 0) {
+            return (price, false);
+        }
+
+        if (errorCodeHit) {
+            return (price, errorCodeHit);
+        }
+
+        uint256 buffer = mm.AUCTION_BUFFER();
+
+        // If they arent in liquidation already we calculate price below on
+        // collateral or price above on debt.
+        if (margin > debt) {
+            // margin > debt so will see liquidation level.
+            uint LHS = FixedPointMathLib.fullMulDiv(
+                margin - debt,
+                offset * WAD,
+                amount * buffer
+            );
+
+            price = long ? currPrice - LHS : currPrice + LHS;
+        } else {
+            // debt > margin so will see liquidation level we passed.
+            uint LHS = FixedPointMathLib.fullMulDiv(
+                debt - margin,
+                offset * WAD,
+                amount * buffer
+            );
+
+            price = long ? currPrice + LHS : currPrice - LHS;
         }
     }
 
@@ -403,7 +478,7 @@ contract ProtocolReader {
                 _assetValue(
                     collateralizedSharesRedeemable,
                     getPriceSafely(cTokenRedeemed, true, true, 2),
-                    10 ** ICToken(cTokenRedeemed).decimals(),
+                    10 ** _decimals(cTokenRedeemed),
                     true
                 ),
                 _collateralizationRatio(mm, cTokenRedeemed),
@@ -453,7 +528,7 @@ contract ProtocolReader {
         // a token they are borrowing, not trying to redeem 0 shares, or
         // redeem an unlisted token.
         if (
-            IBorrowableCToken(cTokenModified).debtBalance(account) > 0 ||
+            _debtBalance(IBorrowableCToken(cTokenModified), account) > 0 ||
             redemptionShares == 0 || !mm.isListed(cTokenModified)
         ) {
             return(0, 0, false, false);
@@ -626,8 +701,8 @@ contract ProtocolReader {
         // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
         maxDebtBorrowable = _mulDiv(
             maxDebtBorrowable,
-            10 ** ICToken(borrowableCToken).decimals(),
-            getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1)
+            10 ** _decimals(borrowableCToken),
+            getPriceSafely(_asset(borrowableCToken), true, false, 1)
         );
 
         // Calculate the maximum debt borrowable currently.
@@ -666,7 +741,7 @@ contract ProtocolReader {
         uint256 timestamp
     ) public view returns (uint256 debtBalance) {
         IBorrowableCToken bcToken = IBorrowableCToken(borrowableCToken);
-        debtBalance = bcToken.debtBalance(account);
+        debtBalance = _debtBalance(bcToken, account);
 
         // If `account` has no debt its still going to be 0 at `timestamp`.
         if (debtBalance == 0) {
@@ -712,8 +787,8 @@ contract ProtocolReader {
 
         // Check if it is time to start a new vesting period.
         if (timestamp >= vestingEnd) {
-            uint256 assetsHeld = bcToken.assetsHeld();
-            uint256 outstandingDebt = bcToken.marketOutstandingDebt();
+            uint256 assetsHeld = _assetsHeld(bcToken);
+            uint256 outstandingDebt = _outstandingDebt(bcToken);
             // Calculate the new interest rate for borrowers, in seconds.
             rate = bcToken.IRM().predictedBorrowRate(assetsHeld, outstandingDebt);
             debtBalance = debtBalance + newDebt;
@@ -772,17 +847,17 @@ contract ProtocolReader {
         
         if (cToken.isBorrowable()) {
             bcToken = IBorrowableCToken(address(collateralCToken));
-            outstandingDebt = bcToken.marketOutstandingDebt();
-            assetsHeld = bcToken.assetsHeld() + newCollateralAssets;
+            outstandingDebt = _outstandingDebt(bcToken);
+            assetsHeld = _assetsHeld(bcToken) + newCollateralAssets;
             supply = bcToken.IRM()
                 .supplyRate(assetsHeld, outstandingDebt, bcToken.interestFee());
         }
 
         bcToken = IBorrowableCToken(debtBorrowableCToken);
-        if (bcToken.debtBalance(user) != 0) {
-            outstandingDebt = bcToken.marketOutstandingDebt();
-            assetsHeld = bcToken.assetsHeld() > newDebtAssets 
-                ? bcToken.assetsHeld() - newDebtAssets 
+        if (_debtBalance(bcToken, user) != 0) {
+            outstandingDebt = _outstandingDebt(bcToken);
+            assetsHeld = _assetsHeld(bcToken) > newDebtAssets 
+                ? _assetsHeld(bcToken) - newDebtAssets 
                 : 0;
             borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
@@ -927,8 +1002,6 @@ contract ProtocolReader {
         result.liquidityDeficit = newDebt - result.maxDebt;
     }
 
-    /// INTERNAL FUNCTIONS ///
-
     /// @notice Evaluates collateral and debt positions to determine account
     ///         health and liquidation parameters.
     /// @param mm The market manager to pull liquidation values from.
@@ -940,10 +1013,10 @@ contract ProtocolReader {
     ///               adjusted by hard requirements).
     /// @return debt The account's total debt value.
     /// @return lFactor The value that determines liquidation severity.
-    function _liquidationValuesOf(
+    function liquidationValuesOf(
         IMarketManager mm,
         address account
-    ) internal view returns (
+    ) public view returns (
         uint256 cSoft, uint256 cHard, uint256 debt, uint256 lFactor, bool
     ) {
         (
@@ -979,6 +1052,7 @@ contract ProtocolReader {
             }
         }
 
+        uint256 AUCTION_BUFFER = MarketManagerIsolated(address(mm)).AUCTION_BUFFER();
         if (AUCTION_BUFFER != 0) {
             cSoft = _mulDiv(cSoft, AUCTION_BUFFER, BPS);
             cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
@@ -998,6 +1072,8 @@ contract ProtocolReader {
 
         return (cSoft, cHard, debt, lFactor, errorCodeHit);
     }
+
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Calculates and adds soft and hard collateral values for
     ///         liquidation assessment.
@@ -1156,9 +1232,14 @@ contract ProtocolReader {
         umt.userAssetBalance = cToken.convertToAssets(shares);
         umt.userShareBalance = cToken.balanceOf(account);
         umt.userUnderlyingBalance = underlying.balanceOf(account);
-        umt.userDebt = cToken.isBorrowable() ? IBorrowableCToken(address(cToken)).debtBalance(account) : 0;
+        umt.userDebt = cToken.isBorrowable() ? _debtBalance(IBorrowableCToken(address(cToken)), account) : 0;
         umt.exchangeRate = cToken.exchangeRate();
         umt.userCollateral = _collateralPosted(address(cToken), account);
+        (umt.liquidationPrice, ) = getLiquidationPrice(
+            account,
+            tokenAddress,
+            umt.userCollateral > 0 ? true : false
+        );
     }
 
     function _buildUserMarket(
@@ -1203,10 +1284,10 @@ contract ProtocolReader {
 
         if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
-            uint256 assetsHeld = bcToken.assetsHeld();
+            uint256 assetsHeld = _assetsHeld(bcToken);
             IDynamicIRM irm = bcToken.IRM();
 
-            dmt.debt = bcToken.marketOutstandingDebt();
+            dmt.debt = _outstandingDebt(bcToken);
             dmt.liquidity = assetsHeld;
 
             // Values are given in seconds, and should be multiplied depending
@@ -1256,12 +1337,12 @@ contract ProtocolReader {
         uint256 collateralCap = mm.collateralCaps(collateralCToken);
         uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
         uint256 debtCap = mm.debtCaps(debtCToken);
-        uint256 marketDebt = IBorrowableCToken(debtCToken).marketOutstandingDebt();
+        uint256 marketDebt = _outstandingDebt(IBorrowableCToken(debtCToken));
         uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
-        uint256 debtTokenPrice = getPriceSafely(ICToken(debtCToken).asset(), true, false, 1);
+        uint256 debtTokenPrice = getPriceSafely(_asset(debtCToken), true, false, 1);
         uint256 debtAssetsInCollateral =
-            ((debtAssets * debtTokenPrice * (10 ** ICToken(collateralCToken).decimals())) /
-                (cTokenPrice * (10 ** ICToken(debtCToken).decimals())));
+            ((debtAssets * debtTokenPrice * (10 ** _decimals(collateralCToken))) /
+                (cTokenPrice * (10 ** _decimals(debtCToken))));
 
         // If theres insufficient collateral room left we will need to adjust collateral
         // and debt down proportionally.
@@ -1285,7 +1366,7 @@ contract ProtocolReader {
             debtAssets = _mulDiv(debtAssets, debtCap - marketDebt, debtAssets);
         }
 
-        uint256 liquidityAvailable = IBorrowableCToken(debtCToken).assetsHeld();
+        uint256 liquidityAvailable = _assetsHeld(IBorrowableCToken(debtCToken));
         if (liquidityAvailable < debtAssets) {
             debtAssets = liquidityAvailable;
         }
@@ -1357,7 +1438,34 @@ contract ProtocolReader {
     ) internal view returns (uint256 collRatio) {
         (collRatio, ,) = mm.collConfig(cToken);
     }
-    
+
+    function _asset(address token) internal view returns (address result) {
+        result = ICToken(token).asset();
+    }
+
+    function _decimals(address token) internal view returns (uint256 result) {
+        result = ICToken(token).decimals();
+    }
+
+    function _assetsHeld(
+        IBorrowableCToken token
+    ) internal view returns (uint256 result) {
+        result = token.assetsHeld();
+    }
+
+    function _outstandingDebt(
+        IBorrowableCToken token
+    ) internal view returns (uint256 result) {
+        result = token.marketOutstandingDebt();
+    }
+
+    function _debtBalance(
+        IBorrowableCToken token,
+        address account
+    ) internal view returns (uint256 result) {
+        result = token.debtBalance(account);
+    }
+
     /// @notice Calculates collateral value based on `cToken` `assets`,
     ///         querying necessary values like price and decimals.
     /// @param cToken The address of the cToken to calculate collateral value of.
@@ -1369,7 +1477,7 @@ contract ProtocolReader {
         value = _assetValue(
             ICToken(cToken).previewDeposit(assets),
             getPriceSafely(cToken, true, true, 1), // Price `cToken`.
-            10 ** ICToken(cToken).decimals(),
+            10 ** _decimals(cToken),
             true
         );
     }
@@ -1383,11 +1491,11 @@ contract ProtocolReader {
         address borrowableCToken,
         uint256 assets
     ) internal view returns(uint256 value) {
-        address underlyingAsset = ICToken(borrowableCToken).asset();
+        address underlyingAsset = _asset(borrowableCToken);
         value = _assetValue(
             assets,
             getPriceSafely(underlyingAsset, true, false, 1), // Price `borrowableCToken`.
-            10 ** ICToken(underlyingAsset).decimals(),
+            10 ** _decimals(underlyingAsset),
             false
         );
     }
