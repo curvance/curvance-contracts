@@ -355,16 +355,28 @@ contract ProtocolReader {
             }
             (, offset,) = mm.collConfig(cToken);
             amount = _collateralPosted(cToken, account);
+            // Adjust decimals if needed.
+            amount = FixedPointMathLib.fullMulDiv(
+                amount,
+                WAD,
+                10 ** _decimals(_asset(cToken))
+            );
             if (amount == 0) {
                  return (price, false);
             }
         } else {
-            (currPrice, offset) = getPrice(cToken, true, false);
+            (currPrice, offset) = getPrice(_asset(cToken), true, false);
             if (offset == 2) {
                 return (price, true);
             }
             offset = BPS;
             amount = debtBalanceAtTimestamp(account, cToken, block.timestamp);
+            // Adjust decimals if needed.
+            amount = FixedPointMathLib.fullMulDiv(
+                amount,
+                WAD,
+                10 ** _decimals(_asset(cToken))
+            );
             if (amount == 0) {
                  return (price, false);
             }
