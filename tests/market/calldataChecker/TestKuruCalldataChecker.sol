@@ -13,35 +13,32 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
+import { IKuruFlowRouter } from "contracts/interfaces/external/kuru/IKuruRouter.sol";
 
 // simpleZapper address: 0x15cF58144EF33af1e14b5208015d11F9143E27b9;
 
 contract TestKuruCalldataChecker is TestBaseMarketIsolated {
-    address public kuruRouter = 0x96eaC98928437496DdD0Cd2080E54Fe78BaC99b6;
-    address public constant WMON_ADDRESS = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
-    address public constant USDC_ADDRESS = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+    address public kuruRouter = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
+    address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
     BorrowableCToken public borrowableCUSDC_MONAD;
     BorrowableCToken public borrowableCWMON;
 
     KuruCalldataChecker public checker;
 
-    address public feeCollectorAddress = 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1;
+    address public feeCollectorAddress = 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a;
 
     SwapperLib.Swap public swapAction;
     address public recipient;
 
     SimpleZapper public simpleZapper;
 
-    // correct but outdated swap path, okay for checks.
-    bytes public callData = hex"ce1e7030000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c542570100000000000000000000000000000000000000000000000010e25e2a548309fe000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea00000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000002e02f817257fed379853cde0fa4f97ab987181b1e5ea01ffff017c47eb60cedebcea438950d3582e9df53d057b1500000000000000000000000000000000000000";
-
     receive() external payable {}
 
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD");
+		_fork("ETH_NODE_URI_MONAD_MAINNET");
 
         _initMainConstantVariables();
 
@@ -60,7 +57,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
         console2.log("simpleZapper address", address(simpleZapper));
 
-        borrowableCUSDC_MONAD = _deployBorrowableCToken(USDC_ADDRESS);
+        borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
         MockV3Aggregator chainlinkUSDC_WMON = new MockV3Aggregator(18, 1e18);
@@ -71,7 +68,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
-            USDC_ADDRESS,
+            _USDC_ADDRESS,
             true,
             address(chainlinkUSDC_WMON),
             0
@@ -84,7 +81,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         );
         
         oracleManager.addAssetPricingAdaptor(
-            USDC_ADDRESS,
+            _USDC_ADDRESS,
             address(chainlinkAdaptor),
             100,
             50,
@@ -103,8 +100,8 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         oracleManager.addCTokenSupport(address(borrowableCUSDC_MONAD));
         oracleManager.addCTokenSupport(address(borrowableCWMON));
 
-        deal(USDC_ADDRESS, address(this), 77777);
-        IERC20(USDC_ADDRESS).approve(address(borrowableCUSDC_MONAD), type(uint256).max);
+        deal(_USDC_ADDRESS, address(this), 77777);
+        IERC20(_USDC_ADDRESS).approve(address(borrowableCUSDC_MONAD), type(uint256).max);
 
         deal(WMON_ADDRESS, address(this), 77777);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), type(uint256).max);
@@ -126,7 +123,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         recipient = address(this);
         bytes memory invalidCallData = hex"d7ada2f3000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c542570100000000000000000000000000000000000000000000000014b292ba662a6b6d000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea00000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000004e02f817257fed379853cde0fa4f97ab987181b1e5ea01ffff04cd5455b24f3622a1cfece944615ae5bc8f36ee18010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000";
         recipient = address(simpleZapper);
-        swapAction.inputToken = USDC_ADDRESS;
+        swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
@@ -142,7 +139,12 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+		swapAction.call = _getKuruCalldata(
+			recipient,
+			_USDC_ADDRESS,
+			WMON_ADDRESS,
+			5e6
+		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputTokenError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -150,11 +152,16 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
     function testSwapUnpackCheckCallDataRevert__InputAmountError() public {
         recipient = address(this);
-        swapAction.inputToken = USDC_ADDRESS;
+        swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 0;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+		swapAction.call = _getKuruCalldata(
+			recipient,
+			_USDC_ADDRESS,
+			WMON_ADDRESS,
+			5e6
+		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputAmountError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -162,11 +169,16 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
     function testSwapUnpackCheckCallDataRevert__OutputTokenError() public {
         recipient = address(this);
-        swapAction.inputToken = USDC_ADDRESS;
+        swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = address(0);
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+		swapAction.call = _getKuruCalldata(
+			recipient,
+			_USDC_ADDRESS,
+			WMON_ADDRESS,
+			5e6
+		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__OutputTokenError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -174,42 +186,37 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
     function testSwapUnpackCheckCallDataSuccess() public {
         recipient = address(this);
-        swapAction.inputToken = USDC_ADDRESS;
+        swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = _getKuruCalldata(
-            address(this),
-            USDC_ADDRESS,
-            WMON_ADDRESS,
-            5e6
-        );
+		swapAction.call = _getKuruCalldata(address(this), _USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         console2.log("dao address", centralRegistry.daoAddress());
         console2.log("this address", address(this));
 
-        deal(USDC_ADDRESS, address(this), 5e6);
-        IERC20(USDC_ADDRESS).approve(address(simpleZapper), 5e6);
+        deal(_USDC_ADDRESS, address(this), 5e6);
+        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
 
         checker.checkCalldata(swapAction, recipient);
     }
 
     function testSwapWithSimpleZapper() public {
         recipient = address(simpleZapper);
-        swapAction.inputToken = USDC_ADDRESS;
+        swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
         bytes memory ffiCalldata = _getKuruCalldata(
             recipient,
-            USDC_ADDRESS,
+            _USDC_ADDRESS,
             WMON_ADDRESS,
             5e6
         );
         swapAction.call = ffiCalldata;
 
-        deal(USDC_ADDRESS, address(this), 5e6);
-        IERC20(USDC_ADDRESS).approve(address(simpleZapper), 5e6);
+        deal(_USDC_ADDRESS, address(this), 5e6);
+        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
 
         borrowableCWMON.setDelegateApproval(address(simpleZapper), true);
 

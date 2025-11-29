@@ -1,4 +1,4 @@
-const api = "https://ws.staging.kuru.io/api";
+const api = process.env.KURU_API_BASE || "https://ws.kuru.io/api";
 
 main().catch(err => {
     console.error(err);
@@ -62,7 +62,7 @@ async function getJwt(wallet) {
 }
 
 async function quote(wallet, tokenIn, tokenOut, amount, _referrerAddress) {
-    // const jwt = await getJwt(wallet);
+    const jwt = await getJwt(wallet);
     const payload = {
         userAddress: wallet,
         tokenIn: tokenIn,
@@ -77,8 +77,7 @@ async function quote(wallet, tokenIn, tokenOut, amount, _referrerAddress) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "X-API-Key": "ad5944c136775d648c2530a4950188c3",
-            // "Authorization": `Bearer ${jwt}`
+            "Authorization": `Bearer ${jwt}`
         },
         body: JSON.stringify(payload),
     });

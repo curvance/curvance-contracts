@@ -362,9 +362,10 @@ contract TestVariables {
     }
 
     function _initMonadVariables() internal {
-        uint256 chainId = 10143;
+        uint256 chainId = 143;
 
-        _USDC_ADDRESSES[chainId] = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+        _USDC_ADDRESSES[chainId] = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
+
     }
 
     function _initMainConstantVariables() internal {
