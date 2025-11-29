@@ -337,7 +337,7 @@ contract ProtocolReader {
         address account,
         address cToken,
         bool long
-    ) public view returns (uint256 price, bool errorCodeHit) {
+    ) public view returns (uint256 price, bool errorHit) {
         MarketManagerIsolated mm =
             MarketManagerIsolated(address(_marketManager(cToken)));
         price = type(uint256).max;
@@ -351,7 +351,7 @@ contract ProtocolReader {
         if (long) {
             (currPrice, offset) = getPrice(cToken, true, true);
             if (offset == 2) {
-                return (price, errorCodeHit);
+                return (price, true);
             }
             (, offset,) = mm.collConfig(cToken);
             amount = _collateralPosted(cToken, account);
@@ -361,7 +361,7 @@ contract ProtocolReader {
         } else {
             (currPrice, offset) = getPrice(cToken, true, false);
             if (offset == 2) {
-                return (price, errorCodeHit);
+                return (price, true);
             }
             offset = BPS;
             amount = debtBalanceAtTimestamp(account, cToken, block.timestamp);
@@ -371,19 +371,19 @@ contract ProtocolReader {
         }
 
         if (!mm.isListed(cToken) || amount == 0) {
-            return (price, errorCodeHit);
+            return (price, errorHit);
         }
         
         uint256 margin;
         uint256 debt;
-        (margin, , debt, , errorCodeHit) = liquidationValuesOf(mm, account);
+        (margin, , debt, , errorHit) = liquidationValuesOf(mm, account);
 
         if (debt == 0) {
             return (price, false);
         }
 
-        if (errorCodeHit) {
-            return (price, errorCodeHit);
+        if (errorHit) {
+            return (price, errorHit);
         }
 
         uint256 buffer = mm.AUCTION_BUFFER();
