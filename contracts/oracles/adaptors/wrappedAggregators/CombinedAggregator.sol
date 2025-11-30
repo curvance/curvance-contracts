@@ -19,6 +19,11 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 ///      be any onchain push based oracle that supports rounds of data with
 ///      the "latestRoundData" function interface (see "IChainlink").
 ///
+///      Aspects of round-based aggregators do not apply to the combined
+///      aggregator because it combines together two aggregators with more
+///      than likely drastically different latest rounds. Functions such as
+///      "getRoundData" and "latestRound" return the "primary aggregator" but
+///      should not be used for any sensitive decision making.
 ///
 ///      These aggregators should then be listed in the corresponding adaptor
 ///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
@@ -95,7 +100,13 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
-        _secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
+        // Maximum number of supported decimals is enforced to make sure
+        // `minPrice` and `basePrice` do not overflow.
+        if (IChainlink(_secondaryAggregator).decimals() > 18) {
+            revert BaseWrappedAggregator__InvalidConfig();
+        }
+
+        secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
         secondaryAggregator = IChainlink(_secondaryAggregator);
         _secondaryDecimalPrecision = 10 ** IChainlink(_secondaryAggregator).decimals();
     }
@@ -156,6 +167,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
         // Validate the higher feed did not return an error.
         (, int256 answer,,uint256 updatedAt,) =
             IChainlink(secondaryAggregator).latestRoundData();
+
+        // Validate the feed is answering in the form we
+        // expect (non-zero integer).
+        if (answer <= 0) {
+            revert CombinedAggregator__InvalidConfig();
+        }
 
         if (block.timestamp - secondaryHeartbeat > updatedAt) {
             revert CombinedAggregator__InvalidConfig();
@@ -293,7 +310,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
     /// @notice Helper function for adjusting received price if needed by
     ///         attached price guard.
     /// @param price The price to adjust.
-    /// @return Returns the potentially adjusted price in 1e18 (WAD) scale.
+    /// @return Returns the potentially adjusted price.
     function _adjustPrice(
         uint256 price
     ) internal view returns (uint256) {
