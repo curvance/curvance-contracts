@@ -43,7 +43,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD_MAINNET");
+        _fork("NODE_URI_MONAD_MAINNET");
 
         _initMainConstantVariables();
 
