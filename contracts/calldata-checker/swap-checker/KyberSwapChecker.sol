@@ -54,6 +54,9 @@ contract KyberSwapChecker is BaseSwapChecker {
         address executor;
         bytes memory path;
         uint256 numFeeReceivers;
+        uint256 numSrcReceivers;
+        uint256 flags;
+        bytes memory permit;
         if (funcSigHash == IMetaAggregationRouterV2.swap.selector) {
             IMetaAggregationRouterV2.SwapExecutionParams memory execution =
                 abi.decode(
@@ -67,6 +70,9 @@ contract KyberSwapChecker is BaseSwapChecker {
             executor = execution.callTarget;
             path = execution.targetData;
             numFeeReceivers = execution.desc.feeReceivers.length;
+            numSrcReceivers = execution.desc.srcReceivers.length;
+            flags = execution.desc.flags;
+            permit = execution.desc.permit;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
@@ -105,8 +111,28 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert CalldataChecker__InvalidFuncSig();
         }
 
+        // Curvance enforces a single source of input tokens and single recipient.
+        if (numSrcReceivers != 0) {
+            revert CalldataChecker__ReferralError();
+        }
+
         if (numFeeReceivers != 0) {
             revert CalldataChecker__ReferralError();
+        }
+
+        // Extract flags from the bitmap.
+        // _REQUIRES_EXTRA_ETH
+        bool requiresExtraEth = (flags & 0x02) != 0;
+        // _SHOULD_CLAIM
+        bool shouldClaim = (flags & 0x04) != 0;
+        // Reject swaps that require extra ETH or use claim-based token collection.
+        if (requiresExtraEth || shouldClaim) {
+            revert CalldataChecker__InvalidFuncSig();
+        }
+
+        // Prevent permit-based approvals.
+        if (permit.length != 0) {
+            revert CalldataChecker__InvalidFuncSig();
         }
     }
 }
