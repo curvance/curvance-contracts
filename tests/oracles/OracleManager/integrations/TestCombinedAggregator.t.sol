@@ -9,6 +9,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
 contract TestCombinedAggregator is Test {
     // Chainlink addresses
@@ -423,6 +424,19 @@ contract TestCombinedAggregator is Test {
             1,
             2e8,
             1e8
+        );
+    }
+
+    function test_combinedAggregator_fail_whenSecondaryHasTooManyDecimals() public {
+        MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8));
+        MockV3Aggregator ezETH_ETH_Mock = new MockV3Aggregator(19, int256(1.5e19));
+        vm.expectRevert(BaseWrappedAggregator.BaseWrappedAggregator__InvalidConfig.selector);
+        new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(ETH_USDC_Mock),
+            address(ezETH_ETH_Mock),
+            0,
+            "MOCK/USD"
         );
     }
 }
