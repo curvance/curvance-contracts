@@ -26,4 +26,4 @@ jobs:
           ETH_NODE_URI_ARBITRUM: ${{ secrets.ETH_NODE_URI_ARBITRUM }}
           ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
           ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
-          ETH_NODE_URI_MONAD: ${{ secrets.ETH_NODE_URI_MONAD }}
+          MON_NODE_URI_MONAD_MAINNET: ${{ secrets.MON_NODE_URI_MONAD_MAINNET }}
