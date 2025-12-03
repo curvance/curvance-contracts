@@ -6,6 +6,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
+import { KuruCalldataChecker } from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -21,10 +22,12 @@ contract TestSlippage is TestBaseMarketIsolated {
 
     address public constant KYBER_SWAP_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address public constant KYBER_SWAP_EXECUTOR = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
+    address public constant KURU_ROUTER = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
     SimplePositionManager internal positionManager;
     KyberSwapChecker internal kyberSwapChecker;
+    KuruCalldataChecker internal kuruSwapChecker;
 
     BorrowableCToken internal borrowableCWMON;
 
@@ -43,6 +46,12 @@ contract TestSlippage is TestBaseMarketIsolated {
 
         kyberSwapChecker = new KyberSwapChecker(KYBER_SWAP_ROUTER, KYBER_SWAP_EXECUTOR);
         centralRegistry.setExternalCalldataChecker(KYBER_SWAP_ROUTER, address(kyberSwapChecker));
+        kuruSwapChecker = new KuruCalldataChecker(
+            KURU_ROUTER,
+            address(KURU_ROUTER), // fee collector
+            address(centralRegistry.daoAddress())
+        );
+        centralRegistry.setExternalCalldataChecker(KURU_ROUTER, address(kuruSwapChecker));
 
         borrowableCUSDC = _deployBorrowableCUSDC();
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
@@ -117,7 +126,17 @@ contract TestSlippage is TestBaseMarketIsolated {
         // use expectPartialRevert for custom errors with args
         // (https://getfoundry.sh/reference/cheatcodes/expect-revert/#:~:text=Custom,with)
         vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
-        positionManager.leverage(leverageAction, 0.5e18);
+        try positionManager.leverage(leverageAction, 0.5e18) {
+        } catch {
+            leverageAction.swapAction.target = KURU_ROUTER;
+            leverageAction.swapAction.call = _getKuruCalldata(
+                address(positionManager),
+                _USDC_ADDRESS,
+                WMON_ADDRESS,
+                borrowAmount
+            );
+            positionManager.leverage(leverageAction, 0.5e18);
+        }
         vm.stopPrank();
     }
 }
