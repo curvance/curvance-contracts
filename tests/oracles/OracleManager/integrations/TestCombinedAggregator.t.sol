@@ -25,7 +25,7 @@ contract TestCombinedAggregator is Test {
 
     function setUp() public {
         // Fork Monad mainnet
-        string memory rpc = vm.envString("NODE_URI_MONAD_MAINNET");
+        string memory rpc = vm.envString("MON_NODE_URI_MONAD_MAINNET");
         vm.createSelectFork(rpc);
 
         // Deploy a minimal CentralRegistry 
