@@ -1754,6 +1754,29 @@ contract TestBaseMarketIsolated is TestBase {
         return vm.ffi(args);
     }
 
+    function _getKyberAmountOut(
+        uint256 chainId,
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address swapperAddress,
+        uint256 slippageBps
+    ) public returns (uint256) {
+        string[] memory args = new string[](9);
+        args[0] = "node";
+        args[1] = "getKyberSwapData.js";
+        args[2] = vm.toString(chainId);
+        args[3] = vm.toString(tokenIn);
+        args[4] = vm.toString(tokenOut);
+        args[5] = vm.toString(amount);
+        args[6] = vm.toString(swapperAddress);
+        args[7] = vm.toString(slippageBps);
+        args[8] = "amountOut";
+
+        bytes memory out = vm.ffi(args);
+        return abi.decode(out, (uint256));
+    }
+
 	function _getKuruAmountOut(
 		address wallet,
 		address tokenIn,

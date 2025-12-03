@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import {KuruCalldataChecker} from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
+import {KyberSwapChecker} from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
 import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
@@ -23,13 +23,14 @@ import {console2} from "forge-std/console2.sol";
 // positionManager address: 0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240;
 
 contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
-    address public kuruRouter = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
+    address public kyberSwapRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+    address public kyberSwapExecutor = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
     BorrowableCToken public borrowableCUSDC_MONAD;
     BorrowableCToken public borrowableCWMON;
 
-    KuruCalldataChecker public checker;
+    KyberSwapChecker public checker;
     SimplePositionManager public positionManager;
 
     SwapperLib.Swap public swapAction;
@@ -55,21 +56,22 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KuruCalldataChecker(kuruRouter, feeCollectorAddress, address(centralRegistry.daoAddress()));
-        centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
+        checker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor);
+        centralRegistry.setExternalCalldataChecker(kyberSwapRouter, address(checker));
 
         borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
-        MockV3Aggregator chainlinkUSDC_WMON = new MockV3Aggregator(18, 1e18);
-        MockV3Aggregator chainlinkWMON = new MockV3Aggregator(18, 3.25e18);
+        MockV3Aggregator chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
+        // use the real Chainlink feed on Monad mainnet
+        address chainlinkWMON_USD = 0x54a1020D118B9BeF3F3A4ec8E24AeEc9DFdBe4c3;
 
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, true, address(chainlinkUSDC_WMON), 0);
-        chainlinkAdaptor.addAsset(WMON_ADDRESS, true, address(chainlinkWMON), 0);
+        chainlinkAdaptor.addAsset(_USDC_ADDRESS, true, address(chainlinkUSDC_USD), 0);
+        chainlinkAdaptor.addAsset(WMON_ADDRESS, true, chainlinkWMON_USD, 0);
 
         oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
         oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
@@ -110,10 +112,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     }
 
     function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
-        deal(WMON_ADDRESS, user1, 1000e18);
+        deal(WMON_ADDRESS, user1, 100e18);
         vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 1000e18);
-        borrowableCWMON.depositAsCollateral(1000e18, user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 100e18);
+        borrowableCWMON.depositAsCollateral(100e18, user1);
 
         (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
             user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
@@ -132,12 +134,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
         leverageAction.swapAction.inputAmount = bufferedBorrow;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
-        leverageAction.swapAction.target = address(kuruRouter);
-		leverageAction.swapAction.call = _getKuruCalldata(
-			address(positionManager),
+        leverageAction.swapAction.target = address(kyberSwapRouter);
+		leverageAction.swapAction.call = _getKyberCalldata(
+			block.chainid,
 			_USDC_ADDRESS,
 			WMON_ADDRESS,
-			bufferedBorrow
+			bufferedBorrow,
+			address(positionManager),
+			500
 		);
         leverageAction.swapAction.slippage = 0.5e18;
 
@@ -162,8 +166,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
 		uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
 		uint256 collateralAssetsToWithdraw = collateralBefore / 3; // withdraw 33% collateral
-		// quote prices from kuru api
-		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, _USDC_ADDRESS, collateralAssetsToWithdraw);
+		// quote prices from kyber api
+		uint256 minOutUSDC = _getKyberAmountOut(
+            block.chainid, 
+            WMON_ADDRESS, 
+            _USDC_ADDRESS, 
+            collateralAssetsToWithdraw, 
+            address(positionManager),
+            500);
 
 		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
 		// Cap repay amount at actual debt to handle low liquidity scenarios
@@ -179,12 +189,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
-        deleverageAction.swapActions[0].target = address(kuruRouter);
-		deleverageAction.swapActions[0].call = _getKuruCalldata(
-			address(positionManager),
+        deleverageAction.swapActions[0].target = address(kyberSwapRouter);
+		deleverageAction.swapActions[0].call = _getKyberCalldata(
+			block.chainid,
 			WMON_ADDRESS,
 			_USDC_ADDRESS,
-			collateralAssetsToWithdraw
+			collateralAssetsToWithdraw,
+			address(positionManager),
+			500
 		);
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
@@ -228,12 +240,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
         leverageAction.swapAction.inputAmount = bufferedBorrow;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
-        leverageAction.swapAction.target = address(kuruRouter);
-		leverageAction.swapAction.call = _getKuruCalldata(
-			address(positionManager),
+        leverageAction.swapAction.target = address(kyberSwapRouter);
+		leverageAction.swapAction.call = _getKyberCalldata(
+			block.chainid,
 			_USDC_ADDRESS,
 			WMON_ADDRESS,
-			bufferedBorrow
+			bufferedBorrow,
+			address(positionManager),
+			500
 		);
         leverageAction.swapAction.slippage = 0.5e18;
 
@@ -269,12 +283,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
-        deleverageAction.swapActions[0].target = address(kuruRouter);
-		deleverageAction.swapActions[0].call = _getKuruCalldata(
-			address(positionManager),
+        deleverageAction.swapActions[0].target = address(kyberSwapRouter);
+		deleverageAction.swapActions[0].call = _getKyberCalldata(
+			block.chainid,
 			WMON_ADDRESS,
 			_USDC_ADDRESS,
-			collateralAssetsToWithdraw
+			collateralAssetsToWithdraw,
+			address(positionManager),
+			500
 		);
         deleverageAction.swapActions[0].slippage = 0.5e18;
 

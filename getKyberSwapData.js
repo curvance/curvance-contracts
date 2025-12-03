@@ -14,7 +14,8 @@ async function main() {
         toToken,
         amount,
         swapperAddress,
-        slippageBps
+        slippageBps,
+        mode,
     } = loadArgs();
 
     const chain = mapChainIdToKyberChain(chainId);
@@ -54,6 +55,26 @@ async function main() {
     }
 
     const routeSummary = routeData.routeSummary;
+
+    // Return only the output amount
+    if (mode === "amountOut") {
+        const rawOut =
+            (routeSummary && (routeSummary.amountOut || routeSummary.AmountOut)) ??
+            null;
+
+        if (rawOut === null || rawOut === undefined) {
+            exit(3, "Kyber routes response missing amountOut/AmountOut");
+        }
+
+        const normalizedBigInt =
+            typeof rawOut === "bigint" ? rawOut : BigInt(String(rawOut).trim());
+
+        const outHex =
+            "0x" + normalizedBigInt.toString(16).padStart(64, "0");
+
+        process.stdout.write(outHex);
+        process.exit(0);
+    }
 
     // 2. Build transaction calldata
     const buildUrl = `${baseUrl}/${chain}/api/v1/route/build`;
@@ -140,6 +161,7 @@ function loadArgs() {
     const amount = args[3];
     const swapperAddress = args[4];
     const slippageBps = args[5];
+    const mode = args[6] || "calldata";
 
     return {
         chainId,
@@ -147,7 +169,8 @@ function loadArgs() {
         toToken,
         amount,
         swapperAddress,
-        slippageBps
+        slippageBps,
+        mode,
     };
 }
 

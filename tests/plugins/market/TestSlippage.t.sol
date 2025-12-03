@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
-import { KuruCalldataChecker } from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
+import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -19,13 +19,12 @@ import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestSlippage is TestBaseMarketIsolated {
 
-    address public constant KURU_ROUTER = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
+    address public constant KYBER_SWAP_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+    address public constant KYBER_SWAP_EXECUTOR = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
-    address public constant KURU_FEE_COLLECTOR = 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a;
-
     SimplePositionManager internal positionManager;
-    KuruCalldataChecker internal kuruChecker;
+    KyberSwapChecker internal kyberSwapChecker;
 
     BorrowableCToken internal borrowableCWMON;
 
@@ -42,8 +41,8 @@ contract TestSlippage is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        kuruChecker = new KuruCalldataChecker(KURU_ROUTER, KURU_FEE_COLLECTOR, address(centralRegistry.daoAddress()));
-        centralRegistry.setExternalCalldataChecker(KURU_ROUTER, address(kuruChecker));
+        kyberSwapChecker = new KyberSwapChecker(KYBER_SWAP_ROUTER, KYBER_SWAP_EXECUTOR);
+        centralRegistry.setExternalCalldataChecker(KYBER_SWAP_ROUTER, address(kyberSwapChecker));
 
         borrowableCUSDC = _deployBorrowableCUSDC();
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
@@ -81,7 +80,7 @@ contract TestSlippage is TestBaseMarketIsolated {
 
     function test_slippage_fail_whenExcessiveSlippage() public {
         
-        uint256 wmonToDeposit = 100e18;
+        uint256 wmonToDeposit = 10000e18;
         deal(WMON_ADDRESS, user1, wmonToDeposit);
         vm.startPrank(user1);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), wmonToDeposit);
@@ -101,14 +100,16 @@ contract TestSlippage is TestBaseMarketIsolated {
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
         leverageAction.swapAction.inputAmount = borrowAmount;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
-        leverageAction.swapAction.target = KURU_ROUTER;
+        leverageAction.swapAction.target = KYBER_SWAP_ROUTER;
         // Force extremely tight slippage to guarantee revert
-        leverageAction.swapAction.slippage = 1e13; // 0.001% allowed
-        leverageAction.swapAction.call = _getKuruCalldata(
-            address(positionManager),
+        leverageAction.swapAction.slippage = 1e10; // 0.00001% allowed
+        leverageAction.swapAction.call = _getKyberCalldata(
+            block.chainid,
             _USDC_ADDRESS,
             WMON_ADDRESS,
-            borrowAmount
+            borrowAmount,
+            address(positionManager),
+            500
         );
 
         vm.startPrank(user1);

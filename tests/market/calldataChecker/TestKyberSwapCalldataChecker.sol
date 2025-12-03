@@ -9,6 +9,7 @@ import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwa
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMetaAggregationRouterV2 } from "contracts/interfaces/external/kyberswap/IMetaAggregationRouterV2.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -58,8 +59,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
-        MockV3Aggregator chainlinkUSDC_WMON = new MockV3Aggregator(18, 1e18);
-        MockV3Aggregator chainlinkWMON = new MockV3Aggregator(18, 3.04e18);
+        MockV3Aggregator chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
+        // real Chainlink feed on Monad mainnet
+        address chainlinkWMON_USD = 0x54a1020D118B9BeF3F3A4ec8E24AeEc9DFdBe4c3;
 
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
@@ -68,13 +70,13 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
-            address(chainlinkUSDC_WMON),
+            address(chainlinkUSDC_USD),
             0
         );
         chainlinkAdaptor.addAsset(
             WMON_ADDRESS,
             true,
-            address(chainlinkWMON),
+            chainlinkWMON_USD,
             0
         );
         
@@ -238,5 +240,127 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
         assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
+    }
+
+    function testKyberSwapChecker_fail_whenEmptyPath() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        // feeReceivers, srcReceivers, flags, permit all left empty/zero
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = ""; // empty path
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenInvalidFlags() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x01; // _PARTIAL_FILL
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01"; // non-empty dummy
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+
+        exec.desc.flags = 0x02; // _REQUIRES_EXTRA_ETH
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+
+        exec.desc.flags = 0x04; // _SHOULD_CLAIM
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+
+    }
+
+    function testKyberSwapChecker_fail_whenNonEmptyPermit() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.permit = hex"01";
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenExecutorMismatch() public {
+        address wrongExecutor = makeAddr("wrongExecutor");
+        KyberSwapChecker badChecker =
+            new KyberSwapChecker(kyberSwapRouter, wrongExecutor); // wrong executor
+
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _getKyberCalldata(
+            block.chainid,
+            _USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6,
+            recipient,
+            50
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        badChecker.checkCalldata(swapAction, recipient);
     }
 }
