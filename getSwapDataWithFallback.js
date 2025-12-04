@@ -161,7 +161,14 @@ async function getKyberCalldata(
     });
 
     if (!response.ok) {
-        throw new Error(`Error in Kyber routes: ${response.status} ${response.statusText}`);
+        const body = await response.json();
+        const requestId =
+            body.requestId ||
+            body.requestID ||
+            (body.data && (body.data.requestId || body.data.requestID));
+        throw new Error(
+            `Error in Kyber routes: ${response.status} ${response.statusText} (requestId=${requestId})`
+        );
     }
 
     const routesJson = await response.json();
@@ -194,7 +201,14 @@ async function getKyberCalldata(
     });
 
     if (!response.ok) {
-        throw new Error(`Error in Kyber build: ${response.status} ${response.statusText}`);
+        const body = await response.json();
+        const requestId =
+            body.requestId ||
+            body.requestID ||
+            (body.data && (body.data.requestId || body.data.requestID));
+        throw new Error(
+            `Error in Kyber build: ${response.status} ${response.statusText} (requestId=${requestId})`
+        );
     }
 
     const buildJson = await response.json();

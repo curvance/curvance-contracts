@@ -45,7 +45,15 @@ async function main() {
     );
 
     if (!response.ok) {
-        exit(3, `Error in Kyber routes: ${response.status} ${response.statusText}`);
+        const body = await response.json();
+        const requestId =
+            body.requestId ||
+            body.requestID ||
+            (body.data && (body.data.requestId || body.data.requestID));
+        exit(
+            3,
+            `Error in Kyber routes: ${response.status} ${response.statusText} (requestId=${requestId})`
+        );
     }
 
     const routesJson = await response.json();
@@ -104,7 +112,15 @@ async function main() {
     );
 
     if (!response.ok) {
-        exit(3, `Error in Kyber build: ${response.status} ${response.statusText}`);
+        const body = await response.json();
+        const requestId =
+            body.requestId ||
+            body.requestID ||
+            (body.data && (body.data.requestId || body.data.requestID));
+        exit(
+            3,
+            `Error in Kyber build: ${response.status} ${response.statusText} (requestId=${requestId})`
+        );
     }
 
     const buildJson = await response.json();
