@@ -58,7 +58,8 @@ contract TestSlippage is TestBaseMarketIsolated {
         borrowableCUSDC = _deployBorrowableCUSDC();
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
-        MockV3Aggregator chainlinkUSDC_MONAD = new MockV3Aggregator(8, 1e8);
+        // Make USDC more expensive to simulate more slippage
+        MockV3Aggregator chainlinkUSDC_MONAD = new MockV3Aggregator(8, 2e8);
 
         ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));

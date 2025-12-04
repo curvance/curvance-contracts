@@ -37,8 +37,8 @@ contract TestCombinedAggregator is Test {
             address(0)  // feeToken
         );
 
-        primaryAgg = IChainlink(EZETH_ETH); // ezETH / ETH
-        secondaryAgg = IChainlink(ETH_USD); // ETH / USD
+        primaryAgg = IChainlink(ETH_USD); // ETH / USD
+        secondaryAgg = IChainlink(EZETH_ETH); // ezETH / ETH
 
         // Deploy CombinedAggregator
         combined = new CombinedAggregator(
