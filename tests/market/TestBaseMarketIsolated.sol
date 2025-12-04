@@ -1715,6 +1715,30 @@ contract TestBaseMarketIsolated is TestBase {
         mockStethFeed.setMockUpdatedAt(block.timestamp);
     }
 
+    function _getSwapDataWithFallback(
+        uint256 chainId,
+        address wallet,
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address daoAddress,
+        uint256 slippageBps
+    ) internal returns (bytes memory swapCalldata, uint8 aggregatorCode) {
+        string[] memory args = new string[](9);
+        args[0] = "node";
+        args[1] = "getSwapDataWithFallback.js";
+        args[2] = vm.toString(chainId);
+        args[3] = vm.toString(wallet);
+        args[4] = vm.toString(tokenIn);
+        args[5] = vm.toString(tokenOut);
+        args[6] = vm.toString(amount);
+        args[7] = vm.toString(daoAddress);
+        args[8] = vm.toString(slippageBps);
+
+        bytes memory out = vm.ffi(args);
+        return abi.decode(out, (bytes, uint8));
+    }
+
     function _getKuruCalldata(
         address wallet,
         address tokenIn,

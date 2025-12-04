@@ -18,6 +18,8 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
+import {console2} from "forge-std/console2.sol";
+
 contract TestSlippage is TestBaseMarketIsolated {
 
     address public constant KYBER_SWAP_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
@@ -112,31 +114,34 @@ contract TestSlippage is TestBaseMarketIsolated {
         leverageAction.swapAction.target = KYBER_SWAP_ROUTER;
         // Force extremely tight slippage to guarantee revert
         leverageAction.swapAction.slippage = 1e10; // 0.00001% allowed
-        leverageAction.swapAction.call = _getKyberCalldata(
+
+        uint8 aggregatorCode;
+        (leverageAction.swapAction.call, aggregatorCode) = _getSwapDataWithFallback(
             block.chainid,
+            address(positionManager),
             _USDC_ADDRESS,
             WMON_ADDRESS,
             borrowAmount,
             address(positionManager),
             500
         );
+        if(aggregatorCode == 1) {
+            leverageAction.swapAction.target = KYBER_SWAP_ROUTER;
+        } else if(aggregatorCode == 2) {
+            leverageAction.swapAction.target = KURU_ROUTER;
+        } else {
+            revert("Both Kyber and Kuru paths failed");
+        }
+        console2.log("aggregatorCode", aggregatorCode);
 
         vm.startPrank(user1);
+
         // Only match error selector
         // use expectPartialRevert for custom errors with args
         // (https://getfoundry.sh/reference/cheatcodes/expect-revert/#:~:text=Custom,with)
         vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
-        try positionManager.leverage(leverageAction, 0.5e18) {
-        } catch {
-            leverageAction.swapAction.target = KURU_ROUTER;
-            leverageAction.swapAction.call = _getKuruCalldata(
-                address(positionManager),
-                _USDC_ADDRESS,
-                WMON_ADDRESS,
-                borrowAmount
-            );
-            positionManager.leverage(leverageAction, 0.5e18);
-        }
+        positionManager.leverage(leverageAction, 0.5e18);
+
         vm.stopPrank();
     }
 }

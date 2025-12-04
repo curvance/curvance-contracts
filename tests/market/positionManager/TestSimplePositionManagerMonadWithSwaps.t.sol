@@ -139,25 +139,26 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
         leverageAction.swapAction.inputAmount = bufferedBorrow;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
-        leverageAction.swapAction.target = address(kyberSwapRouter);
 
-		try this._getKyberCalldata(
-			block.chainid,
-			_USDC_ADDRESS,
-			WMON_ADDRESS,
-			bufferedBorrow,
-			address(positionManager),
-			500
-		) returns (bytes memory kyberCall) {
-            leverageAction.swapAction.call = kyberCall;
-        } catch {
+        uint8 aggregatorCode;
+
+        (leverageAction.swapAction.call, aggregatorCode) = _getSwapDataWithFallback(
+            block.chainid,
+            address(positionManager),
+            _USDC_ADDRESS,
+            WMON_ADDRESS,
+            bufferedBorrow,
+            address(positionManager),
+            500
+        );
+
+        console2.log("aggregatorCode", aggregatorCode);
+        if(aggregatorCode == 1) {
+            leverageAction.swapAction.target = address(kyberSwapRouter);
+        } else if(aggregatorCode == 2) {
             leverageAction.swapAction.target = kuruRouter;
-            leverageAction.swapAction.call = _getKuruCalldata(
-                0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240, // positionManager address
-                _USDC_ADDRESS,
-                WMON_ADDRESS,
-                bufferedBorrow
-            );
+        } else {
+            revert("Both Kyber and Kuru paths failed");
         }
         leverageAction.swapAction.slippage = 0.5e18;
 
@@ -217,14 +218,26 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(kyberSwapRouter);
-		deleverageAction.swapActions[0].call = _getKyberCalldata(
-			block.chainid,
-			WMON_ADDRESS,
-			_USDC_ADDRESS,
-			collateralAssetsToWithdraw,
-			address(positionManager),
-			500
-		);
+
+        uint256 aggregatorCode;
+
+        (deleverageAction.swapActions[0].call, aggregatorCode) = _getSwapDataWithFallback(
+            block.chainid,
+            address(positionManager),
+            WMON_ADDRESS,
+            _USDC_ADDRESS,
+            collateralAssetsToWithdraw,
+            address(positionManager),
+            500
+        );
+        if(aggregatorCode == 1) {
+            deleverageAction.swapActions[0].target = address(kyberSwapRouter);
+        } else if(aggregatorCode == 2) {
+            deleverageAction.swapActions[0].target = kuruRouter;
+        } else {
+            revert("Both Kyber and Kuru paths failed");
+        }
+
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
 		collateralBefore = borrowableCWMON.balanceOf(user1);
@@ -232,17 +245,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         uint256 usdcWalletBefore = IERC20(_USDC_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
-        try positionManager.deleverage(deleverageAction, 0.5e18) {
-        } catch {
-            deleverageAction.swapActions[0].target = kuruRouter;
-            deleverageAction.swapActions[0].call = _getKuruCalldata(
-                0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240, // positionManager address
-                WMON_ADDRESS,
-                _USDC_ADDRESS,
-                collateralAssetsToWithdraw
-            );
-            positionManager.deleverage(deleverageAction, 0.5e18);
-        }
+        positionManager.deleverage(deleverageAction, 0.5e18);
         vm.stopPrank();
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
@@ -278,27 +281,28 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.inputAmount = bufferedBorrow;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
         leverageAction.swapAction.target = address(kyberSwapRouter);
-		leverageAction.swapAction.call = _getKyberCalldata(
-			block.chainid,
-			_USDC_ADDRESS,
-			WMON_ADDRESS,
-			bufferedBorrow,
-			address(positionManager),
-			500
-		);
+
+        uint8 aggregatorCode;
+        (leverageAction.swapAction.call, aggregatorCode) = _getSwapDataWithFallback(
+            block.chainid,
+            address(positionManager),
+            _USDC_ADDRESS,
+            WMON_ADDRESS,
+            bufferedBorrow,
+            address(positionManager),
+            500
+        );
+        if(aggregatorCode == 1) {
+            leverageAction.swapAction.target = address(kyberSwapRouter);
+        } else if(aggregatorCode == 2) {
+            leverageAction.swapAction.target = kuruRouter;
+        } else {
+            revert("Both Kyber and Kuru paths failed");
+        }
+
         leverageAction.swapAction.slippage = 0.5e18;
 
-        try positionManager.leverage(leverageAction, 0.5e18) {
-        } catch {
-            leverageAction.swapAction.target = kuruRouter;
-            leverageAction.swapAction.call = _getKuruCalldata(
-                0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240, // positionManager address
-                _USDC_ADDRESS,
-                WMON_ADDRESS,
-                bufferedBorrow
-            );
-            positionManager.leverage(leverageAction, 0.5e18);
-        }
+        positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
@@ -332,24 +336,25 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(kyberSwapRouter);
 
-		try this._getKyberCalldata(
-			block.chainid,
-			WMON_ADDRESS,
-			_USDC_ADDRESS,
-			collateralAssetsToWithdraw,
-			address(positionManager),
-			500
-		) returns (bytes memory kyberCall) {
-            deleverageAction.swapActions[0].call = kyberCall;
-        } catch {
+        (deleverageAction.swapActions[0].call, aggregatorCode) = _getSwapDataWithFallback(
+            block.chainid,
+            address(positionManager),
+            WMON_ADDRESS,
+            _USDC_ADDRESS,
+            collateralAssetsToWithdraw,
+            address(positionManager),
+            500
+        );
+        if(aggregatorCode == 1) {
+            deleverageAction.swapActions[0].target = address(kyberSwapRouter);
+        } else if(aggregatorCode == 2) {
             deleverageAction.swapActions[0].target = kuruRouter;
-            deleverageAction.swapActions[0].call = _getKuruCalldata(
-                0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240, // positionManager address
-                WMON_ADDRESS,
-                _USDC_ADDRESS,
-                collateralAssetsToWithdraw
-            );
+        } else {
+            revert("Both Kyber and Kuru paths failed");
         }
+
+        console2.log("aggregatorCode", aggregatorCode);
+
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
 		collateralBefore = borrowableCWMON.balanceOf(user1);
@@ -357,17 +362,6 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         uint256 usdcWalletBefore = IERC20(_USDC_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
-
-        try positionManager.deleverage(deleverageAction, 0.5e18) {
-        } catch {
-            deleverageAction.swapActions[0].target = kuruRouter;
-            deleverageAction.swapActions[0].call = _getKuruCalldata(
-                0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240, // positionManager address
-                WMON_ADDRESS,
-                _USDC_ADDRESS,
-                collateralAssetsToWithdraw
-            );
-        }
 
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         positionManager.deleverage(deleverageAction, 0.5e18);
