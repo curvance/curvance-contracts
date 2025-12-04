@@ -79,16 +79,13 @@ async function main() {
     // 2. Build transaction calldata
     const buildUrl = `${baseUrl}/${chain}/api/v1/route/build`;
 
-    // Kyber expects slippageTolerance in percent
-    const slippagePercent = Number(slippageBps) / 100;
-
     const buildBody = {
         routeSummary,
         // Address providing the funds (our zapper / positionManager)
         sender: swapperAddress,
         // Address receiving dstToken (our zapper / positionManager)
         recipient: swapperAddress,
-        slippageTolerance: slippagePercent,
+        slippageTolerance: Number(slippageBps),
         // default deadline (20 minutes from now)
         deadline: Math.floor(Date.now() / 1000) + 20 * 60,
     };

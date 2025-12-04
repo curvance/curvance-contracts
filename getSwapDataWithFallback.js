@@ -175,14 +175,11 @@ async function getKyberCalldata(
     // 2. Build transaction calldata
     const buildUrl = `${baseUrl}/${chain}/api/v1/route/build`;
 
-    // Kyber expects slippageTolerance in percent
-    const slippagePercent = Number(slippageBps) / 100;
-
     const buildBody = {
         routeSummary,
         sender: swapperAddress,
         recipient: swapperAddress,
-        slippageTolerance: slippagePercent,
+        slippageTolerance: Number(slippageBps),
         deadline: Math.floor(Date.now() / 1000) + 20 * 60,
     };
 
