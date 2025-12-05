@@ -109,7 +109,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
         secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
 
         // Check if the secondary heartbeat is stale.
-        if (block.timestamp - secondaryHeartbeat > updatedAt) {
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
             revert CombinedAggregator__InvalidHeartbeat();
         }
 
@@ -180,8 +180,9 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert CombinedAggregator__InvalidConfig();
         }
 
-        if (block.timestamp - secondaryHeartbeat > updatedAt) {
-            revert CombinedAggregator__InvalidConfig();
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
+            revert CombinedAggregator__InvalidHeartbeat();
         }
 
         // Having a minimum price above the current price does not make sense,
@@ -228,7 +229,8 @@ contract CombinedAggregator is BaseWrappedAggregator {
         (,,,uint256 updatedAt,) =
             IChainlink(secondaryAggregator).latestRoundData();
 
-        if (block.timestamp - secondaryHeartbeat > updatedAt) {
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
             revert CombinedAggregator__InvalidHeartbeat();
         }
     }
@@ -267,7 +269,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
 
         // If the second heartbeat is stale we can bubble up timestamp of 0
         // to cause a _verifyData error code.
-        if (block.timestamp - secondaryHeartbeat > secondaryUpdatedAt) {
+        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
             updatedAt = 0;
         }
 
@@ -292,7 +294,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
             secondaryAggregator.latestRoundData();
 
         // Bubble up a pricing error if the secondary heartbeat is stale.
-        if (block.timestamp - secondaryHeartbeat > secondaryUpdatedAt) {
+        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
             return 0;
         }
 
