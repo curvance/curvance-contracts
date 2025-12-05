@@ -181,7 +181,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
 		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
 		uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-		uint256 collateralAssetsToWithdraw = collateralBefore / 5; // withdraw 20% collateral
+		uint256 collateralAssetsToWithdraw = collateralBefore / 10; // withdraw 10% collateral
 		uint256 minOutUSDC;
 
 		try this._getKyberAmountOut(

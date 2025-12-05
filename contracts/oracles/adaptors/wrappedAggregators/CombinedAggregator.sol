@@ -100,11 +100,6 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
-        // Check if the secondary heartbeat is stale.
-        if (block.timestamp - _secondaryHeartbeat > updatedAt) {
-            revert CombinedAggregator__InvalidHeartbeat();
-        }
-
         // Maximum number of supported decimals is enforced to make sure
         // `minPrice` and `basePrice` do not overflow.
         if (IChainlink(_secondaryAggregator).decimals() > 18) {
@@ -112,6 +107,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
         }
 
         secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
+
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - secondaryHeartbeat > updatedAt) {
+            revert CombinedAggregator__InvalidHeartbeat();
+        }
+
         secondaryAggregator = IChainlink(_secondaryAggregator);
         _secondaryDecimalPrecision = 10 ** IChainlink(_secondaryAggregator).decimals();
     }
