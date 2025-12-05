@@ -100,6 +100,11 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - _secondaryHeartbeat > updatedAt) {
+            revert CombinedAggregator__InvalidHeartbeat();
+        }
+
         // Maximum number of supported decimals is enforced to make sure
         // `minPrice` and `basePrice` do not overflow.
         if (IChainlink(_secondaryAggregator).decimals() > 18) {
@@ -217,6 +222,14 @@ contract CombinedAggregator is BaseWrappedAggregator {
     function setSecondaryHeartbeat(uint256 heartbeat) external {
         _checkMarketPermissions();
         secondaryHeartbeat = _setSecondaryHeartbeat(heartbeat);
+
+        // Check if the secondary heartbeat is stale.
+        (,,,uint256 updatedAt,) =
+            IChainlink(secondaryAggregator).latestRoundData();
+
+        if (block.timestamp - secondaryHeartbeat > updatedAt) {
+            revert CombinedAggregator__InvalidHeartbeat();
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -274,7 +287,14 @@ contract CombinedAggregator is BaseWrappedAggregator {
     function getAdjustedAnswer(
         int256 answer
     ) public view virtual override returns (int256 result) {
-        (, int256 secondaryAnswer,,,) = secondaryAggregator.latestRoundData();
+        (, int256 secondaryAnswer,, uint256 secondaryUpdatedAt,) =
+            secondaryAggregator.latestRoundData();
+
+        // Bubble up a pricing error if the secondary heartbeat is stale.
+        if (block.timestamp - secondaryHeartbeat > secondaryUpdatedAt) {
+            return 0;
+        }
+
         // Adjust `answer` by secondary answer to combine and divide by
         // secondary decimal precision.
         result = _toInt256(FixedPointMathLib.fullMulDiv(
