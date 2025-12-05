@@ -31,8 +31,34 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 ///
 ///      The second aggregators heartbeat is explicitly checked here with the
 ///      former aggregators heartbeat checked in the corresponding adaptor.
-///      An additional Price Guard can also be configured in here, specifically
-///      for the secondary aggregator.
+///      An additional Price Guard can also be configured in here,
+///      specifically for the secondary aggregator. The other price guard can
+///      be configured in the corresponding adaptor which checks the overall
+///      adjusted answer.
+///
+///      Formally, the overall price that the adaptor observes (p_adaptor)
+///      consists of the primary feed's price (p_primary) multiplied by the
+///      secondary feed's price (p_secondary), with the optional price guard
+///      applied to the secondary price. Therefore, p_adaptor =
+///      p_primary * guard(p_secondary). Given this design, there is no price
+///      guard that can be configured for p_primary.
+///      
+///      Example: p_primary = USD/ETH, p_secondary = ETH/ezETH,
+///      p_adaptor = USD/ETH * guard(ETH/ezETH)
+///      In this setup, changes in the ETH/ezETH can be guarded against in
+///      isolation. On the other hand, a change in USD/ETH can't be guarded
+///      against in isolation.
+///
+///      This limitation becomes more apparent when p_primary is a pegged pair
+///      like AUSD/USD, and p_secondary = earnAUSD/AUSD. Then it is not
+///      possible to effectively guard against a depeg in AUSD/USD since the
+///      guard for p_adaptor must be set to allow for changes in earnAUSD/USD.
+///      Moreover, if AUSD depegs and loses value, this may remain hidden from
+///      the guard due to an increase in the earnAUSD/AUSD rate.
+///     
+///      Overall, the price guards must be regarded as a check for the
+///      specific price that they are applied to, leaving the primary price
+///      without an effective guard. 
 ///
 contract CombinedAggregator is BaseWrappedAggregator {
     /// CONSTANTS ///
