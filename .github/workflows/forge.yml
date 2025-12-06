@@ -18,9 +18,26 @@ jobs:
 
       - name: Install Forge dependencies
         run: forge install
-
-      - name: Run test harness (with automatic retry of failures)
-        run: forge test --ffi || (echo "Some tests failed, re-running only the failures..." && forge test --rerun --ffi)
+      - name: Run test harness (with automatic retry after delay)
+        shell: bash
+        run: |
+          set +e
+      
+          echo "Running forge tests..."
+          forge test --ffi
+          EXIT_CODE=$?
+      
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Some tests failed."
+            echo "Waiting 60 seconds before retrying failed tests..."
+            sleep 60
+      
+            echo "Re-running failed tests..."
+            forge test --rerun --ffi
+            EXIT_CODE=$?
+          fi
+      
+          exit $EXIT_CODE
         env:
           ETH_NODE_URI_MAINNET: ${{ secrets.ETH_NODE_URI_MAINNET }}
           ETH_NODE_URI_ARBITRUM: ${{ secrets.ETH_NODE_URI_ARBITRUM }}
