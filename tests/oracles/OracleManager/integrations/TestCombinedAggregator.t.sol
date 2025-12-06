@@ -12,10 +12,6 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
 contract TestCombinedAggregator is Test {
-    // Chainlink addresses
-    address internal constant EZETH_ETH = 0xdA0Da3272575e3fed2Bd61Bc63DB776516e808F2;
-    address internal constant ETH_USD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
-
     string internal constant ASSET_ID = "ezETH/USD";
 
     CentralRegistry internal centralRegistry;
@@ -24,9 +20,8 @@ contract TestCombinedAggregator is Test {
     IChainlink internal secondaryAgg;
 
     function setUp() public {
-        // Fork Monad mainnet
-        string memory rpc = vm.envString("MON_NODE_URI_MONAD_MAINNET");
-        vm.createSelectFork(rpc);
+        // Use a known timestamp
+        vm.warp(2_000_000_000);
 
         // Deploy a minimal CentralRegistry 
         centralRegistry = new CentralRegistry(
@@ -37,10 +32,12 @@ contract TestCombinedAggregator is Test {
             address(0)  // feeToken
         );
 
-        primaryAgg = IChainlink(ETH_USD); // ETH / USD
-        secondaryAgg = IChainlink(EZETH_ETH); // ezETH / ETH
+        // Primary = ETH/USD at $4000, 
+        // secondary = ezETH/ETH at 1.5 ETH per ezETH
+        primaryAgg = IChainlink(address(new MockV3Aggregator(8, int256(4000e8))));
+        secondaryAgg = IChainlink(address(new MockV3Aggregator(8, int256(1.5e8))));
 
-        // Deploy CombinedAggregator
+        // Deploy CombinedAggregator using mock feeds so tests remain stable
         combined = new CombinedAggregator(
             ICentralRegistry(address(centralRegistry)),
             address(primaryAgg),
@@ -282,6 +279,8 @@ contract TestCombinedAggregator is Test {
 
         // Advance time and verify dynamic max increases again
         skip(3 days);
+        // Leave answer the same but update the timestamp
+        ezETH_ETH_Mock.updateAnswer(int256(1.5e8));
 
         timePassed = block.timestamp - timestampStart;
         dynamicMax = (basePrice * (timePassed * ips + 1e18)) / 1e18;
@@ -397,7 +396,7 @@ contract TestCombinedAggregator is Test {
         // Stale secondary
         combined2.setSecondaryHeartbeat(1); // heartbeat very small
         skip(2 days);
-        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidConfig.selector);
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
         combined2.setGuardedPriceConfig(
             0,
             0,
@@ -405,9 +404,10 @@ contract TestCombinedAggregator is Test {
             1e8
         );
 
+        // Refresh the updateAt timestamp
+        ezETH_ETH_Mock.updateAnswer(1.5e8);
         // Reset heartbeat to default
         combined2.setSecondaryHeartbeat(0);
-        ezETH_ETH_Mock.updateAnswer(1.5e8);
 
         // set a valid dynamic config
         uint256 timestampStart = block.timestamp - 9 days;
