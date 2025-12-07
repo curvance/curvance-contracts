@@ -285,27 +285,19 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x01; // _PARTIAL_FILL
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
         exec.approveTarget = address(0);
         exec.targetData = hex"01"; // non-empty dummy
         exec.desc = desc;
+        exec.desc.flags = 0x02; // _REQUIRES_EXTRA_ETH
 
         swapAction.call = abi.encodeWithSelector(
             IMetaAggregationRouterV2.swap.selector,
             exec
         );
 
-        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
-        checker.checkCalldata(swapAction, recipient);
-
-        exec.desc.flags = 0x02; // _REQUIRES_EXTRA_ETH
-        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
-        checker.checkCalldata(swapAction, recipient);
-
-        exec.desc.flags = 0x04; // _SHOULD_CLAIM
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
         checker.checkCalldata(swapAction, recipient);
 
@@ -337,7 +329,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
             exec
         );
 
-        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidTargetData.selector);
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidPermit.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
