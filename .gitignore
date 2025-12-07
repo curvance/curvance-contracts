@@ -46,3 +46,7 @@ out/
 broadcast/
 .vscode
 tests/austin.t.sol
+script/deployment/Fix.s.sol
+verify.sh
+verify2.sh
+dune.sh

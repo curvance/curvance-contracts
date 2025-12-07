@@ -55,7 +55,7 @@ contract AddRedstoneVaultAggSupport is DeployScript {
 
         if(guardConfig.enabled) {
             redstone.setGuardedPriceConfig(
-                address(asset),
+                address(vault),
                 guardConfig.inUSD,
                 guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
                 guardConfig.ips,

@@ -13,9 +13,9 @@ contract DeployCalldataChecker is DeployScript {
 
     function run(address registry, AvailableCheckers calldata checkerSelection) external recordEvents {
         CentralRegistry cr = CentralRegistry(registry);
-        
+
         if(checkerSelection.kuruRouter != address(0)) {
-            KuruCalldataChecker checker = new KuruCalldataChecker(checkerSelection.kuruRouter, 0xb3e6778480b2E488385E8205eA05E20060B813cb, cr.daoAddress());
+            KuruCalldataChecker checker = new KuruCalldataChecker(checkerSelection.kuruRouter, 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a, cr.daoAddress());
             cr.setExternalCalldataChecker(checkerSelection.kuruRouter, address(checker));
         }
     }
