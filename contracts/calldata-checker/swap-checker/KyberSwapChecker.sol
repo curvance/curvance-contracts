@@ -22,6 +22,7 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__InvalidTargetData();
     error KyberSwapChecker__InvalidFeeReceivers();
     error KyberSwapChecker__InvalidPermit();
+    error KyberSwapChecker__UnsupportedChain();
 
     /// CONSTRUCTOR ///
 
@@ -30,6 +31,10 @@ contract KyberSwapChecker is BaseSwapChecker {
         address _target,
         address _KYBER_SWAP_EXECUTOR
     ) BaseSwapChecker(_target) {
+        if (block.chainid != 143) {
+            revert KyberSwapChecker__UnsupportedChain();
+        }
+
         KYBER_SWAP_EXECUTOR = _KYBER_SWAP_EXECUTOR;
     }
 
