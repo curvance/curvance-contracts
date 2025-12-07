@@ -19,6 +19,9 @@ contract KyberSwapChecker is BaseSwapChecker {
 
     error KyberSwapChecker__InvalidNativeTokenAddress();
     error KyberSwapChecker__InvalidFlags();
+    error KyberSwapChecker__InvalidTargetData();
+    error KyberSwapChecker__InvalidFeeReceivers();
+    error KyberSwapChecker__InvalidPermit();
 
     /// CONSTRUCTOR ///
 
@@ -53,7 +56,7 @@ contract KyberSwapChecker is BaseSwapChecker {
         uint256 inputAmount;
         address outputToken;
         address executor;
-        bytes memory path;
+        bytes memory targetData;
         uint256 numFeeReceivers;
         uint256 flags;
         bytes memory permit;
@@ -68,7 +71,7 @@ contract KyberSwapChecker is BaseSwapChecker {
             inputAmount = execution.desc.amount;
             outputToken = address(execution.desc.dstToken);
             executor = execution.callTarget;
-            path = execution.targetData;
+            targetData = execution.targetData;
             numFeeReceivers = execution.desc.feeReceivers.length;
             flags = execution.desc.flags;
             permit = execution.desc.permit;
@@ -106,29 +109,23 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        if (path.length == 0) {
-            revert CalldataChecker__InvalidFuncSig();
+        if (targetData.length == 0) {
+            revert KyberSwapChecker__InvalidTargetData();
         }
 
         if (numFeeReceivers != 0) {
-            revert CalldataChecker__ReferralError();
+            revert KyberSwapChecker__InvalidFeeReceivers();
         }
 
-        // Extract flags from the bitmap.
-        // _PARTIAL_FILL
-        bool partialFill = (flags & 0x01) != 0;
-        // _REQUIRES_EXTRA_ETH
+        // Extract _REQUIRES_EXTRA_ETH flag.
         bool requiresExtraEth = (flags & 0x02) != 0;
-        // _SHOULD_CLAIM
-        bool shouldClaim = (flags & 0x04) != 0;
-        // Reject swaps that use invalid flags.
-        if (requiresExtraEth || shouldClaim || partialFill) {
+        if (requiresExtraEth) {
             revert KyberSwapChecker__InvalidFlags();
         }
 
         // Prevent permit-based approvals.
         if (permit.length != 0) {
-            revert CalldataChecker__InvalidFuncSig();
+            revert KyberSwapChecker__InvalidPermit();
         }
     }
 }

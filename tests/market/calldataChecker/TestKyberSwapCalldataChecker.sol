@@ -268,7 +268,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
             exec
         );
 
-        vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidTargetData.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
@@ -337,7 +337,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
             exec
         );
 
-        vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidTargetData.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
@@ -362,5 +362,38 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
         badChecker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenFeeReceiversPresent() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1); // non-empty feeReceivers
+        desc.feeReceivers[0] = address(this);
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeReceivers.selector);
+        checker.checkCalldata(swapAction, recipient);
     }
 }
