@@ -28,12 +28,9 @@ jobs:
           EXIT_CODE=$?
       
           if [ $EXIT_CODE -ne 0 ]; then
-            echo
             echo "Some tests failed."
-            echo
             echo "Waiting 3 minutes before retrying failed tests..."
-            echo
-            sleep 60
+            sleep 180
       
             echo "Re-running failed tests..."
             forge test --rerun --ffi
