@@ -42,7 +42,7 @@ contract KuruCalldataChecker is BaseSwapChecker {
     function checkCalldata(
         SwapperLib.Swap memory swapAction,
         address expectedRecipient
-    ) external view override {
+    ) external view override returns (uint256 minOutAmount) {
         if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }

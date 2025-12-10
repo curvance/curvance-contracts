@@ -71,5 +71,5 @@ abstract contract BaseSwapChecker is
     function checkCalldata(
         SwapperLib.Swap memory swapAction,
         address recipient
-    ) external view virtual override;
+    ) external view virtual override returns (uint256);
 }
