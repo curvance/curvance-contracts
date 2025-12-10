@@ -58,6 +58,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
             outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            minOutAmount = desc.minimumOut;
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
             (,,,, PendleZapper.ZapAction memory desc,, address receiver) =
                 abi.decode(
@@ -76,6 +77,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
+            minOutAmount = desc.minimumOut;
         } else if (funcSigHash == PendleZapper.redeemAndExitPendle.selector) {
             (,,,, BaseZapper.RedeemAction memory redeemAction, PendleZapper.ZapAction memory desc,, address receiver) =
                 abi.decode(
@@ -95,6 +97,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputToken = redeemAction.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
+            minOutAmount = desc.minimumOut;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

@@ -75,6 +75,7 @@ contract KuruCalldataChecker is BaseSwapChecker {
             outputToken = swapIntent.tokenUserBuys;
             feeCollectorAddress = feeCollection.feeCollectorAddress;
             referrerAddress = feeCollection.referrerAddress;
+            minOutAmount = swapIntent.minAmountUserBuys;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
