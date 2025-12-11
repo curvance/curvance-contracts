@@ -17,16 +17,16 @@ contract TestSimpleZapperMonad is TestBaseMarketIsolated {
     SimpleZapper public simpleZapper;
 
     // Monad addresses
-    address public constant SHMON_ADDRESS = 0x3a98250F98Dd388C211206983453837C8365BDc1;
-    address public constant WMON_ADDRESS = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
-    address public constant _CHAINLINK_ETH_USD_MONAD = 0x0c76859E85727683Eeba0C70Bc2e0F5781337818;
+    address public constant SHMON_ADDRESS = 0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
+    address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
+    address public constant _CHAINLINK_ETH_USD_MONAD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
 
     SimpleCToken public simpleCSHMON;
     BorrowableCToken public borrowableCWMON;
 
     function setUp() public override {
 
-        _fork("ETH_NODE_URI_MONAD");
+        _fork("MON_NODE_URI_MONAD_MAINNET");
 
         _deployCentralRegistry();
         _deployCVE();

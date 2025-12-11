@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { KuruCalldataChecker } from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
+import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -9,24 +9,23 @@ import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwa
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMetaAggregationRouterV2 } from "contracts/interfaces/external/kyberswap/IMetaAggregationRouterV2.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
-import { IKuruFlowRouter } from "contracts/interfaces/external/kuru/IKuruRouter.sol";
 
 // simpleZapper address: 0x15cF58144EF33af1e14b5208015d11F9143E27b9;
 
-contract TestKuruCalldataChecker is TestBaseMarketIsolated {
-    address public kuruRouter = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
+contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
+    address public kyberSwapRouter   = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+    address public kyberSwapExecutor = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
     BorrowableCToken public borrowableCUSDC_MONAD;
     BorrowableCToken public borrowableCWMON;
 
-    KuruCalldataChecker public checker;
-
-    address public feeCollectorAddress = 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a;
+    KyberSwapChecker public checker;
 
     SwapperLib.Swap public swapAction;
     address public recipient;
@@ -50,8 +49,8 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KuruCalldataChecker(kuruRouter, feeCollectorAddress, address(centralRegistry.daoAddress()));
-        centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
+        checker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor);
+        centralRegistry.setExternalCalldataChecker(kyberSwapRouter, address(checker));
 
         simpleZapper = new SimpleZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
 
@@ -60,8 +59,9 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
-        MockV3Aggregator chainlinkUSDC_WMON = new MockV3Aggregator(18, 1e18);
-        MockV3Aggregator chainlinkWMON = new MockV3Aggregator(18, 3.04e18);
+        MockV3Aggregator chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
+        // real Chainlink feed on Monad mainnet
+        address chainlinkWMON_USD = 0x54a1020D118B9BeF3F3A4ec8E24AeEc9DFdBe4c3;
 
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
@@ -70,13 +70,13 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
-            address(chainlinkUSDC_WMON),
+            address(chainlinkUSDC_USD),
             0
         );
         chainlinkAdaptor.addAsset(
             WMON_ADDRESS,
             true,
-            address(chainlinkWMON),
+            chainlinkWMON_USD,
             0
         );
         
@@ -126,7 +126,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kuruRouter;
+        swapAction.target = kyberSwapRouter;
         swapAction.call = invalidCallData;
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
@@ -138,12 +138,14 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = address(0);
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
+        swapAction.target = kyberSwapRouter;
+		swapAction.call = _getKyberCalldata(
+            block.chainid,
 			_USDC_ADDRESS,
 			WMON_ADDRESS,
-			5e6
+			5e6,
+            recipient,
+            50
 		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputTokenError.selector);
@@ -155,12 +157,14 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 0;
         swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
+        swapAction.target = kyberSwapRouter;
+		swapAction.call = _getKyberCalldata(
+            block.chainid,
 			_USDC_ADDRESS,
 			WMON_ADDRESS,
-			5e6
+			5e6,
+            recipient,
+            50
 		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputAmountError.selector);
@@ -172,12 +176,14 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = address(0);
-        swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
+        swapAction.target = kyberSwapRouter;
+		swapAction.call = _getKyberCalldata(
+            block.chainid,
 			_USDC_ADDRESS,
 			WMON_ADDRESS,
-			5e6
+			5e6,
+            recipient,
+            50
 		);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__OutputTokenError.selector);
@@ -189,8 +195,15 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(address(this), _USDC_ADDRESS, WMON_ADDRESS, 5e6);
+        swapAction.target = kyberSwapRouter;
+		swapAction.call = _getKyberCalldata(
+            block.chainid,
+            _USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6,
+            address(this),
+            50
+        );
 
         console2.log("dao address", centralRegistry.daoAddress());
         console2.log("this address", address(this));
@@ -206,12 +219,14 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kuruRouter;
-        bytes memory ffiCalldata = _getKuruCalldata(
-            recipient,
+        swapAction.target = kyberSwapRouter;
+        bytes memory ffiCalldata = _getKyberCalldata(
+            block.chainid,
             _USDC_ADDRESS,
             WMON_ADDRESS,
-            5e6
+            5e6,
+            recipient,
+            500
         );
         swapAction.call = ffiCalldata;
 
@@ -225,5 +240,152 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
         assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
+    }
+
+    function testKyberSwapChecker_fail_whenEmptyPath() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        // feeReceivers, srcReceivers, flags, permit all left empty/zero
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = ""; // empty path
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidTargetData.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenInvalidFlags() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01"; // non-empty dummy
+        exec.desc = desc;
+        exec.desc.flags = 0x02; // _REQUIRES_EXTRA_ETH
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+
+    }
+
+    function testKyberSwapChecker_fail_whenNonEmptyPermit() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.permit = hex"01";
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidPermit.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenExecutorMismatch() public {
+        address wrongExecutor = makeAddr("wrongExecutor");
+        KyberSwapChecker badChecker =
+            new KyberSwapChecker(kyberSwapRouter, wrongExecutor); // wrong executor
+
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _getKyberCalldata(
+            block.chainid,
+            _USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6,
+            recipient,
+            50
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        badChecker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenFeeReceiversPresent() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1); // non-empty feeReceivers
+        desc.feeReceivers[0] = address(this);
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeReceivers.selector);
+        checker.checkCalldata(swapAction, recipient);
     }
 }

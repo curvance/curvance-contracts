@@ -46,7 +46,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
     function checkCalldata(
         SwapperLib.Swap memory swapAction,
         address expectedRecipient
-    ) external view override {
+    ) external view override returns (uint256 minOutAmount) {
         if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
@@ -81,6 +81,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
             executor = exec;
             path = pathDefinition;
             referralCode = refCode;
+            minOutAmount = tokenInfo.outputMin;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

@@ -25,7 +25,7 @@ import { console2 } from "forge-std/console2.sol";
 ///   during deleveraging and there is limited DEX support/liquidity on Monad.
 ///
 /// Environments:
-/// - Monad testnet (fork: "ETH_NODE_URI_MONAD"):
+/// - Monad testnet (fork: "MON_NODE_URI_MONAD_MAINNET"):
 ///   - Used for leverage flows that do not require swaps.
 ///   - Also used for revert tests against a SHMON/USDC market (stablecoin debt) to validate input checks.
 /// - Ethereum mainnet (forked in super.setUp() from TestBaseMarketIsolated):
@@ -56,14 +56,14 @@ import { console2 } from "forge-std/console2.sol";
 contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
     NativeVaultPositionManager public positionManager;
 
-    address public constant SHMON_ADDRESS = 0x3a98250F98Dd388C211206983453837C8365BDc1;
-    address public constant WMON_ADDRESS = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
+    address public constant SHMON_ADDRESS = 0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
+    address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
-    address public constant _CHAINLINK_ETH_USD_MONAD = 0x0c76859E85727683Eeba0C70Bc2e0F5781337818;
+    address public constant _CHAINLINK_ETH_USD_MONAD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
 
-    address public constant _CHAINLINK_USDC_USD_MONAD = 0x70BB0758a38ae43418ffcEd9A25273dd4e804D15;
+    address public constant _CHAINLINK_USDC_USD_MONAD = 0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
 
-    address public constant _USDC_ADDRESS_MONAD = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+    address public constant _USDC_ADDRESS_MONAD = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
 
     SimpleCToken public simpleCSHMON;
     BorrowableCToken public borrowableCWMON;
@@ -129,7 +129,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
 
-        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.10e18);
 
         AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
         AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
@@ -339,7 +339,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
     /// Market setup helpers ///
 
     function _setUpSHMON_WMON_Market() internal {
-        _fork("ETH_NODE_URI_MONAD");
+        _fork("MON_NODE_URI_MONAD_MAINNET");
 
         _deployCentralRegistry();
         _deployCVE();
@@ -434,7 +434,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
     }
 
     function _setUpSHMON_USDC_Market() internal {
-        _fork("ETH_NODE_URI_MONAD");
+        _fork("MON_NODE_URI_MONAD_MAINNET");
 
         _deployCentralRegistry();
         _deployCVE();

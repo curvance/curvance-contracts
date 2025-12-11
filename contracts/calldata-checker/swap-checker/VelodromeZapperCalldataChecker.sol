@@ -26,7 +26,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
     function checkCalldata(
         SwapperLib.Swap memory swapAction,
         address expectedRecipient
-    ) external view override {
+    ) external view override returns (uint256 minOutAmount) {
         if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
@@ -64,6 +64,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
             outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            minOutAmount = desc.minimumOut;
         } else if (funcSigHash == VelodromeZapper.exitVelodrome.selector) {
             (
                 ,
@@ -83,6 +84,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
+            minOutAmount = desc.minimumOut;
         } else if (
             funcSigHash == VelodromeZapper.redeemAndExitVelodrome.selector
         ) {
@@ -106,6 +108,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             inputToken = redeemAction.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
+            minOutAmount = desc.minimumOut;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

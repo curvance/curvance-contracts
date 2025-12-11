@@ -88,7 +88,7 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCalldataChecker(callDataChecker)
+        uint256 minOutAmount = IExternalCalldataChecker(callDataChecker)
             .checkCalldata(action, address(this));
 
         // Approve `action.inputToken` to target contract, if necessary.
@@ -112,6 +112,10 @@ library SwapperLib {
         _removeApprovalIfNeeded(inputToken, action.target);
 
         outAmount = CommonLib._balanceOf(outputToken) - balanceBefore;
+
+        if (outAmount < minOutAmount) {
+            revert SwapperLib__Slippage(minOutAmount);
+        }
     }
 
     /// @notice Swaps `action.inputToken` into a `action.outputToken`

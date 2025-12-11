@@ -19,6 +19,11 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 ///      be any onchain push based oracle that supports rounds of data with
 ///      the "latestRoundData" function interface (see "IChainlink").
 ///
+///      Aspects of round-based aggregators do not apply to the combined
+///      aggregator because it combines together two aggregators with more
+///      than likely drastically different latest rounds. Functions such as
+///      "getRoundData" and "latestRound" return the "primary aggregator" but
+///      should not be used for any sensitive decision making.
 ///
 ///      These aggregators should then be listed in the corresponding adaptor
 ///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
@@ -26,8 +31,34 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 ///
 ///      The second aggregators heartbeat is explicitly checked here with the
 ///      former aggregators heartbeat checked in the corresponding adaptor.
-///      An additional Price Guard can also be configured in here, specifically
-///      for the secondary aggregator.
+///      An additional Price Guard can also be configured in here,
+///      specifically for the secondary aggregator. The other price guard can
+///      be configured in the corresponding adaptor which checks the overall
+///      adjusted answer.
+///
+///      Formally, the overall price that the adaptor observes (p_adaptor)
+///      consists of the primary feed's price (p_primary) multiplied by the
+///      secondary feed's price (p_secondary), with the optional price guard
+///      applied to the secondary price. Therefore, p_adaptor =
+///      p_primary * guard(p_secondary). Given this design, there is no price
+///      guard that can be configured for p_primary.
+///      
+///      Example: p_primary = USD/ETH, p_secondary = ETH/ezETH,
+///      p_adaptor = USD/ETH * guard(ETH/ezETH)
+///      In this setup, changes in the ETH/ezETH can be guarded against in
+///      isolation. On the other hand, a change in USD/ETH can't be guarded
+///      against in isolation.
+///
+///      This limitation becomes more apparent when p_primary is a pegged pair
+///      like AUSD/USD, and p_secondary = earnAUSD/AUSD. Then it is not
+///      possible to effectively guard against a depeg in AUSD/USD since the
+///      guard for p_adaptor must be set to allow for changes in earnAUSD/USD.
+///      Moreover, if AUSD depegs and loses value, this may remain hidden from
+///      the guard due to an increase in the earnAUSD/AUSD rate.
+///     
+///      Overall, the price guards must be regarded as a check for the
+///      specific price that they are applied to, leaving the primary price
+///      without an effective guard. 
 ///
 contract CombinedAggregator is BaseWrappedAggregator {
     /// CONSTANTS ///
@@ -95,7 +126,19 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
-        _secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
+        // Maximum number of supported decimals is enforced to make sure
+        // `minPrice` and `basePrice` do not overflow.
+        if (IChainlink(_secondaryAggregator).decimals() > 18) {
+            revert BaseWrappedAggregator__InvalidConfig();
+        }
+
+        secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
+
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
+            revert CombinedAggregator__InvalidHeartbeat();
+        }
+
         secondaryAggregator = IChainlink(_secondaryAggregator);
         _secondaryDecimalPrecision = 10 ** IChainlink(_secondaryAggregator).decimals();
     }
@@ -157,8 +200,15 @@ contract CombinedAggregator is BaseWrappedAggregator {
         (, int256 answer,,uint256 updatedAt,) =
             IChainlink(secondaryAggregator).latestRoundData();
 
-        if (block.timestamp - secondaryHeartbeat > updatedAt) {
+        // Validate the feed is answering in the form we
+        // expect (non-zero integer).
+        if (answer <= 0) {
             revert CombinedAggregator__InvalidConfig();
+        }
+
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
+            revert CombinedAggregator__InvalidHeartbeat();
         }
 
         // Having a minimum price above the current price does not make sense,
@@ -200,6 +250,15 @@ contract CombinedAggregator is BaseWrappedAggregator {
     function setSecondaryHeartbeat(uint256 heartbeat) external {
         _checkMarketPermissions();
         secondaryHeartbeat = _setSecondaryHeartbeat(heartbeat);
+
+        // Check if the secondary heartbeat is stale.
+        (,,,uint256 updatedAt,) =
+            IChainlink(secondaryAggregator).latestRoundData();
+
+        // Check if the secondary heartbeat is stale.
+        if (block.timestamp - updatedAt > secondaryHeartbeat) {
+            revert CombinedAggregator__InvalidHeartbeat();
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -236,7 +295,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
 
         // If the second heartbeat is stale we can bubble up timestamp of 0
         // to cause a _verifyData error code.
-        if (block.timestamp - secondaryHeartbeat > secondaryUpdatedAt) {
+        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
             updatedAt = 0;
         }
 
@@ -257,7 +316,14 @@ contract CombinedAggregator is BaseWrappedAggregator {
     function getAdjustedAnswer(
         int256 answer
     ) public view virtual override returns (int256 result) {
-        (, int256 secondaryAnswer,,,) = secondaryAggregator.latestRoundData();
+        (, int256 secondaryAnswer,, uint256 secondaryUpdatedAt,) =
+            secondaryAggregator.latestRoundData();
+
+        // Bubble up a pricing error if the secondary heartbeat is stale.
+        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
+            return 0;
+        }
+
         // Adjust `answer` by secondary answer to combine and divide by
         // secondary decimal precision.
         result = _toInt256(FixedPointMathLib.fullMulDiv(
@@ -293,7 +359,7 @@ contract CombinedAggregator is BaseWrappedAggregator {
     /// @notice Helper function for adjusting received price if needed by
     ///         attached price guard.
     /// @param price The price to adjust.
-    /// @return Returns the potentially adjusted price in 1e18 (WAD) scale.
+    /// @return Returns the potentially adjusted price.
     function _adjustPrice(
         uint256 price
     ) internal view returns (uint256) {

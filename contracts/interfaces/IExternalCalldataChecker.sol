@@ -14,5 +14,5 @@ interface IExternalCalldataChecker {
     function checkCalldata(
         SwapperLib.Swap memory swapAction,
         address expectedRecipient
-    ) external;
+    ) external returns (uint256);
 }
