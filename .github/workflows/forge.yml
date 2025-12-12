@@ -5,6 +5,7 @@ on:
 jobs:
   test:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3
         with:
@@ -22,21 +23,21 @@ jobs:
         shell: bash
         run: |
           set +e
-      
+
           echo "Running forge tests..."
           forge test --ffi
           EXIT_CODE=$?
-      
+
           if [ $EXIT_CODE -ne 0 ]; then
             echo "Some tests failed."
             echo "Waiting 3 minutes before retrying failed tests..."
             sleep 180
-      
+
             echo "Re-running failed tests..."
             forge test --rerun --ffi
             EXIT_CODE=$?
           fi
-      
+
           exit $EXIT_CODE
         env:
           ETH_NODE_URI_MAINNET: ${{ secrets.ETH_NODE_URI_MAINNET }}
