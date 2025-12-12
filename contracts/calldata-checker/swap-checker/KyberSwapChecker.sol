@@ -6,14 +6,21 @@ import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwa
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IMetaAggregationRouterV2 } from "contracts/interfaces/external/kyberswap/IMetaAggregationRouterV2.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @notice Inspects the calldata for a KyberSwap related swap action.
 /// @dev NOTE: Currently built for MetaAggregationRouterV2.
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
-    /// @notice The address of the KyberSwap Executor on this chain.
-    address immutable public KYBER_SWAP_EXECUTOR;
+    /// @notice The central registry contract.
+    ICentralRegistry public immutable centralRegistry;
+    
+    /// STORAGE ///
+
+    /// @notice Allowlist of Kyber executor addresses that may be used as `execution.callTarget`.
+    /// @dev If an executor is not approved, `checkCalldata` will revert with `CalldataChecker__TargetError`.
+    mapping(address => bool) public isApprovedExecutor;
 
     /// ERRORS ///
 
@@ -23,19 +30,25 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__InvalidFeeReceivers();
     error KyberSwapChecker__InvalidPermit();
     error KyberSwapChecker__UnsupportedChain();
+    error KyberSwapChecker__Unauthorized();
 
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the KyberSwap contract.
+    /// @param _KYBER_SWAP_EXECUTOR The address of the KyberSwap Executor on this chain.
+    /// @param _centralRegistry The address of the Central Registry contract.
     constructor(
         address _target,
-        address _KYBER_SWAP_EXECUTOR
+        address _KYBER_SWAP_EXECUTOR,
+        address _centralRegistry
     ) BaseSwapChecker(_target) {
+        centralRegistry = ICentralRegistry(_centralRegistry);
+
         if (block.chainid != 143) {
             revert KyberSwapChecker__UnsupportedChain();
         }
 
-        KYBER_SWAP_EXECUTOR = _KYBER_SWAP_EXECUTOR;
+        isApprovedExecutor[_KYBER_SWAP_EXECUTOR] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -71,7 +84,11 @@ contract KyberSwapChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (IMetaAggregationRouterV2.SwapExecutionParams)
                 );
-            recipient = execution.desc.dstReceiver;
+            // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
+            // as a shortcut for sending output to `msg.sender`.
+            recipient = execution.desc.dstReceiver == address(0)
+                ? msg.sender
+                : execution.desc.dstReceiver;
             inputToken = address(execution.desc.srcToken);
             inputAmount = execution.desc.amount;
             outputToken = address(execution.desc.dstToken);
@@ -111,7 +128,7 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidNativeTokenAddress();
         }
 
-        if (executor != KYBER_SWAP_EXECUTOR) {
+        if (!isApprovedExecutor[executor]) {
             revert CalldataChecker__TargetError();
         }
 
@@ -132,6 +149,30 @@ contract KyberSwapChecker is BaseSwapChecker {
         // Prevent permit-based approvals.
         if (permit.length != 0) {
             revert KyberSwapChecker__InvalidPermit();
+        }
+    }
+
+    /// @notice Sets whether an executor is allowed to be used by Kyber swaps.
+    /// @dev Only callable by an address with DAO permissions in `centralRegistry`.
+    ///      This controls the allowlist check against `execution.callTarget` in
+    ///      `checkCalldata`.
+    /// @param executor The Kyber executor address to update.
+    /// @param approved Whether `executor` should be allowlisted.
+    function setExecutorApproval(address executor, bool approved) external {
+        _hasDaoPermissions();
+
+        isApprovedExecutor[executor] = approved;
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Reverts unless the caller has DAO permissions in `centralRegistry`.
+    /// @dev Used to restrict administrative functions (e.g. executor allowlist
+    ///      updates) to DAO-authorized callers.
+    ///      Reverts with `KyberSwapChecker__Unauthorized` if `msg.sender` is not DAO-authorized.
+    function _hasDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            revert KyberSwapChecker__Unauthorized();
         }
     }
 }

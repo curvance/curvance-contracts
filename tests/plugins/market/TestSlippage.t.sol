@@ -46,7 +46,7 @@ contract TestSlippage is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        kyberSwapChecker = new KyberSwapChecker(KYBER_SWAP_ROUTER, KYBER_SWAP_EXECUTOR);
+        kyberSwapChecker = new KyberSwapChecker(KYBER_SWAP_ROUTER, KYBER_SWAP_EXECUTOR, address(centralRegistry));
         centralRegistry.setExternalCalldataChecker(KYBER_SWAP_ROUTER, address(kyberSwapChecker));
         kuruSwapChecker = new KuruCalldataChecker(
             KURU_ROUTER,

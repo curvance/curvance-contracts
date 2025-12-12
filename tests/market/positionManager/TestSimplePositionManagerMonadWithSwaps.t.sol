@@ -59,7 +59,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        kyberSwapChecker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor);
+        kyberSwapChecker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor, address(centralRegistry));
         centralRegistry.setExternalCalldataChecker(kyberSwapRouter, address(kyberSwapChecker));
         kuruSwapChecker = new KuruCalldataChecker(kuruRouter, feeCollectorAddress, address(centralRegistry.daoAddress()));
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(kuruSwapChecker));
