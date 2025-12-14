@@ -295,7 +295,9 @@ contract ProtocolReader {
         uint256 soft;
         uint256 debt;
         uint256 tempValue;
-        (soft, , debt, , errorCodeHit) = liquidationValuesOf(mm, account);
+        // We use isAuction = true to grab pessimistic position health value.
+        (soft, , debt, , errorCodeHit) =
+            liquidationValuesOf(mm, account, true);
 
         if (mm.isListed(cToken) && collateralAssets != 0) {
             tempValue = _collateralValue(cToken, collateralAssets);
@@ -388,7 +390,8 @@ contract ProtocolReader {
         
         uint256 margin;
         uint256 debt;
-        (margin, , debt, , errorHit) = liquidationValuesOf(mm, account);
+        // We use isAuction = true to grab pessimistic liquidation values.
+        (margin, , debt, , errorHit) = liquidationValuesOf(mm, account, true);
 
         if (debt == 0) {
             return (price, false);
@@ -1019,6 +1022,9 @@ contract ProtocolReader {
     /// @param mm The market manager to pull liquidation values from.
     /// @param account The address of the account being evaluated for
     ///                liquidation.
+    /// @param isAuction Whether the liquidation is an auction or not, if true
+    ///        then applies `AUCTION_BUFFER` discount to cSoft/cHard
+    ///        indicating a closer/sooner liquidation value.
     /// @return cSoft The account's soft collateral value (collateral
     ///               adjusted by soft requirements).
     /// @return cHard The account's hard collateral value (collateral
@@ -1027,7 +1033,8 @@ contract ProtocolReader {
     /// @return lFactor The value that determines liquidation severity.
     function liquidationValuesOf(
         IMarketManager mm,
-        address account
+        address account,
+        bool isAuction
     ) public view returns (
         uint256 cSoft, uint256 cHard, uint256 debt, uint256 lFactor, bool
     ) {
@@ -1064,12 +1071,14 @@ contract ProtocolReader {
             }
         }
 
-        uint256 AUCTION_BUFFER = MarketManagerIsolated(address(mm)).AUCTION_BUFFER();
-        if (AUCTION_BUFFER != 0) {
-            cSoft = _mulDiv(cSoft, AUCTION_BUFFER, BPS);
-            cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
+        if (isAuction) {
+            uint256 AUCTION_BUFFER = MarketManagerIsolated(address(mm)).AUCTION_BUFFER();
+            if (AUCTION_BUFFER != 0) {
+                cSoft = _mulDiv(cSoft, AUCTION_BUFFER, BPS);
+                cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
+            }
         }
-
+        
         // Get `account` lFactor.
         if (cSoft >= debt) {
             // Indicates no liquidation.
