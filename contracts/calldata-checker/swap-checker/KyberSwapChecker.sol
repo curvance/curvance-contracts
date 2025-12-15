@@ -34,21 +34,24 @@ contract KyberSwapChecker is BaseSwapChecker {
 
     /// CONSTRUCTOR ///
 
-    /// @param _target The address of the KyberSwap contract.
-    /// @param _KYBER_SWAP_EXECUTOR The address of the KyberSwap Executor on this chain.
-    /// @param _centralRegistry The address of the Central Registry contract.
+    /// @param target The address of the KyberSwap contract.
+    /// @param kyberSwapExecutors The addresses of the KyberSwap Executors on this chain.
+    /// @param centralRegistryInit The address of the Central Registry contract.
     constructor(
-        address _target,
-        address _KYBER_SWAP_EXECUTOR,
-        address _centralRegistry
-    ) BaseSwapChecker(_target) {
-        centralRegistry = ICentralRegistry(_centralRegistry);
+        address target,
+        address[] memory kyberSwapExecutors,
+        address centralRegistryInit
+    ) BaseSwapChecker(target) {
+        centralRegistry = ICentralRegistry(centralRegistryInit);
 
         if (block.chainid != 143) {
             revert KyberSwapChecker__UnsupportedChain();
         }
 
-        isApprovedExecutor[_KYBER_SWAP_EXECUTOR] = true;
+        uint256 n = kyberSwapExecutors.length;
+        for (uint256 i = 0; i < n; i++) {
+            isApprovedExecutor[kyberSwapExecutors[i]] = true;
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
