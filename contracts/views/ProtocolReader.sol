@@ -43,6 +43,7 @@ contract ProtocolReader {
         bool borrowPaused;
         bool isBorrowable;
         uint256 collRatio;
+        uint256 maxLeverage;
         uint256 collReqSoft;
         uint256 collReqHard;
         uint256 liqIncBase;
@@ -1160,6 +1161,7 @@ contract ProtocolReader {
             mm.actionsPaused(address(cToken));
         t.isBorrowable = cToken.isBorrowable();
         (t.collRatio, t.collReqSoft, t.collReqHard) = mm.collConfig(address(cToken));
+        t.maxLeverage = _mulDiv(BPS, BPS, BPS - t.collRatio);
         (
             t.liqIncBase,
             t.liqIncCurve,
