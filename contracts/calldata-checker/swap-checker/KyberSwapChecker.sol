@@ -13,14 +13,20 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
-    /// @notice The central registry contract.
+    /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
     
     /// STORAGE ///
 
-    /// @notice Allowlist of Kyber executor addresses that may be used as `execution.callTarget`.
-    /// @dev If an executor is not approved, `checkCalldata` will revert with `CalldataChecker__TargetError`.
+    /// @notice Allowlist of Kyber executor addresses that may be used
+    ///         as `execution.callTarget`.
+    /// @dev If an executor is not approved, `checkCalldata` will revert
+    ///      with `CalldataChecker__TargetError`.
     mapping(address => bool) public isApprovedExecutor;
+
+    /// EVENTS ///
+
+    event SwapExecutorUpdated(address executor, bool approved);
 
     /// ERRORS ///
 
@@ -35,8 +41,10 @@ contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
     /// @param target The address of the KyberSwap contract.
-    /// @param kyberSwapExecutors The addresses of the KyberSwap Executors on this chain.
-    /// @param centralRegistryInit The address of the Central Registry contract.
+    /// @param kyberSwapExecutors The addresses of the KyberSwap Executors
+    ///                           on this chain.
+    /// @param centralRegistryInit The address of the Central Registry
+    ///                            contract.
     constructor(
         address target,
         address[] memory kyberSwapExecutors,
@@ -48,9 +56,10 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__UnsupportedChain();
         }
 
-        uint256 n = kyberSwapExecutors.length;
-        for (uint256 i = 0; i < n; i++) {
+        uint256 numExecutors = kyberSwapExecutors.length;
+        for (uint256 i; i < numExecutors; ++i) {
             isApprovedExecutor[kyberSwapExecutors[i]] = true;
+            emit SwapExecutorUpdated(kyberSwapExecutors[i], true);
         }
     }
 
@@ -59,6 +68,10 @@ contract KyberSwapChecker is BaseSwapChecker {
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
     /// @dev Used on swap to inspect and validate calldata safety.
+    ///      NOTE: If you are a third party using this calldata checker for
+    ///            your own implementation you MUST make sure the caller is
+    ///            the swap recipient or the desc.dstReceiver adjustment will
+    ///            be incorrect.
     /// @param swapAction Swap action instructions including both direct
     ///                   parameters and decodeable calldata.
     /// @param expectedRecipient Address who will receive proceeds of
@@ -165,6 +178,7 @@ contract KyberSwapChecker is BaseSwapChecker {
         _hasDaoPermissions();
 
         isApprovedExecutor[executor] = approved;
+        emit SwapExecutorUpdated(executor, approved);
     }
 
     /// INTERNAL FUNCTIONS ///
