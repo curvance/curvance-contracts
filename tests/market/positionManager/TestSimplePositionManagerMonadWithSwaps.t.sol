@@ -59,7 +59,9 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        kyberSwapChecker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor);
+        address[] memory kyberSwapExecutors = new address[](1);
+        kyberSwapExecutors[0] = kyberSwapExecutor;
+        kyberSwapChecker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutors, address(centralRegistry));
         centralRegistry.setExternalCalldataChecker(kyberSwapRouter, address(kyberSwapChecker));
         kuruSwapChecker = new KuruCalldataChecker(kuruRouter, feeCollectorAddress, address(centralRegistry.daoAddress()));
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(kuruSwapChecker));
@@ -117,10 +119,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     }
 
     function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
-        deal(WMON_ADDRESS, user1, 500e18);
+        deal(WMON_ADDRESS, user1, 5000e18);
         vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 500e18);
-        borrowableCWMON.depositAsCollateral(500e18, user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 5000e18);
+        borrowableCWMON.depositAsCollateral(5000e18, user1);
 
         (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
             user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
@@ -181,7 +183,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
 		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
 		uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-		uint256 collateralAssetsToWithdraw = collateralBefore / 10; // withdraw 10% collateral
+		uint256 collateralAssetsToWithdraw = collateralBefore / 20; // withdraw 5% collateral
 		uint256 minOutUSDC;
 
 		try this._getKyberAmountOut(

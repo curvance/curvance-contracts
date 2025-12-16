@@ -49,7 +49,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutor);
+        address[] memory kyberSwapExecutors = new address[](1);
+        kyberSwapExecutors[0] = kyberSwapExecutor;
+
+        checker = new KyberSwapChecker(kyberSwapRouter, kyberSwapExecutors, address(centralRegistry));
         centralRegistry.setExternalCalldataChecker(kyberSwapRouter, address(checker));
 
         simpleZapper = new SimpleZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
@@ -214,6 +217,199 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
+    function testKyberSwapChecker_success_whenDstReceiverIsZero_addressDefaultsToMsgSender()
+        public
+    {
+        // Kyber interprets dstReceiver == address(0) msg.sender.
+        recipient = address(this);
+
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = address(0);
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        // checker should normalize dstReceiver==0 to msg.sender
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testKyberSwapChecker_fail_whenDstReceiverIsZero_butExpectedRecipientIsNotMsgSender()
+        public
+    {
+        address expectedRecipient = makeAddr("expectedRecipient");
+
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = address(0);
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__RecipientError.selector);
+        checker.checkCalldata(swapAction, expectedRecipient);
+    }
+
+    function testKyberSwapChecker_success_whenDstReceiverIsZero_andExpectedRecipientIsMsgSender()
+        public
+    {
+
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = address(0); // zero address defaults to msg.sender
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        // Will not revert, dstReceiver is 0 so it will default to msg.sender
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+        
+        // Use address(this) who is the msg.sender
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    function testKyberSwapChecker_success_setExecutorApproval_allowsAndDisallowsExecutors()
+        public
+    {
+        address newExecutor = makeAddr("newExecutor");
+
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = newExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        checker.checkCalldata(swapAction, recipient);
+
+        address nonDao = makeAddr("nonDao");
+        vm.prank(nonDao);
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__Unauthorized.selector);
+        checker.setExecutorApproval(newExecutor, true);
+
+        checker.setExecutorApproval(newExecutor, true);
+        checker.checkCalldata(swapAction, recipient);
+
+        checker.setExecutorApproval(newExecutor, false);
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+
+    function testKyberSwapChecker_setExecutorApproval_whenMultipleExecutors() public {
+        address otherExecutor = makeAddr("otherExecutor"); // second executor
+        address[] memory multipleExecutors = new address[](2);
+        multipleExecutors[0] = kyberSwapExecutor;
+        multipleExecutors[1] = otherExecutor;
+        KyberSwapChecker checker =
+            new KyberSwapChecker(kyberSwapRouter, multipleExecutors, address(centralRegistry));
+
+        assertEq(checker.isApprovedExecutor(kyberSwapExecutor), true);
+        assertEq(checker.isApprovedExecutor(otherExecutor), true);
+
+        // build calldata
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = address(0);
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        checker.checkCalldata(swapAction, address(this));
+
+        checker.setExecutorApproval(otherExecutor, false);
+        assertEq(checker.isApprovedExecutor(otherExecutor), false);
+
+        exec.callTarget = otherExecutor;
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
     function testSwapWithSimpleZapper() public {
         recipient = address(simpleZapper);
         swapAction.inputToken = _USDC_ADDRESS;
@@ -335,8 +531,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
 
     function testKyberSwapChecker_fail_whenExecutorMismatch() public {
         address wrongExecutor = makeAddr("wrongExecutor");
+        address[] memory wrongExecutors = new address[](1);
+        wrongExecutors[0] = wrongExecutor;
         KyberSwapChecker badChecker =
-            new KyberSwapChecker(kyberSwapRouter, wrongExecutor); // wrong executor
+            new KyberSwapChecker(kyberSwapRouter, wrongExecutors, address(centralRegistry)); // wrong executor
 
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;

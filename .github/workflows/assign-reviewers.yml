@@ -6,6 +6,7 @@ on:
 jobs:
   assign-reviewers:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Use Node.js
         uses: actions/setup-node@v3
