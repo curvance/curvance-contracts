@@ -10,6 +10,14 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
+// Todo: 
+// add behavior for when totalSupply is 0
+// Add storage pointers
+// add helpers
+// change variable names
+// optimize logic
+// reduce storage reads
+
 contract LendingOptimizer {
 
     struct RebalanceAction {
@@ -18,7 +26,12 @@ contract LendingOptimizer {
         bool isDeposit;
     }
 
-    IERC20 public immutable underlying;
+    struct RemoveAction {
+        IBorrowableCToken cToken;
+        uint256 reallocationAmount;
+    }
+
+    address public immutable underlying;
     ICentralRegistry public immutable centralRegistry;
 
     address[] public approvedCTokensList;
@@ -27,6 +40,8 @@ contract LendingOptimizer {
 
     uint256 public totalSupply;
     mapping(address => uint256) public balances;
+
+    uint256 public exchangeRateHighWatermark;
 
     constructor(
         address _underlying,
@@ -42,26 +57,34 @@ contract LendingOptimizer {
         if(_approvedCTokens.length != _allocationCapsBps.length) {
             // revert
         }
-        underlying = IERC20(_underlying);
+        underlying = _underlying;
         centralRegistry = ICentralRegistry(_centralRegistry);
         fee = _feeBps;
 
         uint256 totalAllocation;
         
         for(uint256 i; i < _approvedCTokens.length; i++) {
-            if(address(IBorrowableCToken(_approvedCTokens[i])) != _underlying) {
+            if(IBorrowableCToken(_approvedCTokens[i]).asset() != _underlying) 
+            {
+                // revert
+            }
+            if(centralRegistry.isMarketManager(
+                (address(IBorrowableCToken(_approvedCTokens[i]).marketManager())))) 
+            {
                 // revert
             }
             // convert cap to WAD
             uint256 alloCapWAD = _allocationCapsBps[i] * 1e14;
             allocationCaps[_approvedCTokens[i]] = alloCapWAD;
+            totalAllocation += alloCapWAD;
         }
 
-        if (totalAllocation != WAD) {
+        if (totalAllocation < WAD) {
             // revert
         }
 
         approvedCTokensList = _approvedCTokens;
+        exchangeRateHighWatermark = WAD;
     }
 
     function deposit(
@@ -72,48 +95,32 @@ contract LendingOptimizer {
             // revert
         }
 
-        address[] memory approvedCTokensList_ = approvedCTokensList;
-        uint256 totalAssetsBefore;
-        uint256 assetsAddedBeforeFee;
-        uint256 assetsAddedAfterFee;
-        uint256[] memory assetsAddedPerMarket = new uint256[](approvedCTokensList_.length);
-        uint256 totalFee;
+        _accruePerformanceFee();
+
+        // already updated in _accruePerformanceFee
+        uint256 totalAssetsBefore = totalAssets();
+        uint256 totalUserDeposit;
 
         // accrue on all borrowableCTokens
         // Sum optimizer total assets pre deposit
         // Sum user asset input
-        // Get fee per market on user deposit
-        // Store how much to actually deposit per market (with fee taken).
-        // Sum net total assets to deposit (with fee taken).
-        for (uint256 i; i < approvedCTokensList_.length; ++i) {
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList_[i]);
-
-            cToken.accrueIfNeeded();
-
-            uint256 balBefore = cToken.balanceOf(address(this));
-            totalAssetsBefore += cToken.convertToAssets(balBefore);
-                if(assetsAmts[i] > 0) { // maybe add minimum so fee doesnt round to 0
-                    assetsAddedBeforeFee += assetsAmts[i];
-                    uint256 feeAmount = _getFee(assetsAmts[i]);
-                    totalFee += feeAmount;
-                    uint256 assetsToDeposit = assetsAmts[i] - feeAmount;
-                    assetsAddedPerMarket[i] = assetsToDeposit;
-                    assetsAddedAfterFee += assetsToDeposit;
-                }
+        uint256 mumCTokens = approvedCTokensList.length;
+        for (uint256 i; i < mumCTokens; ++i) {
+            if(assetsAmts[i] == 0) continue;
+            totalUserDeposit += assetsAmts[i];
         }
 
-        SafeTransferLib.safeTransferFrom(address(underlying), msg.sender, address(this), assetsAddedBeforeFee);
-        SafeTransferLib.safeTransfer(address(underlying), centralRegistry.daoAddress(), totalFee);
+        SafeTransferLib.safeTransferFrom(address(underlying), msg.sender, address(this), totalUserDeposit);
 
-        for(uint256 i; i < approvedCTokensList_.length; i++) {
-            if (assetsAddedPerMarket[i] == 0) continue;
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList_[i]);
+        for(uint256 i; i < mumCTokens; i++) {
+            if (assetsAmts[i] == 0) continue;
+            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
             // maybe approve max so we dont have to do this each time
-            SafeTransferLib.safeApprove(address(underlying), address(cToken), assetsAddedPerMarket[i]);
-            cToken.deposit(assetsAddedPerMarket[i], address(this));
+            SafeTransferLib.safeApprove(underlying, address(cToken), assetsAmts[i]);
+            cToken.deposit(assetsAmts[i], address(this));
         }
 
-        shares = FixedPointMathLib.mulDiv(assetsAddedAfterFee, totalSupply, totalAssetsBefore);
+        shares = FixedPointMathLib.mulDiv(totalUserDeposit, totalSupply, totalAssetsBefore);
 
         _mint(receiver, shares);
     }
@@ -200,6 +207,134 @@ contract LendingOptimizer {
         // }
     }
 
+    function removeApprovedAsset(uint256 indexRemove, uint256 indexAdd) public {
+        if (indexRemove == indexAdd) {
+            // revert
+        }
+        _hasHarvesterPermissions();
+        _accruePerformanceFee();
+
+        // First redeem shares from cToken being removed
+        // Then, add assets to a different cToken. 
+        IBorrowableCToken cTokenToRemove = 
+            IBorrowableCToken(approvedCTokensList[indexRemove]);
+
+        address cTokenToAdd = approvedCTokensList[indexAdd];
+
+        uint256 assetsRedeemed = cTokenToRemove.redeem(
+            cTokenToRemove.balanceOf(address(this)),
+            address(this),
+            address(this)
+        );
+
+        SafeTransferLib.safeApprove(
+            underlying,
+            address(cTokenToAdd),
+            assetsRedeemed
+        );
+
+        IBorrowableCToken(cTokenToAdd).deposit(
+            assetsRedeemed,
+            address(this)
+        );
+
+        // Update accounting to remove cToken from list
+        uint256 cTokenListLength = approvedCTokensList.length;
+        address cTokenToMove = approvedCTokensList[cTokenListLength - 1];
+        approvedCTokensList[indexRemove] = cTokenToMove;
+        approvedCTokensList[cTokenListLength - 1] = address(cTokenToRemove);
+        approvedCTokensList.pop();
+
+        delete allocationCaps[address(cTokenToRemove)];
+
+        // Check new allocation ratios
+
+        uint256 newCTokenListLength = cTokenListLength - 1;
+        uint256 ta;
+        uint256[] memory assetsPerCToken = new uint256[](newCTokenListLength);
+
+        for (uint256 i; i < newCTokenListLength; i++) {
+            address cTokenAddress = approvedCTokensList[i];
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddress);
+            uint256 shareBalance = cToken.balanceOf(address(this));
+            // No need to call accrueIfNeeded() here because _accruePerformanceFee()
+            // already called exchangeRateUpdated(), which accrues all markets this tx.
+            uint256 assets = cToken.convertToAssets(shareBalance);
+            ta += assets;
+            assetsPerCToken[i] = assets;
+        }
+
+        uint256 totalAllocationCaps;
+
+        for (uint256 i; i < newCTokenListLength; i++) {
+            uint256 allocation = FixedPointMathLib.mulDiv(
+                assetsPerCToken[i],
+                WAD,
+                ta
+            );
+            uint256 allocationCap = allocationCaps[approvedCTokensList[i]];
+            if (allocation > allocationCap) {
+                // revert
+            }
+            totalAllocationCaps += allocationCap;
+        }
+
+        if (totalAllocationCaps < WAD) {
+            // revert
+        }
+    }
+
+    function addApprovedAssset(address newAsset, uint256 capBps) public {
+        if(newAsset == address(0)) {
+            // revert
+        }
+        if(allocationCaps[newAsset] > 0) {
+            // revert
+        }
+
+        IBorrowableCToken cToken = IBorrowableCToken(newAsset);
+
+        if(cToken.asset() != underlying) 
+        {
+            // revert
+        }
+        if(centralRegistry.isMarketManager(
+            (address(cToken.marketManager())))) 
+        {
+            // revert
+        }
+
+        approvedCTokensList.push(newAsset);
+        allocationCaps[newAsset] = capBps;
+
+    }
+
+    // update one cap at a time to reduce chances of human error
+    function updateCap(address cToken, uint256 newCapBps) public {
+        _hasHarvesterPermissions();
+
+        if(allocationCaps[cToken] == 0) {
+            // revert
+        }
+        if(newCapBps > BPS || newCapBps == 0) {
+            // revert
+        }
+
+        allocationCaps[cToken] = (newCapBps * 1e14);
+
+        uint256 totalCaps;
+
+        uint256 cTokenListLength = approvedCTokensList.length;
+        for(uint256 i; i < cTokenListLength; i++) {
+            totalCaps += allocationCaps[approvedCTokensList[i]];
+        }
+
+        if(totalCaps < WAD) {
+            // revert
+        }
+
+    }
+
     function exchangeRateUpdated() public returns (uint256) {
         uint256 ta;
         uint256 approvedCTokensListLength = approvedCTokensList.length;
@@ -243,13 +378,6 @@ contract LendingOptimizer {
         return ta;
     }
 
-    function _getFee(uint256 assets) internal returns (uint256 feeAmount) {
-        if (fee == 0) {
-            return assets;
-        }
-        feeAmount = FixedPointMathLib.mulDivUp(assets, fee, WAD);
-    }
-
     function _mint(address to, uint256 shares) internal {
         totalSupply += shares;
         balances[to] += shares;
@@ -259,9 +387,53 @@ contract LendingOptimizer {
         balances[from] -= shares;
     }
 
+    function _accruePerformanceFee() internal {
+        if (fee == 0) return;
+
+        uint256 supply = totalSupply;
+        uint256 currentRate = exchangeRateUpdated();
+        uint256 highRate = exchangeRateHighWatermark;
+
+        // If no exchange rate hasnt increased, return
+        if (currentRate <= highRate) return;
+
+        uint256 currentAssets = totalAssets();
+
+        // Calculate assets at watermark
+        uint256 highAssets = FixedPointMathLib.mulDiv(highRate, supply, WAD);
+
+        uint256 profit = currentAssets - highAssets;
+
+        // calculate fee from profit
+        uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, fee, WAD);
+
+        if (feeAssets == 0) {
+            // do something, return early or maybe update watermark
+        }
+
+        // calculate shares to mint
+        uint256 feeShares = FixedPointMathLib.fullMulDivUp(
+            feeAssets,
+            supply,
+            currentAssets - feeAssets
+        );
+
+        address dao = centralRegistry.daoAddress();
+        _mint(dao, feeShares);
+
+        // calculate new water mark exchange rate
+        uint256 sAfter = supply + feeShares;
+        uint256 rAfter = FixedPointMathLib.mulDiv(WAD, currentAssets, sAfter);
+
+        exchangeRateHighWatermark = rAfter;
+
+    }
+
     function _hasHarvesterPermissions() internal view returns (bool) {
         if(!centralRegistry.hasHarvestPermissions(msg.sender)) {
             // revert
         }
     }
+
+
 }
