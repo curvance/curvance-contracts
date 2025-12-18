@@ -201,6 +201,19 @@ interface IBorrowableCToken {
         IPositionManager.DeleverageAction memory action
     ) external;
 
+    /// @notice Withdraws `assets` from the market, and burns `owner` shares.
+    /// @dev Does not force collateral posted to be withdrawn.
+    /// @param assets The amount of the underlying assets to withdraw.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return shares The amount of cToken shares redeemed by `owner`.
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external returns (uint256 shares);
+
     /// @notice Amount of tokens that has been posted as collateral,
     ///         in shares.
     function marketCollateralPosted() external view returns (uint256);
