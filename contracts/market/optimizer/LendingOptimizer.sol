@@ -17,6 +17,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // change variable names
 // optimize logic
 // reduce storage reads
+// add balance checks, allowance etc. by inheriting 4626
 
 contract LendingOptimizer {
 
@@ -104,15 +105,15 @@ contract LendingOptimizer {
         // accrue on all borrowableCTokens
         // Sum optimizer total assets pre deposit
         // Sum user asset input
-        uint256 mumCTokens = approvedCTokensList.length;
-        for (uint256 i; i < mumCTokens; ++i) {
+        uint256 numCTokens = approvedCTokensList.length;
+        for (uint256 i; i < numCTokens; ++i) {
             if(assetsAmts[i] == 0) continue;
             totalUserDeposit += assetsAmts[i];
         }
 
         SafeTransferLib.safeTransferFrom(address(underlying), msg.sender, address(this), totalUserDeposit);
 
-        for(uint256 i; i < mumCTokens; i++) {
+        for(uint256 i; i < numCTokens; i++) {
             if (assetsAmts[i] == 0) continue;
             IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
             // maybe approve max so we dont have to do this each time
@@ -125,28 +126,132 @@ contract LendingOptimizer {
         _mint(receiver, shares);
     }
 
-    function mint(uint256 shares, address receiver)
-        public
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        uint256[] memory assetsAmts,
+        address receiver
+    ) public returns (uint256 assets) {
+        if (assetsAmts.length != approvedCTokensList.length) {
+            // revert
+        }
+
+        _accruePerformanceFee();
+
+        uint256 s = totalSupply;
+        uint256 taBefore = totalAssets();
+
+        // assets needed
+        assets = FixedPointMathLib.mulDivUp(shares, taBefore, s);
+
+        // enforce user-specified routing sums
+        uint256 sum;
+        for (uint256 i; i < assetsAmts.length; ++i) sum += assetsAmts[i];
+        if (sum != assets) {
+            // revert (or allow <= and put remainder into last market)
+        }
+
+        SafeTransferLib.safeTransferFrom(underlying, msg.sender, address(this), assets);
+
+        for (uint256 i; i < assetsAmts.length; ++i) {
+            uint256 amt = assetsAmts[i];
+            if (amt == 0) continue;
+            address cToken = approvedCTokensList[i];
+            SafeTransferLib.safeApprove(underlying, cToken, amt);
+            IBorrowableCToken(cToken).deposit(amt, address(this));
+        }
+
+        _mint(receiver, shares);
     }
 
     function withdraw(
         uint256[] memory assetsAmts,
-        IBorrowableCToken[] memory cTokens,
-        address receiver,
-        address owner)
+        address receiver
+    )
         public
         returns (uint256 shares)
     {
+        if(assetsAmts.length != approvedCTokensList.length) {
+            // revert
+        }
 
+        _accruePerformanceFee();
+
+        uint256 totalAssetsBefore = totalAssets();
+
+        uint256 totalAssetsWithdrawn;
+
+        for(uint256 i; i < assetsAmts.length; i++){
+            uint256 assetsWithdrawn = assetsAmts[i];
+            totalAssetsWithdrawn += assetsWithdrawn;
+        }
+
+        uint256 sharesBurned = FixedPointMathLib.mulDivUp(
+            totalAssetsWithdrawn,
+            totalSupply,
+            totalAssetsBefore
+        );
+
+        _burn(msg.sender, sharesBurned);
+
+        for(uint256 i; i < assetsAmts.length; i++) {
+
+            address cToken = approvedCTokensList[i];
+            uint256 assetsWithdrawn = assetsAmts[i];
+
+            if(assetsWithdrawn == 0) continue;
+
+            IBorrowableCToken(cToken).withdraw(
+                assetsWithdrawn,
+                address(this),
+                address(this)
+            );
+        }
+
+        SafeTransferLib.safeTransfer(underlying, receiver, totalAssetsWithdrawn);
+        
     }
 
-    function redeem(uint256 shares, address receiver, address owner)
-        public
-        returns (uint256 assets)
-    {
-        return 0;
+    function redeem(
+        uint256 shares,
+        uint256[] memory assetsAmts,
+        address receiver,
+        address owner
+    ) public returns (uint256 assets) {
+        if (assetsAmts.length != approvedCTokensList.length) {
+            // revert
+        }
+
+        _accruePerformanceFee();
+
+        uint256 s = totalSupply;
+        uint256 taBefore = totalAssets();
+
+        // previewRedeem 
+        assets = (s == 0) ? 0 : FixedPointMathLib.mulDiv(shares, taBefore, s);
+
+        // enforce user routing sums to assets out
+        uint256 sum;
+        for (uint256 i; i < assetsAmts.length; ++i) sum += assetsAmts[i];
+        if (sum != assets) {
+            // revert (or allow <= and withdraw remainder from a default market)
+        }
+
+        // burn shares first (so reentrancy can’t mess with accounting)
+        _burn(owner, shares);
+
+        // withdraw assets from specified markets
+        for (uint256 i; i < assetsAmts.length; ++i) {
+            uint256 amt = assetsAmts[i];
+            if (amt == 0) continue;
+            IBorrowableCToken(approvedCTokensList[i]).withdraw(
+                amt,
+                address(this),
+                address(this)
+            );
+        }
+
+        // pay receiver
+        SafeTransferLib.safeTransfer(underlying, receiver, assets);
     }
 
     function rebalance(RebalanceAction[] memory actions) public {
@@ -207,10 +312,7 @@ contract LendingOptimizer {
         // }
     }
 
-    function removeApprovedAsset(uint256 indexRemove, uint256 indexAdd) public {
-        if (indexRemove == indexAdd) {
-            // revert
-        }
+    function removeApprovedAsset(uint256 indexRemove, RemoveAction[] memory removeActions) public {
         _hasHarvesterPermissions();
         _accruePerformanceFee();
 
@@ -219,24 +321,37 @@ contract LendingOptimizer {
         IBorrowableCToken cTokenToRemove = 
             IBorrowableCToken(approvedCTokensList[indexRemove]);
 
-        address cTokenToAdd = approvedCTokensList[indexAdd];
-
         uint256 assetsRedeemed = cTokenToRemove.redeem(
             cTokenToRemove.balanceOf(address(this)),
             address(this),
             address(this)
         );
 
-        SafeTransferLib.safeApprove(
-            underlying,
-            address(cTokenToAdd),
-            assetsRedeemed
-        );
+        // reallocate assets to other cTokens
+        delete allocationCaps[address(cTokenToRemove)];
 
-        IBorrowableCToken(cTokenToAdd).deposit(
-            assetsRedeemed,
-            address(this)
-        );
+        uint256 assetsReallocated;
+
+        for(uint256 i; i < removeActions.length; i++) {
+            address cTokenAddress = address(removeActions[i].cToken);
+            if(allocationCaps[cTokenAddress] == 0) {
+                // revert
+            }
+            // add check for same token isnt listed twice
+            // if()
+
+            uint256 reallocationAmount = removeActions[i].reallocationAmount;
+
+            SafeTransferLib.safeApprove(underlying, cTokenAddress, reallocationAmount);
+
+            removeActions[i].cToken.deposit(reallocationAmount, address(this));
+
+            assetsReallocated += reallocationAmount;
+        }
+
+        if(assetsReallocated != assetsRedeemed) {
+            // revert
+        }
 
         // Update accounting to remove cToken from list
         uint256 cTokenListLength = approvedCTokensList.length;
@@ -244,8 +359,6 @@ contract LendingOptimizer {
         approvedCTokensList[indexRemove] = cTokenToMove;
         approvedCTokensList[cTokenListLength - 1] = address(cTokenToRemove);
         approvedCTokensList.pop();
-
-        delete allocationCaps[address(cTokenToRemove)];
 
         // Check new allocation ratios
 
