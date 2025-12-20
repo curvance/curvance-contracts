@@ -166,7 +166,9 @@ contract ProtocolManager is ReentrancyGuard {
         PeriodAdjustmentLimits[] memory l,
         bool hasAuthority
     ) external {
-        _checkElevatedPermissions();
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            revert ProtocolManager__Unauthorized();
+        }
 
         _updateManagementConfig(managedAddresses, l, hasAuthority);
     }
@@ -213,10 +215,7 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         MarketManagerIsolated.TokenConfig memory newConfig
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(newConfig.cToken);
-        _checkActionAuthority(canModifyTokenConfig);
+        _checkAuthorityAndAsset(managedAddress, newConfig.cToken, canModifyTokenConfig);
 
         MarketManagerIsolated(managedAddress).updateTokenConfig(newConfig);
     }
@@ -244,10 +243,7 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 basePrice,
         uint256 minPrice
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(asset);
-        _checkActionAuthority(canModifyPriceGuards);
+        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
 
         BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
             asset,
@@ -269,10 +265,7 @@ contract ProtocolManager is ReentrancyGuard {
         address asset,
         bool inUSD
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(asset);
-        _checkActionAuthority(canModifyPriceGuards);
+        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
 
         BaseOracleAdaptor(managedAddress).disableGuardedPriceConfig(
             asset,
@@ -307,9 +300,7 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 vertexMultiplierMax,
         bool vertexReset
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkActionAuthority(canModifyIRM);
+        _checkAuthority(managedAddress, canModifyIRM);
 
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
@@ -330,10 +321,8 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         bool state
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
+        _checkAuthority(managedAddress, canModifyLiquidationStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyLiquidationStatus);
 
         MarketManagerIsolated(managedAddress).setLiquidationPaused(state);
     }
@@ -343,10 +332,8 @@ contract ProtocolManager is ReentrancyGuard {
     ///      `state` input. Emits an {ActionPaused} event.
     /// @param state Whether redemptions should be paused or unpaused.
     function setRedeemPaused(address managedAddress, bool state) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
+        _checkAuthority(managedAddress, canModifyRedeemStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyRedeemStatus);
 
         MarketManagerIsolated(managedAddress).setRedeemPaused(state);
     }
@@ -356,10 +343,8 @@ contract ProtocolManager is ReentrancyGuard {
     ///      `state` input. Emits an {ActionPaused} event.
     /// @param state Whether transfers should be paused or unpaused.
     function setTransferPaused(address managedAddress, bool state) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
+        _checkAuthority(managedAddress, canModifyTransferStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyTransferStatus);
 
         MarketManagerIsolated(managedAddress).setTransferPaused(state);
     }
@@ -375,11 +360,8 @@ contract ProtocolManager is ReentrancyGuard {
         address cToken,
         bool state
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(cToken);
+        _checkAuthorityAndAsset(managedAddress, cToken, canModifyMintStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyMintStatus);
 
         MarketManagerIsolated(managedAddress).setMintPaused(cToken, state);
     }
@@ -395,11 +377,8 @@ contract ProtocolManager is ReentrancyGuard {
         address cToken,
         bool state
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(cToken);
+        _checkAuthorityAndAsset(managedAddress, cToken, canModifyCollateralizationStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyCollateralizationStatus);
 
         MarketManagerIsolated(managedAddress).setCollateralizationPaused(cToken, state);
     }
@@ -415,11 +394,8 @@ contract ProtocolManager is ReentrancyGuard {
         address cToken,
         bool state
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkAuthority(cToken);
+        _checkAuthorityAndAsset(managedAddress, cToken, canModifyBorrowStatus);
         _checkUnpauseAuthority(state);
-        _checkActionAuthority(canModifyBorrowStatus);
 
         MarketManagerIsolated(managedAddress).setBorrowPaused(cToken, state);
     }
@@ -433,9 +409,7 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         address newPM
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkActionAuthority(canModifyPositionManagers);
+        _checkAuthority(managedAddress, canModifyPositionManagers);
 
         MarketManagerIsolated(managedAddress).addPositionManager(newPM);
     }
@@ -449,9 +423,7 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         address oldPM
     ) external {
-        _checkIsProtocolManager();
-        _checkAuthority(managedAddress);
-        _checkActionAuthority(canModifyPositionManagers);
+        _checkAuthority(managedAddress, canModifyPositionManagers);
 
         MarketManagerIsolated(managedAddress).removePositionManager(oldPM);
     }
@@ -514,9 +486,31 @@ contract ProtocolManager is ReentrancyGuard {
         result = _unixStartTimestamp + (periods * periodDuration);
     }
 
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkIsProtocolManager() internal view {
+    function _checkAuthority(
+        address managedAddress,
+        bool authority
+    ) internal view {
         if (msg.sender != protocolManager) {
+            revert ProtocolManager__Unauthorized();
+        }
+
+        if (!authority) {
+            revert ProtocolManager__Unauthorized();
+        }
+
+        if (!config[managedAddress].hasAuthority) {
+            revert ProtocolManager__Unauthorized();
+        }
+    }
+
+    function _checkAuthorityAndAsset(
+        address managedAddress,
+        address asset,
+        bool authority
+    ) internal view {
+        _checkAuthority(managedAddress, authority);
+        
+        if (!config[asset].hasAuthority) {
             revert ProtocolManager__Unauthorized();
         }
     }
@@ -527,27 +521,6 @@ contract ProtocolManager is ReentrancyGuard {
             if (!canUnpause) {
                 revert ProtocolManager__Unauthorized();
             }
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkActionAuthority(bool actionAuthority) internal pure {
-        if (!actionAuthority) {
-            revert ProtocolManager__Unauthorized();
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkAuthority(address managedAddress) internal view {
-        if (!config[managedAddress].hasAuthority) {
-            revert ProtocolManager__Unauthorized();
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert ProtocolManager__Unauthorized();
         }
     }
 }
