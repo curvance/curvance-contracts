@@ -454,16 +454,21 @@ abstract contract BasePositionManager is
         address debtAsset = borrowableCToken.asset();
         uint256 assetsHeld = IERC20(debtAsset).balanceOf(address(this));
         uint256 repayAssets = action.repayAssets;
+        // Accrue any interest owed so repayAssets includes all
+        // `owner` debt.
+        uint256 totalDebt = borrowableCToken.debtBalanceUpdated(owner);
         if (repayAssets == 0) {
-            // Accrue any interest owed so repayAssets includes all
-            // `owner` debt.
-            repayAssets = borrowableCToken.debtBalanceUpdated(owner);
-        }
+            // Attempt to repay everything.
+            repayAssets = totalDebt;
+        } else {
+            // Make sure you are repaying at least `repayAssets`.
+            if (repayAssets > assetsHeld) {
+                revert BasePositionManager__InsufficientAssetsForRepayment();
+            }
 
-        if (repayAssets > assetsHeld) {
-            revert BasePositionManager__InsufficientAssetsForRepayment();
+            // Repay as much as possible, up to `totalDebt`.
+            repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
         }
-        uint256 remaining = assetsHeld - repayAssets;
 
         // Approve `repayAssets` of `debtAsset` to `borrowableCToken` contract.
         SwapperLib._approveIfNeeded(
@@ -475,6 +480,7 @@ abstract contract BasePositionManager is
         // Repay debt.
         borrowableCToken.repayFor(repayAssets, owner);
 
+        uint256 remaining = IERC20(debtAsset).balanceOf(address(this));
         // Transfer remaining borrow underlying back to user.
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(debtAsset, owner, remaining);
