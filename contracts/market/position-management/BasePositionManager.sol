@@ -457,18 +457,13 @@ abstract contract BasePositionManager is
         // Accrue any interest owed so repayAssets includes all
         // `owner` debt.
         uint256 totalDebt = borrowableCToken.debtBalanceUpdated(owner);
-        if (repayAssets == 0) {
-            // Attempt to repay everything.
-            repayAssets = totalDebt;
-        } else {
-            // Make sure you are repaying at least `repayAssets`.
-            if (repayAssets > assetsHeld) {
-                revert BasePositionManager__InsufficientAssetsForRepayment();
-            }
-
-            // Repay as much as possible, up to `totalDebt`.
-            repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
+        // Make sure we received at least `repayAssets`.
+        if (repayAssets > assetsHeld) {
+            revert BasePositionManager__InsufficientAssetsForRepayment();
         }
+
+        // Repay as much as possible, up to `totalDebt`.
+        repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
 
         // Approve `repayAssets` of `debtAsset` to `borrowableCToken` contract.
         SwapperLib._approveIfNeeded(

@@ -65,7 +65,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     error BaseZapper__Unauthorized();
     error BaseZapper__UnderlyingTokenIsNotInputToken();
     error BaseZapper__ExecutionError();
-    error BaseZapper__InsufficientToRepay();
+    error BaseZapper__InsufficientAssetsForRepayment();
 
     /// CONSTRUCTOR ///
 
@@ -210,17 +210,16 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     ) internal returns (uint256) {
         _checkAddresses(borrowableCToken, debtAsset);
 
-        if (repayAssets == 0) {
-            // Accrue any interest owed so repayAssets includes all
-            // `receiver` debt.
-            repayAssets = IBorrowableCToken(borrowableCToken)
-                .debtBalanceUpdated(receiver);
+        uint256 totalDebt = IBorrowableCToken(borrowableCToken)
+            .debtBalanceUpdated(receiver);
+
+        // Make sure we received at least `repayAssets`.
+        if (repayAssets > assetsHeld) {
+            revert BaseZapper__InsufficientAssetsForRepayment();
         }
-        
-        // Revert if the swap experienced too much slippage.
-        if (assetsHeld < repayAssets) {
-            revert BaseZapper__InsufficientToRepay();
-        }
+
+        // Repay as much as possible, up to `totalDebt`.
+        repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
 
         // Approve `debtAsset` transfer to cToken contract, if needed.
         SwapperLib._approveIfNeeded(debtAsset, borrowableCToken, repayAssets);
