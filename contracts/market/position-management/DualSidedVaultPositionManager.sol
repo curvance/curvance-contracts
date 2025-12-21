@@ -71,9 +71,8 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
         DeleverageAction memory action
     ) internal virtual override {
         address debtAsset = action.borrowableCToken.asset();
-        address vaultAddr = action.cToken.asset();
-        (IVault vault, address underlying) =
-            _getVaultAndUnderlying(vaultAddr);
+        (address vault, address underlying) =
+            _getVaultAndUnderlying(action.cToken.asset());
 
         // Validate we have tokens to redeem from the vault.
         if (action.collateralAssets == 0) {
@@ -81,10 +80,10 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
         }
 
         SwapperLib.
-            _approveIfNeeded(underlying, vaultAddr, action.collateralAssets);
-        uint256 assets =
-            vault.redeem(action.collateralAssets, address(this), address(this));
-        SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
+            _approveIfNeeded(underlying, vault, action.collateralAssets);
+        uint256 assets = IVault(vault)
+            .redeem(action.collateralAssets, address(this), address(this));
+        SwapperLib._removeApprovalIfNeeded(underlying, vault);
 
         // If the `debtAsset` already matches the vault underlying, we can
         // skip swapping.

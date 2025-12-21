@@ -75,9 +75,8 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
         address /* receiver */
     ) internal override {
         address debtAsset = action.borrowableCToken.asset();
-        address vaultAddr = action.cToken.asset();
-        (IVault vault, address underlying) =
-            _getVaultAndUnderlying(vaultAddr);
+        (address vault, address underlying) =
+            _getVaultAndUnderlying(action.cToken.asset());
 
         // If the `debtAsset` already matches the vault underlying, we can
         // skip swapping.
@@ -104,24 +103,24 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
             revert BasePositionManager__InvalidAmount();
         }
 
-        SwapperLib._approveIfNeeded(underlying, vaultAddr, action.borrowAssets);
-        vault.deposit(action.borrowAssets, address(this));
-        SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
+        SwapperLib._approveIfNeeded(underlying, vault, action.borrowAssets);
+        IVault(vault).deposit(action.borrowAssets, address(this));
+        SwapperLib._removeApprovalIfNeeded(underlying, vault);
     }
 
-    /// @notice Simple helper for getting vault address coerced to `IVault`
-    ///         and corresponding underlying token, potentially overridden
-    ///         in child implementations for dual contract vault structures
-    ///         such as Upshift.
+    /// @notice Simple helper for getting vault address and corresponding
+    ///         underlying token, potentially overridden in child
+    ///         implementations for dual contract vault structures such as
+    ///         Upshift.
     /// @param cTokenAddress The Curvance token address corresponding to a
     ///                      vault receipt token contract.
-    /// @return vault The receipt tokens vault address in `IVault` form.
+    /// @return vault The receipt token's vault address.
     /// @return underlying The address of the underlying asset of the receipt
-    ///                    token of `cTokenAddress`.
+    ///                    token of `vault`.
     function _getVaultAndUnderlying(
         address cTokenAddress
-    ) internal virtual view returns (IVault vault, address underlying) {
-        vault = IVault(cTokenAddress);
-        underlying = address(vault.asset());
+    ) internal virtual view returns (address vault, address underlying) {
+        vault = cTokenAddress;
+        underlying = address(IVault(vault).asset());
     }
 }
