@@ -118,7 +118,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
+    function testLeverage_TestSimplePositionManagerMonadWithSwaps() public {
         deal(WMON_ADDRESS, user1, 5000e18);
         vm.startPrank(user1);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 5000e18);
@@ -177,8 +177,8 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
     }
 
-    function testDeleverage_TestVaultPositionManagerMonadWithSwaps() public {
-        testLeverage_TestVaultPositionManagerMonadWithSwaps();
+    function testDeleverage_TestSimplePositionManagerMonadWithSwaps() public {
+        testLeverage_TestSimplePositionManagerMonadWithSwaps();
         skip(20 minutes);
 
 		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);

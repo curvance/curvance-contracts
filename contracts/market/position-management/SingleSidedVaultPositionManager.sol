@@ -6,7 +6,7 @@ import { SimplePositionManager } from "contracts/market/position-management/Simp
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
-/// @title Curvance Vault Position Manager.
+/// @title Curvance Single-Sided Vault Position Manager.
 /// @notice Vault-specific contract for executing leverage related actions.
 /// @dev Curvance Position Manager contracts enshrine actions that
 ///      usually would require multiple sequential actions to facilitate,
@@ -29,15 +29,13 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 ///      debt.
 ///
 ///      The "Vault" contract is the position manager for working with
-///      generic non-native erc4626 tokens such as sFRAX. No type specific
-///      "_swapCollateralAssetToDebtAsset" is written as execution is intended
-///      to be the same as the "simple" position manager where collateral is
-///      simply swapped via dex aggregator. The expectation is that if the
-///      best path is erc4626 redemption versus general swapping a mature
-///      chain's dex aggregator will support redemption via erc4626 vault
-///      contract.
+///      non-native erc4626 tokens such as sUSDe, that have a redemption
+///      cooldown period. No type specific "_swapCollateralAssetToDebtAsset"
+///      is written, execution is intended to be the same as the "simple"
+///      position manager where collateral is simply swapped via dex
+///      aggregator.
 ///
-contract VaultPositionManager is SimplePositionManager {
+contract SingleSidedVaultPositionManager is SimplePositionManager {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
@@ -52,11 +50,13 @@ contract VaultPositionManager is SimplePositionManager {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Borrow callback: take borrowed `debtAsset`, optionally swap once to the
-    ///         vault's underlying, then deposit all underlying into the ERC4626 vault to mint shares.
-    /// @dev If `debtAsset == underlying`, no swap is performed. Otherwise this validates and executes
-    ///      exactly one aggregator swap (`swapAction`) from `debtAsset` -> `underlying`, with
-    ///      `inputAmount == action.borrowAssets`, then deposits the full resulting `underlying`.
+    /// @notice Borrow callback: take borrowed `debtAsset`, optionally swap
+    ///         once to the vault's underlying, then deposit all underlying
+    ///         into the ERC4626 vault to mint shares.
+    /// @dev If `debtAsset == underlying`, skip the swap step and deposit
+    ///      directly. Otherwise, validate and execute exactly one aggregator
+    ///      swap (`swapAction`) from `debtAsset` -> `underlying`, then
+    ///      deposit the full resulting `underlying`.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will be borrowed from and assets
@@ -79,7 +79,8 @@ contract VaultPositionManager is SimplePositionManager {
         IVault vault = IVault(vaultAddr);
         address underlying = address(vault.asset());
         
-        // If the debt asset already matches the vault underlying, we skip swap.
+        // If the `debtAsset` already matches the vault underlying, we can
+        // skip swapping.
         if (debtAsset != underlying) {
             SwapperLib.Swap memory swapAction = action.swapAction;
 

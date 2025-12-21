@@ -2,11 +2,11 @@
 pragma solidity 0.8.28;
 
 import { SwapperLib, ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
-import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
+import { SingleSidedVaultPositionManager } from "contracts/market/position-management/SingleSidedVaultPositionManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
-/// @title Curvance Vault Position Manager.
+/// @title Curvance Dual-Sided Vault Position Manager.
 /// @notice Vault-specific contract for executing leverage related actions.
 /// @dev Curvance Position Manager contracts enshrine actions that
 ///      usually would require multiple sequential actions to facilitate,
@@ -29,9 +29,10 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 ///      debt.
 ///
 ///      The "Vault" contract is the position manager for working with
-///      generic non-native erc4626 tokens such as sAUSD.
+///      non-native erc4626 tokens such as sAUSD, which have no redemption
+///      cooldown period.
 ///
-contract DualSidedVaultPositionManager is VaultPositionManager {
+contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
@@ -42,7 +43,7 @@ contract DualSidedVaultPositionManager is VaultPositionManager {
         ICentralRegistry cr,
         address mm,
         address wNative
-    ) VaultPositionManager(cr, mm, wNative) {}
+    ) SingleSidedVaultPositionManager(cr, mm, wNative) {}
 
     /// INTERNAL FUNCTIONS ///
 
@@ -74,7 +75,19 @@ contract DualSidedVaultPositionManager is VaultPositionManager {
         address underlying = address(vault.asset());
         address debtAsset = action.borrowableCToken.asset();
 
-        // If the debt asset already matches the vault underlying, we can skip swapping.
+        // Validate we have tokens to redeem from the vault.
+        if (action.collateralAssets == 0) {
+            revert BasePositionManager__InvalidAmount();
+        }
+
+        SwapperLib.
+            _approveIfNeeded(underlying, vaultAddr, action.collateralAssets);
+        uint256 assets =
+            vault.redeem(action.collateralAssets, address(this), address(this));
+        SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
+
+        // If the `debtAsset` already matches the vault underlying, we can
+        // skip swapping.
         if (debtAsset != underlying) {
             // For vault position manager actions there should only ever
             // be one swap at most.
@@ -88,25 +101,19 @@ contract DualSidedVaultPositionManager is VaultPositionManager {
             if (
                 swapAction.call.length == 0 ||
                 swapAction.target == address(0) ||
-                swapAction.inputToken != vaultAddr ||
+                swapAction.inputToken != underlying ||
                 swapAction.outputToken != debtAsset ||
                 swapAction.inputAmount != action.collateralAssets
             ) {
                 revert BasePositionManager__InvalidParam();
             }
 
-            // Swap `debtAsset` to vault `underlying`, update action assets.
-            action.repayAssets =
-                SwapperLib._swapSafe(centralRegistry, swapAction);
-        }
+            // If we got more assets than anticipated, swap the full amount
+            // to receive more `debtAssets`.
+            swapAction.inputAmount = assets;
 
-        // Validate we have tokens to deposit into the vault.
-        if (action.repayAssets == 0) {
-            revert BasePositionManager__InvalidAmount();
+            // Swap `underlying` to vault `debtAsset`.
+            SwapperLib._swapSafe(centralRegistry, swapAction);
         }
-
-        SwapperLib._approveIfNeeded(underlying, vaultAddr, action.repayAssets);
-        vault.redeem(action.repayAssets, address(this), address(this));
-        SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
     }
 }

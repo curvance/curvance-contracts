@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { DeployScript } from "../utils/DeployScript.sol";
 
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
-import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
+import { SingleSidedVaultPositionManager } from "contracts/market/position-management/SingleSidedVaultPositionManager.sol";
 import { NativeVaultPositionManager } from "contracts/market/position-management/NativeVaultPositionManager.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -12,7 +12,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract AddPlugins is DeployScript {
     struct AvailablePlugins {
         bool simplePositionManager;
-        bool vaultPositionManager;
+        bool singleSidedVaultPositionManager;
         bool nativeVaultPositionManager;
     }
 
@@ -72,18 +72,18 @@ contract AddPlugins is DeployScript {
             );
         }
 
-        if (plugins.vaultPositionManager) {
-            VaultPositionManager vaultPositionManager = new VaultPositionManager(
+        if (plugins.singleSidedVaultPositionManager) {
+            SingleSidedVaultPositionManager singleSidedVaultPositionManager = new SingleSidedVaultPositionManager(
                     icr,
                     address(market),
                     wrappedNative
                 );
             MarketManagerIsolated(market).addPositionManager(
-                address(vaultPositionManager)
+                address(singleSidedVaultPositionManager)
             );
             emit ContractDeployed(
-                address(vaultPositionManager),
-                string.concat('markets.', marketName, ".plugins.vaultPositionManager")
+                address(singleSidedVaultPositionManager),
+                string.concat('markets.', marketName, ".plugins.singleSidedVaultPositionManager")
             );
         }
     }
