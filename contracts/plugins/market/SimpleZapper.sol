@@ -111,7 +111,9 @@ contract SimpleZapper is BaseZapper {
     ///                   slippage The amount of value-loss acceptable from
     ///                            swapping between tokens.
     ///                   call Swap instruction calldata.
-    /// @param repayAssets The amount of debt to be repaid, in assets.
+    /// @param repayAssets The minimum amount, in assets, to be creditable
+    ///                    to `receiver` through repayment and/or direct
+    ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
     ///                   `receiver`.

@@ -199,7 +199,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     /// @param debtAsset The asset token for `borrowableCToken` to repay
     ///                  debt in.
     /// @param assetsHeld The amount of `debtAsset` on hand.
-    /// @param repayAssets The amount of debt to be repaid.
+    /// @param repayAssets The minimum amount, in assets, to be creditable
+    ///                    to `receiver` through repayment and/or direct
+    ///                    transfer.
     /// @param receiver Address that should have outstanding debt repaid.
     /// @return The amount of `debtAsset` that was returned to `receiver`.
     function _repayDebt(

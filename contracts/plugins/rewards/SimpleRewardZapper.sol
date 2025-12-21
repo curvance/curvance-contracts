@@ -187,7 +187,9 @@ contract SimpleRewardZapper is BaseZapper {
     ///                            swapping between tokens.
     ///                   call Swap instruction calldata.
     /// @param borrowableCToken The Curvance token address to repay debt to.
-    /// @param repayAssets The amount of debt to be repaid, in assets.
+    /// @param repayAssets The minimum amount, in assets, to be creditable
+    ///                    to `receiver` through repayment and/or direct
+    ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
     ///                   `receiver`.
