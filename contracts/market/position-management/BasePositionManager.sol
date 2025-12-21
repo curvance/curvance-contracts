@@ -454,13 +454,14 @@ abstract contract BasePositionManager is
         address debtAsset = borrowableCToken.asset();
         uint256 assetsHeld = IERC20(debtAsset).balanceOf(address(this));
         uint256 repayAssets = action.repayAssets;
-        // Accrue any interest owed so repayAssets includes all
-        // `owner` debt.
-        uint256 totalDebt = borrowableCToken.debtBalanceUpdated(owner);
+
         // Make sure we received at least `repayAssets`.
         if (repayAssets > assetsHeld) {
             revert BasePositionManager__InsufficientAssetsForRepayment();
         }
+
+        // Pull the latest debt amount owed by `owner`.
+        uint256 totalDebt = borrowableCToken.debtBalanceUpdated(owner);
 
         // Repay as much as possible, up to `totalDebt`.
         repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
@@ -472,7 +473,7 @@ abstract contract BasePositionManager is
             repayAssets
         );
 
-        // Repay debt.
+        // Repay `repayAssets` debt owed by `owner`.
         borrowableCToken.repayFor(repayAssets, owner);
 
         uint256 remaining = IERC20(debtAsset).balanceOf(address(this));

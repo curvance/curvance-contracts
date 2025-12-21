@@ -210,21 +210,22 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     ) internal returns (uint256) {
         _checkAddresses(borrowableCToken, debtAsset);
 
-        uint256 totalDebt = IBorrowableCToken(borrowableCToken)
-            .debtBalanceUpdated(receiver);
-
         // Make sure we received at least `repayAssets`.
         if (repayAssets > assetsHeld) {
             revert BaseZapper__InsufficientAssetsForRepayment();
         }
 
+        // Pull the latest debt amount owed by `receiver`.
+        uint256 totalDebt = IBorrowableCToken(borrowableCToken)
+            .debtBalanceUpdated(receiver);
+
         // Repay as much as possible, up to `totalDebt`.
         repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
 
-        // Approve `debtAsset` transfer to cToken contract, if needed.
+        // Approve `repayAssets` of `debtAsset` to `borrowableCToken` contract.
         SwapperLib._approveIfNeeded(debtAsset, borrowableCToken, repayAssets);
 
-        // Execute repayment of outstanding debt.
+        // Repay `repayAssets` debt owed by `receiver`.
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
         // Remove any leftover approval, if any.
