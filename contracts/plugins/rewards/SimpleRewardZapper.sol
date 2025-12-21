@@ -242,7 +242,8 @@ contract SimpleRewardZapper is BaseZapper {
             );
         }
 
-        // Repay `repayAssets` outstanding debt.
+        // Revert if less than `repayAssets` was received, then repay as much
+        // of `receiver`'s debt as possible.
         outAmount = _repayDebt(
             borrowableCToken,
             debtAsset,
