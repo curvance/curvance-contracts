@@ -70,10 +70,10 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory action
     ) internal virtual override {
-        address vaultAddr = action.cToken.asset();
-        IVault vault = IVault(vaultAddr);
-        address underlying = address(vault.asset());
         address debtAsset = action.borrowableCToken.asset();
+        address vaultAddr = action.cToken.asset();
+        (IVault vault, address underlying) =
+            _getVaultAndUnderlying(vaultAddr);
 
         // Validate we have tokens to redeem from the vault.
         if (action.collateralAssets == 0) {

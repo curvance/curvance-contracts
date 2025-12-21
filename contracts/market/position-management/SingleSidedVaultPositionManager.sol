@@ -76,9 +76,9 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
     ) internal override {
         address debtAsset = action.borrowableCToken.asset();
         address vaultAddr = action.cToken.asset();
-        IVault vault = IVault(vaultAddr);
-        address underlying = address(vault.asset());
-        
+        (IVault vault, address underlying) =
+            _getVaultAndUnderlying(vaultAddr);
+
         // If the `debtAsset` already matches the vault underlying, we can
         // skip swapping.
         if (debtAsset != underlying) {
@@ -107,5 +107,21 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
         SwapperLib._approveIfNeeded(underlying, vaultAddr, action.borrowAssets);
         vault.deposit(action.borrowAssets, address(this));
         SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
+    }
+
+    /// @notice Simple helper for getting vault address coerced to `IVault`
+    ///         and corresponding underlying token, potentially overridden
+    ///         in child implementations for dual contract vault structures
+    ///         such as Upshift.
+    /// @param cTokenAddress The Curvance token address corresponding to a
+    ///                      vault receipt token contract.
+    /// @return vault The receipt tokens vault address in `IVault` form.
+    /// @return underlying The address of the underlying asset of the receipt
+    ///                    token of `cTokenAddress`.
+    function _getVaultAndUnderlying(
+        address cTokenAddress
+    ) internal virtual view returns (IVault vault, address underlying) {
+        vault = IVault(cTokenAddress);
+        underlying = address(vault.asset());
     }
 }
