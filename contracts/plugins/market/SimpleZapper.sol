@@ -122,6 +122,12 @@ contract SimpleZapper is BaseZapper {
         uint256 repayAssets,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
+        // Zero amount repayment is not supported in Zappers as we already
+        // repay as much debt as possible.
+        if (repayAssets == 0) {
+            revert BaseZapper__InvalidRepaymentAmount();
+        }
+
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -143,7 +149,8 @@ contract SimpleZapper is BaseZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        // Repay at least `repayAssets`, repaying more if possible.
+        // Revert if less than `repayAssets` was received, then repay as much
+        // of `receiver`'s debt as possible.
         outAmount = _repayDebt(
             borrowableCToken,
             swapAction.outputToken,

@@ -641,6 +641,12 @@ abstract contract BasePositionManager is
         DeleverageAction memory action,
         address account
     ) internal {
+        // Zero amount repayment is not supported in Position Managers as we
+        // already repay as much debt as possible.
+        if (action.repayAssets == 0) {
+            revert BasePositionManager__InvalidAmount();
+        }
+
         // Validate `action.cToken` is a known Curvance token.
         if (!marketManager.isListed(address(action.cToken))) {
             revert BasePositionManager__Unauthorized();

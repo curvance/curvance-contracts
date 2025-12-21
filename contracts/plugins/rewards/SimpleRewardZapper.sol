@@ -197,6 +197,12 @@ contract SimpleRewardZapper is BaseZapper {
         uint256 repayAssets,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        // Zero amount repayment is not supported in Zappers as we already
+        // repay as much debt as possible.
+        if (repayAssets == 0) {
+            revert BaseZapper__InvalidRepaymentAmount();
+        }
+
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check

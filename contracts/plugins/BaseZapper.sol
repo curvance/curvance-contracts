@@ -64,8 +64,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
 
     error BaseZapper__Unauthorized();
     error BaseZapper__UnderlyingTokenIsNotInputToken();
-    error BaseZapper__ExecutionError();
+    error BaseZapper__InvalidRepaymentAmount();
     error BaseZapper__InsufficientAssetsForRepayment();
+    error BaseZapper__ExecutionError();
 
     /// CONSTRUCTOR ///
 
