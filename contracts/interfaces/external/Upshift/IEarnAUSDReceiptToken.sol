@@ -11,6 +11,4 @@ interface IEarnAUSDReceiptToken {
     function burners(
         address proposedAddress
     ) external returns (bool);
-
-    function asset() external view returns (IERC20);
 }
