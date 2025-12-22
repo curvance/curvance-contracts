@@ -10,6 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { BasePositionManager } from "contracts/market/position-management/BasePositionManager.sol";
@@ -183,7 +184,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         deleverageAction.swapActions[0].call = hex"01";
         deleverageAction.swapActions[0].slippage = 0.3e18;
-        deleverageAction.repayAssets = 0;
+        deleverageAction.repayAssets = 1; // Repay as much as possible
 
         vm.expectRevert(bytes4(keccak256("BasePositionManager__Unauthorized()")));
         positionManager.deleverage(deleverageAction, 0.05e18);
@@ -948,6 +949,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
+
+        // Quote amount out from swap. repayAssets servers as a minimum.
+        uint256 expectedDaiOut = IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(
+            deleverageAction.swapActions[0].inputAmount,
+            path
+        )[1];
         deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
@@ -962,10 +969,9 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, expectedDaiOut);
 
         AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
             user
@@ -979,59 +985,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testDeLeverageZeroRepayAssets() public {
-        testLeverage();
-
-        // Warp until collateralization cooldown period ends.
-        vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueIfNeeded();
-
+    function testDeLeverage_fail_ZeroRepayAssets() public {
         vm.startPrank(user);
-        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
-
-        uint256 currentDebt = borrowableCDAIBeforeSnapshot.debtBalance;
-
-        // Convert decimals from dai to usdc, with 1% buffer
-        uint256 collateralNeeded = (currentDebt * 101) / (100 * 1e12); 
-
         SimplePositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
-        deleverageAction.collateralAssets = collateralNeeded;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapActions = new SwapperLib.Swap[](1);
-        deleverageAction.swapActions[0].inputToken = address(usdc);
-        deleverageAction.swapActions[0].inputAmount = collateralNeeded;
-        deleverageAction.swapActions[0].outputToken = address(dai);
-        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(usdc);
-        path[1] = address(dai);
-        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            collateralNeeded,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        deleverageAction.swapActions[0].slippage = 0.3e18;
-        deleverageAction.repayAssets = 0; // 0 = repay all debt
+        deleverageAction.repayAssets = 0;
+
+        // Zero amount repayment is not supported in Position Managers.
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);
         positionManager.deleverage(deleverageAction, 0.05e18);
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAISnapshot.debtBalance, 0, "Debt should be fully repaid");
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertEq(
-            borrowableCUSDCSnapshot.collateralPosted,
-            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets,
-            "Collateral should be reduced"
-        );
-
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0, "Debt should be fully repaid");
 
         vm.stopPrank();
     }
@@ -1122,6 +1083,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
+
+        // Quote amount out from swap. repayAssets serves as a minimum.
+        uint256 expectedDaiOut = IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(
+            deleverageAction.swapActions[0].inputAmount,
+            path
+        )[1];
         deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
@@ -1142,10 +1109,9 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, expectedDaiOut);
 
         AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
             user
