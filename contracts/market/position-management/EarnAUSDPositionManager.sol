@@ -79,7 +79,7 @@ contract EarnAUSDVaultPositionManager is SingleSidedVaultPositionManager {
         }
 
         // Validate that the vault's expected asset is `_AUSD`.
-        if (vault.asset() != _AUSD) {
+        if (address(vault.asset()) != _AUSD) {
             revert EarnAUSDPositionManager__InvalidUnderlying();
         }
 
