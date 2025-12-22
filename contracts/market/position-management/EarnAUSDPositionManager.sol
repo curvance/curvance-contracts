@@ -66,7 +66,7 @@ contract EarnAUSDVaultPositionManager is SingleSidedVaultPositionManager {
         address _AUSD,
         address _earnAUSDVault,
         address _earnAUSDReceiptToken
-    ) SimplePositionManager(cr, mm, wNative) {
+    ) SingleSidedVaultPositionManager(cr, mm, wNative) {
         IIEarnAUSDReceiptToken receiptToken =
             IEarnAUSDReceiptToken(_earnAUSDReceiptToken);
         IEarnAUSDVault vault = IEarnAUSDVault(_earnAUSDVault);
