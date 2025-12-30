@@ -61,6 +61,7 @@ contract ProtocolManager is ReentrancyGuard {
     struct PermsConfig {
         bool canModifyPriceGuards;
         bool canModifyTokenConfig;
+        bool canModifyIRM;
         bool canUnpause;
         bool canModifyMintStatus;
         bool canModifyCollateralizationStatus;
@@ -151,6 +152,7 @@ contract ProtocolManager is ReentrancyGuard {
 
         canModifyPriceGuards = p.canModifyPriceGuards;
         canModifyTokenConfig = p.canModifyTokenConfig;
+        canModifyIRM = p.canModifyIRM;
         canUnpause = p.canUnpause;
         canModifyMintStatus = p.canModifyMintStatus;
         canModifyCollateralizationStatus = p.canModifyCollateralizationStatus;
