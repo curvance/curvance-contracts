@@ -476,7 +476,7 @@ contract ProtocolManager is ReentrancyGuard {
 
             emit ManagementAuthorityUpdated(
                 cachedAddress,
-                false,
+                hasAuthority,
                 config[cachedAddress].limits
             );
         }  
