@@ -104,14 +104,13 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
         }
 
         SwapperLib._approveIfNeeded(underlying, vault, action.borrowAssets);
-        IVault(vault).deposit(action.borrowAssets, address(this));
+        _vaultDeposit(vault, action.borrowAssets);
         SwapperLib._removeApprovalIfNeeded(underlying, vault);
     }
 
     /// @notice Simple helper for getting vault address and corresponding
-    ///         underlying token, potentially overridden in child
-    ///         implementations for dual contract vault structures such as
-    ///         Upshift.
+    ///         underlying token, potentially overridden in different child
+    ///         implementations such as Upshift.
     /// @param cTokenAddress The Curvance token address corresponding to a
     ///                      vault receipt token contract.
     /// @return vault The receipt token's vault address.
@@ -122,5 +121,14 @@ contract SingleSidedVaultPositionManager is SimplePositionManager {
     ) internal virtual view returns (address vault, address underlying) {
         vault = cTokenAddress;
         underlying = address(IVault(vault).asset());
+    }
+
+    /// @notice Simple helper for depositing into the corresponding vault,
+    ///         potentially overridden in different child implementations such
+    ///         as Upshift.
+    /// @param vault The receipt token's vault address.
+    /// @param assets The amount of assets to deposit into `vault`.
+    function _vaultDeposit(address vault, uint256 assets) internal virtual {
+        IVault(vault).deposit(assets, address(this));
     }
 }

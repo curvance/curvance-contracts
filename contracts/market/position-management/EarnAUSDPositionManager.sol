@@ -3,8 +3,8 @@ pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
 import { SingleSidedVaultPositionManager } from "contracts/market/position-management/SingleSidedVaultPositionManager.sol";
-import { IEarnAUSDVault } from "contracts/interfaces/external/Upshift/IEarnAUSDVault.sol";
-import { IEarnAUSDReceiptToken } from "contracts/interfaces/external/Upshift/IEarnAUSDReceiptToken.sol";
+import { IEarnAUSDVault } from "contracts/interfaces/external/upshift/IEarnAUSDVault.sol";
+import { IEarnAUSDReceiptToken } from "contracts/interfaces/external/upshift/IEarnAUSDReceiptToken.sol";
 
 /// @title Curvance EarnAUSD Position Manager.
 /// @notice EarnAUSD-specific contract for executing leverage related actions.
@@ -113,5 +113,14 @@ contract EarnAUSDVaultPositionManager is SingleSidedVaultPositionManager {
 
         vault = earnAUSDVault;
         underlying = AUSD;
+    }
+
+    /// @notice Simple helper for depositing into the corresponding vault,
+    ///         potentially overridden in different child implementations such
+    ///         as Upshift.
+    /// @param vault The receipt token's vault address.
+    /// @param assets The amount of assets to deposit into `vault`.
+    function _vaultDeposit(address vault, uint256 assets) internal override {
+        IEarnAUSDVault(vault).deposit(AUSD, assets, address(this));
     }
 }
