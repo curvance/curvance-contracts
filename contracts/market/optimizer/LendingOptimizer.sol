@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -11,7 +8,11 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
+import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
@@ -1074,7 +1075,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// @dev Deposits assets into a specific market with proper approval handling.
     function _depositToMarket(address cToken, uint256 assets) internal {
-        SafeTransferLib.safeApprove(address(_asset), cToken, assets);
+        SwapperLib._approveIfNeeded(address(_asset), cToken, assets);
         IBorrowableCToken(cToken).deposit(assets, address(this));
     }
 
