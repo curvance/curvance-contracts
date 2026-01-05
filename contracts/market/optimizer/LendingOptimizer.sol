@@ -558,7 +558,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Calculate total assets for cap verification.
-        uint256 ta = _totalAssetsUnchecked();
+        // Interest is accrued in the for loop above.
+        uint256 ta = totalAssets();
 
         // Verify allocation caps are respected after rebalance.
         if (ta > 0) {
@@ -745,34 +746,19 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         emit FeeUpdated(newFeeBps);
     }
 
+    /// @notice Returns total assets after accruing all markets.
+    /// @dev This function triggers interest accrual on all underlying markets
+    ///      before calculating total assets, ensuring the most accurate value.
+    function totalAssetsUpdated() public nonReentrant returns (uint256 ta) {
+        ta = _totalAssetsUpdated();
+    }
+
     /// @notice Updates exchange rate by accruing interest on all markets.
     /// @dev This function triggers interest accrual on all underlying markets
     ///      before calculating the exchange rate, ensuring the most accurate
     ///      and up-to-date value. Use this when precision is critical.
     /// @return The updated exchange rate in WAD (1e18 = 1:1 ratio).
     function exchangeRateUpdated() public nonReentrant returns (uint256) {
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Accumulator for total assets across all markets.
-        uint256 ta;
-
-        // Iterate through all approved markets to accrue interest and sum assets.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken address for this market.
-            address cToken = approvedCTokensList[i];
-
-            // Trigger interest accrual on the market if needed.
-            // This updates the market's exchange rate to reflect earned interest.
-            IBorrowableCToken(cToken).accrueIfNeeded();
-
-            // Add this market's assets to the total.
-            // Converts the optimizer's cToken balance to underlying assets.
-            ta += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
-        }
-
         // Cache the total supply of optimizer shares.
         uint256 supply = totalSupply();
 
@@ -782,33 +768,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Calculate and return the exchange rate.
         // exchangeRate = (WAD * totalAssets) / totalSupply
         // A rate > WAD means shares are worth more than 1 underlying asset.
-        return FixedPointMathLib.mulDiv(WAD, ta, supply);
-    }
-
-    /// @notice Returns total assets after accruing all markets.
-    /// @dev This function triggers interest accrual on all underlying markets
-    ///      before calculating total assets, ensuring the most accurate value.
-    ///      Use this when precision is critical, such as before deposits/withdrawals.
-    /// @return ta The total assets held by the optimizer across all markets.
-    function totalAssetsUpdated() public nonReentrant returns (uint256 ta) {
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Iterate through all approved markets to accrue interest and sum assets.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken address for this market.
-            address cToken = approvedCTokensList[i];
-
-            // Trigger interest accrual on the market if needed.
-            // This updates the market's exchange rate to reflect earned interest.
-            IBorrowableCToken(cToken).accrueIfNeeded();
-
-            // Add this market's assets to the total.
-            // Converts the optimizer's cToken balance to underlying assets.
-            ta += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
-        }
+        return FixedPointMathLib.mulDiv(WAD, _totalAssetsUpdated(), supply);
     }
 
     /// VIEW FUNCTIONS ///
@@ -827,9 +787,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if there are no approved markets.
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
 
+        // Revert if deposits have not been initialized.
+        if (totalSupply() == 0) {
+            revert LendingOptimizer__NotInitialized();
+        }
+
         // Get total assets currently held across all markets.
-        // This also serves as an implicit initialization check.
-        uint256 ta = _totalAssetsUnchecked();
+        uint256 ta = totalAssets();
 
         // If only one market exists, return index 0 immediately.
         if (l == 1) return 0;
@@ -900,9 +864,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if there are no approved markets.
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
 
-        // Perform implicit initialization check via _totalAssetsUnchecked.
-        // This ensures deposits have been initialized before withdrawals.
-        _totalAssetsUnchecked();
+        // Revert if deposits have not been initialized.
+        if (totalSupply() == 0) {
+            revert LendingOptimizer__NotInitialized();
+        }
 
         // If only one market exists, return index 0 immediately.
         if (l == 1) return 0;
@@ -955,7 +920,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      The returned value may be slightly stale if markets haven't been
     ///      accrued recently.
     /// @return ta The total assets held by the optimizer across all markets.
-    function totalAssets() public view override nonReadReentrant returns (uint256 ta) {
+    function totalAssets() public view override returns (uint256 ta) {
         // Cache the number of approved markets.
         uint256 l = approvedCTokensList.length;
 
@@ -986,7 +951,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (supply == 0) return WAD;
 
         // Get total assets across all markets (without accruing).
-        uint256 ta = _totalAssetsUnchecked();
+        uint256 ta = totalAssets();
 
         // Calculate and return the exchange rate.
         // exchangeRate = (WAD * totalAssets) / totalSupply
@@ -1073,6 +1038,18 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @dev Accrues interest on all markets and returns total assets.
+    function _totalAssetsUpdated() internal returns (uint256 ta) {
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            address cToken = approvedCTokensList[i];
+            IBorrowableCToken(cToken).accrueIfNeeded();
+            ta += IBorrowableCToken(cToken).convertToAssets(
+                IBorrowableCToken(cToken).balanceOf(address(this))
+            );
+        }
+    }
+
     /// @dev Deposits assets into a specific market with proper approval handling.
     function _depositToMarket(address cToken, uint256 assets) internal {
         SwapperLib._approveIfNeeded(address(_asset), cToken, assets);
@@ -1082,22 +1059,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @dev Withdraws assets from a specific market.
     function _withdrawFromMarket(address cToken, uint256 assets) internal {
         IBorrowableCToken(cToken).withdraw(assets, address(this), address(this));
-    }
-
-    /// @dev Calculates total assets without reentrancy check (for internal use).
-    /// @dev Reverts if deposits have not been initialized.
-    function _totalAssetsUnchecked() internal view returns (uint256 ta) {
-        if (totalSupply() == 0) {
-            revert LendingOptimizer__NotInitialized();
-        }
-
-        uint256 l = approvedCTokensList.length;
-        for (uint256 i; i < l; ++i) {
-            address cToken = approvedCTokensList[i];
-            ta += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
-        }
     }
 
     /// @dev Validates that total allocation caps sum to at least 100%.
@@ -1128,25 +1089,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Skip if no shares exist (nothing to charge fees on).
         if (supply == 0) return;
 
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Accumulator for total assets across all markets.
-        uint256 currentAssets;
-
-        // Accrue interest on all markets and sum total assets.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken address for this market.
-            address cToken = approvedCTokensList[i];
-
-            // Trigger interest accrual on the market if needed.
-            IBorrowableCToken(cToken).accrueIfNeeded();
-
-            // Add this market's assets to the total.
-            currentAssets += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
-        }
+        // Accrue interest on all markets and get total assets.
+        uint256 currentAssets = _totalAssetsUpdated();
 
         // Calculate the current exchange rate.
         // currentRate = (WAD * currentAssets) / supply
