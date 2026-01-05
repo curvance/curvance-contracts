@@ -17,9 +17,10 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 
 contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
 
-    // USDC address in test base already
-
     ICentralRegistry public liveCentralRegistry = ICentralRegistry(0x1310f352f1389969Ece6741671c4B919523912fF);
+
+    // USDC address on Monad
+    address constant USDC_MONAD = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
 
     address cUSDC_WMON_MARKET = 0x8EE9FC28B8Da872c38A496e9dDB9700bb7261774;
     address cUSDC_WBTC_MARKET = 0x7C9d4f1695C6282Da5e5509Aa51fC9fb417C6f1d;
