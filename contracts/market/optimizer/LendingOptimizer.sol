@@ -56,6 +56,17 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
 
+    /// @dev Mask of `VESTING_RATE` entry in `_vestingData`.
+    uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
+    /// @dev Mask of all bits except `LAST_VEST` entry in `_vestingData`.
+    uint256 internal constant _BITMASK_LAST_VEST_COMPLEMENT = (1 << 216) - 1;
+    /// @dev The bit position of `VEST_END` in `_vestingData`.
+    uint256 internal constant _BITPOS_VEST_END = 176;
+    /// @dev The bit position of `LAST_VEST` in `_vestingData`.
+    uint256 internal constant _BITPOS_LAST_VEST = 216;
+    /// @dev Maximum vesting period (3 days).
+    uint256 internal constant _MAXIMUM_VESTING_PERIOD = 3 days;
+
     /// STORAGE ///
 
     /// @notice The underlying asset address.
@@ -74,6 +85,17 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     uint256 public fee;
     /// @notice Highest exchange rate ever achieved (for fee calculation).
     uint256 public exchangeRateHighWatermark;
+    /// @dev Internal packed vesting data:
+    ///      Bits Layout:
+    ///      - [0..175]   `VESTING_RATE`.
+    ///      - [176..215] `VEST_END`.
+    ///      - [216..255] `LAST_VEST`.
+    uint256 internal _vestingData;
+    /// @notice The period of time harvested rewards are vested over,
+    ///         in seconds.
+    uint256 public vestingPeriod;
+    /// @notice Last recognized total assets (after vesting).
+    uint256 internal _indexedTotalAssets;
 
     /// ERRORS ///
 
@@ -109,7 +131,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         ICentralRegistry _centralRegistry,
         address[] memory _approvedCTokens,
         uint256[] memory _allocationCapsBps,
-        uint256 _feeBps
+        uint256 _feeBps,
+        uint256 _vestingPeriod
     ) PluginDelegable(_centralRegistry) {
         // Revert if trying to add more than `MAX_MARKETS`.
         if (_approvedCTokens.length > MAX_MARKETS) {
@@ -172,6 +195,12 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__InsufficientAllocationCaps();
         }
 
+        // Validate vesting period
+        if (_vestingPeriod == 0 || _vestingPeriod > _MAXIMUM_VESTING_PERIOD) {
+            revert LendingOptimizer__InvalidParameter();
+        }
+        vestingPeriod = _vestingPeriod;
+
         // Store the provided cToken list.
         approvedCTokensList = _approvedCTokens;
         // Store the high watermark exchange rate as 100% (WAD).
@@ -202,11 +231,14 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Deposit into target market.
         address cToken = approvedCTokensList[targetMarket];
-        _depositToMarket(cToken, assets);
+        _depositToMarket(cToken, assets, false);
 
         // Mint dead shares to address(0).
         uint256 shares = assets;
         _mint(address(0), shares);
+
+        // Initialize vesting state.
+        _setLastVestingClaim(uint40(block.timestamp));
 
         emit Deposit(msg.sender, address(0), assets, shares);
     }
@@ -230,8 +262,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__MarketNotApproved();
         }
 
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get shares to be minted by using `previewDeposit()`.
         shares = previewDeposit(assets);
@@ -240,7 +272,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
 
         // Deposit assets to the specified target market.
-        _depositToMarket(targetMarket, assets);
+        _depositToMarket(targetMarket, assets, false);
 
         // Mint user shares.
         _mint(receiver, shares);
@@ -256,8 +288,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 assets,
         address receiver
     ) public override nonReentrant returns (uint256 shares) {
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get shares to be minted by using `previewDeposit()`.
         shares = previewDeposit(assets);
@@ -270,7 +302,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Deposit assets to the optimal target market.
         address cToken = approvedCTokensList[targetMarket];
-        _depositToMarket(cToken, assets);
+        _depositToMarket(cToken, assets, false);
 
         // Mint user shares.
         _mint(receiver, shares);
@@ -286,8 +318,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 shares,
         address receiver
     ) public override nonReentrant returns (uint256 assets) {
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
         
         // Get assets to be deposited by using `previewMint()`.
         assets = previewMint(shares);
@@ -300,7 +332,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Deposit assets to the optimal target market.
         address cToken = approvedCTokensList[targetMarket];
-        _depositToMarket(cToken, assets);
+        _depositToMarket(cToken, assets, false);
 
         // Mint user shares.
         _mint(receiver, shares);
@@ -327,8 +359,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__MarketNotApproved();
         }
 
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get assets to be deposited by using `previewMint()`.
         assets = previewMint(shares);
@@ -337,7 +369,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
 
         // Deposit assets to the specified target market.
-        _depositToMarket(targetMarket, assets);
+        _depositToMarket(targetMarket, assets, false);
 
         // Mint user shares.
         _mint(receiver, shares);
@@ -355,8 +387,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address receiver,
         address owner
     ) public override nonReentrant returns (uint256 shares) {
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get shares to be withdrawn by using `previewWithdraw()`.
         shares = previewWithdraw(assets);
@@ -397,8 +429,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__MarketNotApproved();
         }
 
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get shares to be redeemed by using `previewWithdraw()`.
         shares = previewWithdraw(assets);
@@ -430,8 +462,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address receiver,
         address owner
     ) public override nonReentrant returns (uint256 assets) {
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get assets to be withdrawn by using `previewRedeem()`.
         assets = previewRedeem(shares);
@@ -472,8 +504,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__MarketNotApproved();
         }
 
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Get assets to be withdrawn by using `previewRedeem()`.
         assets = previewRedeem(shares);
@@ -502,6 +534,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if the caller does not have harvester permissions.
         _hasHarvesterPermissions();
 
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
+
         // Cache approved markets length.
         uint256 l = approvedCTokensList.length;
         // Revert if the actions array length does not match approved markets.
@@ -523,9 +558,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                 revert LendingOptimizer__MarketNotApproved();
             }
 
-            // Accrue interest on the market before processing.
-            actions[i].cToken.accrueIfNeeded();
-
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
                 actions[i].cToken.withdraw(
@@ -537,12 +569,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Second pass: process deposits and track last deposit market for dust.
+        // Use raw deposits since rebalance is a net-zero asset movement.
         address lastDepositMarket;
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
                 lastDepositMarket = address(actions[i].cToken);
-                _depositToMarket(lastDepositMarket, actions[i].assets);
+                _depositToMarket(lastDepositMarket, actions[i].assets, true);
             }
         }
 
@@ -554,7 +587,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             address dustTarget = lastDepositMarket != address(0)
                 ? lastDepositMarket
                 : approvedCTokensList[0];
-            _depositToMarket(dustTarget, remainingDust);
+            _depositToMarket(dustTarget, remainingDust, true);
         }
 
         // Calculate total assets for cap verification.
@@ -597,8 +630,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__InvalidParameter();
         }
 
-        // Accrue protocol's performance fee.
-        _accruePerformanceFee();
+        // Update vesting data and accrue protocol's performance fee.
+        _accrueIfNeeded();
 
         // Cache the cToken to remove.
         IBorrowableCToken cTokenToRemove = IBorrowableCToken(approvedCTokensList[indexRemove]);
@@ -614,6 +647,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         delete allocationCaps[address(cTokenToRemove)];
 
         // Reallocate redeemed assets to other approved markets.
+        // Use `true` for `isRebalance` to signal not to update `_indexedTotalAssets`.
         uint256 assetsReallocated;
         for (uint256 i; i < removeActions.length; ++i) {
             address cTokenAddress = address(removeActions[i].cToken);
@@ -625,7 +659,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Deposit reallocation amount to the target market.
             uint256 reallocationAmount = removeActions[i].reallocationAmount;
-            _depositToMarket(cTokenAddress, reallocationAmount);
+            _depositToMarket(cTokenAddress, reallocationAmount, true);
             assetsReallocated += reallocationAmount;
         }
 
@@ -733,7 +767,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _hasMarketPermissions();
 
         // Accrue fees on existing profits.
-        _accruePerformanceFee();
+        _accrueIfNeeded();
 
         // Revert if the new fee exceeds the maximum allowed (50%).
         if (newFeeBps > MAX_FEE_BPS) {
@@ -746,29 +780,18 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         emit FeeUpdated(newFeeBps);
     }
 
-    /// @notice Returns total assets after accruing all markets.
-    /// @dev This function triggers interest accrual on all underlying markets
-    ///      before calculating total assets, ensuring the most accurate value.
-    function totalAssetsUpdated() public nonReentrant returns (uint256 ta) {
-        ta = _totalAssetsUpdated();
+    function exchangeRateUpdated() public nonReentrant returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return WAD;
+        
+        _accrueIfNeeded();
+
+        return FixedPointMathLib.mulDiv(WAD, totalAssets(), supply);
     }
 
-    /// @notice Updates exchange rate by accruing interest on all markets.
-    /// @dev This function triggers interest accrual on all underlying markets
-    ///      before calculating the exchange rate, ensuring the most accurate
-    ///      and up-to-date value. Use this when precision is critical.
-    /// @return The updated exchange rate in WAD (1e18 = 1:1 ratio).
-    function exchangeRateUpdated() public nonReentrant returns (uint256) {
-        // Cache the total supply of optimizer shares.
-        uint256 supply = totalSupply();
-
-        // If no shares exist, return 1:1 exchange rate (WAD).
-        if (supply == 0) return WAD;
-
-        // Calculate and return the exchange rate.
-        // exchangeRate = (WAD * totalAssets) / totalSupply
-        // A rate > WAD means shares are worth more than 1 underlying asset.
-        return FixedPointMathLib.mulDiv(WAD, _totalAssetsUpdated(), supply);
+    /// @notice Accrues yield from underlying markets and vests new yield.
+    function accrueIfNeeded() external nonReentrant {
+        _accrueIfNeeded();
     }
 
     /// VIEW FUNCTIONS ///
@@ -920,22 +943,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      The returned value may be slightly stale if markets haven't been
     ///      accrued recently.
     /// @return ta The total assets held by the optimizer across all markets.
-    function totalAssets() public view override returns (uint256 ta) {
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Iterate through all approved markets and sum assets.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken address for this market.
-            address cToken = approvedCTokensList[i];
-
-            // Add this market's assets to the total.
-            // Converts the optimizer's cToken balance to underlying assets
-            // using the market's current (potentially stale) exchange rate.
-            ta += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
-        }
+    function totalAssets() public view override returns (uint256) {
+        return _indexedTotalAssets + _assetsToVest();
     }
 
     /// @notice Returns current exchange rate (view function).
@@ -1039,7 +1048,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// INTERNAL FUNCTIONS ///
 
     /// @dev Accrues interest on all markets and returns total assets.
-    function _totalAssetsUpdated() internal returns (uint256 ta) {
+    function _accrueMarkets() internal returns (uint256 ta) {
         uint256 l = approvedCTokensList.length;
         for (uint256 i; i < l; ++i) {
             address cToken = approvedCTokensList[i];
@@ -1051,14 +1060,27 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     }
 
     /// @dev Deposits assets into a specific market with proper approval handling.
-    function _depositToMarket(address cToken, uint256 assets) internal {
+    /// @param cToken The market to deposit into.
+    /// @param assets The amount of assets to deposit.
+    /// @param isRebalance If true, skips updating _indexedTotalAssets (for net-zero
+    ///                    asset movements like rebalancing and reallocation).
+    function _depositToMarket(
+        address cToken,
+        uint256 assets,
+        bool isRebalance
+    ) internal {
         SwapperLib._approveIfNeeded(address(_asset), cToken, assets);
         IBorrowableCToken(cToken).deposit(assets, address(this));
+        if (!isRebalance) {
+            _indexedTotalAssets += assets;
+        }
     }
 
     /// @dev Withdraws assets from a specific market.
+    ///      Updates _indexedTotalAssets for user withdrawals.
     function _withdrawFromMarket(address cToken, uint256 assets) internal {
         IBorrowableCToken(cToken).withdraw(assets, address(this), address(this));
+        _indexedTotalAssets -= assets;
     }
 
     /// @dev Validates that total allocation caps sum to at least 100%.
@@ -1075,12 +1097,63 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
     }
 
-    /// @dev Accrues performance fee based on high watermark.
-    ///      The high watermark mechanism ensures fees are only charged on new profits,
-    ///      preventing double-charging after drawdowns. Fees are paid by minting new
-    ///      shares to the DAO, diluting existing holders proportionally to the fee.
-    function _accruePerformanceFee() internal {
-        // Skip if no performance fee is configured.
+    /// @dev Synchronizes optimizer state: vests pending yield, detects new yield
+    ///      from underlying markets, and accrues performance fees.
+    ///
+    ///      Vesting Mechanism
+    ///      Yield is smoothed over `vestingPeriod` to prevent frontrunning attacks
+    ///      where users deposit before yield accrues and withdraw immediately after.
+    ///      
+    ///      The key insight is comparing two values:
+    ///      - `recognized`: What we've officially counted (indexed assets + pending vest)
+    ///      - `rawTa`: Actual assets held in underlying markets right now
+    ///      
+    ///      If `rawTa > recognized`, the difference is NEW yield that needs vesting.
+    ///      User deposits/withdrawals don't affect this delta because they update
+    ///      `_indexedTotalAssets` directly, so only market-generated yield is captured.
+    ///
+    ///      Performance Fees
+    ///      After vesting, fees are charged on VESTED yield only (not unvested).
+    ///      The high watermark ensures fees are only charged on new all-time-high
+    ///      profits, preventing double-charging after drawdowns.
+    function _accrueIfNeeded() internal {
+        // Cache `_vestingData`, the packed vesting data storage value.
+        uint256 vestingData = _vestingData;
+        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+        
+        // If no time has passed since `lastVestingClaim` can exit immediately.
+        if (block.timestamp == lastVestingClaim) {
+            return;
+        }
+        
+        // Calculate how much yield has vested since last claim.
+        uint256 rate = uint176(vestingData);
+        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 pendingVest = _assetsToVest(rate, vestingEnd, lastVestingClaim);
+        
+        // Get actual assets from underlying markets (triggers interest accrual).
+        uint256 rawTa = _accrueMarkets();
+    
+        // `recognized` = assets we've officially counted so far.
+        // This includes principal (deposits - withdrawals) plus already-vested yield.
+        uint256 recognized = _indexedTotalAssets + pendingVest;
+        
+        // Compare actual vs recognized to detect new yield from underlying markets.
+        if (rawTa > recognized) {
+            // New yield detected: start vesting the excess over `vestingPeriod`.
+            // We lock in `recognized` and vest `newYield` gradually.
+            uint256 newYield = rawTa - recognized;
+            _indexedTotalAssets = recognized;
+            _setVestingData(newYield);
+        } else {
+            // No new yield: just update recognized assets and timestamp.
+            // This handles the case where vesting is ongoing but no new yield appeared.
+            _indexedTotalAssets = recognized;
+            _setLastVestingClaim(uint40(block.timestamp));
+        }
+
+        // Fees are charged on vested yield only, based on exchange rate vs watermark.
+        // If no fee is configured, exit immediately.
         if (fee == 0) return;
 
         // Cache the total supply of optimizer shares.
@@ -1089,8 +1162,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Skip if no shares exist (nothing to charge fees on).
         if (supply == 0) return;
 
-        // Accrue interest on all markets and get total assets.
-        uint256 currentAssets = _totalAssetsUpdated();
+        // Get total assets (indexed + pending vest from new vesting period).
+        uint256 currentAssets = totalAssets();
 
         // Calculate the current exchange rate.
         // currentRate = (WAD * currentAssets) / supply
@@ -1099,12 +1172,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Cache the high watermark exchange rate.
         uint256 highRate = exchangeRateHighWatermark;
 
-        // If exchange rate hasn't exceeded the high watermark, no fee is owed.
-        // This ensures fees are only charged on new all-time-high profits.
+        // Only charge fees if we've exceeded the previous all-time-high rate.
+        // This prevents double-charging after losses recover.
         if (currentRate <= highRate) return;
 
-        // Calculate the total assets value at the high watermark.
-        // highAssets = (highRate * supply) / WAD
+        // Calculate profit above the watermark in asset terms.
         uint256 highAssets = FixedPointMathLib.mulDiv(highRate, supply, WAD);
 
         // Calculate the profit above the high watermark.
@@ -1144,6 +1216,92 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         exchangeRateHighWatermark = rAfter;
 
         emit PerformanceFeeAccrued(feeShares, dao);
+    }
+
+    /// @dev Calculates pending assets to vest based on elapsed time
+    function _assetsToVest(
+        uint256 vestingRate,
+        uint256 vestingEnd,
+        uint256 lastVestingClaim
+    ) internal view returns (uint256 assets) {
+        // Check whether there are pending yield vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
+            // When calculating pending assets to vest, if the vesting period
+            // has not ended:
+            // assets = vestingRate * (block.timestamp - lastVestingClaim).
+            // If the vesting period has ended:
+            // assets = vestingRate * (vestingEnd - lastVestingClaim).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            assets =
+                (
+                    block.timestamp < vestingEnd
+                        ? vestingRate * (block.timestamp - lastVestingClaim)
+                        : vestingRate * (vestingEnd - lastVestingClaim)
+                ) / WAD;
+        }
+    }
+
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
+    ///      it returns 0.
+    /// @return assets The calculated pending assets to vest.
+    function _assetsToVest() internal view returns (uint256 assets) {
+        // Cache `_vestingData`, the packed vesting data storage value.
+        uint256 vestingData = _vestingData;
+        assets =  _assetsToVest(
+            uint176(vestingData),
+            uint40(vestingData >> _BITPOS_VEST_END),
+            uint40(vestingData >> _BITPOS_LAST_VEST)
+        );
+    }
+
+    /// @dev Sets vesting schedule for new yield.
+    function _setVestingData(uint256 assetsToVest) internal {
+        // Cache `vestingPeriod`, the vesting period of harvested assets.
+        uint256 period = vestingPeriod;
+
+        // Set `VESTING_RATE` equal to `assetsToVest` prorated over
+        // `vestingPeriod`, in `WAD` (1e18).
+        uint256 rate =
+            FixedPointMathLib.mulDiv(assetsToVest, WAD, period);
+        uint256 newVestingEnd = block.timestamp + period;
+        
+        // Reuse `period` as a temporary variable to store the newly packed
+        // `_vestingData` storage value.
+        assembly {
+            // Mask `rate` to the lower 176 bits, in case the upper bits
+            // somehow are not clean.
+            rate := and(rate, _BITMASK_VESTING_RATE)
+            // Equals `rate | (newVestingEnd << _BITPOS_VEST_END) |
+            //         block.timestamp`.
+            period := or(
+                rate,
+                or(
+                    shl(_BITPOS_VEST_END, newVestingEnd),
+                    shl(_BITPOS_LAST_VEST, timestamp())
+                )
+            )
+            // Update packed `_vestingData` based on new vesting config.
+            sstore(_vestingData.slot, period)
+        }
+    }
+
+    /// @dev Updates lastVestingClaim timestamp.
+    function _setLastVestingClaim(uint40 newVestClaim) internal {
+        // Cache `_vestingData`, the packed vesting data storage value.
+        uint256 vestingData = _vestingData;
+
+        assembly {
+            // Mask `vestingData` to the lower 216 bits, to wipe out previous
+            // `LAST_VEST` timestamp so we can simply shift newVestClaim left.
+            vestingData := or(
+                and(vestingData, _BITMASK_LAST_VEST_COMPLEMENT),
+                shl(_BITPOS_LAST_VEST, newVestClaim)
+            )
+            // Update packed `_vestingData` with new last vesting timestamp.
+            sstore(_vestingData.slot, vestingData)
+        }
     }
 
     /// @notice Returns the underlying token decimals.

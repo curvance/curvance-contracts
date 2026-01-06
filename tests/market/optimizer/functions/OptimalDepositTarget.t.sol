@@ -34,7 +34,8 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000
+            1_000,
+            1 days
         );
 
         // Initialize first (required before calling optimal target functions)
