@@ -1122,53 +1122,46 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      Vesting Mechanism
     ///      Yield is smoothed over `vestingPeriod` to prevent frontrunning attacks
     ///      where users deposit before yield accrues and withdraw immediately after.
-    ///      
-    ///      The key insight is comparing two values:
-    ///      - `recognized`: What we've officially counted (indexed assets + pending vest)
-    ///      - `rawTa`: Actual assets held in underlying markets right now
-    ///      
-    ///      If `rawTa > recognized`, the difference is NEW yield that needs vesting.
-    ///      User deposits/withdrawals don't affect this delta because they update
-    ///      `_indexedTotalAssets` directly, so only market-generated yield is captured.
+    ///      Pending vested assets are checkpointed on each call.
+    ///
+    ///      New yield from underlying markets is only detected when the current
+    ///      vesting period ends. This prevents overlapping vesting periods.
     ///
     ///      Performance Fees
-    ///      After vesting, fees are charged on VESTED yield only (not unvested).
+    ///      Fees are charged on vested yield only (not unvested).
     ///      The high watermark ensures fees are only charged on new all-time-high
     ///      profits, preventing double-charging after drawdowns.
     function _accrueIfNeeded() internal {
-        // Cache `_vestingData`, the packed vesting data storage value.
-        uint256 vestingData = _vestingData;
-        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
-        
-        // If no time has passed since `lastVestingClaim` can exit immediately.
-        if (block.timestamp == lastVestingClaim) {
-            return;
+        // Calculate pending vested assets.
+        uint256 assetsToVest = _assetsToVest();
+
+        // Vest pending assets, if there is any.
+        if (assetsToVest > 0) {
+            // Update the lastVestingClaim timestamp.
+            _setLastVestingClaim(uint40(block.timestamp));
+            
+            // Update _totalAssets invariant with vested assets added.
+            _totalAssets += assetsToVest;
         }
-        
-        // Calculate how much yield has vested since last claim.
+
+        // Cache vesting data to check if vesting period has ended.
+        uint256 vestingData = _vestingData;
         uint256 rate = uint176(vestingData);
         uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
-        uint256 pendingVest = _assetsToVest(rate, vestingEnd, lastVestingClaim);
-        
+
+        // Can only accrue once previous vesting period is done.
+        if (rate > 0 && block.timestamp < vestingEnd) {
+            return;
+        }
+
         // Get actual assets from underlying markets (triggers interest accrual).
         uint256 rawTa = _accrueMarkets();
-    
-        // `recognized` = assets we've officially counted so far.
-        // This includes principal (deposits - withdrawals) plus already-vested yield.
-        uint256 recognized = _totalAssets + pendingVest;
-        
-        // Compare actual vs recognized to detect new yield from underlying markets.
-        if (rawTa > recognized) {
-            // New yield detected: start vesting the excess over `vestingPeriod`.
-            // We lock in `recognized` and vest `newYield` gradually.
-            uint256 newYield = rawTa - recognized;
-            _totalAssets = recognized;
+
+        // Check for new yield from underlying markets.
+        // If rawTa > _totalAssets, the difference is new yield to vest.
+        if (rawTa > _totalAssets) {
+            uint256 newYield = rawTa - _totalAssets;
             _setVestingData(newYield);
-        } else {
-            // No new yield: just update recognized assets and timestamp.
-            // This handles the case where vesting is ongoing but no new yield appeared.
-            _totalAssets = recognized;
-            _setLastVestingClaim(uint40(block.timestamp));
         }
 
         // Fees are charged on vested yield only, based on exchange rate vs watermark.
