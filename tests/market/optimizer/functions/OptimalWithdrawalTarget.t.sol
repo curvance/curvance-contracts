@@ -238,8 +238,8 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
 
         uint256 target1 = optimizer.optimalWithdrawalTarget(10_000e6);
 
-        // Warp time forward - rates may change due to interest accrual
-        vm.warp(block.timestamp + 1 days);
+        // Skip forward to simulate yield accrual
+        skip(1 days);
 
         uint256 target2 = optimizer.optimalWithdrawalTarget(10_000e6);
 

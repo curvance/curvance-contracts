@@ -156,7 +156,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _symbol = string.concat("c", asset_.symbol(), " OPTI");
         _decimals = asset_.decimals();
         // Store fee as WAD.
-        fee = _feeBps * 1e14;
+        fee = _bpsToWad(_feeBps);
 
         // Counter to find the sum of all allocation amounts.
         uint256 totalAllocation;
@@ -170,20 +170,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                 revert LendingOptimizer__MarketAlreadyApproved();
             }
 
-            // Revert if the provided cToken's underlying asset does not
-            //      match the optimizer's underlying asset.
-            if (IBorrowableCToken(cToken).asset() != address(asset_)) {
-                revert LendingOptimizer__InvalidUnderlying();
-            }
-            // Revert if the provided cToken's MarketManager is not registered.
-            if (!centralRegistry.isMarketManager(
-                address(IBorrowableCToken(cToken).marketManager())
-            )) {
-                revert LendingOptimizer__InvalidMarketManager();
-            }
+            // Validate the cToken's underlying and market manager.
+            _validateCToken(cToken);
 
-            // Convert cap from BPS to WAD (multiply by 1e14)
-            uint256 alloCapWAD = _allocationCapsBps[i] * 1e14;
+            // Convert cap from BPS to WAD.
+            uint256 alloCapWAD = _bpsToWad(_allocationCapsBps[i]);
             // Store cap into allocation cap mapping.
             allocationCaps[cToken] = alloCapWAD;
             // Add alloCapWAD to the totalAllocation counter.
@@ -600,9 +591,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                 address cToken = approvedCTokensList[i];
 
                 // Calculate current allocation percentage for this market.
-                uint256 marketAssets = IBorrowableCToken(cToken).convertToAssets(
-                    IBorrowableCToken(cToken).balanceOf(address(this))
-                );
+                uint256 marketAssets = _getMarketAssets(cToken);
                 uint256 currentAllocation = FixedPointMathLib.mulDivUp(marketAssets, WAD, ta);
 
                 // Revert if the market allocation exceeds its cap.
@@ -714,24 +703,15 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__TooManyMarkets();
         }
 
-        // Cache the cToken for validation.
-        IBorrowableCToken cToken = IBorrowableCToken(newAsset);
-
-        // Revert if the cToken's underlying does not match optimizer's asset.
-        if (cToken.asset() != address(_asset)) {
-            revert LendingOptimizer__InvalidUnderlying();
-        }
-
-        // Revert if the cToken's market manager is not registered.
-        if (!centralRegistry.isMarketManager(address(cToken.marketManager()))) {
-            revert LendingOptimizer__InvalidMarketManager();
-        }
+        // Validate the cToken's underlying and market manager.
+        _validateCToken(newAsset);
 
         // Add market to approved list and set allocation cap.
+        uint256 capWad = _bpsToWad(capBps);
         approvedCTokensList.push(newAsset);
-        allocationCaps[newAsset] = capBps * 1e14;
+        allocationCaps[newAsset] = capWad;
 
-        emit MarketAdded(newAsset, capBps * 1e14);
+        emit MarketAdded(newAsset, capWad);
     }
 
     /// @notice Updates the allocation cap for a market.
@@ -752,7 +732,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Convert BPS to WAD and cache old cap.
-        uint256 newCapWad = newCapBps * 1e14;
+        uint256 newCapWad = _bpsToWad(newCapBps);
         uint256 oldCap = allocationCaps[cToken];
 
         // Update the allocation cap.
@@ -794,7 +774,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Update the fee (convert BPS to WAD).
-        fee = newFeeBps * 1e14;
+        fee = _bpsToWad(newFeeBps);
 
         emit FeeUpdated(newFeeBps);
     }
@@ -852,14 +832,14 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Iterate through all approved markets to find the optimal target.
         for (uint256 i; i < l; ++i) {
-            // Cache the cToken interface for this market.
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
+            // Cache the cToken address for this market.
+            address cTokenAddr = approvedCTokensList[i];
 
             // Calculate the current assets held by this optimizer in the market.
-            uint256 marketAssets = cToken.convertToAssets(cToken.balanceOf(address(this)));
+            uint256 marketAssets = _getMarketAssets(cTokenAddr);
 
             // Get the allocation cap for this market (in WAD, 1e18 = 100%).
-            uint256 cap = allocationCaps[address(cToken)];
+            uint256 cap = allocationCaps[cTokenAddr];
 
             // Calculate the maximum assets this market can hold based on its cap.
             // maxAllocation = (cap * newTotal) / WAD
@@ -873,7 +853,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
                 // Calculate the projected supply rate after depositing `assets`
                 // into this market using the market's interest rate model.
-                uint256 projectedRate = previewAssetImpact(cToken, assets, true);
+                uint256 projectedRate = previewAssetImpact(
+                    IBorrowableCToken(cTokenAddr),
+                    assets,
+                    true
+                );
 
                 // Update the target if this market offers a higher projected rate.
                 if (projectedRate > maxProjectedRate) {
@@ -978,12 +962,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // If no shares exist, return 1:1 exchange rate (WAD).
         if (supply == 0) return WAD;
 
-        // Get total assets across all markets (without accruing).
-        uint256 ta = totalAssets();
-
         // Calculate and return the exchange rate.
         // exchangeRate = (WAD * totalAssets) / totalSupply
-        return FixedPointMathLib.mulDiv(WAD, ta, supply);
+        return FixedPointMathLib.mulDiv(WAD, totalAssets(), supply);
     }
 
     /// @notice Calculates the projected supply rate for a market after a deposit or withdrawal.
@@ -1072,9 +1053,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         for (uint256 i; i < l; ++i) {
             address cToken = approvedCTokensList[i];
             IBorrowableCToken(cToken).accrueIfNeeded();
-            ta += IBorrowableCToken(cToken).convertToAssets(
-                IBorrowableCToken(cToken).balanceOf(address(this))
-            );
+            ta += _getMarketAssets(cToken);
         }
     }
 
@@ -1113,6 +1092,31 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         if (totalCaps < WAD) {
             revert LendingOptimizer__InsufficientAllocationCaps();
+        }
+    }
+
+
+    /// @dev Converts BPS to WAD (e.g., 1000 BPS = 0.1 WAD = 10%).
+    function _bpsToWad(uint256 bps) internal pure returns (uint256) {
+        return bps * 1e14;
+    }
+
+    /// @dev Returns optimizer's assets held in a specific market.
+    function _getMarketAssets(address cToken) internal view returns (uint256) {
+        return IBorrowableCToken(cToken).convertToAssets(
+            IBorrowableCToken(cToken).balanceOf(address(this))
+        );
+    }
+
+    /// @dev Validates cToken has correct underlying and registered market manager.
+    function _validateCToken(address cToken) internal view {
+        if (IBorrowableCToken(cToken).asset() != address(_asset)) {
+            revert LendingOptimizer__InvalidUnderlying();
+        }
+        if (!centralRegistry.isMarketManager(
+            address(IBorrowableCToken(cToken).marketManager())
+        )) {
+            revert LendingOptimizer__InvalidMarketManager();
         }
     }
 
