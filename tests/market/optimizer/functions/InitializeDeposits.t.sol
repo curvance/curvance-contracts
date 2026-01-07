@@ -12,13 +12,11 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
-    LendingOptimizer optimizer;
-
     function setUp() public override {
         super.setUp();
     }
 
-    function test_initializeDeposits_success() public {
+    function test_lendingOptimizer_initializeDeposits_success() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -58,7 +56,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertGt(optimizer.totalAssets(), 0);
     }
 
-    function test_initializeDeposits_fail_whenAlreadyInitialized() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenAlreadyInitialized() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -86,7 +84,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function test_initializeDeposits_fail_whenInvalidMarket() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenInvalidMarket() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -111,7 +109,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(1);
     }
 
-    function test_deposit_fail_whenNotInitialized() public {
+    function test_lendingOptimizer_deposit_fail_whenNotInitialized() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -136,7 +134,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.deposit(depositAmount, address(this));
     }
 
-    function test_mint_fail_whenNotInitialized() public {
+    function test_lendingOptimizer_mint_fail_whenNotInitialized() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -161,7 +159,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.mint(1000e6, address(this));
     }
 
-    function test_initializeDeposits_withMultipleMarkets_targetFirst() public {
+    function test_lendingOptimizer_initializeDeposits_withMultipleMarkets_targetFirst() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -192,7 +190,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(optimizer.balanceOf(address(0)), initAssets);
     }
 
-    function test_initializeDeposits_withMultipleMarkets_targetSecond() public {
+    function test_lendingOptimizer_initializeDeposits_withMultipleMarkets_targetSecond() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -223,7 +221,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(optimizer.balanceOf(address(0)), initAssets);
     }
 
-    function test_initializeDeposits_withMultipleMarkets_targetLast() public {
+    function test_lendingOptimizer_initializeDeposits_withMultipleMarkets_targetLast() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -256,7 +254,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
-    function test_initializeDeposits_emitsDepositEvent() public {
+    function test_lendingOptimizer_initializeDeposits_emitsDepositEvent() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -283,7 +281,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function test_initializeDeposits_fail_whenOutOfBoundsIndex() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenOutOfBoundsIndex() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -308,7 +306,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(99);
     }
 
-    function test_initializeDeposits_fail_whenInsufficientBalance() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenInsufficientBalance() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -334,7 +332,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function test_initializeDeposits_fail_whenInsufficientAllowance() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenInsufficientAllowance() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -360,7 +358,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function test_initializeDeposits_fail_whenNoAllowance() public {
+    function test_lendingOptimizer_initializeDeposits_fail_whenNoAllowance() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -385,7 +383,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function test_initializeDeposits_anyoneCanCall() public {
+    function test_lendingOptimizer_initializeDeposits_anyoneCanCall() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -416,7 +414,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(optimizer.balanceOf(address(0)), initAssets);
     }
 
-    function test_initializeDeposits_transfersExactAmount() public {
+    function test_lendingOptimizer_initializeDeposits_transfersExactAmount() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -449,7 +447,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(balanceAfter, extraBalance);
     }
 
-    function test_initializeDeposits_depositsToCorrectMarket() public {
+    function test_lendingOptimizer_initializeDeposits_depositsToCorrectMarket() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -482,7 +480,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(IERC20(cUSDC_WETH_MARKET).balanceOf(address(optimizer)), 0);
     }
 
-    function test_initializeDeposits_setsCorrectExchangeRate() public {
+    function test_lendingOptimizer_initializeDeposits_setsCorrectExchangeRate() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -510,7 +508,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertGt(exchangeRate, 0);
     }
 
-    function test_initializeDeposits_exchangeRateHighWatermarkIsWAD() public {
+    function test_lendingOptimizer_initializeDeposits_exchangeRateHighWatermarkIsWAD() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -540,7 +538,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(optimizer.exchangeRateHighWatermark(), WAD);
     }
 
-    function testFuzz_initializeDeposits_validMarketIndex(uint256 targetMarket) public {
+    function testFuzz_lendingOptimizer_initializeDeposits_validMarketIndex(uint256 targetMarket) public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -574,7 +572,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertEq(optimizer.balanceOf(address(0)), initAssets);
     }
     
-    function test_targetedDeposit_fail_whenNotInitialized() public {
+    function test_lendingOptimizer_targetedDeposit_fail_whenNotInitialized() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -599,7 +597,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
     }
 
-    function test_targetedMint_fail_whenNotInitialized() public {
+    function test_lendingOptimizer_targetedMint_fail_whenNotInitialized() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 

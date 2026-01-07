@@ -95,7 +95,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///         in seconds.
     uint256 public vestingPeriod;
     /// @notice Last recognized total assets (after vesting).
-    uint256 internal _indexedTotalAssets;
+    uint256 internal _totalAssets;
 
     /// ERRORS ///
 
@@ -616,6 +616,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     }
 
     /// @notice Removes an approved market and reallocates its assets.
+    /// @dev After removal, remaining market caps must sum to >= 100%. If not,
+    ///      call `updateCap()` to increase a remaining market's cap before removal.
     /// @param indexRemove Index of the market to remove.
     /// @param removeActions Actions specifying how to reallocate assets.
     function removeApprovedAsset(
@@ -625,11 +627,15 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
-        // Revert if the index is out of bounds.
-        if (indexRemove >= approvedCTokensList.length) {
+        uint256 l = approvedCTokensList.length;
+        // Revert if there is only one market.
+        if (l == 1) {
             revert LendingOptimizer__InvalidParameter();
         }
-
+        // Revert if the index is out of bounds.
+        if (indexRemove >= l) {
+            revert LendingOptimizer__InvalidParameter();
+        }
         // Update vesting data and accrue protocol's performance fee.
         _accrueIfNeeded();
 
@@ -944,7 +950,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      accrued recently.
     /// @return ta The total assets held by the optimizer across all markets.
     function totalAssets() public view override returns (uint256) {
-        return _indexedTotalAssets + _assetsToVest();
+        return _totalAssets + _assetsToVest();
     }
 
     /// @notice Returns current exchange rate (view function).
@@ -1072,7 +1078,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         SwapperLib._approveIfNeeded(address(_asset), cToken, assets);
         IBorrowableCToken(cToken).deposit(assets, address(this));
         if (!isRebalance) {
-            _indexedTotalAssets += assets;
+            _totalAssets += assets;
         }
     }
 
@@ -1080,7 +1086,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      Updates _indexedTotalAssets for user withdrawals.
     function _withdrawFromMarket(address cToken, uint256 assets) internal {
         IBorrowableCToken(cToken).withdraw(assets, address(this), address(this));
-        _indexedTotalAssets -= assets;
+        _totalAssets -= assets;
     }
 
     /// @dev Validates that total allocation caps sum to at least 100%.
@@ -1136,19 +1142,19 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     
         // `recognized` = assets we've officially counted so far.
         // This includes principal (deposits - withdrawals) plus already-vested yield.
-        uint256 recognized = _indexedTotalAssets + pendingVest;
+        uint256 recognized = _totalAssets + pendingVest;
         
         // Compare actual vs recognized to detect new yield from underlying markets.
         if (rawTa > recognized) {
             // New yield detected: start vesting the excess over `vestingPeriod`.
             // We lock in `recognized` and vest `newYield` gradually.
             uint256 newYield = rawTa - recognized;
-            _indexedTotalAssets = recognized;
+            _totalAssets = recognized;
             _setVestingData(newYield);
         } else {
             // No new yield: just update recognized assets and timestamp.
             // This handles the case where vesting is ongoing but no new yield appeared.
-            _indexedTotalAssets = recognized;
+            _totalAssets = recognized;
             _setLastVestingClaim(uint40(block.timestamp));
         }
 

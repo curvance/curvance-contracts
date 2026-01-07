@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -12,7 +13,9 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
 
-    LendingOptimizer optimizer;
+    LendingOptimizer uninitializedOptimizer;
+
+    event Deposit(address indexed by, address indexed owner, uint256 assets, uint256 shares);
 
     function setUp() public override {
         super.setUp();
@@ -36,6 +39,16 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             1 days
         );
 
+        // Create an uninitialized optimizer for testing revert cases
+        uninitializedOptimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000,
+            1 days
+        );
+
         deal(USDC_MONAD, address(this), 77777, true);
 
         IERC20(USDC_MONAD).approve(address(optimizer), 77777);
@@ -43,20 +56,541 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         optimizer.initializeDeposits(0);
     }
 
-    function testLendingOptimizerDeposit_success_targetMarket() public {
+    // ============ deposit(assets, receiver, targetMarket) Tests ============
+
+    function test_lendingOptimizer_deposit_success_targetMarket() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 user1SharesBefore = optimizer.balanceOf(user1);
+
+        uint256 shares = optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+
+        assertEq(shares, expectedShares, "Shares minted should match preview");
+        assertEq(optimizer.balanceOf(user1), user1SharesBefore + shares, "User balance should increase");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore + depositAmount, "Total assets should increase");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_targetMarketDifferentReceiver() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+
+        // Deposit for user2 as receiver
+        uint256 shares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+
+        assertEq(shares, expectedShares, "Shares minted should match preview");
+        assertEq(optimizer.balanceOf(user2), shares, "Receiver should get the shares");
+        assertEq(optimizer.balanceOf(user1), 0, "Depositor should have no shares");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_targetMarketAllMarkets() public {
+        uint256 depositAmount = 1000e6;
+
+        // Test deposit to each approved market
+        address[3] memory markets = [cUSDC_WMON_MARKET, cUSDC_WETH_MARKET, cUSDC_WBTC_MARKET];
+
+        for (uint256 i = 0; i < markets.length; i++) {
+            deal(USDC_MONAD, user1, depositAmount, true);
+
+            vm.startPrank(user1);
+            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+            uint256 sharesBefore = optimizer.balanceOf(user1);
+            uint256 shares = optimizer.deposit(depositAmount, user1, markets[i]);
+
+            assertGt(shares, 0, "Should mint shares");
+            assertEq(optimizer.balanceOf(user1), sharesBefore + shares, "Shares should be credited");
+            vm.stopPrank();
+        }
+    }
+
+    function test_lendingOptimizer_deposit_success_targetMarketEmitsEvent() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Deposit(user1, user1, depositAmount, expectedShares);
+
+        optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_revert_targetMarketNotApproved() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        // Use a random address that's not an approved market
+        address fakeMarket = makeAddr("fakeMarket");
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.deposit(depositAmount, user1, fakeMarket);
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_revert_targetMarketNotInitialized() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(uninitializedOptimizer), depositAmount);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
+        uninitializedOptimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_targetMarketMultipleDeposits() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        uint256 numDeposits = 5;
+        uint256 totalDeposited;
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            deal(USDC_MONAD, user1, depositAmount, true);
+            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+            optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+            totalDeposited += depositAmount;
+        }
+
+        // User should have shares proportional to deposits
+        assertGt(optimizer.balanceOf(user1), 0, "User should have shares");
+
+        vm.stopPrank();
+    }
+
+    // ============ deposit(assets, receiver) - ERC4626 Standard Tests ============
+
+    function test_lendingOptimizer_deposit_success_optimalMarket() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        assertEq(shares, expectedShares, "Shares minted should match preview");
+        assertEq(optimizer.balanceOf(user1), shares, "User balance should equal shares");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore + depositAmount, "Total assets should increase");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_optimalMarketDifferentReceiver() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 shares = optimizer.deposit(depositAmount, user2);
+
+        assertEq(optimizer.balanceOf(user2), shares, "Receiver should get the shares");
+        assertEq(optimizer.balanceOf(user1), 0, "Depositor should have no shares");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_optimalMarketEmitsEvent() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Deposit(user1, user1, depositAmount, expectedShares);
+
+        optimizer.deposit(depositAmount, user1);
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_optimalMarketSelectsCorrectly() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        // Get the expected optimal target before deposit
+        uint256 expectedTarget = optimizer.optimalDepositTarget(depositAmount);
+        address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
+
+        // Get market balance before
+        uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
+
+        optimizer.deposit(depositAmount, user1);
+
+        // Verify deposit went to the expected market
+        uint256 marketBalanceAfter = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
+        assertGt(marketBalanceAfter, marketBalanceBefore, "Expected market should receive deposit");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_optimalMarketMultipleDeposits() public {
+        uint256 depositAmount = 50_000e6;
+        uint256 numDeposits = 5;
+
+        for (uint256 i = 0; i < numDeposits; i++) {
+            deal(USDC_MONAD, user1, depositAmount, true);
+
+            vm.startPrank(user1);
+            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+            uint256 sharesBefore = optimizer.balanceOf(user1);
+            uint256 shares = optimizer.deposit(depositAmount, user1);
+
+            assertGt(shares, 0, "Should mint shares");
+            assertEq(optimizer.balanceOf(user1), sharesBefore + shares, "Shares should accumulate");
+            vm.stopPrank();
+        }
+    }
+
+    function test_lendingOptimizer_deposit_success_smallAmount() public {
+        vm.startPrank(user1);
+
+        // Deposit 1 USDC (smallest meaningful amount)
+        uint256 depositAmount = 1e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        assertGt(shares, 0, "Should mint shares even for small deposit");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_largeAmount() public {
+        vm.startPrank(user1);
+
+        // Deposit 1M USDC
+        uint256 depositAmount = 1_000_000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        assertEq(shares, expectedShares, "Large deposit should mint correct shares");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_multipleUsersDeposit() public {
+        uint256 depositAmount = 1000e6;
+
+        // User1 deposits
+        deal(USDC_MONAD, user1, depositAmount, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        uint256 shares1 = optimizer.deposit(depositAmount, user1);
+        vm.stopPrank();
+
+        // User2 deposits
+        deal(USDC_MONAD, user2, depositAmount, true);
+        vm.startPrank(user2);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        uint256 shares2 = optimizer.deposit(depositAmount, user2);
+        vm.stopPrank();
+
+        assertEq(optimizer.balanceOf(user1), shares1, "User1 should have their shares");
+        assertEq(optimizer.balanceOf(user2), shares2, "User2 should have their shares");
+        assertGt(optimizer.totalSupply(), shares1 + shares2, "Total supply should include dead shares + user shares");
+    }
+
+    function test_lendingOptimizer_deposit_success_afterTimePasses() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount * 2, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount * 2);
+
+        // First deposit
+        uint256 shares1 = optimizer.deposit(depositAmount, user1);
+
+        // Skip time (interest accrues)
+        skip(7 days);
+        
+        // Trigger yield detection and start vesting
+        optimizer.accrueIfNeeded();
+        
+        // Skip vesting period to let yield vest
+        skip(1 days);
+
+        // Second deposit - now exchange rate should have changed
+        uint256 shares2 = optimizer.deposit(depositAmount, user1);
+
+        // Second deposit should get FEWER shares (exchange rate increased)
+        assertLt(shares2, shares1, "Should get fewer shares after yield vests");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_previewMatchesActual() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 previewedShares = optimizer.previewDeposit(depositAmount);
+        uint256 actualShares = optimizer.deposit(depositAmount, user1);
+
+        assertEq(actualShares, previewedShares, "Actual shares should match previewed shares");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_success_exchangeRateConsistency() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        uint256 totalAssetsAfter = optimizer.totalAssets();
+        uint256 totalSupplyAfter = optimizer.totalSupply();
+
+        // Verify assets increased by deposit amount
+        assertEq(totalAssetsAfter, totalAssetsBefore + depositAmount, "Assets should increase by deposit");
+
+        // Verify supply increased by shares minted
+        assertEq(totalSupplyAfter, totalSupplyBefore + shares, "Supply should increase by shares");
+
+        vm.stopPrank();
+    }
+
+    // ============ Fuzz Tests ============
+
+    function testFuzz_lendingOptimizer_deposit_targetMarket(uint256 depositAmount) public {
+        // Bound to reasonable amounts (1 USDC to 10M USDC)
+        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
 
         vm.startPrank(user1);
 
-        deal(USDC_MONAD, user1, 1000e6, true);
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
 
-        IERC20(USDC_MONAD).approve(address(optimizer), 1000e6);
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+        uint256 shares = optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
 
-        optimizer.deposit(
-            1000e6,
-            user1,
-            cUSDC_WMON_MARKET
-        );
+        assertEq(shares, expectedShares, "Shares should match preview");
+        assertEq(optimizer.balanceOf(user1), shares, "Balance should equal shares");
+
+        vm.stopPrank();
     }
 
+    function testFuzz_lendingOptimizer_deposit_optimalMarket(uint256 depositAmount) public {
+        // Bound to reasonable amounts (1 USDC to 10M USDC)
+        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
 
+        vm.startPrank(user1);
+
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        assertEq(shares, expectedShares, "Shares should match preview");
+        assertEq(optimizer.balanceOf(user1), shares, "Balance should equal shares");
+
+        vm.stopPrank();
+    }
+
+    // ============ Invariant Tests ============
+
+    function test_lendingOptimizer_deposit_invariant_sharesMatchExchangeRate() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        // Accrue first to get post-accrual state (deposit() calls _accrueIfNeeded internally)
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+
+        // Perform deposit
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        // Verify invariant
+        _assertSharesMatchInvariant(depositAmount, shares, totalAssetsBefore, totalSupplyBefore);
+
+        // Also verify using our helper matches previewDeposit
+        uint256 calculatedShares = _calculateExpectedShares(depositAmount, totalAssetsBefore, totalSupplyBefore);
+        assertEq(shares, calculatedShares, "Shares should match calculated expected");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_invariant_multipleDepositsWithYield() public {
+        uint256 depositAmount = 1000e6;
+
+        // First deposit by user1
+        deal(USDC_MONAD, user1, depositAmount, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        
+        // Accrue first to get post-accrual state (deposit() calls _accrueIfNeeded internally)
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore1 = optimizer.totalAssets();
+        uint256 totalSupplyBefore1 = optimizer.totalSupply();
+        uint256 shares1 = optimizer.deposit(depositAmount, user1);
+        
+        _assertSharesMatchInvariant(depositAmount, shares1, totalAssetsBefore1, totalSupplyBefore1);
+        vm.stopPrank();
+
+        // Time passes, yield accrues
+        skip(7 days);
+        optimizer.accrueIfNeeded();
+        skip(1 days); // Let yield vest
+
+        // Second deposit by user2 - exchange rate should be different
+        deal(USDC_MONAD, user2, depositAmount, true);
+        vm.startPrank(user2);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        // Accrue first to get post-accrual state (deposit() calls _accrueIfNeeded internally)
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore2 = optimizer.totalAssets();
+        uint256 totalSupplyBefore2 = optimizer.totalSupply();
+        uint256 shares2 = optimizer.deposit(depositAmount, user2);
+
+        _assertSharesMatchInvariant(depositAmount, shares2, totalAssetsBefore2, totalSupplyBefore2);
+        vm.stopPrank();
+
+        // Log exchange rates for debugging
+        uint256 exchangeRate1 = (totalAssetsBefore1 * WAD) / totalSupplyBefore1;
+        uint256 exchangeRate2 = (totalAssetsBefore2 * WAD) / totalSupplyBefore2;
+        
+        // If yield accrued, exchange rate should have increased (user2 gets fewer shares)
+        if (totalAssetsBefore2 > totalAssetsBefore1 + depositAmount) {
+            assertLt(shares2, shares1, "User2 should get fewer shares due to higher exchange rate");
+            assertGt(exchangeRate2, exchangeRate1, "Exchange rate should have increased");
+        }
+    }
+
+    function testFuzz_lendingOptimizer_deposit_invariant_sharesCalculation(uint256 depositAmount) public {
+        // Bound to reasonable amounts
+        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
+
+        vm.startPrank(user1);
+
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        // Accrue first to get post-accrual state (deposit() calls _accrueIfNeeded internally)
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+
+        uint256 shares = optimizer.deposit(depositAmount, user1);
+
+        // Verify the core ERC4626 invariant
+        _assertSharesMatchInvariant(depositAmount, shares, totalAssetsBefore, totalSupplyBefore);
+
+        // Verify previewDeposit matches actual
+        // Note: We need to recalculate preview based on state before deposit
+        uint256 expectedByFormula = _calculateExpectedShares(depositAmount, totalAssetsBefore, totalSupplyBefore);
+        assertEq(shares, expectedByFormula, "Shares should match formula calculation");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_deposit_invariant_exchangeRateNeverDecreases() public {
+        uint256 depositAmount = 1000e6;
+
+        // Track exchange rate across multiple deposits
+        uint256 previousExchangeRate = optimizer.exchangeRate();
+
+        for (uint256 i = 0; i < 5; i++) {
+            address depositor = i % 2 == 0 ? user1 : user2;
+            
+            deal(USDC_MONAD, depositor, depositAmount, true);
+            vm.startPrank(depositor);
+            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+            optimizer.deposit(depositAmount, depositor);
+            vm.stopPrank();
+
+            // Skip time and accrue to simulate yield
+            skip(1 days);
+            optimizer.accrueIfNeeded();
+            skip(1 days); // Let yield vest
+
+            uint256 currentExchangeRate = optimizer.exchangeRate();
+            
+            // Exchange rate should never decrease (assuming no losses)
+            assertGe(currentExchangeRate, previousExchangeRate, "Exchange rate should never decrease");
+            
+            previousExchangeRate = currentExchangeRate;
+        }
+    }
+
+    function test_lendingOptimizer_deposit_invariant_totalAssetsEqualsSum() public {
+        uint256 depositAmount = 1000e6;
+
+        // Multiple users deposit
+        address[3] memory users = [user1, user2, makeAddr("user3")];
+        uint256 totalDeposited;
+
+        for (uint256 i = 0; i < users.length; i++) {
+            deal(USDC_MONAD, users[i], depositAmount, true);
+            vm.startPrank(users[i]);
+            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+            optimizer.deposit(depositAmount, users[i]);
+            vm.stopPrank();
+            totalDeposited += depositAmount;
+        }
+
+        // Total assets should be at least the sum of deposits (plus initial deposit from setUp)
+        // Note: Could be slightly more due to yield from underlying markets
+        uint256 initialDeposit = 77777; // From setUp
+        assertGe(
+            optimizer.totalAssets(), 
+            totalDeposited + initialDeposit, 
+            "Total assets should be >= sum of all deposits"
+        );
+    }
 }

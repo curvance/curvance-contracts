@@ -12,8 +12,6 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
-    LendingOptimizer optimizer;
-
     function setUp() public override {
         super.setUp();
     }
@@ -76,7 +74,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertTrue(optimizer.supportsInterface(type(ERC4626).interfaceId));
     }
 
-    function test_deployment_success_multipleMarkets() public {
+    function test_lendingOptimizer_deployment_success_multipleMarkets() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -119,7 +117,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertEq(optimizer.allocationCaps(address(1)), 0);
     }
 
-    function test_deployment_success_zeroFee() public {
+    function test_lendingOptimizer_deployment_success_zeroFee() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -140,7 +138,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertEq(optimizer.fee(), 0);
     }
 
-    function test_deployment_success_maxFee() public {
+    function test_lendingOptimizer_deployment_success_maxFee() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -161,7 +159,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertEq(optimizer.fee(), 5_000 * 1e14);
     }
 
-    function test_deployment_fail_whenFeeTooHigh() public {
+    function test_lendingOptimizer_deployment_fail_whenFeeTooHigh() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -181,7 +179,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
-    function test_deployment_fail_whenArrayLengthMismatch() public {
+    function test_lendingOptimizer_deployment_fail_whenArrayLengthMismatch() public {
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -200,7 +198,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
-    function test_deployment_fail_whenTooManyMarkets() public {
+    function test_lendingOptimizer_deployment_fail_whenTooManyMarkets() public {
         address[] memory approvedCTokens = new address[](7);
         for (uint256 i = 0; i < 7; i++) {
             approvedCTokens[i] = cUSDC_WMON_MARKET;
@@ -222,7 +220,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
-    function test_deployment_fail_whenInsufficientAllocationCaps() public {
+    function test_lendingOptimizer_deployment_fail_whenInsufficientAllocationCaps() public {
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -243,7 +241,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
-    function test_deployment_fail_whenInvalidUnderlying() public {
+    function test_lendingOptimizer_deployment_fail_whenInvalidUnderlying() public {
         // Try to deploy with WETH as underlying but using USDC markets
         address WETH_MONAD = 0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242;
 
@@ -264,13 +262,13 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
-    function test_deployment_fail_whenInvalidMarketManager() public {
+    function test_lendingOptimizer_deployment_fail_whenInvalidMarketManager() public {
         // Create a mock cToken with invalid market manager
         // This would require deploying a mock - skipping for now
         // as it requires more complex setup
     }
 
-    function test_deployment_verifyPluginDelegableInherited() public {
+    function test_lendingOptimizer_deployment_verifyPluginDelegableInherited() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -306,7 +304,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         }
     }
 
-    function test_deployment_verifyExchangeRateFunctions() public {
+    function test_lendingOptimizer_deployment_verifyExchangeRateFunctions() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
