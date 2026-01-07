@@ -775,6 +775,19 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Accrue fees on existing profits.
         _accrueIfNeeded();
 
+        // If enabling fees from 0, update watermark to current rate
+        // so fees only apply to future yield.
+        if (fee == 0 && newFeeBps > 0) {
+            uint256 supply = totalSupply();
+            if (supply > 0) {
+                exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
+                    WAD,
+                    totalAssets(),
+                    supply
+                );
+            }
+        }
+
         // Revert if the new fee exceeds the maximum allowed (50%).
         if (newFeeBps > MAX_FEE_BPS) {
             revert LendingOptimizer__FeeTooHigh();
