@@ -296,7 +296,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewDeposit(assets);
-        _processDeposit(assets, shares, receiver, _getOptimalDepositMarket(assets));
+        _deposit(assets, shares, receiver, _getOptimalDepositMarket(assets));
     }
 
     /// @notice Deposits assets into a specific market and mints shares to receiver.
@@ -316,7 +316,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewDeposit(assets);
-        _processDeposit(assets, shares, receiver, targetMarket);
+        _deposit(assets, shares, receiver, targetMarket);
     }
 
     /// @notice Standard ERC4626 mint - mints exact shares by depositing into optimal market.
@@ -331,7 +331,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
 
         assets = previewMint(shares);
-        _processDeposit(assets, shares, receiver, _getOptimalDepositMarket(assets));
+        _deposit(assets, shares, receiver, _getOptimalDepositMarket(assets));
     }
 
     /// @notice Mints exact shares by depositing into a specific market.
@@ -351,7 +351,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewMint(shares);
-        _processDeposit(assets, shares, receiver, targetMarket);
+        _deposit(assets, shares, receiver, targetMarket);
     }
 
     /// @notice Standard ERC4626 withdraw - withdraws from optimal market.
@@ -367,7 +367,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _processWithdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
+        _withdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
     }
 
     /// @notice Withdraws assets from a specific market.
@@ -388,7 +388,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _processWithdraw(assets, shares, receiver, owner, targetMarket);
+        _withdraw(assets, shares, receiver, owner, targetMarket);
     }
 
     /// @notice Standard ERC4626 redeem - redeems from optimal market.
@@ -404,7 +404,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _processWithdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
+        _withdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
     }
 
     /// @notice Redeems shares from a specific market.
@@ -425,7 +425,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _processWithdraw(assets, shares, receiver, owner, targetMarket);
+        _withdraw(assets, shares, receiver, owner, targetMarket);
     }
 
     /// @notice Rebalances assets across approved markets.
@@ -1036,7 +1036,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @param shares The amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
     /// @param targetMarket The target cToken market to deposit into.
-    function _processDeposit(
+    function _deposit(
         uint256 assets,
         uint256 shares,
         address receiver,
@@ -1055,7 +1055,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @param receiver The address to receive the withdrawn assets.
     /// @param owner The address that owns the shares being burned.
     /// @param targetMarket The target cToken market to withdraw from.
-    function _processWithdraw(
+    function _withdraw(
         uint256 assets,
         uint256 shares,
         address receiver,
