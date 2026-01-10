@@ -271,7 +271,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Deposit into target market.
         address cToken = approvedCTokensList[targetMarket];
-        uint256 trackedAssets = _depositToMarket(cToken, assets, false);
+        uint256 trackedAssets = _depositToMarket(cToken, assets);
+
+        // Update _totalAssets with the actual recoverable value.
+        _totalAssets += trackedAssets;
 
         // Mint dead shares equal to actual tracked assets.
         // We use trackedAssets (returned by _depositToMarket) rather than input assets
@@ -483,20 +486,26 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        // Second pass: process deposits.
-        // Use raw deposits since rebalance is a net-zero asset movement.
-        uint256 totalDeposits;
+        // Second pass: process deposits and track actual value received.
+        uint256 intentDeposits;
+        uint256 actualDeposits;
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
-                totalDeposits += actions[i].assets;
-                _depositToMarket(address(actions[i].cToken), actions[i].assets, true);
+                intentDeposits += actions[i].assets;
+                actualDeposits += _depositToMarket(address(actions[i].cToken), actions[i].assets);
             }
         }
 
-        // Revert if withdrawals and deposits don't match.
-        if (totalWithdrawals != totalDeposits) {
+        // Validate that caller intended to rebalance with net-zero assets.
+        if (totalWithdrawals != intentDeposits) {
             revert LendingOptimizer__InvalidParameter();
+        }
+
+        // Account for deposit rounding loss to keep _totalAssets in sync with rawTa.
+        // Without this, small rounding losses accumulate and could trigger false bad debt.
+        if (actualDeposits < intentDeposits) {
+            _totalAssets -= (intentDeposits - actualDeposits);
         }
 
         // Calculate total assets for cap verification.
@@ -563,10 +572,12 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Delete the allocation cap for the removed market.
         delete allocationCaps[address(cTokenToRemove)];
 
-        // Reallocate redeemed assets to other approved markets.
-        // Use `true` for `isRebalance` to signal not to update `_indexedTotalAssets`.
-        uint256 assetsReallocated;
+        // assetsReallocated - track the caller intent amount to reallocate
+        uint256 intentReallocated;
+        // actualReallocated - track the actual amount of assets reallocated after rounding loss.
+        uint256 actualReallocated;
         for (uint256 i; i < removeActions.length; ++i) {
+            // Instantiate cToken address for readability.
             address cTokenAddress = address(removeActions[i].cToken);
 
             // Revert if the reallocation target is not an approved market.
@@ -576,13 +587,21 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Deposit reallocation amount to the target market.
             uint256 reallocationAmount = removeActions[i].reallocationAmount;
-            _depositToMarket(cTokenAddress, reallocationAmount, true);
-            assetsReallocated += reallocationAmount;
+            // Deposit reallocation amount to the target market and track the 
+            // actual amount of assets reallocated after rounding loss.
+            actualReallocated += _depositToMarket(cTokenAddress, reallocationAmount);
+            // Track the caller intent amount to reallocate.
+            intentReallocated += reallocationAmount;
         }
 
         // Revert if reallocated assets do not match redeemed assets.
-        if (assetsReallocated != assetsRedeemed) {
+        if (intentReallocated != assetsRedeemed) {
             revert LendingOptimizer__AssetMismatch();
+        }
+
+        // Account for deposit rounding loss to keep _totalAssets in sync with rawTa.
+        if (actualReallocated < intentReallocated) {
+            _totalAssets -= (intentReallocated - actualReallocated);
         }
 
         // Update approved markets list using swap and pop.
@@ -1006,12 +1025,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @dev Deposits assets into a specific cToken market.
     /// @param cToken The cToken market to deposit into.
     /// @param assets The amount of assets to deposit.
-    /// @param isRebalance If true, skip updating _totalAssets (rebalance doesn't change total).
-    /// @return trackedAssets The actual recoverable value tracked in _totalAssets.
+    /// @return trackedAssets The actual recoverable value (for _totalAssets tracking).
     function _depositToMarket(
         address cToken,
-        uint256 assets,
-        bool isRebalance
+        uint256 assets
     ) internal returns (uint256 trackedAssets) {
         SwapperLib._approveIfNeeded(address(_asset), cToken, assets);
 
@@ -1025,10 +1042,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Using convertToAssets ensures _totalAssets stays in sync with what
         // _accrueMarkets() reports, preventing false bad debt detection.
         trackedAssets = cToken_.convertToAssets(sharesReceived);
-
-        if (!isRebalance) {
-            _totalAssets += trackedAssets;
-        }
     }
 
     /// @dev Withdraws assets from a specific market.
@@ -1049,13 +1062,20 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address receiver,
         address targetMarket
     ) internal returns (uint256 shares) {
+        // Transfer assets from the caller to the optimizer.
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
-        uint256 trackedAssets = _depositToMarket(targetMarket, assets, false);
 
-        // Calculate shares based on actual tracked value, not input assets.
+        // Deposit assets to the target market and track the actual recoverable value.
+        uint256 trackedAssets = _depositToMarket(targetMarket, assets);
+
+        // Calculate shares based on actual tracked value and current totalAssets (pre-deposit).
         // This ensures the exchange rate never decreases due to cToken rounding.
         // Users may receive 1 fewer share than previewDeposit predicted (slippage).
         shares = convertToShares(trackedAssets);
+
+        // Update _totalAssets after calculating shares.
+        _totalAssets += trackedAssets;
+
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
