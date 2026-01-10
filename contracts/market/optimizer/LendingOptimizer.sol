@@ -1168,7 +1168,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             return;
         }
 
-        // Only gate new yield detection behind vesting period.
+        // Only vest and detect new yield after the current vesting period ends.
+        // During vesting, totalAssets() includes _assetsToVest() so users see
+        // the correct gradual increase without needing storage updates.
         if (!_checkVestingFinished(_vestingData)) {
             return;
         }
@@ -1367,16 +1369,18 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
     }
 
-    /// @notice Returns whether the current vesting period has ended,
-    ///         based on the last vest timestamp.
+    /// @notice Returns whether the current vesting period has ended.
+    /// @dev Returns true if current time is past vestingEnd, allowing
+    ///      vesting to finalize and new yield detection to proceed.
+    ///      Also returns true if vestingEnd is 0 (no active vesting).
     /// @param vestingData Current packed vault data value.
     /// @return result Boolean value indicating whether the current
     ///                vesting period has ended or not.
     function _checkVestingFinished(
         uint256 vestingData
-    ) internal pure returns (bool result) {
-        result =  uint40(vestingData >> _BITPOS_LAST_VEST) >=
-            uint40(vestingData >> _BITPOS_VEST_END);
+    ) internal view returns (bool result) {
+        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        result = block.timestamp >= vestingEnd;
     }
 
     /// @notice Returns the underlying token decimals.
