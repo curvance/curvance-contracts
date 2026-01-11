@@ -7,9 +7,10 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 /// @title Curvance Protocol Manager.
 /// @notice Allows management of protocol configurations.
@@ -27,35 +28,53 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 contract ProtocolManager is ReentrancyGuard {
     /// TYPES ///
 
-    struct ManageConfig {
+    struct ManagementConfig {
         bool hasAuthority;
-        PeriodAdjustmentLimits limits;
+        PeriodAdjLimits limits;
     }
 
     /// @title Period Adjustments.
     struct PeriodAdjustments {
+        // Token Configs - Debt Cap
         int24 collRatio;
+        int24 marginSoft;
+        int24 marginHard;
+        int120 collateralCap;
+        // Interest Rate Model + Debt Cap
         int64 baseInterestRate;
+        int112 debtCap; // Debt cap is out of order here to pack data a bit better
         int64 vertexInterestRate;
         int64 vertexStart;
-        int16 adjustmentRate;
+        int16 adjustmentVelocity;
         int8 decayPerAdjustment;
         int16 vertexMultiplierMax;
-        int88 basePrice;
-        int88 minPrice;
+        // Price Guard
+        int88 basePriceUSD;
+        int88 minPriceUSD;
+        int88 basePriceNative;
+        int88 minPriceNative;
     }
 
     /// @title Period Adjustment Limitations.
-    struct PeriodAdjustmentLimits {
-        uint24 collRatioAdjustmentLimit;
-        uint64 baseInterestRateAdjustmentLimit;
-        uint64 vertexInterestRateAdjustmentLimit;
-        uint64 vertexStartAdjustmentLimit;
-        uint16 adjustmentRate;
-        uint8 decayPerAdjustment;
-        uint16 vertexMultiplierMax;
-        uint88 basePriceAdjustmentLimit;
-        uint88 minPriceAdjustmentLimit;
+    struct PeriodAdjLimits {
+        // Token Configs - Debt Cap
+        uint24 collRatioAdjLimit;
+        uint24 marginSoftAdjLimit;
+        uint24 marginHardAdjLimit;
+        uint120 collateralCapAdjLimit;
+        // Interest Rate Model + Debt Cap
+        uint64 baseInterestRateAdjLimit;
+        uint112 debtCapAdjLimit; // Debt cap is out of order here to pack data a bit better
+        uint64 vertexInterestRateAdjLimit;
+        uint64 vertexStartAdjLimit;
+        uint16 adjustmentVelocityAdjLimit;
+        uint8 decayPerAdjustmentAdjLimit;
+        uint16 vertexMultiplierMaxAdjLimit;
+        // Price Guard
+        uint88 basePriceUSDAdjLimit;
+        uint88 minPriceUSDAdjLimit;
+        uint88 basePriceNativeAdjLimit;
+        uint88 minPriceNativeAdjLimit;
     }
 
     struct PermsConfig {
@@ -77,8 +96,11 @@ contract ProtocolManager is ReentrancyGuard {
     /// @notice The maximum period of time that a rewards claim window should
     ///         be open for, in unix time.
     uint256 public constant MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT = 500;
+    uint256 public constant MAXIMUM_MARGIN_ADJUSTMENT_LIMIT = 300;
+    uint256 public constant MAXIMUM_COLL_CAP_ADJUSTMENT_LIMIT = type(uint112).max;
+    uint256 public constant MAXIMUM_DEBT_CAP_ADJUSTMENT_LIMIT = type(uint104).max;
     uint256 public constant MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT = 1000;
-    uint256 public constant MAXIMUM_ADJUSTMENT_RATE_ADJUSTMENT_LIMIT = 500;
+    uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_ADJUSTMENT_LIMIT = 500;
     uint256 public constant MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT = 200;
     uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT = 50000;
     uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT = type(uint88).max;
@@ -117,32 +139,40 @@ contract ProtocolManager is ReentrancyGuard {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
+    /// @notice The address managing parts of the Curvance Protocol.
     address public immutable protocolManager;
 
     /// STORAGE ///
 
-    mapping(address => ManageConfig) public config;
-    mapping(uint256 => PeriodAdjustments) public periodAdjustments;
+    /// @notice Configuration for managing a protocol address.
+    /// @dev Protocol address => Management Configuration
+    mapping(address => ManagementConfig) public config;
+
+    /// @notice Management adjustments per period (length = `periodDuration`).
+    /// @dev Protocol Address => Period Timestamp Start => Adjustments.
+    mapping(address => mapping(uint256 => PeriodAdjustments)) internal _periodAdjustments;
 
     /// EVENTS ///
 
     event ManagementAuthorityUpdated(
         address addressManaged,
         bool manages,
-        PeriodAdjustmentLimits limits
+        PeriodAdjLimits limits
     );
 
     /// ERRORS ///
 
     error ProtocolManager__ParametersAreInvalid();
     error ProtocolManager__Unauthorized();
+    error ProtocolManager__MulDivFailed();
+    error ProtocolManager__UintToIntError();
 
     constructor(
         ICentralRegistry cr,
         address pm,
         PermsConfig memory p,
         address[] memory managedAddresses,
-        PeriodAdjustmentLimits[] memory l
+        PeriodAdjLimits[] memory l
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -163,11 +193,75 @@ contract ProtocolManager is ReentrancyGuard {
         canModifyPositionManagers = p.canModifyPositionManagers;
     }
 
+    /// @notice Returns token config and IRM period adjustments.
+    /// @param managedAddress The managed contract address.
+    /// @param periodTimestamp The period timestamp to query.
+    /// @return collRatio Collateral ratio adjustment.
+    /// @return marginSoft Soft margin adjustment.
+    /// @return marginHard Hard margin adjustment.
+    /// @return collateralCap Collateral cap adjustment.
+    /// @return debtCap Debt cap adjustment.
+    /// @return baseInterestRate Base interest rate adjustment.
+    /// @return vertexInterestRate Vertex interest rate adjustment.
+    /// @return vertexStart Vertex start adjustment.
+    /// @return adjustmentVelocity Adjustment velocity adjustment.
+    /// @return decayPerAdjustment Decay per adjustment adjustment.
+    /// @return vertexMultiplierMax Vertex multiplier max adjustment.
+    function getMarketPeriodAdjustments(
+        address managedAddress,
+        uint256 periodTimestamp
+    ) external view returns (
+        int24, int24, int24, int120, int112,
+        int64, int64, int64, int16, int8, int16
+    ) {
+        PeriodAdjustments storage a = _periodAdjustments[managedAddress][periodTimestamp];
+        return (
+            a.collRatio,
+            a.marginSoft,
+            a.marginHard,
+            a.collateralCap,
+            a.debtCap,
+            a.baseInterestRate,
+            a.vertexInterestRate,
+            a.vertexStart,
+            a.adjustmentVelocity,
+            a.decayPerAdjustment,
+            a.vertexMultiplierMax
+        );
+    }
+
+    /// @notice Returns price guard period adjustments.
+    /// @param managedAddress The managed contract address.
+    /// @param periodTimestamp The period timestamp to query.
+    /// @return basePriceUSD Base USD price adjustment.
+    /// @return minPriceUSD Min USD price adjustment.
+    /// @return basePriceNative Base native price adjustment.
+    /// @return minPriceNative Min native price adjustment.
+    function getPriceGuardPeriodAdjustments(
+        address managedAddress,
+        uint256 periodTimestamp
+    ) external view returns (int88, int88, int88, int88) {
+        PeriodAdjustments storage a = _periodAdjustments[managedAddress][periodTimestamp];
+        return (
+            a.basePriceUSD,
+            a.minPriceUSD,
+            a.basePriceNative,
+            a.minPriceNative
+        );
+    }
+
+    /// @notice Updates management configuration for `managedAddresses`.
+    /// @dev Validates all limits against maximums before storing. Emits
+    ///      {ManagementAuthorityUpdated} for each address in
+    ///      `managedAddresses`.
+    /// @param managedAddresses Array of addresses to configure.
+    /// @param l Array of period adjustment limits for each address.
+    /// @param hasAuthority Whether these addresses should have authority.
     function updateManagementConfig(
         address[] memory managedAddresses,
-        PeriodAdjustmentLimits[] memory l,
+        PeriodAdjLimits[] memory l,
         bool hasAuthority
-    ) external {
+    ) external nonReentrant {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             revert ProtocolManager__Unauthorized();
         }
@@ -216,63 +310,33 @@ contract ProtocolManager is ReentrancyGuard {
     function updateTokenConfig(
         address managedAddress,
         MarketManagerIsolated.TokenConfig memory newConfig
-    ) external {
+    ) external nonReentrant {
         _checkAuthorityAndAsset(managedAddress, newConfig.cToken, canModifyTokenConfig);
+        MarketManagerIsolated mm = MarketManagerIsolated(managedAddress);
 
-        MarketManagerIsolated(managedAddress).updateTokenConfig(newConfig);
-    }
+        if (!mm.isListed(newConfig.cToken)) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
 
-    /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
-    ///         or native tokens depending on `inUSD`.
-    /// @param asset The address of the asset to set a PriceGuard data on.
-    /// @param inUSD Specifies whether the PriceGuard should be in
-    ///              USD (true) or a chain's native token (false).
-    /// @param timestampStart When `ips` should start increasing `basePrice`
-    ///                       raising the maximum price returned when pricing
-    ///                       `asset`.
-    /// @param ips The magnitude that `basePrice` should increase overtime
-    ///            overtime from `timestampStart`, in `WAD`, in seconds.
-    /// @param basePrice The base price that should be the maximum price
-    ///                  returned when pricing `asset`.
-    /// @param minPrice The minimum price that should be allowed to be
-    ///                 returned when pricing `asset`.
-    function setGuardedPriceConfig(
-        address managedAddress,
-        address asset,
-        bool inUSD,
-        uint256 timestampStart,
-        uint256 ips,
-        uint256 basePrice,
-        uint256 minPrice
-    ) external {
-        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+        PeriodAdjLimits memory l = config[managedAddress].limits;
+        PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
 
-        BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
-            asset,
-            inUSD,
-            timestampStart,
-            ips,
-            basePrice,
-            minPrice
-        );
-    }
+        (uint256 currCollRatio, uint256 currCollReqSoft, uint256 currCollReqHard) =
+            mm.collConfig(newConfig.cToken);
 
-    /// @notice Disables any PriceGuard active when pricing `asset`
-    ///         denominated either USD or native tokens depending on `inUSD`.
-    /// @param asset The address of the asset to disable any PriceGuard data on.
-    /// @param inUSD Specifies whether the PriceGuard disabled should be in
-    ///              USD (true) or a chain's native token (false).
-    function disableGuardedPriceConfig(
-        address managedAddress,
-        address asset,
-        bool inUSD
-    ) external {
-        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+        int256 newCollRatioAdj = _calcAdj(newConfig.collRatio, currCollRatio, a.collRatio, l.collRatioAdjLimit);
+        int256 newMarginSoftAdj = _calcAdj(newConfig.collReqSoft, currCollReqSoft, a.marginSoft, l.marginSoftAdjLimit);
+        int256 newMarginHardAdj = _calcAdj(newConfig.collReqHard, currCollReqHard, a.marginHard, l.marginHardAdjLimit);
+        int256 newCollateralCapAdj = _calcAdj(newConfig.collateralCap, mm.collateralCaps(newConfig.cToken), a.collateralCap, l.collateralCapAdjLimit);
+        int256 newDebtCapAdj = _calcAdj(newConfig.debtCap, mm.debtCaps(newConfig.cToken), a.debtCap, l.debtCapAdjLimit);
 
-        BaseOracleAdaptor(managedAddress).disableGuardedPriceConfig(
-            asset,
-            inUSD
-        );
+        a.collRatio = int24(newCollRatioAdj);
+        a.marginSoft = int24(newMarginSoftAdj);
+        a.marginHard = int24(newMarginHardAdj);
+        a.collateralCap = int120(newCollateralCapAdj);
+        a.debtCap = int112(newDebtCapAdj);
+        
+        mm.updateTokenConfig(newConfig);
     }
 
     /// @notice Updates the dynamic interest rate model's configuration
@@ -301,8 +365,38 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 decayPerAdjustment,
         uint256 vertexMultiplierMax,
         bool vertexReset
-    ) external {
+    ) external nonReentrant {
         _checkAuthority(managedAddress, canModifyIRM);
+
+        {
+            PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+            PeriodAdjLimits memory l = config[managedAddress].limits;
+            DynamicIRM.RatesConfig memory rc;
+            (
+                rc.baseRatePerSecond,
+                rc.vertexRatePerSecond,
+                rc.vertexStart,
+                ,
+                ,
+                rc.adjustmentVelocity,
+                rc.decayPerAdjustment,
+                rc.vertexMultiplierMax,
+            ) = DynamicIRM(managedAddress).ratesConfig();
+
+            int256 newBaseInterestRateAdj = _calcAdj(baseRatePerYear, _mulDiv(rc.baseRatePerSecond, SECONDS_PER_YEAR * rc.vertexStart, WAD), a.baseInterestRate, l.baseInterestRateAdjLimit);
+            int256 newVertexInterestRateAdj = _calcAdj(vertexRatePerYear, _mulDiv(rc.vertexRatePerSecond, SECONDS_PER_YEAR * (WAD - rc.vertexStart), WAD), a.vertexInterestRate, l.vertexInterestRateAdjLimit);
+            int256 newVertexStartAdj = _calcAdj(vertexStart, rc.vertexStart, a.vertexStart, l.vertexStartAdjLimit);
+            int256 newAdjustmentVelocityAdj = _calcAdj(adjustmentVelocity, rc.adjustmentVelocity, a.adjustmentVelocity, l.adjustmentVelocityAdjLimit);
+            int256 newDecayPerAdjustmentAdj = _calcAdj(decayPerAdjustment, rc.decayPerAdjustment, a.decayPerAdjustment, l.decayPerAdjustmentAdjLimit);
+            int256 newVertexMultiplierMaxAdj = _calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax, a.vertexMultiplierMax, l.vertexMultiplierMaxAdjLimit);
+
+            a.baseInterestRate = int64(newBaseInterestRateAdj);
+            a.vertexInterestRate = int64(newVertexInterestRateAdj);
+            a.vertexStart = int64(newVertexStartAdj);
+            a.adjustmentVelocity = int16(newAdjustmentVelocityAdj);
+            a.decayPerAdjustment = int8(newDecayPerAdjustmentAdj);
+            a.vertexMultiplierMax = int16(newVertexMultiplierMaxAdj);
+        }
 
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
@@ -315,126 +409,197 @@ contract ProtocolManager is ReentrancyGuard {
         );
     }
 
-    /// @notice Admin function to set market-wide liquidation status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits an {ActionPaused} event.
-    /// @param state Whether the desired action is pausing or unpausing.
-    function setLiquidationPaused(
+
+    /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
+    ///         or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to set a PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard should be in
+    ///              USD (true) or a chain's native token (false).
+    /// @param timestampStart When `ips` should start increasing `basePrice`
+    ///                       raising the maximum price returned when pricing
+    ///                       `asset`.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            overtime from `timestampStart`, in `WAD`, in seconds.
+    /// @param basePrice The base price that should be the maximum price
+    ///                  returned when pricing `asset`.
+    /// @param minPrice The minimum price that should be allowed to be
+    ///                 returned when pricing `asset`.
+    function setGuardedPriceConfig(
         address managedAddress,
-        bool state
-    ) external {
-        _checkAuthority(managedAddress, canModifyLiquidationStatus);
-        _checkUnpauseAuthority(state);
+        address asset,
+        bool inUSD,
+        uint256 timestampStart,
+        uint256 ips,
+        uint256 basePrice,
+        uint256 minPrice
+    ) external nonReentrant {
+        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+        IOracleAdaptor oa = IOracleAdaptor(managedAddress);
 
-        MarketManagerIsolated(managedAddress).setLiquidationPaused(state);
+        if (!oa.isSupportedAsset(asset)) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
+        PeriodAdjLimits memory l = config[managedAddress].limits;
+        PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+
+        IOracleAdaptor.PriceGuard memory pg = oa.getPriceGuard(asset, inUSD);
+        int256 newBasePriceAdj;
+        int256 newMinPriceAdj;
+
+        if (inUSD) {
+            newBasePriceAdj = _calcAdj(basePrice, pg.basePrice, a.basePriceUSD, l.basePriceUSDAdjLimit);
+            newMinPriceAdj = _calcAdj(minPrice, pg.minPrice, a.minPriceUSD, l.minPriceUSDAdjLimit);
+
+            a.basePriceUSD = int88(newBasePriceAdj);
+            a.minPriceUSD = int88(newMinPriceAdj);
+        } else {
+            newBasePriceAdj = _calcAdj(basePrice, pg.basePrice, a.basePriceNative, l.basePriceNativeAdjLimit);
+            newMinPriceAdj = _calcAdj(minPrice, pg.minPrice, a.minPriceNative, l.minPriceNativeAdjLimit);
+
+            a.basePriceNative = int88(newBasePriceAdj);
+            a.minPriceNative = int88(newMinPriceAdj);
+        }
+
+        BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
+            asset,
+            inUSD,
+            timestampStart,
+            ips,
+            basePrice,
+            minPrice
+        );
     }
 
-    /// @notice Admin function to set market-wide redemption status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits an {ActionPaused} event.
-    /// @param state Whether redemptions should be paused or unpaused.
-    function setRedeemPaused(address managedAddress, bool state) external {
-        _checkAuthority(managedAddress, canModifyRedeemStatus);
-        _checkUnpauseAuthority(state);
+    /// @notice Disables any PriceGuard active when pricing `asset`
+    ///         denominated either USD or native tokens depending on `inUSD`.
+    /// @dev Removes price bounds for the specified asset and denomination.
+    /// @param asset asset The address of the asset to disable PriceGuard on.
+    /// @param inUSD Whether to disable USD (true) or native (false) guard.
+    function disableGuardedPriceConfig(
+        address managedAddress,
+        address asset,
+        bool inUSD
+    ) external nonReentrant {
+        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+        IOracleAdaptor oa = IOracleAdaptor(managedAddress);
 
-        MarketManagerIsolated(managedAddress).setRedeemPaused(state);
+        if (!oa.isSupportedAsset(asset)) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
+        BaseOracleAdaptor(managedAddress).disableGuardedPriceConfig(
+            asset,
+            inUSD
+        );
     }
 
-    /// @notice Admin function to set market-wide transfer status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits an {ActionPaused} event.
-    /// @param state Whether transfers should be paused or unpaused.
-    function setTransferPaused(address managedAddress, bool state) external {
-        _checkAuthority(managedAddress, canModifyTransferStatus);
-        _checkUnpauseAuthority(state);
-
-        MarketManagerIsolated(managedAddress).setTransferPaused(state);
-    }
-
-    /// @notice Admin function to set token-specific Curvance token
-    ///         minting status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set minting status for.
-    /// @param state Whether minting should be paused or unpaused.
-    function setMintPaused(
+    /// @notice Sets pause status for various market actions.
+    /// @dev Emits an {ActionPaused} or {TokenActionPaused} event.
+    /// @param managedAddress The market manager address to update.
+    /// @param cToken The Curvance token (only for Mint/Collateralization/Borrow).
+    ///               Pass address(0) for market-wide actions.
+    /// @param action 0=Liquidation, 1=Redeem, 2=Transfer, 3=Mint,
+    ///               4=Collateralization, 5=Borrow.
+    /// @param state Whether the action should be paused or unpaused.
+    function setPaused(
         address managedAddress,
         address cToken,
+        uint8 action,
         bool state
     ) external {
-        _checkAuthorityAndAsset(managedAddress, cToken, canModifyMintStatus);
-        _checkUnpauseAuthority(state);
+        if (!state && !canUnpause) {
+            revert ProtocolManager__Unauthorized();
+        }
 
-        MarketManagerIsolated(managedAddress).setMintPaused(cToken, state);
+        MarketManagerIsolated mm = MarketManagerIsolated(managedAddress);
+
+        if (action == 0) {
+            _checkAuthority(managedAddress, canModifyLiquidationStatus);
+            mm.setLiquidationPaused(state);
+        } else if (action == 1) {
+            _checkAuthority(managedAddress, canModifyRedeemStatus);
+            mm.setRedeemPaused(state);
+        } else if (action == 2) {
+            _checkAuthority(managedAddress, canModifyTransferStatus);
+            mm.setTransferPaused(state);
+        } else if (action == 3) {
+            _checkAuthorityAndAsset(managedAddress, cToken, canModifyMintStatus);
+            mm.setMintPaused(cToken, state);
+        } else if (action == 4) {
+            _checkAuthorityAndAsset(managedAddress, cToken, canModifyCollateralizationStatus);
+            mm.setCollateralizationPaused(cToken, state);
+        } else if (action == 5) {
+            _checkAuthorityAndAsset(managedAddress, cToken, canModifyBorrowStatus);
+            mm.setBorrowPaused(cToken, state);
+        } else {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
     }
 
-    /// @notice Admin function to set token-specific Curvance token
-    ///         collateralization status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set collateralization status for.
-    /// @param state Whether collateralization should be paused or unpaused.
-    function setCollateralizationPaused(
-        address managedAddress,
-        address cToken,
-        bool state
-    ) external {
-        _checkAuthorityAndAsset(managedAddress, cToken, canModifyCollateralizationStatus);
-        _checkUnpauseAuthority(state);
-
-        MarketManagerIsolated(managedAddress).setCollateralizationPaused(cToken, state);
-    }
-
-    /// @notice Admin function to set token-specific Curvance token
-    ///         borrowing status.
-    /// @dev Requires market permissions, corresponding contracts may restrict
-    ///      `state` input. Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set borrowing status for.
-    /// @param state Whether borrowing should be paused or unpaused.
-    function setBorrowPaused(
-        address managedAddress,
-        address cToken,
-        bool state
-    ) external {
-        _checkAuthorityAndAsset(managedAddress, cToken, canModifyBorrowStatus);
-        _checkUnpauseAuthority(state);
-
-        MarketManagerIsolated(managedAddress).setBorrowPaused(cToken, state);
-    }
-
-    /// @notice Adds a new position manager address for complex
+    /// @notice Adds or removes a position manager address for complex
     ///         position actions.
-    /// @dev Requires timelock authority.
-    ///      Emits a {PositionManagerUpdated} event.
-    /// @param newPM The address to add position manager permissions for.
-    function addPositionManager(
+    /// @dev Emits a {PositionManagerUpdated} event.
+    /// @param managedAddress The market manager address to update.
+    /// @param pm The address to add or remove position manager permissions for.
+    /// @param add Whether to add (true) or remove (false) the position manager.
+    function updatePositionManager(
         address managedAddress,
-        address newPM
+        address pm,
+        bool add
     ) external {
         _checkAuthority(managedAddress, canModifyPositionManagers);
 
-        MarketManagerIsolated(managedAddress).addPositionManager(newPM);
+        if (add) {
+            MarketManagerIsolated(managedAddress).addPositionManager(pm);
+        } else {
+            MarketManagerIsolated(managedAddress).removePositionManager(pm);
+        }
     }
 
-    /// @notice Removes a current position manager address from complex
-    ///         position actions.
-    /// @dev Requires timelock authority.
-    ///      Emits a {PositionManagerUpdated} event.
-    /// @param oldPM The address to remove position manager permissions for.
-    function removePositionManager(
-        address managedAddress,
-        address oldPM
-    ) external {
-        _checkAuthority(managedAddress, canModifyPositionManagers);
+    /// PUBLIC FUNCTIONS ///
 
-        MarketManagerIsolated(managedAddress).removePositionManager(oldPM);
+    /// @notice Returns the current period timestamp for adjustment tracking.
+    /// @dev Periods are calculated from `_unixStartTimestamp` in increments
+    ///      of `periodDuration`. Used to bucket adjustments by time period.
+    /// @return x The start timestamp of the current period.
+    function getPeriodTimestamp() public view returns (uint256 x) {
+        uint256 periods = (block.timestamp - _unixStartTimestamp) / periodDuration;
+        x = _unixStartTimestamp + (periods * periodDuration);
     }
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Calculates and validates the new period adjustment value.
+    /// @dev Reverts if the absolute adjustment exceeds the limit allowed
+    ///      for the period.
+    /// @param newValue The new value being set.
+    /// @param currentValue The current value in the system.
+    /// @param existingAdj The total existing adjustments for this period.
+    /// @param limit The maximum allowed absolute adjustment for this period.
+    /// @return adj The new adjustment value to store.
+    function _calcAdj(
+        uint256 newValue,
+        uint256 currentValue,
+        int256 existingAdj,
+        uint256 limit
+    ) internal pure returns (int256 adj) {
+        adj = _toInt256(newValue) - _toInt256(currentValue) + existingAdj;
+        // We dont have to worry about overflow when casting these later since
+        // adjustment limit values are same bit size `adj` is cast to later.
+        if (_abs(adj) > limit) revert ProtocolManager__ParametersAreInvalid();
+    }
+
+    /// @notice Updates management configuration for `managedAddresses`.
+    /// @dev Validates all limits against maximums before storing. Emits
+    ///      {ManagementAuthorityUpdated} for each address in
+    ///      `managedAddresses`.
+    /// @param managedAddresses Array of addresses to configure.
+    /// @param l Array of period adjustment limits for each address.
+    /// @param hasAuthority Whether these addresses should have authority.
     function _updateManagementConfig(
         address[] memory managedAddresses,
-        PeriodAdjustmentLimits[] memory l,
+        PeriodAdjLimits[] memory l,
         bool hasAuthority
     ) internal {
         uint256 numManagedAddresses = managedAddresses.length;
@@ -447,21 +612,27 @@ contract ProtocolManager is ReentrancyGuard {
         }
 
         address cachedAddress;
-        PeriodAdjustmentLimits memory cachedLimits;
+        PeriodAdjLimits memory cachedLimits;
         for (uint i; i < numManagedAddresses; ++i) {
             cachedAddress = managedAddresses[i];
             cachedLimits = l[i];
 
             if (
-                cachedLimits.collRatioAdjustmentLimit > MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT ||
-                cachedLimits.baseInterestRateAdjustmentLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexInterestRateAdjustmentLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexStartAdjustmentLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.adjustmentRate > MAXIMUM_ADJUSTMENT_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.decayPerAdjustment > MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexMultiplierMax > MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT ||
-                cachedLimits.basePriceAdjustmentLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
-                cachedLimits.minPriceAdjustmentLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT
+                cachedLimits.collRatioAdjLimit > MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT ||
+                cachedLimits.marginSoftAdjLimit > MAXIMUM_MARGIN_ADJUSTMENT_LIMIT ||
+                cachedLimits.marginHardAdjLimit > MAXIMUM_MARGIN_ADJUSTMENT_LIMIT ||
+                cachedLimits.collateralCapAdjLimit > MAXIMUM_COLL_CAP_ADJUSTMENT_LIMIT ||
+                cachedLimits.debtCapAdjLimit > MAXIMUM_DEBT_CAP_ADJUSTMENT_LIMIT ||
+                cachedLimits.baseInterestRateAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
+                cachedLimits.vertexInterestRateAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
+                cachedLimits.vertexStartAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
+                cachedLimits.adjustmentVelocityAdjLimit > MAXIMUM_ADJUSTMENT_VELOCITY_ADJUSTMENT_LIMIT ||
+                cachedLimits.decayPerAdjustmentAdjLimit > MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT ||
+                cachedLimits.vertexMultiplierMaxAdjLimit > MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT ||
+                cachedLimits.basePriceUSDAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
+                cachedLimits.minPriceUSDAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
+                cachedLimits.basePriceNativeAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
+                cachedLimits.minPriceNativeAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT
             ) {
                 revert ProtocolManager__ParametersAreInvalid();
             }
@@ -482,12 +653,11 @@ contract ProtocolManager is ReentrancyGuard {
         }  
     }
 
-    /// @dev Returns the current period timestamp for checking adjustment limits.
-    function _getPeriodTimestamp() internal view returns (uint256 result) {
-        uint256 periods = (block.timestamp - _unixStartTimestamp) / periodDuration;
-        result = _unixStartTimestamp + (periods * periodDuration);
-    }
-
+    /// @notice Validates caller authority and managed address permissions.
+    /// @dev Reverts if caller is not the protocol manager, if the authority
+    ///      flag is false, or if the managed address lacks authority.
+    /// @param managedAddress The address being managed.
+    /// @param authority The permission flag that must be enabled.
     function _checkAuthority(
         address managedAddress,
         bool authority
@@ -505,6 +675,12 @@ contract ProtocolManager is ReentrancyGuard {
         }
     }
 
+    /// @notice Validates caller authority for both managed address and asset.
+    /// @dev Calls `_checkAuthority` for managed address, then additionally
+    ///      verifies the asset has authority configured.
+    /// @param managedAddress The address being managed.
+    /// @param asset The asset address that must also have authority.
+    /// @param authority The permission flag that must be enabled.
     function _checkAuthorityAndAsset(
         address managedAddress,
         address asset,
@@ -517,12 +693,42 @@ contract ProtocolManager is ReentrancyGuard {
         }
     }
 
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkUnpauseAuthority(bool state) internal view {
-        if (!state) {
-            if (!canUnpause) {
-                revert ProtocolManager__Unauthorized();
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(uint256 x, uint256 y, uint256 d) internal pure returns (uint256 z) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Equivalent to require(d != 0 && (y == 0 || x <= type(uint256).max / y))
+            if iszero(mul(d, iszero(mul(y, gt(x, div(not(0), y)))))) {
+                mstore(0x00, 0x2f7ad0d8) // `ProtocolManager__MulDivFailed()`.
+                revert(0x1c, 0x04)
             }
+            z := div(mul(x, y), d)
         }
+    }
+
+    /// @notice Returns the absolute value of `value`.
+    /// @dev Safe for all inputs including `type(int256).min`. Uses two's
+    ///      complement identity: `-x == ~x + 1`. By computing `~value + 1`
+    ///      in uint256 space.
+    /// @param value The signed integer to compute the absolute value of.
+    /// @return x The absolute value of `value`.
+    function _abs(int256 value) internal pure returns (uint256 x) {
+        // For negative: cast to uint, then negate in uint space
+        // -value == ~value + 1 (two's complement)
+        x = value >= 0 ? uint256(value) : uint256(~value) + 1;
+    }
+
+    /// @notice Converts an unsigned uint256 into a signed int256.
+    /// @param value The uint256 value to convert to int256.
+    /// @return x The converted int256 value.
+    function _toInt256(uint256 value) internal pure returns (int256 x) {
+        // Note: Unsafe cast below is okay because `type(int256).max`
+        //       is guaranteed to be positive
+        if (value > uint256(type(int256).max)) {
+            revert ProtocolManager__UintToIntError();
+        }
+
+        x = int256(value);
     }
 }
