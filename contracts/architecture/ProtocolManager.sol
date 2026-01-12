@@ -30,7 +30,7 @@ contract ProtocolManager is ReentrancyGuard {
 
     struct ManagementConfig {
         bool hasAuthority;
-        PeriodAdjLimits limits;
+        PeriodLimits limits;
     }
 
     /// @title Period Adjustments.
@@ -56,25 +56,25 @@ contract ProtocolManager is ReentrancyGuard {
     }
 
     /// @title Period Adjustment Limitations.
-    struct PeriodAdjLimits {
+    struct PeriodLimits {
         // Token Configs - Debt Cap
-        uint24 collRatioAdjLimit;
-        uint24 marginSoftAdjLimit;
-        uint24 marginHardAdjLimit;
-        uint120 collateralCapAdjLimit;
+        uint24 collRatioLimit;
+        uint24 marginSoftLimit;
+        uint24 marginHardLimit;
+        uint120 collateralCapLimit;
         // Interest Rate Model + Debt Cap
-        uint64 baseInterestRateAdjLimit;
-        uint112 debtCapAdjLimit; // Debt cap is out of order here to pack data a bit better
-        uint64 vertexInterestRateAdjLimit;
-        uint64 vertexStartAdjLimit;
-        uint16 adjustmentVelocityAdjLimit;
-        uint8 decayPerAdjustmentAdjLimit;
-        uint16 vertexMultiplierMaxAdjLimit;
+        uint64 baseInterestRateLimit;
+        uint112 debtCapLimit; // Debt cap is out of order here to pack data a bit better
+        uint64 vertexInterestRateLimit;
+        uint64 vertexStartLimit;
+        uint16 adjustmentVelocityLimit;
+        uint8 decayPerAdjustmentLimit;
+        uint16 vertexMultiplierMaxLimit;
         // Price Guard
-        uint88 basePriceUSDAdjLimit;
-        uint88 minPriceUSDAdjLimit;
-        uint88 basePriceNativeAdjLimit;
-        uint88 minPriceNativeAdjLimit;
+        uint88 basePriceUSDLimit;
+        uint88 minPriceUSDLimit;
+        uint88 basePriceNativeLimit;
+        uint88 minPriceNativeLimit;
     }
 
     struct PermsConfig {
@@ -95,15 +95,15 @@ contract ProtocolManager is ReentrancyGuard {
 
     /// @notice The maximum period of time that a rewards claim window should
     ///         be open for, in unix time.
-    uint256 public constant MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT = 500;
-    uint256 public constant MAXIMUM_MARGIN_ADJUSTMENT_LIMIT = 300;
-    uint256 public constant MAXIMUM_COLL_CAP_ADJUSTMENT_LIMIT = type(uint112).max;
-    uint256 public constant MAXIMUM_DEBT_CAP_ADJUSTMENT_LIMIT = type(uint104).max;
-    uint256 public constant MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT = 1000;
-    uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_ADJUSTMENT_LIMIT = 500;
-    uint256 public constant MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT = 200;
-    uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT = 50000;
-    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT = type(uint88).max;
+    uint256 public constant MAXIMUM_COLL_RATIO_LIMIT = 500;
+    uint256 public constant MAXIMUM_MARGIN_LIMIT = 300;
+    uint256 public constant MAXIMUM_COLL_CAP_LIMIT = type(uint112).max;
+    uint256 public constant MAXIMUM_DEBT_CAP_LIMIT = type(uint104).max;
+    uint256 public constant MAXIMUM_INTEREST_RATE_LIMIT = 1000;
+    uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT = 500;
+    uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 200;
+    uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT = 50000;
+    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = type(uint88).max;
 
     /// @notice Whether the protocol manager can modify token configs.
     bool public immutable canModifyTokenConfig;
@@ -157,7 +157,7 @@ contract ProtocolManager is ReentrancyGuard {
     event ManagementAuthorityUpdated(
         address addressManaged,
         bool manages,
-        PeriodAdjLimits limits
+        PeriodLimits limits
     );
 
     /// ERRORS ///
@@ -172,7 +172,7 @@ contract ProtocolManager is ReentrancyGuard {
         address pm,
         PermsConfig memory p,
         address[] memory managedAddresses,
-        PeriodAdjLimits[] memory l
+        PeriodLimits[] memory l
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -214,19 +214,19 @@ contract ProtocolManager is ReentrancyGuard {
         int24, int24, int24, int120, int112,
         int64, int64, int64, int16, int8, int16
     ) {
-        PeriodAdjustments storage a = _periodAdjustments[managedAddress][periodTimestamp];
+        PeriodAdjustments storage p = _periodAdjustments[managedAddress][periodTimestamp];
         return (
-            a.collRatio,
-            a.marginSoft,
-            a.marginHard,
-            a.collateralCap,
-            a.debtCap,
-            a.baseInterestRate,
-            a.vertexInterestRate,
-            a.vertexStart,
-            a.adjustmentVelocity,
-            a.decayPerAdjustment,
-            a.vertexMultiplierMax
+            p.collRatio,
+            p.marginSoft,
+            p.marginHard,
+            p.collateralCap,
+            p.debtCap,
+            p.baseInterestRate,
+            p.vertexInterestRate,
+            p.vertexStart,
+            p.adjustmentVelocity,
+            p.decayPerAdjustment,
+            p.vertexMultiplierMax
         );
     }
 
@@ -241,13 +241,8 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         uint256 periodTimestamp
     ) external view returns (int88, int88, int88, int88) {
-        PeriodAdjustments storage a = _periodAdjustments[managedAddress][periodTimestamp];
-        return (
-            a.basePriceUSD,
-            a.minPriceUSD,
-            a.basePriceNative,
-            a.minPriceNative
-        );
+        PeriodAdjustments storage p = _periodAdjustments[managedAddress][periodTimestamp];
+        return (p.basePriceUSD, p.minPriceUSD, p.basePriceNative, p.minPriceNative);
     }
 
     /// @notice Updates management configuration for `managedAddresses`.
@@ -259,7 +254,7 @@ contract ProtocolManager is ReentrancyGuard {
     /// @param hasAuthority Whether these addresses should have authority.
     function updateManagementConfig(
         address[] memory managedAddresses,
-        PeriodAdjLimits[] memory l,
+        PeriodLimits[] memory l,
         bool hasAuthority
     ) external nonReentrant {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
@@ -270,73 +265,61 @@ contract ProtocolManager is ReentrancyGuard {
     }
 
     /// @notice Sets token liquidity configuration values for
-    ///         `newConfig.cToken` a listed cToken inside this market.
+    ///         `n.cToken` a listed cToken inside this market.
     /// @dev Emits a {TokenConfigUpdated} event.
-    /// @param newConfig A TokenConfig struct containing:
+    /// @param n A TokenConfig struct containing:
     ///                  cToken The Curvance token to update liquidity
     ///                         configuration values of.
     ///                  collRatio The ratio at which $1 of collateral can be
-    ///                            borrowed against, for `newConfig.cToken`,
-    ///                            in `BPS`.
+    ///                            borrowed against, for `n.cToken`, in `BPS`.
     ///                  collReqSoft The premium of excess collateral required
     ///                              to avoid soft liquidation, in `BPS`.
     ///                  collReqHard The premium of excess collateral required
     ///                              to avoid hard liquidation, in `BPS`.
     ///                  liqIncBase The default liquidation incentive for
-    ///                             `newConfig.cToken`, in `BPS`.
+    ///                             `n.cToken`, in `BPS`.
     ///                  liqIncHard The hard liquidation incentive for
-    ///                             `newConfig.cToken`, in `BPS`.
+    ///                             `n.cToken`, in `BPS`.
     ///                  liqIncMin The minimum possible liquidation incentive
-    ///                            for `newConfig.cToken` during an auction,
-    ///                            in `BPS`.
+    ///                            for `n.cToken` during an auction, in `BPS`.
     ///                  liqIncMax The maximum possible liquidation incentive
-    ///                            for `newConfig.cToken` during an auction,
-    ///                            in `BPS`.
+    ///                            for `n.cToken` during an auction, in `BPS`.
     ///                  closeFactorBase Maximum % that a liquidator can repay
-    ///                                  when soft liquidating
-    ///                                  `newConfig.cToken` for an account.
+    ///                                  when soft liquidating `n.cToken`
+    ///                                  for an account.
     ///                  closeFactorMin The minimum possible close factor for
-    ///                                 `newConfig.cToken` during an auction,
-    ///                                 in `BPS`.
+    ///                                 `n.cToken` during an auction, in `BPS`.
     ///                  closeFactorMax The maximum possible close factor for
-    ///                                 `newConfig.cToken` during an auction,
-    ///                                 in `BPS`.
+    ///                                 `n.cToken` during an auction, in `BPS`.
     ///                  collateralCap The maximum amount of shares that can
-    ///                                be collateralized of `newConfig.cToken`
+    ///                                be collateralized of `n.cToken`
     ///                                inside this market.
     ///                  debtCap The maximum amount of assets that can be
-    ///                          borrowed of `newConfig.cToken` inside this
-    ///                          market.
+    ///                          borrowed of `n.cToken` inside this market.
     function updateTokenConfig(
         address managedAddress,
-        MarketManagerIsolated.TokenConfig memory newConfig
+        MarketManagerIsolated.TokenConfig memory n
     ) external nonReentrant {
-        _checkAuthorityAndAsset(managedAddress, newConfig.cToken, canModifyTokenConfig);
+        _checkAuthorityAndAsset(managedAddress, n.cToken, canModifyTokenConfig);
         MarketManagerIsolated mm = MarketManagerIsolated(managedAddress);
 
-        if (!mm.isListed(newConfig.cToken)) {
+        if (!mm.isListed(n.cToken)) {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        PeriodAdjLimits memory l = config[managedAddress].limits;
-        PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+        PeriodAdjustments storage p = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+        PeriodLimits memory l = config[managedAddress].limits;
 
-        (uint256 currCollRatio, uint256 currCollReqSoft, uint256 currCollReqHard) =
-            mm.collConfig(newConfig.cToken);
+        (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
+            mm.collConfig(n.cToken);
 
-        int256 newCollRatioAdj = _calcAdj(newConfig.collRatio, currCollRatio, a.collRatio, l.collRatioAdjLimit);
-        int256 newMarginSoftAdj = _calcAdj(newConfig.collReqSoft, currCollReqSoft, a.marginSoft, l.marginSoftAdjLimit);
-        int256 newMarginHardAdj = _calcAdj(newConfig.collReqHard, currCollReqHard, a.marginHard, l.marginHardAdjLimit);
-        int256 newCollateralCapAdj = _calcAdj(newConfig.collateralCap, mm.collateralCaps(newConfig.cToken), a.collateralCap, l.collateralCapAdjLimit);
-        int256 newDebtCapAdj = _calcAdj(newConfig.debtCap, mm.debtCaps(newConfig.cToken), a.debtCap, l.debtCapAdjLimit);
-
-        a.collRatio = int24(newCollRatioAdj);
-        a.marginSoft = int24(newMarginSoftAdj);
-        a.marginHard = int24(newMarginHardAdj);
-        a.collateralCap = int120(newCollateralCapAdj);
-        a.debtCap = int112(newDebtCapAdj);
+        p.collRatio = int24(_calcAdj(n.collRatio, collRatio, p.collRatio, l.collRatioLimit));
+        p.marginSoft = int24(_calcAdj(n.collReqSoft, collReqSoft, p.marginSoft, l.marginSoftLimit));
+        p.marginHard = int24(_calcAdj(n.collReqHard, collReqHard, p.marginHard, l.marginHardLimit));
+        p.collateralCap = int120(_calcAdj(n.collateralCap, mm.collateralCaps(n.cToken), p.collateralCap, l.collateralCapLimit));
+        p.debtCap = int112(_calcAdj(n.debtCap, mm.debtCaps(n.cToken), p.debtCap, l.debtCapLimit));
         
-        mm.updateTokenConfig(newConfig);
+        mm.updateTokenConfig(n);
     }
 
     /// @notice Updates the dynamic interest rate model's configuration
@@ -368,36 +351,27 @@ contract ProtocolManager is ReentrancyGuard {
     ) external nonReentrant {
         _checkAuthority(managedAddress, canModifyIRM);
 
-        {
-            PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
-            PeriodAdjLimits memory l = config[managedAddress].limits;
-            DynamicIRM.RatesConfig memory rc;
-            (
-                rc.baseRatePerSecond,
-                rc.vertexRatePerSecond,
-                rc.vertexStart,
-                ,
-                ,
-                rc.adjustmentVelocity,
-                rc.decayPerAdjustment,
-                rc.vertexMultiplierMax,
-            ) = DynamicIRM(managedAddress).ratesConfig();
+        PeriodAdjustments storage p = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+        PeriodLimits memory l = config[managedAddress].limits;
+        DynamicIRM.RatesConfig memory rc;
+        (
+            rc.baseRatePerSecond,
+            rc.vertexRatePerSecond,
+            rc.vertexStart,
+            ,
+            ,
+            rc.adjustmentVelocity,
+            rc.decayPerAdjustment,
+            rc.vertexMultiplierMax,
+        ) = DynamicIRM(managedAddress).ratesConfig();
 
-            int256 newBaseInterestRateAdj = _calcAdj(baseRatePerYear, _mulDiv(rc.baseRatePerSecond, SECONDS_PER_YEAR * rc.vertexStart, WAD), a.baseInterestRate, l.baseInterestRateAdjLimit);
-            int256 newVertexInterestRateAdj = _calcAdj(vertexRatePerYear, _mulDiv(rc.vertexRatePerSecond, SECONDS_PER_YEAR * (WAD - rc.vertexStart), WAD), a.vertexInterestRate, l.vertexInterestRateAdjLimit);
-            int256 newVertexStartAdj = _calcAdj(vertexStart, rc.vertexStart, a.vertexStart, l.vertexStartAdjLimit);
-            int256 newAdjustmentVelocityAdj = _calcAdj(adjustmentVelocity, rc.adjustmentVelocity, a.adjustmentVelocity, l.adjustmentVelocityAdjLimit);
-            int256 newDecayPerAdjustmentAdj = _calcAdj(decayPerAdjustment, rc.decayPerAdjustment, a.decayPerAdjustment, l.decayPerAdjustmentAdjLimit);
-            int256 newVertexMultiplierMaxAdj = _calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax, a.vertexMultiplierMax, l.vertexMultiplierMaxAdjLimit);
-
-            a.baseInterestRate = int64(newBaseInterestRateAdj);
-            a.vertexInterestRate = int64(newVertexInterestRateAdj);
-            a.vertexStart = int64(newVertexStartAdj);
-            a.adjustmentVelocity = int16(newAdjustmentVelocityAdj);
-            a.decayPerAdjustment = int8(newDecayPerAdjustmentAdj);
-            a.vertexMultiplierMax = int16(newVertexMultiplierMaxAdj);
-        }
-
+        p.baseInterestRate = int64(_calcAdj(baseRatePerYear, _mulDiv(rc.baseRatePerSecond, SECONDS_PER_YEAR * rc.vertexStart, WAD), p.baseInterestRate, l.baseInterestRateLimit));
+        p.vertexInterestRate = int64(_calcAdj(vertexRatePerYear, _mulDiv(rc.vertexRatePerSecond, SECONDS_PER_YEAR * (WAD - rc.vertexStart), WAD), p.vertexInterestRate, l.vertexInterestRateLimit));
+        p.vertexStart = int64(_calcAdj(vertexStart, rc.vertexStart, p.vertexStart, l.vertexStartLimit));
+        p.adjustmentVelocity = int16(_calcAdj(adjustmentVelocity, rc.adjustmentVelocity, p.adjustmentVelocity, l.adjustmentVelocityLimit));
+        p.decayPerAdjustment = int8(_calcAdj(decayPerAdjustment, rc.decayPerAdjustment, p.decayPerAdjustment, l.decayPerAdjustmentLimit));
+        p.vertexMultiplierMax = int16(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
+        
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
             vertexRatePerYear,
@@ -440,25 +414,16 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        PeriodAdjLimits memory l = config[managedAddress].limits;
-        PeriodAdjustments storage a = _periodAdjustments[managedAddress][getPeriodTimestamp()];
-
+        PeriodAdjustments storage p = _periodAdjustments[managedAddress][getPeriodTimestamp()];
+        PeriodLimits memory l = config[managedAddress].limits;
         IOracleAdaptor.PriceGuard memory pg = oa.getPriceGuard(asset, inUSD);
-        int256 newBasePriceAdj;
-        int256 newMinPriceAdj;
 
         if (inUSD) {
-            newBasePriceAdj = _calcAdj(basePrice, pg.basePrice, a.basePriceUSD, l.basePriceUSDAdjLimit);
-            newMinPriceAdj = _calcAdj(minPrice, pg.minPrice, a.minPriceUSD, l.minPriceUSDAdjLimit);
-
-            a.basePriceUSD = int88(newBasePriceAdj);
-            a.minPriceUSD = int88(newMinPriceAdj);
+            p.basePriceUSD = int88(_calcAdj(basePrice, pg.basePrice, p.basePriceUSD, l.basePriceUSDLimit));
+            p.minPriceUSD = int88(_calcAdj(minPrice, pg.minPrice, p.minPriceUSD, l.minPriceUSDLimit));
         } else {
-            newBasePriceAdj = _calcAdj(basePrice, pg.basePrice, a.basePriceNative, l.basePriceNativeAdjLimit);
-            newMinPriceAdj = _calcAdj(minPrice, pg.minPrice, a.minPriceNative, l.minPriceNativeAdjLimit);
-
-            a.basePriceNative = int88(newBasePriceAdj);
-            a.minPriceNative = int88(newMinPriceAdj);
+            p.basePriceNative = int88(_calcAdj(basePrice, pg.basePrice, p.basePriceNative, l.basePriceNativeLimit));
+            p.minPriceNative = int88(_calcAdj(minPrice, pg.minPrice, p.minPriceNative, l.minPriceNativeLimit));
         }
 
         BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
@@ -482,9 +447,8 @@ contract ProtocolManager is ReentrancyGuard {
         bool inUSD
     ) external nonReentrant {
         _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
-        IOracleAdaptor oa = IOracleAdaptor(managedAddress);
 
-        if (!oa.isSupportedAsset(asset)) {
+        if (!IOracleAdaptor(managedAddress).isSupportedAsset(asset)) {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
@@ -599,7 +563,7 @@ contract ProtocolManager is ReentrancyGuard {
     /// @param hasAuthority Whether these addresses should have authority.
     function _updateManagementConfig(
         address[] memory managedAddresses,
-        PeriodAdjLimits[] memory l,
+        PeriodLimits[] memory l,
         bool hasAuthority
     ) internal {
         uint256 numManagedAddresses = managedAddresses.length;
@@ -612,27 +576,27 @@ contract ProtocolManager is ReentrancyGuard {
         }
 
         address cachedAddress;
-        PeriodAdjLimits memory cachedLimits;
+        PeriodLimits memory limits;
         for (uint i; i < numManagedAddresses; ++i) {
             cachedAddress = managedAddresses[i];
-            cachedLimits = l[i];
+            limits = l[i];
 
             if (
-                cachedLimits.collRatioAdjLimit > MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT ||
-                cachedLimits.marginSoftAdjLimit > MAXIMUM_MARGIN_ADJUSTMENT_LIMIT ||
-                cachedLimits.marginHardAdjLimit > MAXIMUM_MARGIN_ADJUSTMENT_LIMIT ||
-                cachedLimits.collateralCapAdjLimit > MAXIMUM_COLL_CAP_ADJUSTMENT_LIMIT ||
-                cachedLimits.debtCapAdjLimit > MAXIMUM_DEBT_CAP_ADJUSTMENT_LIMIT ||
-                cachedLimits.baseInterestRateAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexInterestRateAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexStartAdjLimit > MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.adjustmentVelocityAdjLimit > MAXIMUM_ADJUSTMENT_VELOCITY_ADJUSTMENT_LIMIT ||
-                cachedLimits.decayPerAdjustmentAdjLimit > MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT ||
-                cachedLimits.vertexMultiplierMaxAdjLimit > MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT ||
-                cachedLimits.basePriceUSDAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
-                cachedLimits.minPriceUSDAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
-                cachedLimits.basePriceNativeAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT ||
-                cachedLimits.minPriceNativeAdjLimit > MAXIMUM_PRICE_GUARD_PRICE_ADJUSTMENT_LIMIT
+                limits.collRatioLimit > MAXIMUM_COLL_RATIO_LIMIT ||
+                limits.marginSoftLimit > MAXIMUM_MARGIN_LIMIT ||
+                limits.marginHardLimit > MAXIMUM_MARGIN_LIMIT ||
+                limits.collateralCapLimit > MAXIMUM_COLL_CAP_LIMIT ||
+                limits.debtCapLimit > MAXIMUM_DEBT_CAP_LIMIT ||
+                limits.baseInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                limits.vertexInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                limits.vertexStartLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                limits.adjustmentVelocityLimit > MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT ||
+                limits.decayPerAdjustmentLimit > MAXIMUM_DECAY_RATE_LIMIT ||
+                limits.vertexMultiplierMaxLimit > MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT ||
+                limits.basePriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                limits.minPriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                limits.basePriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                limits.minPriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT
             ) {
                 revert ProtocolManager__ParametersAreInvalid();
             }
@@ -640,7 +604,7 @@ contract ProtocolManager is ReentrancyGuard {
             config[cachedAddress].hasAuthority = hasAuthority;
 
             if (hasAuthority) {
-                config[cachedAddress].limits = cachedLimits;
+                config[cachedAddress].limits = limits;
             } else {
                 delete config[cachedAddress].limits;
             }
