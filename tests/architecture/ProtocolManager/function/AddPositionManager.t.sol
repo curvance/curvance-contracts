@@ -32,7 +32,7 @@ contract TestProtocolManagerAddPositionManager is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(marketManagerIsolated);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
@@ -128,7 +128,7 @@ contract TestProtocolManagerAddPositionManager is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(marketManagerIsolated);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({

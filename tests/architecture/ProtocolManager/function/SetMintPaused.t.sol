@@ -24,7 +24,7 @@ contract TestProtocolManagerSetMintPaused is TestProtocolManagerBase {
         managedAddresses[0] = address(marketManagerIsolated);
         managedAddresses[1] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 
@@ -116,7 +116,7 @@ contract TestProtocolManagerSetMintPaused is TestProtocolManagerBase {
         address[] memory additionalAddresses = new address[](1);
         additionalAddresses[0] = address(borrowableCWMON);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory additionalLimits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory additionalLimits = new ProtocolManager.PeriodLimits[](1);
         additionalLimits[0] = _getValidLimits();
 
         // DAO adds authority for the second token
@@ -188,7 +188,7 @@ contract TestProtocolManagerSetMintPaused is TestProtocolManagerBase {
         managedAddresses[0] = address(marketManagerIsolated);
         managedAddresses[1] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 
@@ -237,7 +237,7 @@ contract TestProtocolManagerSetMintPaused is TestProtocolManagerBase {
         managedAddresses[0] = address(marketManagerIsolated);
         managedAddresses[1] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 
@@ -289,7 +289,7 @@ contract TestProtocolManagerSetMintPaused is TestProtocolManagerBase {
         managedAddresses[0] = address(marketManagerIsolated);
         managedAddresses[1] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 

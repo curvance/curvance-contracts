@@ -66,9 +66,9 @@ contract TestProtocolManagerBase is TestBaseMarketIsolated {
 
     /// HELPER FUNCTIONS ///
 
-    /// @notice Returns a valid PeriodAdjustmentLimits struct with values within bounds
-    function _getValidLimits() internal pure returns (ProtocolManager.PeriodAdjustmentLimits memory) {
-        return ProtocolManager.PeriodAdjustmentLimits({
+    /// @notice Returns a valid PeriodLimits struct with values within bounds
+    function _getValidLimits() internal pure returns (ProtocolManager.PeriodLimits memory) {
+        return ProtocolManager.PeriodLimits({
             collRatioAdjustmentLimit: 100,
             baseInterestRateAdjustmentLimit: 200,
             vertexInterestRateAdjustmentLimit: 300,

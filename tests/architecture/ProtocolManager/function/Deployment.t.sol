@@ -23,8 +23,8 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         managedAddresses[1] = address(borrowableCWMON);
 
         // Setup period adjustment limits within valid bounds
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
-        limits[0] = ProtocolManager.PeriodAdjustmentLimits({
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
+        limits[0] = ProtocolManager.PeriodLimits({
             collRatioAdjustmentLimit: 100,           // <= 500 (MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT)
             baseInterestRateAdjustmentLimit: 200,    // <= 1000 (MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT)
             vertexInterestRateAdjustmentLimit: 300,  // <= 1000
@@ -35,7 +35,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
             basePriceAdjustmentLimit: 1e18,          // <= type(uint88).max
             minPriceAdjustmentLimit: 1e17            // <= type(uint88).max
         });
-        limits[1] = ProtocolManager.PeriodAdjustmentLimits({
+        limits[1] = ProtocolManager.PeriodLimits({
             collRatioAdjustmentLimit: 150,
             baseInterestRateAdjustmentLimit: 250,
             vertexInterestRateAdjustmentLimit: 350,
@@ -89,7 +89,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         assertTrue(protocolManager.canModifyPositionManagers(), "canModifyPositionManagers should be true");
 
         // Assert config is correctly set for first managed address (borrowableCUSDC_MONAD)
-        (bool hasAuthority0, ProtocolManager.PeriodAdjustmentLimits memory storedLimits0) = 
+        (bool hasAuthority0, ProtocolManager.PeriodLimits memory storedLimits0) = 
             protocolManager.config(address(borrowableCUSDC_MONAD));
         assertTrue(hasAuthority0, "borrowableCUSDC_MONAD should have authority");
         assertEq(storedLimits0.collRatioAdjustmentLimit, 100, "limits0.collRatioAdjustmentLimit mismatch");
@@ -103,7 +103,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         assertEq(storedLimits0.minPriceAdjustmentLimit, 1e17, "limits0.minPriceAdjustmentLimit mismatch");
 
         // Assert config is correctly set for second managed address (borrowableCWMON)
-        (bool hasAuthority1, ProtocolManager.PeriodAdjustmentLimits memory storedLimits1) = 
+        (bool hasAuthority1, ProtocolManager.PeriodLimits memory storedLimits1) = 
             protocolManager.config(address(borrowableCWMON));
         assertTrue(hasAuthority1, "borrowableCWMON should have authority");
         assertEq(storedLimits1.collRatioAdjustmentLimit, 150, "limits1.collRatioAdjustmentLimit mismatch");
@@ -129,7 +129,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
@@ -153,7 +153,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
             address(this),
             permsConfig,
             new address[](0),
-            new ProtocolManager.PeriodAdjustmentLimits[](0)
+            new ProtocolManager.PeriodLimits[](0)
         );
     }
 
@@ -163,7 +163,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         managedAddresses[1] = address(borrowableCWMON);
 
         // Only 1 limit for 2 addresses
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
@@ -182,7 +182,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].collRatioAdjustmentLimit = 501; // Exceeds max of 500
 
@@ -202,7 +202,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].baseInterestRateAdjustmentLimit = 1001; // Exceeds max of 1000
 
@@ -222,7 +222,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].vertexInterestRateAdjustmentLimit = 1001; // Exceeds max of 1000
 
@@ -242,7 +242,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].vertexStartAdjustmentLimit = 1001; // Exceeds max of 1000
 
@@ -262,7 +262,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].adjustmentRate = 501; // Exceeds max of 500
 
@@ -282,7 +282,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].decayPerAdjustment = 201; // Exceeds max of 200
 
@@ -302,7 +302,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
         limits[0].vertexMultiplierMax = 50001; // Exceeds max of 50000
 

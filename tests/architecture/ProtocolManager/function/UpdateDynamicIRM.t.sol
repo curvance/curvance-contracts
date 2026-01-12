@@ -35,7 +35,7 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(dynamicIRM);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
@@ -177,7 +177,7 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(dynamicIRM);
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({

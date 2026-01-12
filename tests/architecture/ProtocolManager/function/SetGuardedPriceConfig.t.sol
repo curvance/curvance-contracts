@@ -40,7 +40,7 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         managedAddresses[0] = address(chainlinkAdaptor); // The adaptor being managed
         managedAddresses[1] = testAsset;                  // The asset being configured
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 
@@ -206,7 +206,7 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         managedAddresses[0] = address(chainlinkAdaptor);
         managedAddresses[1] = testAsset;
 
-        ProtocolManager.PeriodAdjustmentLimits[] memory limits = new ProtocolManager.PeriodAdjustmentLimits[](2);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
         limits[1] = _getValidLimits();
 
