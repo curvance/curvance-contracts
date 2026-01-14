@@ -67,17 +67,26 @@ contract TestProtocolManagerBase is TestBaseMarketIsolated {
     /// HELPER FUNCTIONS ///
 
     /// @notice Returns a valid PeriodLimits struct with values within bounds
+    /// @dev Price guard limits are set to 1e17 ($0.10 or 10%) which is reasonable for
+    ///      adjustments to existing stablecoin/ratio guards. Initial guards are expected
+    ///      to be set by admin before ProtocolManager takes control.
     function _getValidLimits() internal pure returns (ProtocolManager.PeriodLimits memory) {
         return ProtocolManager.PeriodLimits({
-            collRatioAdjustmentLimit: 100,
-            baseInterestRateAdjustmentLimit: 200,
-            vertexInterestRateAdjustmentLimit: 300,
-            vertexStartAdjustmentLimit: 400,
-            adjustmentRate: 50,
-            decayPerAdjustment: 10,
-            vertexMultiplierMax: 10000,
-            basePriceAdjustmentLimit: 1e18,
-            minPriceAdjustmentLimit: 1e17
+            collRatioLimit: 100,
+            marginSoftLimit: 50,
+            marginHardLimit: 100,
+            collateralCapLimit: 1_000_000e18,
+            baseInterestRateLimit: 200,
+            debtCapLimit: 1_000_000e18,
+            vertexInterestRateLimit: 300,
+            vertexStartLimit: 400,
+            adjustmentVelocityLimit: 50,
+            decayPerAdjustmentLimit: 10,
+            vertexMultiplierMaxLimit: 10000,
+            basePriceUSDLimit: 1e17,
+            minPriceUSDLimit: 1e17,
+            basePriceNativeLimit: 1e17,
+            minPriceNativeLimit: 1e17
         });
     }
 

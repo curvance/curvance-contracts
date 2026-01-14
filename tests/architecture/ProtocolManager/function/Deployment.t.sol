@@ -25,26 +25,38 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         // Setup period adjustment limits within valid bounds
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = ProtocolManager.PeriodLimits({
-            collRatioAdjustmentLimit: 100,           // <= 500 (MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT)
-            baseInterestRateAdjustmentLimit: 200,    // <= 1000 (MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT)
-            vertexInterestRateAdjustmentLimit: 300,  // <= 1000
-            vertexStartAdjustmentLimit: 400,         // <= 1000
-            adjustmentRate: 50,                      // <= 500 (MAXIMUM_ADJUSTMENT_RATE_ADJUSTMENT_LIMIT)
-            decayPerAdjustment: 10,                  // <= 200 (MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT)
-            vertexMultiplierMax: 10000,              // <= 50000 (MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT)
-            basePriceAdjustmentLimit: 1e18,          // <= type(uint88).max
-            minPriceAdjustmentLimit: 1e17            // <= type(uint88).max
+            collRatioLimit: 100,
+            marginSoftLimit: 50,
+            marginHardLimit: 100,
+            collateralCapLimit: 1_000_000e18,
+            baseInterestRateLimit: 200,
+            debtCapLimit: 1_000_000e18,
+            vertexInterestRateLimit: 300,
+            vertexStartLimit: 400,
+            adjustmentVelocityLimit: 50,
+            decayPerAdjustmentLimit: 10,
+            vertexMultiplierMaxLimit: 10000,
+            basePriceUSDLimit: 1e18,
+            minPriceUSDLimit: 1e17,
+            basePriceNativeLimit: 1e18,
+            minPriceNativeLimit: 1e17
         });
         limits[1] = ProtocolManager.PeriodLimits({
-            collRatioAdjustmentLimit: 150,
-            baseInterestRateAdjustmentLimit: 250,
-            vertexInterestRateAdjustmentLimit: 350,
-            vertexStartAdjustmentLimit: 450,
-            adjustmentRate: 75,
-            decayPerAdjustment: 15,
-            vertexMultiplierMax: 15000,
-            basePriceAdjustmentLimit: 2e18,
-            minPriceAdjustmentLimit: 2e17
+            collRatioLimit: 150,
+            marginSoftLimit: 75,
+            marginHardLimit: 150,
+            collateralCapLimit: 2_000_000e18,
+            baseInterestRateLimit: 250,
+            debtCapLimit: 2_000_000e18,
+            vertexInterestRateLimit: 350,
+            vertexStartLimit: 450,
+            adjustmentVelocityLimit: 75,
+            decayPerAdjustmentLimit: 15,
+            vertexMultiplierMaxLimit: 15000,
+            basePriceUSDLimit: 2e18,
+            minPriceUSDLimit: 2e17,
+            basePriceNativeLimit: 2e18,
+            minPriceNativeLimit: 2e17
         });
 
         // Setup permissions config - all permissions enabled
@@ -89,39 +101,52 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         assertTrue(protocolManager.canModifyPositionManagers(), "canModifyPositionManagers should be true");
 
         // Assert config is correctly set for first managed address (borrowableCUSDC_MONAD)
-        (bool hasAuthority0, ProtocolManager.PeriodLimits memory storedLimits0) = 
+        (bool hasAuthority0, ProtocolManager.PeriodLimits memory storedLimits0) =
             protocolManager.config(address(borrowableCUSDC_MONAD));
         assertTrue(hasAuthority0, "borrowableCUSDC_MONAD should have authority");
-        assertEq(storedLimits0.collRatioAdjustmentLimit, 100, "limits0.collRatioAdjustmentLimit mismatch");
-        assertEq(storedLimits0.baseInterestRateAdjustmentLimit, 200, "limits0.baseInterestRateAdjustmentLimit mismatch");
-        assertEq(storedLimits0.vertexInterestRateAdjustmentLimit, 300, "limits0.vertexInterestRateAdjustmentLimit mismatch");
-        assertEq(storedLimits0.vertexStartAdjustmentLimit, 400, "limits0.vertexStartAdjustmentLimit mismatch");
-        assertEq(storedLimits0.adjustmentRate, 50, "limits0.adjustmentRate mismatch");
-        assertEq(storedLimits0.decayPerAdjustment, 10, "limits0.decayPerAdjustment mismatch");
-        assertEq(storedLimits0.vertexMultiplierMax, 10000, "limits0.vertexMultiplierMax mismatch");
-        assertEq(storedLimits0.basePriceAdjustmentLimit, 1e18, "limits0.basePriceAdjustmentLimit mismatch");
-        assertEq(storedLimits0.minPriceAdjustmentLimit, 1e17, "limits0.minPriceAdjustmentLimit mismatch");
+        assertEq(storedLimits0.collRatioLimit, 100, "limits0.collRatioLimit mismatch");
+        assertEq(storedLimits0.marginSoftLimit, 50, "limits0.marginSoftLimit mismatch");
+        assertEq(storedLimits0.marginHardLimit, 100, "limits0.marginHardLimit mismatch");
+        assertEq(storedLimits0.collateralCapLimit, 1_000_000e18, "limits0.collateralCapLimit mismatch");
+        assertEq(storedLimits0.baseInterestRateLimit, 200, "limits0.baseInterestRateLimit mismatch");
+        assertEq(storedLimits0.debtCapLimit, 1_000_000e18, "limits0.debtCapLimit mismatch");
+        assertEq(storedLimits0.vertexInterestRateLimit, 300, "limits0.vertexInterestRateLimit mismatch");
+        assertEq(storedLimits0.vertexStartLimit, 400, "limits0.vertexStartLimit mismatch");
+        assertEq(storedLimits0.adjustmentVelocityLimit, 50, "limits0.adjustmentVelocityLimit mismatch");
+        assertEq(storedLimits0.decayPerAdjustmentLimit, 10, "limits0.decayPerAdjustmentLimit mismatch");
+        assertEq(storedLimits0.vertexMultiplierMaxLimit, 10000, "limits0.vertexMultiplierMaxLimit mismatch");
+        assertEq(storedLimits0.basePriceUSDLimit, 1e18, "limits0.basePriceUSDLimit mismatch");
+        assertEq(storedLimits0.minPriceUSDLimit, 1e17, "limits0.minPriceUSDLimit mismatch");
+        assertEq(storedLimits0.basePriceNativeLimit, 1e18, "limits0.basePriceNativeLimit mismatch");
+        assertEq(storedLimits0.minPriceNativeLimit, 1e17, "limits0.minPriceNativeLimit mismatch");
 
         // Assert config is correctly set for second managed address (borrowableCWMON)
-        (bool hasAuthority1, ProtocolManager.PeriodLimits memory storedLimits1) = 
+        (bool hasAuthority1, ProtocolManager.PeriodLimits memory storedLimits1) =
             protocolManager.config(address(borrowableCWMON));
         assertTrue(hasAuthority1, "borrowableCWMON should have authority");
-        assertEq(storedLimits1.collRatioAdjustmentLimit, 150, "limits1.collRatioAdjustmentLimit mismatch");
-        assertEq(storedLimits1.baseInterestRateAdjustmentLimit, 250, "limits1.baseInterestRateAdjustmentLimit mismatch");
-        assertEq(storedLimits1.vertexInterestRateAdjustmentLimit, 350, "limits1.vertexInterestRateAdjustmentLimit mismatch");
-        assertEq(storedLimits1.vertexStartAdjustmentLimit, 450, "limits1.vertexStartAdjustmentLimit mismatch");
-        assertEq(storedLimits1.adjustmentRate, 75, "limits1.adjustmentRate mismatch");
-        assertEq(storedLimits1.decayPerAdjustment, 15, "limits1.decayPerAdjustment mismatch");
-        assertEq(storedLimits1.vertexMultiplierMax, 15000, "limits1.vertexMultiplierMax mismatch");
-        assertEq(storedLimits1.basePriceAdjustmentLimit, 2e18, "limits1.basePriceAdjustmentLimit mismatch");
-        assertEq(storedLimits1.minPriceAdjustmentLimit, 2e17, "limits1.minPriceAdjustmentLimit mismatch");
+        assertEq(storedLimits1.collRatioLimit, 150, "limits1.collRatioLimit mismatch");
+        assertEq(storedLimits1.marginSoftLimit, 75, "limits1.marginSoftLimit mismatch");
+        assertEq(storedLimits1.marginHardLimit, 150, "limits1.marginHardLimit mismatch");
+        assertEq(storedLimits1.collateralCapLimit, 2_000_000e18, "limits1.collateralCapLimit mismatch");
+        assertEq(storedLimits1.baseInterestRateLimit, 250, "limits1.baseInterestRateLimit mismatch");
+        assertEq(storedLimits1.debtCapLimit, 2_000_000e18, "limits1.debtCapLimit mismatch");
+        assertEq(storedLimits1.vertexInterestRateLimit, 350, "limits1.vertexInterestRateLimit mismatch");
+        assertEq(storedLimits1.vertexStartLimit, 450, "limits1.vertexStartLimit mismatch");
+        assertEq(storedLimits1.adjustmentVelocityLimit, 75, "limits1.adjustmentVelocityLimit mismatch");
+        assertEq(storedLimits1.decayPerAdjustmentLimit, 15, "limits1.decayPerAdjustmentLimit mismatch");
+        assertEq(storedLimits1.vertexMultiplierMaxLimit, 15000, "limits1.vertexMultiplierMaxLimit mismatch");
+        assertEq(storedLimits1.basePriceUSDLimit, 2e18, "limits1.basePriceUSDLimit mismatch");
+        assertEq(storedLimits1.minPriceUSDLimit, 2e17, "limits1.minPriceUSDLimit mismatch");
+        assertEq(storedLimits1.basePriceNativeLimit, 2e18, "limits1.basePriceNativeLimit mismatch");
+        assertEq(storedLimits1.minPriceNativeLimit, 2e17, "limits1.minPriceNativeLimit mismatch");
 
         // Assert constants are correct
-        assertEq(protocolManager.MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT(), 500, "MAXIMUM_COLL_RATIO_ADJUSTMENT_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT(), 1000, "MAXIMUM_INTEREST_RATE_ADJUSTMENT_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_ADJUSTMENT_RATE_ADJUSTMENT_LIMIT(), 500, "MAXIMUM_ADJUSTMENT_RATE_ADJUSTMENT_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT(), 200, "MAXIMUM_DECAY_RATE_ADJUSTMENT_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT(), 50000, "MAXIMUM_VERTEX_MULTIPLIER_MAX_ADJUSTMENT_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_COLL_RATIO_LIMIT(), 500, "MAXIMUM_COLL_RATIO_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_MARGIN_LIMIT(), 300, "MAXIMUM_MARGIN_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_INTEREST_RATE_LIMIT(), 1000, "MAXIMUM_INTEREST_RATE_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT(), 500, "MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_DECAY_RATE_LIMIT(), 200, "MAXIMUM_DECAY_RATE_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT(), 50000, "MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT mismatch");
         assertEq(protocolManager.periodDuration(), 604800, "periodDuration mismatch");
     }
 
@@ -178,13 +203,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_collRatioAdjustmentLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_collRatioLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].collRatioAdjustmentLimit = 501; // Exceeds max of 500
+        limits[0].collRatioLimit = 501; // Exceeds max of 500
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -198,13 +223,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_baseInterestRateAdjustmentLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_baseInterestRateLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].baseInterestRateAdjustmentLimit = 1001; // Exceeds max of 1000
+        limits[0].baseInterestRateLimit = 1001; // Exceeds max of 1000
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -218,13 +243,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_vertexInterestRateAdjustmentLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_vertexInterestRateLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].vertexInterestRateAdjustmentLimit = 1001; // Exceeds max of 1000
+        limits[0].vertexInterestRateLimit = 1001; // Exceeds max of 1000
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -238,13 +263,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_vertexStartAdjustmentLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_vertexStartLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].vertexStartAdjustmentLimit = 1001; // Exceeds max of 1000
+        limits[0].vertexStartLimit = 1001; // Exceeds max of 1000
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -258,13 +283,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_adjustmentRateExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_adjustmentVelocityLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].adjustmentRate = 501; // Exceeds max of 500
+        limits[0].adjustmentVelocityLimit = 501; // Exceeds max of 500
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -278,13 +303,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_decayPerAdjustmentExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_decayPerAdjustmentLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].decayPerAdjustment = 201; // Exceeds max of 200
+        limits[0].decayPerAdjustmentLimit = 201; // Exceeds max of 200
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -298,13 +323,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_vertexMultiplierMaxExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_vertexMultiplierMaxLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].vertexMultiplierMax = 50001; // Exceeds max of 50000
+        limits[0].vertexMultiplierMaxLimit = 50001; // Exceeds max of 50000
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -317,5 +342,127 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
             limits
         );
     }
+
+    function test_ProtocolManagerDeployment_fail_marginSoftLimitExceedsMax() public {
+        address[] memory managedAddresses = new address[](1);
+        managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        limits[0] = _getValidLimits();
+        limits[0].marginSoftLimit = 301; // Exceeds max of 300
+
+        ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+    }
+
+    function test_ProtocolManagerDeployment_fail_marginHardLimitExceedsMax() public {
+        address[] memory managedAddresses = new address[](1);
+        managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        limits[0] = _getValidLimits();
+        limits[0].marginHardLimit = 301; // Exceeds max of 300
+
+        ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+    }
+
+    function test_ProtocolManagerDeployment_fail_collateralCapLimitExceedsMax() public {
+        address[] memory managedAddresses = new address[](1);
+        managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        limits[0] = _getValidLimits();
+        limits[0].collateralCapLimit = uint120(type(uint112).max) + 1; // Exceeds max of type(uint112).max
+
+        ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+    }
+
+    function test_ProtocolManagerDeployment_fail_debtCapLimitExceedsMax() public {
+        address[] memory managedAddresses = new address[](1);
+        managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        limits[0] = _getValidLimits();
+        limits[0].debtCapLimit = uint112(type(uint104).max) + 1; // Exceeds max of type(uint104).max
+
+        ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+    }
+
+    // Already enforced through type limits, impossible to test or exceed
+
+    // function test_ProtocolManagerDeployment_fail_basePriceNativeLimitExceedsMax() public {
+    //     address[] memory managedAddresses = new address[](1);
+    //     managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+    //     ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+    //     limits[0] = _getValidLimits();
+    //     limits[0].basePriceNativeLimit = uint256(type(uint88).max) + 1; // Exceeds max of type(uint88).max
+
+    //     ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+    //     vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+    //     new ProtocolManager(
+    //         ICentralRegistry(address(centralRegistry)),
+    //         address(this),
+    //         permsConfig,
+    //         managedAddresses,
+    //         limits
+    //     );
+    // }
+
+    // function test_ProtocolManagerDeployment_fail_minPriceNativeLimitExceedsMax() public {
+    //     address[] memory managedAddresses = new address[](1);
+    //     managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+    //     ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+    //     limits[0] = _getValidLimits();
+    //     limits[0].minPriceNativeLimit = uint256(type(uint88).max) + 1; // Exceeds max of type(uint88).max
+
+    //     ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+    //     vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+    //     new ProtocolManager(
+    //         ICentralRegistry(address(centralRegistry)),
+    //         address(this),
+    //         permsConfig,
+    //         managedAddresses,
+    //         limits
+    //     );
+    // }
 
 }

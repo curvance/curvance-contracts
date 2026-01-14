@@ -7,7 +7,7 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { SECONDS_PER_YEAR, WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -104,6 +104,7 @@ contract ProtocolManager is ReentrancyGuard {
     uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 200;
     uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT = 50000;
     uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = type(uint88).max;
+    uint256 public constant WAD_TO_BPS = 1e14;
 
     /// @notice Whether the protocol manager can modify token configs.
     bool public immutable canModifyTokenConfig;
@@ -307,15 +308,15 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        PeriodAdjustments storage p = _periodAdjustments[managedAddress][getPeriodTimestamp()];
-        PeriodLimits memory l = config[managedAddress].limits;
+        PeriodAdjustments storage p = _periodAdjustments[n.cToken][getPeriodTimestamp()];
+        PeriodLimits memory l = config[n.cToken].limits;
 
         (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
             mm.collConfig(n.cToken);
 
         p.collRatio = int24(_calcAdj(n.collRatio, collRatio, p.collRatio, l.collRatioLimit));
-        p.marginSoft = int24(_calcAdj(n.collReqSoft, collReqSoft, p.marginSoft, l.marginSoftLimit));
-        p.marginHard = int24(_calcAdj(n.collReqHard, collReqHard, p.marginHard, l.marginHardLimit));
+        p.marginSoft = int24(_calcAdj(n.collReqSoft, collReqSoft - BPS, p.marginSoft, l.marginSoftLimit));
+        p.marginHard = int24(_calcAdj(n.collReqHard, collReqHard - BPS, p.marginHard, l.marginHardLimit));
         p.collateralCap = int120(_calcAdj(n.collateralCap, mm.collateralCaps(n.cToken), p.collateralCap, l.collateralCapLimit));
         p.debtCap = int112(_calcAdj(n.debtCap, mm.debtCaps(n.cToken), p.debtCap, l.debtCapLimit));
         
@@ -365,12 +366,12 @@ contract ProtocolManager is ReentrancyGuard {
             rc.vertexMultiplierMax,
         ) = DynamicIRM(managedAddress).ratesConfig();
 
-        p.baseInterestRate = int64(_calcAdj(baseRatePerYear, _mulDiv(rc.baseRatePerSecond, SECONDS_PER_YEAR * rc.vertexStart, WAD), p.baseInterestRate, l.baseInterestRateLimit));
-        p.vertexInterestRate = int64(_calcAdj(vertexRatePerYear, _mulDiv(rc.vertexRatePerSecond, SECONDS_PER_YEAR * (WAD - rc.vertexStart), WAD), p.vertexInterestRate, l.vertexInterestRateLimit));
-        p.vertexStart = int64(_calcAdj(vertexStart, rc.vertexStart, p.vertexStart, l.vertexStartLimit));
+        p.baseInterestRate = int64(_calcAdj(baseRatePerYear, _perSecondToBPS(rc.baseRatePerSecond, rc.vertexStart), p.baseInterestRate, l.baseInterestRateLimit));
+        p.vertexInterestRate = int64(_calcAdj(vertexRatePerYear, _perSecondToBPS(rc.vertexRatePerSecond, WAD - rc.vertexStart), p.vertexInterestRate, l.vertexInterestRateLimit));
+        p.vertexStart = int64(_calcAdj(vertexStart, rc.vertexStart / WAD_TO_BPS, p.vertexStart, l.vertexStartLimit));
         p.adjustmentVelocity = int16(_calcAdj(adjustmentVelocity, rc.adjustmentVelocity, p.adjustmentVelocity, l.adjustmentVelocityLimit));
         p.decayPerAdjustment = int8(_calcAdj(decayPerAdjustment, rc.decayPerAdjustment, p.decayPerAdjustment, l.decayPerAdjustmentLimit));
-        p.vertexMultiplierMax = int16(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
+        p.vertexMultiplierMax = int16(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax / WAD_TO_BPS, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
         
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
@@ -414,8 +415,8 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        PeriodAdjustments storage p = _periodAdjustments[managedAddress][getPeriodTimestamp()];
-        PeriodLimits memory l = config[managedAddress].limits;
+        PeriodAdjustments storage p = _periodAdjustments[asset][getPeriodTimestamp()];
+        PeriodLimits memory l = config[asset].limits;
         IOracleAdaptor.PriceGuard memory pg = oa.getPriceGuard(asset, inUSD);
 
         if (inUSD) {
@@ -669,6 +670,19 @@ contract ProtocolManager is ReentrancyGuard {
             }
             z := div(mul(x, y), d)
         }
+    }
+
+    /// @notice Converts per-second rate back to BPS with proper rounding.
+    /// @dev Uses rounding division to avoid ~1 BPS precision loss from truncation.
+    /// @param ratePerSecond The rate per second (as stored in DynamicIRM).
+    /// @param vertexFactor Either vertexStart or (WAD - vertexStart) in WAD.
+    /// @return bps The rate in BPS, rounded to nearest.
+    function _perSecondToBPS(
+        uint256 ratePerSecond,
+        uint256 vertexFactor
+    ) internal pure returns (uint256 bps) {
+        uint256 wadValue = _mulDiv(ratePerSecond, SECONDS_PER_YEAR * vertexFactor, WAD);
+        bps = (wadValue + WAD_TO_BPS / 2) / WAD_TO_BPS;
     }
 
     /// @notice Returns the absolute value of `value`.
