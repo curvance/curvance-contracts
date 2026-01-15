@@ -49,7 +49,7 @@ import { BasePositionManager } from "contracts/market/position-management/BasePo
 /// - testDeleverage (USDC/DAI, enforced swap).
 /// - test_Leverage_fail_... (input validation: invalid target/call/tokens/amounts/wrong recipient).
 
-contract TestVaultPositionManager is TestBaseMarketIsolated {
+contract TestSingleSidedVaultPositionManager is TestBaseMarketIsolated {
 
     SingleSidedVaultPositionManager public positionManager;
 

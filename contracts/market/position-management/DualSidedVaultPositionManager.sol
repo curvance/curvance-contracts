@@ -81,8 +81,7 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
 
         SwapperLib.
             _approveIfNeeded(underlying, vault, action.collateralAssets);
-        uint256 assets = IVault(vault)
-            .redeem(action.collateralAssets, address(this), address(this));
+        uint256 assets = _vaultRedeem(vault, action.collateralAssets);
         SwapperLib._removeApprovalIfNeeded(underlying, vault);
 
         // If the `debtAsset` already matches the vault underlying, we can
@@ -114,5 +113,17 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
             // Swap `underlying` to vault `debtAsset`.
             SwapperLib._swapSafe(centralRegistry, swapAction);
         }
+    }
+
+    /// @notice Simple helper for withdrawing from the corresponding vault.
+    /// @param vault The receipt token's vault address.
+    /// @param shares The amount of shares to burn from `vault`.
+    /// @return assetsReceived The actual amount of underlying assets received.
+    function _vaultRedeem(
+        address vault,
+        uint256 shares
+    ) internal virtual returns (uint256 assetsReceived) {
+        assetsReceived = 
+            IVault(vault).redeem(shares, address(this), address(this));
     }
 }
