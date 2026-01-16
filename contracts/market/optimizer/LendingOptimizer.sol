@@ -466,6 +466,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             revert LendingOptimizer__ArrayLengthMismatch();
         }
 
+        uint256 intentWithdrawn;
         // First pass: accrue all markets and process withdrawals.
         for (uint256 i; i < l; ++i) {
             address expectedCToken = approvedCTokensList[i];
@@ -477,6 +478,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
+                intentWithdrawn += actions[i].assets;
                 actions[i].cToken.withdraw(
                     actions[i].assets,
                     address(this),
@@ -485,15 +487,28 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        // Second pass: process deposits and check for rounding.
+        // Track the intended deposited assets and the actual deposited assets 
+        // to account for rounding loss.
+        uint256 intentDeposited;
+        uint256 actualDeposited;
+        // Second pass: process deposits.
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
                 uint256 assets = _depositToMarket(address(actions[i].cToken), actions[i].assets);
-                if (assets < actions[i].minAssetsOut) {
-                    revert LendingOptimizer__InsufficientAssetsReceived();
-                }
+                actualDeposited += assets;
+                intentDeposited += actions[i].assets;
             }
+        }
+
+        // Check that the manager intended to withdraw and deposit the same amount of assets.
+        if (intentWithdrawn != intentDeposited) {
+            revert LendingOptimizer__AssetMismatch();
+        }
+
+        // In order to not trigger bad debt detection, we need to keep _totalAssets in sync with rawTa.
+        if (intentDeposited > actualDeposited) {
+            _totalAssets -= (intentDeposited - actualDeposited);
         }
 
         // Calculate total assets for cap verification.

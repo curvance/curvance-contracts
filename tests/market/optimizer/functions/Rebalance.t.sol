@@ -209,4 +209,142 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         optimizer.rebalance(actions);
     }
+
+    /// @notice Verifies that rebalance adjusts _totalAssets for rounding loss,
+    ///         preventing false bad debt detection on subsequent accruals.
+    function test_lendingOptimizer_rebalance_roundingLossDoesNotTriggerBadDebt() public {
+        // Use a two-market setup with 100% caps to avoid allocation cap issues.
+        // This test focuses on rounding loss, not cap validation.
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](2);
+        allocationCapsBps[0] = 10_000; // 100%
+        allocationCapsBps[1] = 10_000; // 100%
+
+        LendingOptimizer testOptimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000, // 10% fee
+            1 days
+        );
+
+        // Initialize the optimizer.
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        testOptimizer.initializeDeposits(0);
+
+        // Deposit to both markets.
+        deal(USDC_MONAD, address(this), 20_000e6);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), 20_000e6);
+        testOptimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        testOptimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        uint256 totalAssetsBefore = testOptimizer.totalAssets();
+        uint256 totalSupplyBefore = testOptimizer.totalSupply();
+        uint256 exchangeRateBefore = testOptimizer.exchangeRate();
+
+        // Mock harvest permissions for rebalancing.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Perform multiple rebalances to accumulate potential rounding losses.
+        // Each rebalance moves assets between markets, potentially losing 1 wei per deposit.
+        for (uint256 i = 0; i < 5; i++) {
+            uint256 transferAmount = 1_000e6;
+
+            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
+            actions[0] = LendingOptimizer.RebalanceAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET),
+                transferAmount,
+                0,    // minAssetsOut - allow any rounding
+                true  // deposit
+            );
+            actions[1] = LendingOptimizer.RebalanceAction(
+                IBorrowableCToken(cUSDC_WBTC_MARKET),
+                transferAmount,
+                0,
+                false // withdraw
+            );
+
+            testOptimizer.rebalance(actions);
+        }
+
+        // Key test: Call exchangeRateUpdated which internally calls _accrueIfNeeded.
+        // If _totalAssets wasn't properly adjusted for rounding loss, this would
+        // detect rawTa < totalAssets and trigger bad debt handling, which clears vesting.
+        // Instead, it should work normally.
+        uint256 exchangeRateAfter = testOptimizer.exchangeRateUpdated();
+
+        // Total assets may be slightly less due to accumulated rounding (up to 5 wei for 5 rebalances).
+        uint256 totalAssetsAfter = testOptimizer.totalAssets();
+        assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore, 10, "Total assets should be ~preserved");
+
+        // Total supply should be unchanged (no shares minted/burned during rebalance).
+        uint256 totalSupplyAfter = testOptimizer.totalSupply();
+        assertEq(totalSupplyAfter, totalSupplyBefore, "Total supply should be unchanged");
+
+        // Exchange rate should be approximately preserved (may decrease slightly due to rounding loss).
+        assertApproxEqRel(exchangeRateAfter, exchangeRateBefore, 0.0001e18, "Exchange rate should be ~preserved");
+
+        // Verify the optimizer still functions normally - users can deposit and withdraw.
+        deal(USDC_MONAD, address(this), 1_000e6);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), 1_000e6);
+        uint256 shares = testOptimizer.deposit(1_000e6, address(this));
+        assertGt(shares, 0, "Should be able to deposit after rebalance");
+
+        // Withdraw should also work.
+        uint256 assets = testOptimizer.redeem(shares / 2, address(this), address(this));
+        assertGt(assets, 0, "Should be able to redeem after rebalance");
+    }
+
+    /// @notice Verifies minAssetsOut slippage protection works during rebalance.
+    function test_lendingOptimizer_rebalance_fail_whenSlippageExceedsMinAssetsOut() public {
+        _depositToAllMarkets(10_000e6);
+
+        uint256 transferAmount = 1_000e6;
+
+        // Set minAssetsOut equal to transfer amount - any rounding loss will revert.
+        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
+        actions[0] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            transferAmount,
+            transferAmount,  // minAssetsOut = exact amount (no tolerance for rounding)
+            true
+        );
+        actions[1] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            0,
+            0,
+            true
+        );
+        actions[2] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            transferAmount,
+            0,
+            false
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // This should revert because cToken rounding will cause trackedAssets < minAssetsOut.
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAssetsReceived.selector);
+        optimizer.rebalance(actions);
+    }
 }
