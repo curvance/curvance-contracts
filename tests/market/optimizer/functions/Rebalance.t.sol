@@ -51,16 +51,19 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
             withdrawAmount,
+            0,    // minAssetsOut
             true  // deposit
         );
         actions[1] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
             0,
+            0,    // minAssetsOut
             true  // no action (0 assets)
         );
         actions[2] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
             withdrawAmount,
+            0,     // minAssetsOut
             false  // withdraw
         );
 
@@ -123,16 +126,19 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
             transferAmount,
+            0,     // minAssetsOut
             false  // withdraw from Market 0
         );
         actions[1] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
             0,
+            0,    // minAssetsOut
             true  // no action
         );
         actions[2] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
             transferAmount,
+            0,    // minAssetsOut
             true  // deposit to Market 2 (will exceed 20% cap)
         );
 
@@ -152,9 +158,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         _depositToAllMarkets(10_000e6);
 
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);
+        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, 0, true);
 
         // Mock harvest permissions to return false (unauthorized).
         vm.mockCall(
@@ -172,8 +178,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Create actions array with wrong length (2 instead of 3).
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -190,9 +196,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Create actions with wrong market order (swapped index 1 and 2).
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);  // Wrong: should be WBTC
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);  // Wrong: should be WETH
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, 0, true);  // Wrong: should be WBTC
+        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);  // Wrong: should be WETH
 
         vm.mockCall(
             address(liveCentralRegistry),

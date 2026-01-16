@@ -70,6 +70,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         IBorrowableCToken cToken;
         /// @notice The amount of underlying assets to deposit or withdraw.
         uint256 assets;
+        /// @notice The minimum amount of underlying assets to receive.
+        uint256 minAssetsOut;
         /// @notice True for deposit, false for withdrawal.
         bool isDeposit;
     }
@@ -158,6 +160,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     error LendingOptimizer__NotInitialized();
     error LendingOptimizer__AlreadyInitialized();
     error LendingOptimizer__MintPaused();
+    error LendingOptimizer__InsufficientAssetsReceived();
 
 
     /// EVENTS ///
@@ -334,11 +337,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 shares,
         address receiver
     ) public override nonReentrant returns (uint256 assets) {
-        _accrueIfNeeded();
         _checkMintPaused();
+        _accrueIfNeeded();
 
-        assets = previewMint(shares);
-        _deposit(assets, receiver, _getOptimalDepositMarket(assets));
+        assets = _mint(shares, receiver, _getOptimalDepositMarket(previewMint(shares)));
     }
 
     /// @notice Mints shares by depositing into a specific market.
@@ -358,8 +360,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
         _accrueIfNeeded();
 
-        assets = previewMint(shares);
-        _deposit(assets, receiver, targetMarket);
+        assets = _mint(shares, receiver, targetMarket);
     }
 
     /// @notice Standard ERC4626 withdraw - withdraws from optimal market.
@@ -466,7 +467,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // First pass: accrue all markets and process withdrawals.
-        uint256 totalWithdrawals;
         for (uint256 i; i < l; ++i) {
             address expectedCToken = approvedCTokensList[i];
 
@@ -477,7 +477,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
-                totalWithdrawals += actions[i].assets;
                 actions[i].cToken.withdraw(
                     actions[i].assets,
                     address(this),
@@ -486,26 +485,15 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        // Second pass: process deposits and track actual value received.
-        uint256 intentDeposits;
-        uint256 actualDeposits;
+        // Second pass: process deposits and check for rounding.
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
-                intentDeposits += actions[i].assets;
-                actualDeposits += _depositToMarket(address(actions[i].cToken), actions[i].assets);
+                uint256 assets = _depositToMarket(address(actions[i].cToken), actions[i].assets);
+                if (assets < actions[i].minAssetsOut) {
+                    revert LendingOptimizer__InsufficientAssetsReceived();
+                }
             }
-        }
-
-        // Validate that caller intended to rebalance with net-zero assets.
-        if (totalWithdrawals != intentDeposits) {
-            revert LendingOptimizer__InvalidParameter();
-        }
-
-        // Account for deposit rounding loss to keep _totalAssets in sync with rawTa.
-        // Without this, small rounding losses accumulate and could trigger false bad debt.
-        if (actualDeposits < intentDeposits) {
-            _totalAssets -= (intentDeposits - actualDeposits);
         }
 
         // Calculate total assets for cap verification.
@@ -747,14 +735,14 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      yield, and charges performance fees if rate exceeds watermark.
     /// @return Current exchange rate in WAD (1e18 = 1:1). Returns WAD if no supply.
     function exchangeRateUpdated() public nonReentrant returns (uint256) {
-        uint256 supply = totalSupply();
-
-        if (supply == 0) return WAD;
+        if (totalSupply() == 0) return WAD;
 
         // Accrue yield from underlying markets and vest new yield.
+        // Note: _accrueIfNeeded() may mint fee shares, so we must use
+        // totalSupply() after accrual, not a cached value.
         _accrueIfNeeded();
 
-        return FixedPointMathLib.mulDiv(WAD, totalAssets(), supply);
+        return FixedPointMathLib.mulDiv(WAD, totalAssets(), totalSupply());
     }
 
     /// @notice Accrues yield from underlying markets and vests new yield.
@@ -1051,13 +1039,41 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _totalAssets -= assets;
     }
 
-    /// @dev Core deposit logic shared by deposit() and mint() variants.
-    ///      Calculates shares based on actual tracked assets to maintain exchange rate.
+    /// @dev Deposit path - input is assets, returns shares.
+    /// @param assets The amount of assets to deposit.
+    /// @param receiver The address to receive the minted shares.
+    /// @param targetMarket The target cToken market to deposit into.
+    /// @return shares The amount of shares minted.
+    function _deposit(
+        uint256 assets,
+        address receiver,
+        address targetMarket
+    ) internal returns (uint256 shares) {
+        shares = _processDeposit(assets, receiver, targetMarket);
+    }
+
+    /// @dev Mint path - input is shares, returns assets.
+    /// @param shares The target amount of shares to mint.
+    /// @param receiver The address to receive the minted shares.
+    /// @param targetMarket The target cToken market to deposit into.
+    /// @return assets The amount of assets deposited.
+    function _mint(
+        uint256 shares,
+        address receiver,
+        address targetMarket
+    ) internal returns (uint256 assets) {
+        assets = previewMint(shares);
+        // Note: actual shares minted may differ slightly due to cToken rounding
+        _processDeposit(assets, receiver, targetMarket);
+    }
+
+    /// @dev Core deposit processing shared by _deposit and _mint.
+    ///      Handles transfer, cToken deposit, share calculation, and state updates.
     /// @param assets The amount of assets to deposit.
     /// @param receiver The address to receive the minted shares.
     /// @param targetMarket The target cToken market to deposit into.
     /// @return shares The amount of shares minted (based on actual tracked value).
-    function _deposit(
+    function _processDeposit(
         uint256 assets,
         address receiver,
         address targetMarket
@@ -1070,7 +1086,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Calculate shares based on actual tracked value and current totalAssets (pre-deposit).
         // This ensures the exchange rate never decreases due to cToken rounding.
-        // Users may receive 1 fewer share than previewDeposit predicted (slippage).
         shares = convertToShares(trackedAssets);
 
         // Update _totalAssets after calculating shares.
@@ -1180,11 +1195,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Get actual assets from underlying markets (triggers underlying interest accrual).
         uint256 rawTa = _accrueMarkets();
 
-        // If rawTa < totalAssets + pending vested assets, bad debt detected.
-        if (rawTa < totalAssets()) {
+        uint256 ta = totalAssets();
+
+        // If rawTa < totalAssets, bad debt detected.
+        if (rawTa < ta) {
             // Bad debt detected, update _totalAssets immediately.
             _totalAssets = rawTa;
-            _vestingData = 0;
+            _setVestingData(0);
             return;
         }
 
@@ -1196,22 +1213,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Calculate pending vested assets.
-        uint256 assetsToVest = _assetsToVest();
+        uint256 assetsToVest = rawTa - ta;
 
         // Vest pending assets, if there is any.
         if (assetsToVest > 0) {
-            // Update the lastVestingClaim timestamp.
-            _setLastVestingClaim(uint40(block.timestamp));
-
             // Update _totalAssets invariant with vested assets added.
-            _totalAssets += assetsToVest;
-        }
-
-        // Check for new yield from underlying markets.
-        // If rawTa > _totalAssets, the difference is new yield to vest.
-        if (rawTa > _totalAssets) {
-            uint256 newYield = rawTa - _totalAssets;
-            _setVestingData(newYield);
+            _totalAssets = ta;
+            _setVestingData(assetsToVest);
         }
 
         // Fees are charged on vested yield only, based on exchange rate vs watermark.
@@ -1224,23 +1232,24 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Skip if no shares exist (nothing to charge fees on).
         if (supply == 0) return;
 
+        // Cache the high watermark exchange rate.
+        uint256 highRate = exchangeRateHighWatermark;
+
         // Get total assets (indexed + pending vest from new vesting period).
-        uint256 currentAssets = totalAssets();
+        uint256 currentAssets = ta + assetsToVest;
 
         // Calculate the current exchange rate.
         // currentRate = (WAD * currentAssets) / supply
         uint256 currentRate = FixedPointMathLib.mulDiv(WAD, currentAssets, supply);
 
-        // Cache the high watermark exchange rate.
-        uint256 highRate = exchangeRateHighWatermark;
-
         // Only charge fees if we've exceeded the previous all-time-high rate.
         // This prevents double-charging after losses recover.
-        if (currentRate <= highRate) return;
+        if (currentRate <= highRate) {
+            return;
+        }
 
         // Calculate profit above the watermark in asset terms.
         uint256 highAssets = FixedPointMathLib.mulDiv(highRate, supply, WAD);
-
         // Calculate the profit above the high watermark.
         uint256 profit = currentAssets - highAssets;
 
@@ -1265,7 +1274,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Get the DAO address from the central registry.
         address dao = centralRegistry.daoAddress();
-
         // Mint fee shares to the DAO.
         _mint(dao, feeShares);
 

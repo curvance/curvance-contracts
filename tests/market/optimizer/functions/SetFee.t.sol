@@ -25,7 +25,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         _setUpOneMarket();
 
         // Verify initial fee (10% = 1000 BPS = 0.1 WAD).
-        assertEq(optimizer.fee(), 1_000 * 1e14, "Initial fee should be 10%");
+        assertEq(optimizer.fee(), 1_000, "Initial fee should be 10%");
 
         // Mock market permissions.
         vm.mockCall(
@@ -38,7 +38,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         optimizer.setFee(2_000);
 
         // Verify fee was updated.
-        assertEq(optimizer.fee(), 2_000 * 1e14, "Fee should be updated to 20%");
+        assertEq(optimizer.fee(), 2_000, "Fee should be updated to 20%");
     }
 
     function test_lendingOptimizer_setFee_success_setToMaxFee() public {
@@ -56,7 +56,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         optimizer.setFee(MAX_FEE_BPS);
 
         // Verify fee was updated to max.
-        assertEq(optimizer.fee(), MAX_FEE_BPS * 1e14, "Fee should be updated to 50%");
+        assertEq(optimizer.fee(), MAX_FEE_BPS, "Fee should be updated to 50%");
     }
 
     function test_lendingOptimizer_setFee_success_setToZero() public {
@@ -112,7 +112,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Increase fee from 10% to 30%.
         optimizer.setFee(3_000);
-        assertEq(optimizer.fee(), 3_000 * 1e14, "Fee should be 30%");
+        assertEq(optimizer.fee(), 3_000, "Fee should be 30%");
     }
 
     function test_lendingOptimizer_setFee_success_decreaseFee() public {
@@ -128,7 +128,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Decrease fee from 10% to 5%.
         optimizer.setFee(500);
-        assertEq(optimizer.fee(), 500 * 1e14, "Fee should be 5%");
+        assertEq(optimizer.fee(), 500, "Fee should be 5%");
     }
 
     function test_lendingOptimizer_setFee_success_enableFromZero_updatesWatermark() public {
@@ -151,8 +151,17 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
         optimizer.deposit(10_000e6, address(this));
 
-        // Skip forward to simulate yield.
+        // Skip forward to simulate yield accrual in underlying markets.
         skip(30 days);
+
+        // First accrueIfNeeded detects yield and starts vesting.
+        optimizer.accrueIfNeeded();
+
+        // Skip vesting period to let yield vest into _totalAssets.
+        skip(1 days);
+
+        // Second accrueIfNeeded vests the yield.
+        optimizer.accrueIfNeeded();
 
         // Record watermark before enabling fees.
         uint256 watermarkBefore = optimizer.exchangeRateHighWatermark();
@@ -208,13 +217,13 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Multiple fee updates.
         optimizer.setFee(500);
-        assertEq(optimizer.fee(), 500 * 1e14, "Fee should be 5%");
+        assertEq(optimizer.fee(), 500, "Fee should be 5%");
 
         optimizer.setFee(2_500);
-        assertEq(optimizer.fee(), 2_500 * 1e14, "Fee should be 25%");
+        assertEq(optimizer.fee(), 2_500, "Fee should be 25%");
 
         optimizer.setFee(MAX_FEE_BPS);
-        assertEq(optimizer.fee(), MAX_FEE_BPS * 1e14, "Fee should be 50%");
+        assertEq(optimizer.fee(), MAX_FEE_BPS, "Fee should be 50%");
 
         optimizer.setFee(0);
         assertEq(optimizer.fee(), 0, "Fee should be 0");
@@ -287,7 +296,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Set fee after yield has accrued - should work and accrue first.
         optimizer.setFee(3_000);
-        assertEq(optimizer.fee(), 3_000 * 1e14, "Fee should be 30%");
+        assertEq(optimizer.fee(), 3_000, "Fee should be 30%");
     }
 
     function test_lendingOptimizer_setFee_success_minimumNonZeroFee() public {
@@ -304,7 +313,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         // Set minimum non-zero fee (1 BPS = 0.01%).
         optimizer.setFee(1);
 
-        assertEq(optimizer.fee(), 1 * 1e14, "Fee should be 0.01%");
+        assertEq(optimizer.fee(), 1, "Fee should be 0.01%");
     }
 
     // ==================== FAILURE CASES ====================
@@ -387,7 +396,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Set fee to exactly MAX_FEE_BPS - should succeed.
         optimizer.setFee(MAX_FEE_BPS);
-        assertEq(optimizer.fee(), MAX_FEE_BPS * 1e14, "Fee should be exactly 50%");
+        assertEq(optimizer.fee(), MAX_FEE_BPS, "Fee should be exactly 50%");
     }
 
     function test_lendingOptimizer_setFee_fail_boundaryJustAboveMaxFee() public {
@@ -423,7 +432,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         // Note: initializeDeposits was called in setup, so there is supply.
         // But enabling from 0 should still work.
         optimizer.setFee(1_000);
-        assertEq(optimizer.fee(), 1_000 * 1e14, "Fee should be 10%");
+        assertEq(optimizer.fee(), 1_000, "Fee should be 10%");
     }
 
     function test_lendingOptimizer_setFee_success_zeroToZero() public {
@@ -466,7 +475,7 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
         optimizer.setFee(newFeeBps);
 
         // Verify fee was updated.
-        assertEq(optimizer.fee(), newFeeBps * 1e14, "Fee should be updated");
+        assertEq(optimizer.fee(), newFeeBps, "Fee should be updated");
     }
 
     function testFuzz_lendingOptimizer_setFee_fail_invalidFee(uint256 newFeeBps) public {
@@ -506,12 +515,12 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
 
         // Multiple fee changes.
         optimizer.setFee(fee1);
-        assertEq(optimizer.fee(), fee1 * 1e14, "First fee update");
+        assertEq(optimizer.fee(), fee1, "First fee update");
 
         optimizer.setFee(fee2);
-        assertEq(optimizer.fee(), fee2 * 1e14, "Second fee update");
+        assertEq(optimizer.fee(), fee2, "Second fee update");
 
         optimizer.setFee(fee3);
-        assertEq(optimizer.fee(), fee3 * 1e14, "Third fee update");
+        assertEq(optimizer.fee(), fee3, "Third fee update");
     }
 }

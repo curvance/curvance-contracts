@@ -337,4 +337,13 @@ interface IBorrowableCToken {
     ///      current transaction, if any.
     /// @return The quantity of underlying tokens held by the market.
     function assetsHeld() external view returns (uint256);
+
+    /// @notice Borrows underlying tokens from lenders, based on collateral
+    ///         posted inside this market by the caller.
+    /// @dev Updates pending interest before executing the borrow.
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param receiver The account who will receive the borrowed assets.
+    function borrow(uint256 assets, address receiver) external;
+
+
 }

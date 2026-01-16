@@ -95,6 +95,12 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        // Mock market permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
         optimizer.initializeDeposits(0);
     }
 
@@ -119,6 +125,12 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        // Mock market permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
         optimizer.initializeDeposits(0);
     }
 
@@ -145,6 +157,12 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        // Mock market permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
         optimizer.initializeDeposits(0);
     }
 

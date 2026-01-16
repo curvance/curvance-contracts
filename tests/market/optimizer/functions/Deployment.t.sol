@@ -40,15 +40,15 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify ERC20 metadata
         assertEq(optimizer.name(), "Curvance USDC Optimizer");
-        assertEq(optimizer.symbol(), "cUSDC OPTI");
+        assertEq(optimizer.symbol(), "cUSDC+");
         assertEq(optimizer.decimals(), IERC20(USDC_MONAD).decimals());
 
         // Verify constants
         assertEq(optimizer.MAX_FEE_BPS(), 5000);
         assertEq(optimizer.MAX_MARKETS(), 6);
 
-        // Verify storage state
-        assertEq(optimizer.fee(), feeBps * 1e14);
+        // Verify storage state - fee is stored in BPS format
+        assertEq(optimizer.fee(), feeBps);
         assertEq(optimizer.exchangeRateHighWatermark(), WAD);
         assertEq(optimizer.numApprovedMarkets(), 1);
 
@@ -97,8 +97,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             1 days
         );
 
-        // Verify storage state
-        assertEq(optimizer.fee(), feeBps * 1e14);
+        // Verify storage state - fee is stored in BPS format
+        assertEq(optimizer.fee(), feeBps);
         assertEq(optimizer.numApprovedMarkets(), 3);
 
         // Verify all approved markets
@@ -156,7 +156,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             1 days
         );
 
-        assertEq(optimizer.fee(), 5_000 * 1e14);
+        // Fee is stored in BPS format
+        assertEq(optimizer.fee(), 5_000);
     }
 
     function test_lendingOptimizer_deployment_fail_whenFeeTooHigh() public {
