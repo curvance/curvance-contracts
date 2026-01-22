@@ -106,4 +106,15 @@ contract TestProtocolManagerBase is TestBaseMarketIsolated {
             canModifyPositionManagers: true
         });
     }
+
+    /// @notice Warps to the final 1/3 of the current period where updateManagementConfig is allowed
+    /// @dev Period duration is 604800 seconds (1 week), 2/3 of that is 403200 seconds
+    function _warpToValidManagementConfigWindow() internal {
+        uint256 unixStartTimestamp = 1766966400;
+        uint256 periodDuration = 604800;
+        uint256 currentPeriod = (block.timestamp - unixStartTimestamp) / periodDuration;
+        uint256 periodStart = unixStartTimestamp + (currentPeriod * periodDuration);
+        uint256 validTime = periodStart + (periodDuration * 2) / 3 + 1;
+        vm.warp(validTime);
+    }
 }

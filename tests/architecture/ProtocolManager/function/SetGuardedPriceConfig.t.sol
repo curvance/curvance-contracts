@@ -303,54 +303,59 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
     }
 
     /// @notice Test that invalid timestamp (non-zero when ips = 0) reverts
+    /// @notice Test that changing timestampStart from current value reverts
+    /// @dev ProtocolManager enforces ips and timestampStart must match current values
     function test_setGuardedPriceConfig_fail_invalidTimestampStaticMode() public {
-        // Set up existing price guard
+        // Set up existing price guard with timestampStart = 0, ips = 0
         chainlinkAdaptor.setGuardedPriceConfig(testAsset, true, 0, 0, 1.02e18, 0.98e18);
 
         vm.prank(manager);
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidTimestamp.selector);
+        // Now reverts at ProtocolManager level because timestampStart must match current (0)
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.setGuardedPriceConfig(
             address(chainlinkAdaptor),
             testAsset,
             true,
-            block.timestamp - 10 days, // Should be 0 when ips = 0
-            0,                          // ips = 0 (static mode)
+            block.timestamp - 10 days, // Different from current timestampStart (0)
+            0,
             1.05e18,
             0.96e18
         );
     }
 
-    /// @notice Test that timestamp in the future reverts
+    /// @notice Test that changing timestampStart from current value reverts
     function test_setGuardedPriceConfig_fail_timestampInFuture() public {
-        // Set up existing price guard
+        // Set up existing price guard with timestampStart = 0, ips = 0
         chainlinkAdaptor.setGuardedPriceConfig(testAsset, true, 0, 0, 1.02e18, 0.98e18);
 
         vm.prank(manager);
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidTimestamp.selector);
+        // Now reverts at ProtocolManager level because timestampStart must match current (0)
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.setGuardedPriceConfig(
             address(chainlinkAdaptor),
             testAsset,
             true,
-            block.timestamp + 1,  // Future timestamp
-            1e10,                 // ips > 0 (dynamic mode)
+            block.timestamp + 1,  // Different from current timestampStart (0)
+            1e10,                 // Different from current ips (0)
             1.05e18,
             0.96e18
         );
     }
 
-    /// @notice Test that timestamp too recent (< 7 days buffer) reverts
+    /// @notice Test that changing ips from current value reverts
     function test_setGuardedPriceConfig_fail_timestampTooRecent() public {
-        // Set up existing price guard
+        // Set up existing price guard with timestampStart = 0, ips = 0
         chainlinkAdaptor.setGuardedPriceConfig(testAsset, true, 0, 0, 1.02e18, 0.98e18);
 
         vm.prank(manager);
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidTimestamp.selector);
+        // Now reverts at ProtocolManager level because ips must match current (0)
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.setGuardedPriceConfig(
             address(chainlinkAdaptor),
             testAsset,
             true,
-            block.timestamp - 1 days, // Less than 7 days buffer
-            1e10,
+            block.timestamp - 1 days, // Different from current timestampStart (0)
+            1e10,                      // Different from current ips (0)
             1.05e18,
             0.96e18
         );
@@ -392,19 +397,22 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         );
     }
 
-    /// @notice Test that ips exceeding uint40 max reverts
+    /// @notice Test that changing ips from current value reverts
+    /// @dev ProtocolManager enforces ips must match current value, so oracle adaptor
+    ///      validation for ips > uint40.max can no longer be triggered through PM
     function test_setGuardedPriceConfig_fail_ipsExceedsMax() public {
-        // Set up existing price guard
+        // Set up existing price guard with ips = 0
         chainlinkAdaptor.setGuardedPriceConfig(testAsset, true, 0, 0, 1.02e18, 0.98e18);
 
         vm.prank(manager);
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        // Now reverts at ProtocolManager level because ips must match current (0)
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.setGuardedPriceConfig(
             address(chainlinkAdaptor),
             testAsset,
             true,
-            block.timestamp - MINIMUM_TIMESTAMP_BUFFER - 1,
-            uint256(type(uint40).max) + 1, // Exceeds uint40 max
+            block.timestamp - MINIMUM_TIMESTAMP_BUFFER - 1, // Different from current (0)
+            uint256(type(uint40).max) + 1,                   // Different from current ips (0)
             1.05e18,
             0.96e18
         );
@@ -456,13 +464,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment tracked as delta (query by asset, not adaptor)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (int88 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(newBasePrice) - int256(existingBasePrice);
-        assertEq(basePriceUSDAdj, int88(expectedAdj), "basePriceUSD adjustment mismatch");
+        assertEq(basePriceUSDAdj, int96(expectedAdj), "basePriceUSD adjustment mismatch");
     }
 
     /// @notice Test that minPriceUSD adjustment is tracked correctly
@@ -488,13 +496,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment tracked as delta (query by asset, not adaptor)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (, int88 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (, int96 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(newMinPrice) - int256(existingMinPrice);
-        assertEq(minPriceUSDAdj, int88(expectedAdj), "minPriceUSD adjustment mismatch");
+        assertEq(minPriceUSDAdj, int96(expectedAdj), "minPriceUSD adjustment mismatch");
     }
 
     /// @notice Test that basePriceNative adjustment is tracked correctly
@@ -523,13 +531,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment tracked as delta (query by asset, not adaptor)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (,, int88 basePriceNativeAdj,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (,, int96 basePriceNativeAdj,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(newBasePrice) - int256(existingBasePrice);
-        assertEq(basePriceNativeAdj, int88(expectedAdj), "basePriceNative adjustment mismatch");
+        assertEq(basePriceNativeAdj, int96(expectedAdj), "basePriceNative adjustment mismatch");
     }
 
     /// @notice Test that minPriceNative adjustment is tracked correctly
@@ -558,13 +566,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment tracked as delta (query by asset, not adaptor)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (,,, int88 minPriceNativeAdj) = protocolManager.getPriceGuardPeriodAdjustments(
+        (,,, int96 minPriceNativeAdj) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(newMinPrice) - int256(existingMinPrice);
-        assertEq(minPriceNativeAdj, int88(expectedAdj), "minPriceNative adjustment mismatch");
+        assertEq(minPriceNativeAdj, int96(expectedAdj), "minPriceNative adjustment mismatch");
     }
 
     /// @notice Test multiple updates within the same period - adjustment tracks total change from period start
@@ -616,13 +624,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // The cumulative adjustment = final - original = 0.06e18 (query by asset)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (int88 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(basePrice3) - int256(existingBasePrice);
-        assertEq(basePriceUSDAdj, int88(expectedAdj), "cumulative adjustment should equal total delta");
+        assertEq(basePriceUSDAdj, int96(expectedAdj), "cumulative adjustment should equal total delta");
     }
 
     /// @notice Test that decreasing price results in negative adjustment
@@ -648,13 +656,13 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Adjustment should be negative (query by asset)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (int88 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 basePriceUSDAdj,,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedAdj = int256(newBasePrice) - int256(existingBasePrice);
-        assertEq(basePriceUSDAdj, int88(expectedAdj), "adjustment should be negative delta");
+        assertEq(basePriceUSDAdj, int96(expectedAdj), "adjustment should be negative delta");
         assertTrue(basePriceUSDAdj < 0, "adjustment should be negative");
     }
 
@@ -816,12 +824,12 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment tracked (query by asset)
         uint256 periodTimestamp1 = protocolManager.getPeriodTimestamp();
-        (int88 adj1,,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 adj1,,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp1
         );
         int256 expectedAdj1 = int256(basePrice1) - int256(existingBasePrice);
-        assertEq(adj1, int88(expectedAdj1), "First period adjustment");
+        assertEq(adj1, int96(expectedAdj1), "First period adjustment");
 
         // Warp forward past the period duration (1 week)
         vm.warp(block.timestamp + 604800 + 1);
@@ -845,14 +853,14 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify new period has fresh adjustment (delta from period start value, query by asset)
         uint256 periodTimestamp2 = protocolManager.getPeriodTimestamp();
-        (int88 adj2,,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 adj2,,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp2
         );
 
         // New period adjustment = basePrice2 - basePrice1 = 0.05e18
         int256 expectedAdj2 = int256(basePrice2) - int256(basePrice1);
-        assertEq(adj2, int88(expectedAdj2), "New period should track delta from period start value");
+        assertEq(adj2, int96(expectedAdj2), "New period should track delta from period start value");
     }
 
     /// @notice Test that both USD price adjustments are tracked together
@@ -879,15 +887,15 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify both adjustments tracked as deltas (query by asset)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (int88 basePriceUSDAdj, int88 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 basePriceUSDAdj, int96 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
 
         int256 expectedBaseAdj = int256(newBasePrice) - int256(existingBasePrice);
         int256 expectedMinAdj = int256(newMinPrice) - int256(existingMinPrice);
-        assertEq(basePriceUSDAdj, int88(expectedBaseAdj), "basePriceUSD adjustment mismatch");
-        assertEq(minPriceUSDAdj, int88(expectedMinAdj), "minPriceUSD adjustment mismatch");
+        assertEq(basePriceUSDAdj, int96(expectedBaseAdj), "basePriceUSD adjustment mismatch");
+        assertEq(minPriceUSDAdj, int96(expectedMinAdj), "minPriceUSD adjustment mismatch");
     }
 
     /// @notice Test period adjustment when price guard already exists (real-world scenario)
@@ -928,7 +936,7 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         // Verify adjustment is the DELTA from existing value, not absolute (query by asset)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (int88 basePriceUSDAdj, int88 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
+        (int96 basePriceUSDAdj, int96 minPriceUSDAdj,,) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
         );
@@ -936,8 +944,8 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         int256 expectedBaseAdj = int256(newBasePrice) - int256(existingBasePrice);
         int256 expectedMinAdj = int256(newMinPrice) - int256(existingMinPrice);
 
-        assertEq(basePriceUSDAdj, int88(expectedBaseAdj), "adjustment should be delta from existing value");
-        assertEq(minPriceUSDAdj, int88(expectedMinAdj), "minPrice adjustment should be delta");
+        assertEq(basePriceUSDAdj, int96(expectedBaseAdj), "adjustment should be delta from existing value");
+        assertEq(minPriceUSDAdj, int96(expectedMinAdj), "minPrice adjustment should be delta");
     }
 
     /// @notice Test that limit applies to delta when price guard exists
@@ -1070,10 +1078,10 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         // Verify all adjustments tracked independently as deltas (query by asset)
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
         (
-            int88 basePriceUSDAdj,
-            int88 minPriceUSDAdj,
-            int88 basePriceNativeAdj,
-            int88 minPriceNativeAdj
+            int96 basePriceUSDAdj,
+            int96 minPriceUSDAdj,
+            int96 basePriceNativeAdj,
+            int96 minPriceNativeAdj
         ) = protocolManager.getPriceGuardPeriodAdjustments(
             testAsset,  // Query by asset, not adaptor
             periodTimestamp
@@ -1084,10 +1092,10 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
         int256 expectedNativeBaseAdj = int256(newNativeBasePrice) - int256(existingNativeBasePrice);
         int256 expectedNativeMinAdj = int256(newNativeMinPrice) - int256(existingNativeMinPrice);
 
-        assertEq(basePriceUSDAdj, int88(expectedUSDBaseAdj), "basePriceUSD mismatch");
-        assertEq(minPriceUSDAdj, int88(expectedUSDMinAdj), "minPriceUSD mismatch");
-        assertEq(basePriceNativeAdj, int88(expectedNativeBaseAdj), "basePriceNative mismatch");
-        assertEq(minPriceNativeAdj, int88(expectedNativeMinAdj), "minPriceNative mismatch");
+        assertEq(basePriceUSDAdj, int96(expectedUSDBaseAdj), "basePriceUSD mismatch");
+        assertEq(minPriceUSDAdj, int96(expectedUSDMinAdj), "minPriceUSD mismatch");
+        assertEq(basePriceNativeAdj, int96(expectedNativeBaseAdj), "basePriceNative mismatch");
+        assertEq(minPriceNativeAdj, int96(expectedNativeMinAdj), "minPriceNative mismatch");
     }
 }
 

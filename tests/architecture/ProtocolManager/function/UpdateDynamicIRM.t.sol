@@ -591,8 +591,8 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
             int64 vertexInterestRateAdj,
             int64 vertexStartAdj,
             int16 adjustmentVelocityAdj,
-            int8 decayPerAdjustmentAdj,
-            int16 vertexMultiplierMaxAdj
+            int16 decayPerAdjustmentAdj,
+            int24 vertexMultiplierMaxAdj
         ) = protocolManager.getMarketPeriodAdjustments(address(dynamicIRM), periodTimestamp);
 
         // All adjustments should be exact
@@ -635,8 +635,8 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
             int64 vertexInterestRateAdj,
             int64 vertexStartAdj,
             int16 adjustmentVelocityAdj,
-            int8 decayPerAdjustmentAdj,
-            int16 vertexMultiplierMaxAdj
+            int16 decayPerAdjustmentAdj,
+            int24 vertexMultiplierMaxAdj
         ) = protocolManager.getMarketPeriodAdjustments(address(dynamicIRM), periodTimestamp);
 
         // All adjustments should be exact
@@ -690,8 +690,8 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
             int64 vertexInterestRateAdj,
             int64 vertexStartAdj,
             int16 adjustmentVelocityAdj,
-            int8 decayPerAdjustmentAdj,
-            int16 vertexMultiplierMaxAdj
+            int16 decayPerAdjustmentAdj,
+            int24 vertexMultiplierMaxAdj
         ) = protocolManager.getMarketPeriodAdjustments(address(dynamicIRM), periodTimestamp);
 
         assertEq(baseInterestRateAdj, 200, "Base rate at limit");
@@ -769,8 +769,8 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
             int64 vertexInterestRateAdj,
             int64 vertexStartAdj,
             int16 adjustmentVelocityAdj,
-            int8 decayPerAdjustmentAdj,
-            int16 vertexMultiplierMaxAdj
+            int16 decayPerAdjustmentAdj,
+            int24 vertexMultiplierMaxAdj
         ) = protocolManager.getMarketPeriodAdjustments(address(dynamicIRM), periodTimestamp);
 
         // All adjustments should be exactly zero

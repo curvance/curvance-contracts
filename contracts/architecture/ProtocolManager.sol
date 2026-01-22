@@ -46,13 +46,13 @@ contract ProtocolManager is ReentrancyGuard {
         int64 vertexInterestRate;
         int64 vertexStart;
         int16 adjustmentVelocity;
-        int8 decayPerAdjustment;
-        int16 vertexMultiplierMax;
+        int16 decayPerAdjustment;
+        int24 vertexMultiplierMax;
         // Price Guard
-        int88 basePriceUSD;
-        int88 minPriceUSD;
-        int88 basePriceNative;
-        int88 minPriceNative;
+        int96 basePriceUSD;
+        int96 minPriceUSD;
+        int96 basePriceNative;
+        int96 minPriceNative;
     }
 
     /// @title Period Adjustment Limitations.
@@ -68,13 +68,13 @@ contract ProtocolManager is ReentrancyGuard {
         uint64 vertexInterestRateLimit;
         uint64 vertexStartLimit;
         uint16 adjustmentVelocityLimit;
-        uint8 decayPerAdjustmentLimit;
-        uint16 vertexMultiplierMaxLimit;
+        uint16 decayPerAdjustmentLimit;
+        uint24 vertexMultiplierMaxLimit;
         // Price Guard
-        uint88 basePriceUSDLimit;
-        uint88 minPriceUSDLimit;
-        uint88 basePriceNativeLimit;
-        uint88 minPriceNativeLimit;
+        uint96 basePriceUSDLimit;
+        uint96 minPriceUSDLimit;
+        uint96 basePriceNativeLimit;
+        uint96 minPriceNativeLimit;
     }
 
     struct PermsConfig {
@@ -93,8 +93,9 @@ contract ProtocolManager is ReentrancyGuard {
 
     /// CONSTANTS ///
 
-    /// @notice The maximum period of time that a rewards claim window should
-    ///         be open for, in unix time.
+    /// @notice Maximum allowed period adjustment limits for token and IRM configs.
+    /// @dev These cap the `PeriodLimits` values that can be set via `updateManagementConfig`.
+    ///      All values in BPS unless otherwise noted.
     uint256 public constant MAXIMUM_COLL_RATIO_LIMIT = 500;
     uint256 public constant MAXIMUM_MARGIN_LIMIT = 300;
     uint256 public constant MAXIMUM_COLL_CAP_LIMIT = type(uint112).max;
@@ -103,7 +104,9 @@ contract ProtocolManager is ReentrancyGuard {
     uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT = 500;
     uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 200;
     uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT = 50000;
-    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = type(uint88).max;
+    /// @notice Maximum allowed period adjustment limit for price guard configs.
+    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = uint256(uint96(type(int96).max));
+    /// @notice Conversion factor from WAD (1e18) to BPS (1e4).
     uint256 public constant WAD_TO_BPS = 1e14;
 
     /// @notice Whether the protocol manager can modify token configs.
@@ -167,6 +170,7 @@ contract ProtocolManager is ReentrancyGuard {
     error ProtocolManager__Unauthorized();
     error ProtocolManager__MulDivFailed();
     error ProtocolManager__UintToIntError();
+    error ProtocolManager__TooEarlyInPeriod();
 
     constructor(
         ICentralRegistry cr,
@@ -213,7 +217,7 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 periodTimestamp
     ) external view returns (
         int24, int24, int24, int120, int112,
-        int64, int64, int64, int16, int8, int16
+        int64, int64, int64, int16, int16, int24
     ) {
         PeriodAdjustments storage p = _periodAdjustments[managedAddress][periodTimestamp];
         return (
@@ -241,7 +245,7 @@ contract ProtocolManager is ReentrancyGuard {
     function getPriceGuardPeriodAdjustments(
         address managedAddress,
         uint256 periodTimestamp
-    ) external view returns (int88, int88, int88, int88) {
+    ) external view returns (int96, int96, int96, int96) {
         PeriodAdjustments storage p = _periodAdjustments[managedAddress][periodTimestamp];
         return (p.basePriceUSD, p.minPriceUSD, p.basePriceNative, p.minPriceNative);
     }
@@ -250,6 +254,11 @@ contract ProtocolManager is ReentrancyGuard {
     /// @dev Validates all limits against maximums before storing. Emits
     ///      {ManagementAuthorityUpdated} for each address in
     ///      `managedAddresses`.
+    ///
+    ///      Can only be called in the final 1/3 of an adjustment period to
+    ///      prevent inconsistent behavior when limits are reduced mid-period
+    ///      while adjustments are already active. This ensures any temporary
+    ///      state inconsistency resolves when the period resets.
     /// @param managedAddresses Array of addresses to configure.
     /// @param l Array of period adjustment limits for each address.
     /// @param hasAuthority Whether these addresses should have authority.
@@ -260,6 +269,10 @@ contract ProtocolManager is ReentrancyGuard {
     ) external nonReentrant {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             revert ProtocolManager__Unauthorized();
+        }
+
+        if (block.timestamp - getPeriodTimestamp() < (periodDuration * 2) / 3) {
+            revert ProtocolManager__TooEarlyInPeriod();
         }
 
         _updateManagementConfig(managedAddresses, l, hasAuthority);
@@ -370,8 +383,8 @@ contract ProtocolManager is ReentrancyGuard {
         p.vertexInterestRate = int64(_calcAdj(vertexRatePerYear, _perSecondToBPS(rc.vertexRatePerSecond, WAD - rc.vertexStart), p.vertexInterestRate, l.vertexInterestRateLimit));
         p.vertexStart = int64(_calcAdj(vertexStart, rc.vertexStart / WAD_TO_BPS, p.vertexStart, l.vertexStartLimit));
         p.adjustmentVelocity = int16(_calcAdj(adjustmentVelocity, rc.adjustmentVelocity, p.adjustmentVelocity, l.adjustmentVelocityLimit));
-        p.decayPerAdjustment = int8(_calcAdj(decayPerAdjustment, rc.decayPerAdjustment, p.decayPerAdjustment, l.decayPerAdjustmentLimit));
-        p.vertexMultiplierMax = int16(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax / WAD_TO_BPS, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
+        p.decayPerAdjustment = int16(_calcAdj(decayPerAdjustment, rc.decayPerAdjustment, p.decayPerAdjustment, l.decayPerAdjustmentLimit));
+        p.vertexMultiplierMax = int24(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax / WAD_TO_BPS, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
         
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
@@ -419,12 +432,18 @@ contract ProtocolManager is ReentrancyGuard {
         PeriodLimits memory l = config[asset].limits;
         IOracleAdaptor.PriceGuard memory pg = oa.getPriceGuard(asset, inUSD);
 
+        // Enforce that ips and timestampStart match current values to prevent
+        // price manipulation through these parameters.
+        if (timestampStart != pg.timestampStart || ips != pg.ips) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
         if (inUSD) {
-            p.basePriceUSD = int88(_calcAdj(basePrice, pg.basePrice, p.basePriceUSD, l.basePriceUSDLimit));
-            p.minPriceUSD = int88(_calcAdj(minPrice, pg.minPrice, p.minPriceUSD, l.minPriceUSDLimit));
+            p.basePriceUSD = int96(_calcAdj(basePrice, pg.basePrice, p.basePriceUSD, l.basePriceUSDLimit));
+            p.minPriceUSD = int96(_calcAdj(minPrice, pg.minPrice, p.minPriceUSD, l.minPriceUSDLimit));
         } else {
-            p.basePriceNative = int88(_calcAdj(basePrice, pg.basePrice, p.basePriceNative, l.basePriceNativeLimit));
-            p.minPriceNative = int88(_calcAdj(minPrice, pg.minPrice, p.minPriceNative, l.minPriceNativeLimit));
+            p.basePriceNative = int96(_calcAdj(basePrice, pg.basePrice, p.basePriceNative, l.basePriceNativeLimit));
+            p.minPriceNative = int96(_calcAdj(minPrice, pg.minPrice, p.minPriceNative, l.minPriceNativeLimit));
         }
 
         BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
@@ -580,31 +599,31 @@ contract ProtocolManager is ReentrancyGuard {
         PeriodLimits memory limits;
         for (uint i; i < numManagedAddresses; ++i) {
             cachedAddress = managedAddresses[i];
-            limits = l[i];
-
-            if (
-                limits.collRatioLimit > MAXIMUM_COLL_RATIO_LIMIT ||
-                limits.marginSoftLimit > MAXIMUM_MARGIN_LIMIT ||
-                limits.marginHardLimit > MAXIMUM_MARGIN_LIMIT ||
-                limits.collateralCapLimit > MAXIMUM_COLL_CAP_LIMIT ||
-                limits.debtCapLimit > MAXIMUM_DEBT_CAP_LIMIT ||
-                limits.baseInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
-                limits.vertexInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
-                limits.vertexStartLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
-                limits.adjustmentVelocityLimit > MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT ||
-                limits.decayPerAdjustmentLimit > MAXIMUM_DECAY_RATE_LIMIT ||
-                limits.vertexMultiplierMaxLimit > MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT ||
-                limits.basePriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
-                limits.minPriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
-                limits.basePriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
-                limits.minPriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT
-            ) {
-                revert ProtocolManager__ParametersAreInvalid();
-            }
-
             config[cachedAddress].hasAuthority = hasAuthority;
 
             if (hasAuthority) {
+                limits = l[i];
+
+                if (
+                    limits.collRatioLimit > MAXIMUM_COLL_RATIO_LIMIT ||
+                    limits.marginSoftLimit > MAXIMUM_MARGIN_LIMIT ||
+                    limits.marginHardLimit > MAXIMUM_MARGIN_LIMIT ||
+                    limits.collateralCapLimit > MAXIMUM_COLL_CAP_LIMIT ||
+                    limits.debtCapLimit > MAXIMUM_DEBT_CAP_LIMIT ||
+                    limits.baseInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                    limits.vertexInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                    limits.vertexStartLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
+                    limits.adjustmentVelocityLimit > MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT ||
+                    limits.decayPerAdjustmentLimit > MAXIMUM_DECAY_RATE_LIMIT ||
+                    limits.vertexMultiplierMaxLimit > MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT ||
+                    limits.basePriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                    limits.minPriceUSDLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                    limits.basePriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT ||
+                    limits.minPriceNativeLimit > MAXIMUM_PRICE_GUARD_PRICE_LIMIT
+                ) {
+                    revert ProtocolManager__ParametersAreInvalid();
+                }
+
                 config[cachedAddress].limits = limits;
             } else {
                 delete config[cachedAddress].limits;
@@ -673,7 +692,13 @@ contract ProtocolManager is ReentrancyGuard {
     }
 
     /// @notice Converts per-second rate back to BPS with proper rounding.
-    /// @dev Uses rounding division to avoid ~1 BPS precision loss from truncation.
+    /// @dev Uses "round half up" division to restore the original BPS value.
+    ///      Due to precision loss during the forward conversion (BPS → per-second
+    ///      in DynamicIRM), the intermediate `wadValue` is slightly less than a
+    ///      clean multiple of WAD_TO_BPS (e.g., 99999990905760 instead of 1e14).
+    ///      This means the effective rounding direction is UP, which correctly
+    ///      restores the original BPS value and ensures adjustment limits are
+    ///      conservatively maintained.
     /// @param ratePerSecond The rate per second (as stored in DynamicIRM).
     /// @param vertexFactor Either vertexStart or (WAD - vertexStart) in WAD.
     /// @return bps The rate in BPS, rounded to nearest.
