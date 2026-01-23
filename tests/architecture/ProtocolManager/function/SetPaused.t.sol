@@ -137,6 +137,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -180,6 +181,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -228,6 +230,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause
@@ -356,6 +359,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -399,6 +403,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -447,6 +452,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause
@@ -569,6 +575,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -612,6 +619,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -660,6 +668,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause
@@ -857,6 +866,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -907,6 +917,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -959,6 +970,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause
@@ -1158,6 +1170,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -1208,6 +1221,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -1260,6 +1274,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause
@@ -1459,6 +1474,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -1509,6 +1525,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause
@@ -1561,6 +1578,7 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory noUnpausePerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: false, // Cannot unpause, but can still pause

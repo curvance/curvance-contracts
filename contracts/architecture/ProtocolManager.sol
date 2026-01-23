@@ -11,6 +11,9 @@ import { SECONDS_PER_YEAR, WAD, BPS } from "contracts/libraries/ConstantsLib.sol
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { ICombinedAggregator } from "contracts/interfaces/ICombinedAggregator.sol";
+import { IChainlinkStyleAdaptor } from "contracts/interfaces/IChainlinkStyleAdaptor.sol";
 
 /// @title Curvance Protocol Manager.
 /// @notice Allows management of protocol configurations.
@@ -37,8 +40,8 @@ contract ProtocolManager is ReentrancyGuard {
     struct PeriodAdjustments {
         // Token Configs - Debt Cap
         int24 collRatio;
-        int24 marginSoft;
-        int24 marginHard;
+        int24 collReqSoft;
+        int24 collReqHard;
         int120 collateralCap;
         // Interest Rate Model + Debt Cap
         int64 baseInterestRate;
@@ -59,8 +62,8 @@ contract ProtocolManager is ReentrancyGuard {
     struct PeriodLimits {
         // Token Configs - Debt Cap
         uint24 collRatioLimit;
-        uint24 marginSoftLimit;
-        uint24 marginHardLimit;
+        uint24 collReqSoftLimit;
+        uint24 collReqHardLimit;
         uint120 collateralCapLimit;
         // Interest Rate Model + Debt Cap
         uint64 baseInterestRateLimit;
@@ -79,6 +82,7 @@ contract ProtocolManager is ReentrancyGuard {
 
     struct PermsConfig {
         bool canModifyPriceGuards;
+        bool canDisablePriceGuards;
         bool canModifyTokenConfig;
         bool canModifyIRM;
         bool canUnpause;
@@ -97,12 +101,12 @@ contract ProtocolManager is ReentrancyGuard {
     /// @dev These cap the `PeriodLimits` values that can be set via `updateManagementConfig`.
     ///      All values in BPS unless otherwise noted.
     uint256 public constant MAXIMUM_COLL_RATIO_LIMIT = 500;
-    uint256 public constant MAXIMUM_MARGIN_LIMIT = 300;
+    uint256 public constant MAXIMUM_COLL_REQ_LIMIT = 500;
     uint256 public constant MAXIMUM_COLL_CAP_LIMIT = type(uint112).max;
     uint256 public constant MAXIMUM_DEBT_CAP_LIMIT = type(uint104).max;
     uint256 public constant MAXIMUM_INTEREST_RATE_LIMIT = 1000;
-    uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT = 500;
-    uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 200;
+    uint256 public constant MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT = 300;
+    uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 120;
     uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT = 50000;
     /// @notice Maximum allowed period adjustment limit for price guard configs.
     uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = uint256(uint96(type(int96).max));
@@ -113,6 +117,10 @@ contract ProtocolManager is ReentrancyGuard {
     bool public immutable canModifyTokenConfig;
     /// @notice Whether the protocol manager can modify price guards.
     bool public immutable canModifyPriceGuards;
+    /// @notice Whether the protocol manager can disable price guards.
+    /// @dev Separate from canModifyPriceGuards since disabling bypasses
+    ///      period limits and is a more privileged operation.
+    bool public immutable canDisablePriceGuards;
     /// @notice Whether the protocol manager can modify interest rate model configs.
     bool public immutable canModifyIRM;
     /// @notice Whether the protocol manager can unpause markets or only pause.
@@ -186,6 +194,7 @@ contract ProtocolManager is ReentrancyGuard {
         _updateManagementConfig(managedAddresses, l, true);
 
         canModifyPriceGuards = p.canModifyPriceGuards;
+        canDisablePriceGuards = p.canDisablePriceGuards;
         canModifyTokenConfig = p.canModifyTokenConfig;
         canModifyIRM = p.canModifyIRM;
         canUnpause = p.canUnpause;
@@ -202,8 +211,8 @@ contract ProtocolManager is ReentrancyGuard {
     /// @param managedAddress The managed contract address.
     /// @param periodTimestamp The period timestamp to query.
     /// @return collRatio Collateral ratio adjustment.
-    /// @return marginSoft Soft margin adjustment.
-    /// @return marginHard Hard margin adjustment.
+    /// @return collReqSoft Soft collateral requirement adjustment.
+    /// @return collReqHard Hard collateral requirement adjustment.
     /// @return collateralCap Collateral cap adjustment.
     /// @return debtCap Debt cap adjustment.
     /// @return baseInterestRate Base interest rate adjustment.
@@ -222,8 +231,8 @@ contract ProtocolManager is ReentrancyGuard {
         PeriodAdjustments storage p = _periodAdjustments[managedAddress][periodTimestamp];
         return (
             p.collRatio,
-            p.marginSoft,
-            p.marginHard,
+            p.collReqSoft,
+            p.collReqHard,
             p.collateralCap,
             p.debtCap,
             p.baseInterestRate,
@@ -328,8 +337,8 @@ contract ProtocolManager is ReentrancyGuard {
             mm.collConfig(n.cToken);
 
         p.collRatio = int24(_calcAdj(n.collRatio, collRatio, p.collRatio, l.collRatioLimit));
-        p.marginSoft = int24(_calcAdj(n.collReqSoft, collReqSoft - BPS, p.marginSoft, l.marginSoftLimit));
-        p.marginHard = int24(_calcAdj(n.collReqHard, collReqHard - BPS, p.marginHard, l.marginHardLimit));
+        p.collReqSoft = int24(_calcAdj(n.collReqSoft, collReqSoft - BPS, p.collReqSoft, l.collReqSoftLimit));
+        p.collReqHard = int24(_calcAdj(n.collReqHard, collReqHard - BPS, p.collReqHard, l.collReqHardLimit));
         p.collateralCap = int120(_calcAdj(n.collateralCap, mm.collateralCaps(n.cToken), p.collateralCap, l.collateralCapLimit));
         p.debtCap = int112(_calcAdj(n.debtCap, mm.debtCaps(n.cToken), p.debtCap, l.debtCapLimit));
         
@@ -428,8 +437,6 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        PeriodAdjustments storage p = _periodAdjustments[asset][getPeriodTimestamp()];
-        PeriodLimits memory l = config[asset].limits;
         IOracleAdaptor.PriceGuard memory pg = oa.getPriceGuard(asset, inUSD);
 
         // Enforce that ips and timestampStart match current values to prevent
@@ -438,13 +445,7 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__ParametersAreInvalid();
         }
 
-        if (inUSD) {
-            p.basePriceUSD = int96(_calcAdj(basePrice, pg.basePrice, p.basePriceUSD, l.basePriceUSDLimit));
-            p.minPriceUSD = int96(_calcAdj(minPrice, pg.minPrice, p.minPriceUSD, l.minPriceUSDLimit));
-        } else {
-            p.basePriceNative = int96(_calcAdj(basePrice, pg.basePrice, p.basePriceNative, l.basePriceNativeLimit));
-            p.minPriceNative = int96(_calcAdj(minPrice, pg.minPrice, p.minPriceNative, l.minPriceNativeLimit));
-        }
+        _applyPriceGuardLimits(asset, inUSD, basePrice, minPrice, pg);
 
         BaseOracleAdaptor(managedAddress).setGuardedPriceConfig(
             asset,
@@ -456,17 +457,98 @@ contract ProtocolManager is ReentrancyGuard {
         );
     }
 
+    /// @notice Sets a PriceGuard on a CombinedAggregator for pricing `asset`.
+    /// @dev Validates that `managedAddress` is the aggregator configured for
+    ///      `asset` and `inUSD` in the oracle adaptor before applying changes.
+    ///      Unlike regular adaptors, CombinedAggregators have a single global
+    ///      PriceGuard rather than per-asset/per-denomination guards.
+    /// @param managedAddress The CombinedAggregator address to configure.
+    /// @param asset The address of the asset priced by this aggregator.
+    /// @param inUSD Specifies whether this aggregator is used for USD (true)
+    ///              or native token (false) pricing of the asset.
+    /// @param timestampStart When `ips` should start increasing `basePrice`
+    ///                       raising the maximum price returned.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            from `timestampStart`, in `WAD`, per second.
+    /// @param basePrice The base price that should be the maximum price
+    ///                  returned when pricing.
+    /// @param minPrice The minimum price that should be allowed to be returned.
+    function setGuardedPriceConfigCombined(
+        address managedAddress,
+        address asset,
+        bool inUSD,
+        uint256 timestampStart,
+        uint256 ips,
+        uint256 basePrice,
+        uint256 minPrice
+    ) external nonReentrant {
+        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+
+        // Validate inUSD matches the oracle configuration to ensure limit
+        // tracking uses the correct bucket (USD vs native).
+        address adaptor = IOracleManager(centralRegistry.oracleManager())
+            .getPricingAdaptors(asset)[0];
+        (, address aggregator, , ) = IChainlinkStyleAdaptor(adaptor).assetConfig(
+            asset,
+            inUSD
+        );
+        // Validate that the aggregator for the asset and inUSD matches the 
+        // managedAddress (combined aggregator).
+        if (aggregator != managedAddress) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
+        // Get current price guard from the combined aggregator.
+        // Combined aggregator does not have a `getPriceGuard()` function,
+        // auto generated getters return the fields separately instead of a struct.
+        (
+            uint40 pgTimestampStart,
+            uint40 pgIps,
+            uint88 pgBasePrice,
+            uint88 pgMinPrice
+        ) = ICombinedAggregator(managedAddress).pg();
+
+        // Enforce that ips and timestampStart match current values to prevent
+        // price manipulation through these parameters.
+        if (timestampStart != pgTimestampStart || ips != pgIps) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
+        _applyPriceGuardLimits(
+            asset,
+            inUSD,
+            basePrice,
+            minPrice,
+            IOracleAdaptor.PriceGuard({
+                timestampStart: pgTimestampStart,
+                ips: pgIps,
+                basePrice: pgBasePrice,
+                minPrice: pgMinPrice
+            })
+        );
+
+        ICombinedAggregator(managedAddress).setGuardedPriceConfig(
+            timestampStart,
+            ips,
+            basePrice,
+            minPrice
+        );
+    }
+
     /// @notice Disables any PriceGuard active when pricing `asset`
     ///         denominated either USD or native tokens depending on `inUSD`.
     /// @dev Removes price bounds for the specified asset and denomination.
-    /// @param asset asset The address of the asset to disable PriceGuard on.
+    ///      Uses separate permission from modifying since disabling bypasses
+    ///      period limits and is a more privileged operation.
+    /// @param managedAddress The oracle adaptor address to configure.
+    /// @param asset The address of the asset to disable PriceGuard on.
     /// @param inUSD Whether to disable USD (true) or native (false) guard.
     function disableGuardedPriceConfig(
         address managedAddress,
         address asset,
         bool inUSD
     ) external nonReentrant {
-        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
+        _checkAuthorityAndAsset(managedAddress, asset, canDisablePriceGuards);
 
         if (!IOracleAdaptor(managedAddress).isSupportedAsset(asset)) {
             revert ProtocolManager__ParametersAreInvalid();
@@ -476,6 +558,19 @@ contract ProtocolManager is ReentrancyGuard {
             asset,
             inUSD
         );
+    }
+
+    /// @notice Disables the PriceGuard on a combined aggregator.
+    /// @dev Combined aggregators have a single global PriceGuard (not per-asset
+    ///      or per-denomination). Uses separate permission from modifying since
+    ///      disabling bypasses period limits and is a more privileged operation.
+    /// @param managedAddress The combined aggregator address to configure.
+    function disableGuardedPriceConfigCombined(
+        address managedAddress
+    ) external nonReentrant {
+        _checkAuthority(managedAddress, canDisablePriceGuards);
+
+        ICombinedAggregator(managedAddress).disableGuardedPriceConfig();
     }
 
     /// @notice Sets pause status for various market actions.
@@ -574,6 +669,41 @@ contract ProtocolManager is ReentrancyGuard {
         if (_abs(adj) > limit) revert ProtocolManager__ParametersAreInvalid();
     }
 
+    /// @notice Applies price guard limit accounting for the current period.
+    /// @param asset The asset to apply limits for.
+    /// @param inUSD Whether to apply USD or native token limits.
+    /// @param basePrice The new base price value.
+    /// @param minPrice The new min price value.
+    /// @param pg The current price guard configuration.
+    function _applyPriceGuardLimits(
+        address asset,
+        bool inUSD,
+        uint256 basePrice,
+        uint256 minPrice,
+        IOracleAdaptor.PriceGuard memory pg
+    ) internal {
+        PeriodAdjustments storage p = _periodAdjustments[asset][
+            getPeriodTimestamp()
+        ];
+        PeriodLimits memory l = config[asset].limits;
+
+        if (inUSD) {
+            p.basePriceUSD = int96(
+                _calcAdj(basePrice, pg.basePrice, p.basePriceUSD, l.basePriceUSDLimit)
+            );
+            p.minPriceUSD = int96(
+                _calcAdj(minPrice, pg.minPrice, p.minPriceUSD, l.minPriceUSDLimit)
+            );
+        } else {
+            p.basePriceNative = int96(
+                _calcAdj(basePrice, pg.basePrice, p.basePriceNative, l.basePriceNativeLimit)
+            );
+            p.minPriceNative = int96(
+                _calcAdj(minPrice, pg.minPrice, p.minPriceNative, l.minPriceNativeLimit)
+            );
+        }
+    }
+
     /// @notice Updates management configuration for `managedAddresses`.
     /// @dev Validates all limits against maximums before storing. Emits
     ///      {ManagementAuthorityUpdated} for each address in
@@ -606,8 +736,8 @@ contract ProtocolManager is ReentrancyGuard {
 
                 if (
                     limits.collRatioLimit > MAXIMUM_COLL_RATIO_LIMIT ||
-                    limits.marginSoftLimit > MAXIMUM_MARGIN_LIMIT ||
-                    limits.marginHardLimit > MAXIMUM_MARGIN_LIMIT ||
+                    limits.collReqSoftLimit > MAXIMUM_COLL_REQ_LIMIT ||
+                    limits.collReqHardLimit > MAXIMUM_COLL_REQ_LIMIT ||
                     limits.collateralCapLimit > MAXIMUM_COLL_CAP_LIMIT ||
                     limits.debtCapLimit > MAXIMUM_DEBT_CAP_LIMIT ||
                     limits.baseInterestRateLimit > MAXIMUM_INTEREST_RATE_LIMIT ||
@@ -712,12 +842,12 @@ contract ProtocolManager is ReentrancyGuard {
 
     /// @notice Returns the absolute value of `value`.
     /// @dev Safe for all inputs including `type(int256).min`. Uses two's
-    ///      complement identity: `-x == ~x + 1`. By computing `~value + 1`
-    ///      in uint256 space.
+    ///      complement identity: `-x == ~x + 1`. Computes `~value` in int256
+    ///      space, casts to uint256, then adds 1.
     /// @param value The signed integer to compute the absolute value of.
     /// @return x The absolute value of `value`.
     function _abs(int256 value) internal pure returns (uint256 x) {
-        // For negative: cast to uint, then negate in uint space
+        // For negative: negate in int space, cast to uint, then add 1
         // -value == ~value + 1 (two's complement)
         x = value >= 0 ? uint256(value) : uint256(~value) + 1;
     }

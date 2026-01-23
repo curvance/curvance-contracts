@@ -221,9 +221,10 @@ contract TestProtocolManagerDisableGuardedPriceConfig is TestProtocolManagerBase
         );
     }
 
-    /// @notice Test that disableGuardedPriceConfig fails if canModifyPriceGuards is false
-    function test_disableGuardedPriceConfig_fail_noPermission() public {
-        // Deploy a new ProtocolManager without canModifyPriceGuards permission
+    /// @notice Test that disableGuardedPriceConfig fails if canDisablePriceGuards is false
+    /// @dev Tests the separate permission for disabling vs modifying price guards
+    function test_disableGuardedPriceConfig_fail_noDisablePermission() public {
+        // Deploy a new ProtocolManager with canModifyPriceGuards but without canDisablePriceGuards
         address[] memory managedAddresses = new address[](2);
         managedAddresses[0] = address(chainlinkAdaptor);
         managedAddresses[1] = testAsset;
@@ -233,7 +234,8 @@ contract TestProtocolManagerDisableGuardedPriceConfig is TestProtocolManagerBase
         limits[1] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
-            canModifyPriceGuards: false, // Disabled
+            canModifyPriceGuards: true,   // Can modify
+            canDisablePriceGuards: false, // But cannot disable
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -256,6 +258,76 @@ contract TestProtocolManagerDisableGuardedPriceConfig is TestProtocolManagerBase
 
         centralRegistry.addMarketPermissions(address(restrictedPM));
 
+        // Should fail even though canModifyPriceGuards is true
+        vm.prank(manager);
+        vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
+        restrictedPM.disableGuardedPriceConfig(
+            address(chainlinkAdaptor),
+            testAsset,
+            true
+        );
+    }
+
+    /// @notice Test that canModifyPriceGuards allows setGuardedPriceConfig even when canDisablePriceGuards is false
+    /// @dev Confirms the two permissions are independent
+    function test_separatePermissions_canModifyButNotDisable() public {
+        // Set up existing price guard
+        uint256 existingBasePrice = 1.02e18;
+        uint256 existingMinPrice = 0.98e18;
+        chainlinkAdaptor.setGuardedPriceConfig(testAsset, true, 0, 0, existingBasePrice, existingMinPrice);
+
+        // Deploy a new ProtocolManager with canModifyPriceGuards but without canDisablePriceGuards
+        address[] memory managedAddresses = new address[](2);
+        managedAddresses[0] = address(chainlinkAdaptor);
+        managedAddresses[1] = testAsset;
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
+        limits[0] = _getValidLimits();
+        limits[1] = _getValidLimits();
+
+        ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
+            canModifyPriceGuards: true,   // Can modify
+            canDisablePriceGuards: false, // But cannot disable
+            canModifyTokenConfig: true,
+            canModifyIRM: true,
+            canUnpause: true,
+            canModifyMintStatus: true,
+            canModifyCollateralizationStatus: true,
+            canModifyBorrowStatus: true,
+            canModifyLiquidationStatus: true,
+            canModifyRedeemStatus: true,
+            canModifyTransferStatus: true,
+            canModifyPositionManagers: true
+        });
+
+        ProtocolManager restrictedPM = new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            manager,
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+
+        centralRegistry.addMarketPermissions(address(restrictedPM));
+
+        // Modifying should succeed
+        uint256 newBasePrice = existingBasePrice + 0.01e18;
+        vm.prank(manager);
+        restrictedPM.setGuardedPriceConfig(
+            address(chainlinkAdaptor),
+            testAsset,
+            true,
+            0,
+            0,
+            newBasePrice,
+            existingMinPrice
+        );
+
+        // Verify modification worked
+        (,, uint88 storedBasePrice,) = chainlinkAdaptor.priceGuards(testAsset, true);
+        assertEq(storedBasePrice, newBasePrice, "basePrice should be updated");
+
+        // But disabling should fail
         vm.prank(manager);
         vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
         restrictedPM.disableGuardedPriceConfig(

@@ -188,6 +188,7 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: false, // Disabled
             canUnpause: true,
@@ -585,7 +586,7 @@ contract TestProtocolManagerUpdateDynamicIRM is TestProtocolManagerBase {
 
         // Query period adjustments
         (
-            ,,,, // collRatio, marginSoft, marginHard, collateralCap
+            ,,,, // collRatio, collReqSoft, collReqHard, collateralCap
             , // debtCap
             int64 baseInterestRateAdj,
             int64 vertexInterestRateAdj,

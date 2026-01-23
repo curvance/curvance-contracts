@@ -64,8 +64,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
     function _getValidTokenConfig(
         address cToken,
         int256 collRatioDelta,
-        int256 marginSoftDelta,
-        int256 marginHardDelta,
+        int256 collReqSoftDelta,
+        int256 collReqHardDelta,
         int256 collCapDelta,
         int256 debtCapDelta
     ) internal view returns (MarketManagerIsolated.TokenConfig memory config) {
@@ -77,8 +77,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
 
         config.cToken = cToken;
         config.collRatio = uint256(int256(collRatio) + collRatioDelta);
-        config.collReqSoft = uint256(int256(collReqSoft - BPS) + marginSoftDelta);
-        config.collReqHard = uint256(int256(collReqHard - BPS) + marginHardDelta);
+        config.collReqSoft = uint256(int256(collReqSoft - BPS) + collReqSoftDelta);
+        config.collReqHard = uint256(int256(collReqHard - BPS) + collReqHardDelta);
 
         // Keep liquidation parameters valid (these are not tracked by ProtocolManager)
         config.liqIncBase = 1000;
@@ -140,8 +140,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
             address(borrowableCWMON),
             0,
-            40,   // +40 bps marginSoft (within 50 limit)
-            30,   // +30 bps marginHard (within 100 limit, must stay < marginSoft)
+            40,   // +40 bps collReqSoft (within 50 limit)
+            30,   // +30 bps collReqHard (within 100 limit, must stay < collReqSoft)
             0,
             0
         );
@@ -152,8 +152,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
 
         (, uint256 newMarginSoft, uint256 newMarginHard,,) = _getCurrentConfig(address(borrowableCWMON));
-        assertEq(newMarginSoft, oldMarginSoft + 40, "marginSoft should increase by 40");
-        assertEq(newMarginHard, oldMarginHard + 30, "marginHard should increase by 30");
+        assertEq(newMarginSoft, oldMarginSoft + 40, "collReqSoft should increase by 40");
+        assertEq(newMarginHard, oldMarginHard + 30, "collReqHard should increase by 30");
     }
 
     /// @notice Test successful updateTokenConfig with collateralCap increase
@@ -239,8 +239,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
             address(borrowableCWMON),
             50,       // +50 collRatio
-            20,       // +20 marginSoft
-            15,       // +15 marginHard
+            20,       // +20 collReqSoft
+            15,       // +15 collReqHard
             100_000e18,  // +100k collateralCap
             0
         );
@@ -252,8 +252,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
         (
             int24 collRatioAdj,
-            int24 marginSoftAdj,
-            int24 marginHardAdj,
+            int24 collReqSoftAdj,
+            int24 collReqHardAdj,
             int120 collCapAdj,
             ,,,,,,
         ) = protocolManager.getMarketPeriodAdjustments(
@@ -262,8 +262,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         );
 
         assertEq(collRatioAdj, 50, "collRatio adjustment mismatch");
-        assertEq(marginSoftAdj, 20, "marginSoft adjustment mismatch");
-        assertEq(marginHardAdj, 15, "marginHard adjustment mismatch");
+        assertEq(collReqSoftAdj, 20, "collReqSoft adjustment mismatch");
+        assertEq(collReqHardAdj, 15, "collReqHard adjustment mismatch");
         assertEq(collCapAdj, int120(int256(100_000e18)), "collateralCap adjustment mismatch");
     }
 
@@ -342,6 +342,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: false, // Disabled
             canModifyIRM: true,
             canUnpause: true,
@@ -431,8 +432,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
     }
 
-    /// @notice Test that marginSoft adjustment exceeding limit reverts
-    function test_updateTokenConfig_fail_marginSoftLimitExceeded() public {
+    /// @notice Test that collReqSoft adjustment exceeding limit reverts
+    function test_updateTokenConfig_fail_collReqSoftLimitExceeded() public {
         // Limit is 50, try to adjust by 51
         MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
             address(borrowableCWMON),
@@ -448,10 +449,10 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
     }
 
-    /// @notice Test that marginHard adjustment exceeding limit reverts
-    function test_updateTokenConfig_fail_marginHardLimitExceeded() public {
+    /// @notice Test that collReqHard adjustment exceeding limit reverts
+    function test_updateTokenConfig_fail_collReqHardLimitExceeded() public {
         // Limit is 100, try to adjust by 101
-        // Need to also adjust marginSoft to keep marginHard < marginSoft
+        // Need to also adjust collReqSoft to keep collReqHard < collReqSoft
         MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
             address(borrowableCWMON),
             0,
@@ -583,8 +584,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
             _getCurrentConfig(address(borrowableCWMON));
 
         assertEq(newCollRatio, oldCollRatio, "collRatio should remain unchanged");
-        assertEq(newMarginSoft, oldMarginSoft, "marginSoft should remain unchanged");
-        assertEq(newMarginHard, oldMarginHard, "marginHard should remain unchanged");
+        assertEq(newMarginSoft, oldMarginSoft, "collReqSoft should remain unchanged");
+        assertEq(newMarginHard, oldMarginHard, "collReqHard should remain unchanged");
         assertEq(newCollCap, oldCollCap, "collateralCap should remain unchanged");
         assertEq(newDebtCap, oldDebtCap, "debtCap should remain unchanged");
 
@@ -602,8 +603,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
             address(borrowableCWMON),
             0,
-            -40,  // -40 bps marginSoft (within 50 limit)
-            -30,  // -30 bps marginHard (within 100 limit)
+            -40,  // -40 bps collReqSoft (within 50 limit)
+            -30,  // -30 bps collReqHard (within 100 limit)
             0,
             0
         );
@@ -614,17 +615,17 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
 
         (, uint256 newMarginSoft, uint256 newMarginHard,,) = _getCurrentConfig(address(borrowableCWMON));
-        assertEq(newMarginSoft, oldMarginSoft - 40, "marginSoft should decrease by 40");
-        assertEq(newMarginHard, oldMarginHard - 30, "marginHard should decrease by 30");
+        assertEq(newMarginSoft, oldMarginSoft - 40, "collReqSoft should decrease by 40");
+        assertEq(newMarginHard, oldMarginHard - 30, "collReqHard should decrease by 30");
 
         // Verify negative adjustments tracked per-token
         uint256 periodTimestamp = protocolManager.getPeriodTimestamp();
-        (,int24 marginSoftAdj, int24 marginHardAdj,,,,,,,,) = protocolManager.getMarketPeriodAdjustments(
+        (,int24 collReqSoftAdj, int24 collReqHardAdj,,,,,,,,) = protocolManager.getMarketPeriodAdjustments(
             address(borrowableCWMON),  // Query by cToken
             periodTimestamp
         );
-        assertEq(marginSoftAdj, -40, "marginSoft adjustment should be -40");
-        assertEq(marginHardAdj, -30, "marginHard adjustment should be -30");
+        assertEq(collReqSoftAdj, -40, "collReqSoft adjustment should be -40");
+        assertEq(collReqHardAdj, -30, "collReqHard adjustment should be -30");
     }
 
     /// @notice Test successful collateralCap decrease
@@ -764,8 +765,8 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
 
         (
             int24 collRatioAdj,
-            int24 marginSoftAdj,
-            int24 marginHardAdj,
+            int24 collReqSoftAdj,
+            int24 collReqHardAdj,
             int120 collCapAdj,
             int112 debtCapAdj,
             ,,,,,
@@ -775,16 +776,16 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         );
 
         assertEq(collRatioAdj, 0, "empty period should have zero collRatio adjustment");
-        assertEq(marginSoftAdj, 0, "empty period should have zero marginSoft adjustment");
-        assertEq(marginHardAdj, 0, "empty period should have zero marginHard adjustment");
+        assertEq(collReqSoftAdj, 0, "empty period should have zero collReqSoft adjustment");
+        assertEq(collReqHardAdj, 0, "empty period should have zero collReqHard adjustment");
         assertEq(collCapAdj, 0, "empty period should have zero collateralCap adjustment");
         assertEq(debtCapAdj, 0, "empty period should have zero debtCap adjustment");
     }
 
     /// @notice Test that mixed adjustments can still exceed limit
-    /// @dev Uses marginSoft to avoid both MarketManager constraints and underflow
+    /// @dev Uses collReqSoft to avoid both MarketManager constraints and underflow
     function test_updateTokenConfig_fail_mixedAdjustmentsExceedLimit() public {
-        // First update: +40 marginSoft (within 50 limit)
+        // First update: +40 collReqSoft (within 50 limit)
         MarketManagerIsolated.TokenConfig memory config1 = _getValidTokenConfig(
             address(borrowableCWMON),
             0,
@@ -797,7 +798,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         vm.prank(manager);
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config1);
 
-        // Second update: -100 marginSoft (net -60, abs value exceeds 50 limit)
+        // Second update: -100 collReqSoft (net -60, abs value exceeds 50 limit)
         MarketManagerIsolated.TokenConfig memory config2 = _getValidTokenConfig(
             address(borrowableCWMON),
             0,
@@ -965,7 +966,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
 
     /// @notice Test that multiple parameters are tracked independently per token
     function test_updateTokenConfig_success_crossTokenMultipleParamsIndependent() public {
-        // First update on WMON: +30 collRatio, +20 marginSoft, +300k collateralCap
+        // First update on WMON: +30 collRatio, +20 collReqSoft, +300k collateralCap
         MarketManagerIsolated.TokenConfig memory config1 = _getValidTokenConfig(
             address(borrowableCWMON),
             30,
@@ -978,7 +979,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         vm.prank(manager);
         protocolManager.updateTokenConfig(address(marketManagerIsolated), config1);
 
-        // Second update on USDC: +20 collRatio, +15 marginSoft, +200k collateralCap
+        // Second update on USDC: +20 collRatio, +15 collReqSoft, +200k collateralCap
         MarketManagerIsolated.TokenConfig memory config2 = _getValidTokenConfig(
             address(borrowableCUSDC_MONAD),
             20,
@@ -1006,7 +1007,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
             periodTimestamp
         );
         assertEq(wmonCollRatio, 30, "WMON collRatio should be 30");
-        assertEq(wmonMarginSoft, 20, "WMON marginSoft should be 20");
+        assertEq(wmonMarginSoft, 20, "WMON collReqSoft should be 20");
         assertEq(wmonCollCap, int120(int256(300_000e18)), "WMON collateralCap should be 300k");
 
         // Check USDC adjustments
@@ -1021,7 +1022,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
             periodTimestamp
         );
         assertEq(usdcCollRatio, 20, "USDC collRatio should be 20");
-        assertEq(usdcMarginSoft, 15, "USDC marginSoft should be 15");
+        assertEq(usdcMarginSoft, 15, "USDC collReqSoft should be 15");
         assertEq(usdcCollCap, int120(int256(200_000e18)), "USDC collateralCap should be 200k");
     }
 

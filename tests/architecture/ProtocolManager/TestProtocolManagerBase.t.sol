@@ -73,8 +73,8 @@ contract TestProtocolManagerBase is TestBaseMarketIsolated {
     function _getValidLimits() internal pure returns (ProtocolManager.PeriodLimits memory) {
         return ProtocolManager.PeriodLimits({
             collRatioLimit: 100,
-            marginSoftLimit: 50,
-            marginHardLimit: 100,
+            collReqSoftLimit: 50,
+            collReqHardLimit: 100,
             collateralCapLimit: 1_000_000e18,
             baseInterestRateLimit: 200,
             debtCapLimit: 1_000_000e18,
@@ -94,6 +94,7 @@ contract TestProtocolManagerBase is TestBaseMarketIsolated {
     function _getDefaultPermsConfig() internal pure returns (ProtocolManager.PermsConfig memory) {
         return ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,

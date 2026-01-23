@@ -267,6 +267,7 @@ contract TestProtocolManagerSetGuardedPriceConfig is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
             canModifyPriceGuards: false, // Disabled
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,

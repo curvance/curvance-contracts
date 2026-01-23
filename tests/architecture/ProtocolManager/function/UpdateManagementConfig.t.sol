@@ -43,8 +43,8 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = ProtocolManager.PeriodLimits({
             collRatioLimit: 200,
-            marginSoftLimit: 100,
-            marginHardLimit: 200,
+            collReqSoftLimit: 100,
+            collReqHardLimit: 200,
             collateralCapLimit: 2_000_000e18,
             baseInterestRateLimit: 400,
             debtCapLimit: 2_000_000e18,
@@ -68,8 +68,8 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
 
         assertTrue(hasAuthority, "newManagedAddress should have authority");
         assertEq(storedLimits.collRatioLimit, 200, "collRatioLimit mismatch");
-        assertEq(storedLimits.marginSoftLimit, 100, "marginSoftLimit mismatch");
-        assertEq(storedLimits.marginHardLimit, 200, "marginHardLimit mismatch");
+        assertEq(storedLimits.collReqSoftLimit, 100, "collReqSoftLimit mismatch");
+        assertEq(storedLimits.collReqHardLimit, 200, "collReqHardLimit mismatch");
         assertEq(storedLimits.collateralCapLimit, 2_000_000e18, "collateralCapLimit mismatch");
         assertEq(storedLimits.baseInterestRateLimit, 400, "baseInterestRateLimit mismatch");
         assertEq(storedLimits.debtCapLimit, 2_000_000e18, "debtCapLimit mismatch");
@@ -96,8 +96,8 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         limits[0] = _getValidLimits();
         limits[1] = ProtocolManager.PeriodLimits({
             collRatioLimit: 300,
-            marginSoftLimit: 150,
-            marginHardLimit: 250,
+            collReqSoftLimit: 150,
+            collReqHardLimit: 250,
             collateralCapLimit: 3_000_000e18,
             baseInterestRateLimit: 500,
             debtCapLimit: 3_000_000e18,
@@ -149,8 +149,8 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
 
         assertFalse(hasAuthorityAfter, "should not have authority after removal");
         assertEq(storedLimits.collRatioLimit, 0, "collRatioLimit should be cleared");
-        assertEq(storedLimits.marginSoftLimit, 0, "marginSoftLimit should be cleared");
-        assertEq(storedLimits.marginHardLimit, 0, "marginHardLimit should be cleared");
+        assertEq(storedLimits.collReqSoftLimit, 0, "collReqSoftLimit should be cleared");
+        assertEq(storedLimits.collReqHardLimit, 0, "collReqHardLimit should be cleared");
         assertEq(storedLimits.collateralCapLimit, 0, "collateralCapLimit should be cleared");
         assertEq(storedLimits.baseInterestRateLimit, 0, "baseInterestRateLimit should be cleared");
         assertEq(storedLimits.debtCapLimit, 0, "debtCapLimit should be cleared");
@@ -174,8 +174,8 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory newLimits = new ProtocolManager.PeriodLimits[](1);
         newLimits[0] = ProtocolManager.PeriodLimits({
             collRatioLimit: 250,
-            marginSoftLimit: 125,
-            marginHardLimit: 225,
+            collReqSoftLimit: 125,
+            collReqHardLimit: 225,
             collateralCapLimit: 2_500_000e18,
             baseInterestRateLimit: 450,
             debtCapLimit: 2_500_000e18,
@@ -319,7 +319,7 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].adjustmentVelocityLimit = 501; // Exceeds max of 500
+        limits[0].adjustmentVelocityLimit = 301; // Exceeds max of 300
 
         vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.updateManagementConfig(managedAddresses, limits, true);
@@ -332,7 +332,7 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].decayPerAdjustmentLimit = 201; // Exceeds max of 200
+        limits[0].decayPerAdjustmentLimit = 121; // Exceeds max of 120
 
         vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.updateManagementConfig(managedAddresses, limits, true);
@@ -366,27 +366,27 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         protocolManager.updateManagementConfig(managedAddresses, limits, true);
     }
 
-    /// @notice Test that marginSoftLimit exceeding max reverts
-    function test_updateManagementConfig_fail_marginSoftLimitExceedsMax() public {
+    /// @notice Test that collReqSoftLimit exceeding max reverts
+    function test_updateManagementConfig_fail_collReqSoftLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = newManagedAddress;
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].marginSoftLimit = 301; // Exceeds max of 300
+        limits[0].collReqSoftLimit = 501; // Exceeds max of 500
 
         vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.updateManagementConfig(managedAddresses, limits, true);
     }
 
-    /// @notice Test that marginHardLimit exceeding max reverts
-    function test_updateManagementConfig_fail_marginHardLimitExceedsMax() public {
+    /// @notice Test that collReqHardLimit exceeding max reverts
+    function test_updateManagementConfig_fail_collReqHardLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = newManagedAddress;
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].marginHardLimit = 301; // Exceeds max of 300
+        limits[0].collReqHardLimit = 501; // Exceeds max of 500
 
         vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
         protocolManager.updateManagementConfig(managedAddresses, limits, true);

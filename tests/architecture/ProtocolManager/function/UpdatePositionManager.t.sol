@@ -136,6 +136,7 @@ contract TestProtocolManagerUpdatePositionManager is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -332,6 +333,7 @@ contract TestProtocolManagerUpdatePositionManager is TestProtocolManagerBase {
 
         ProtocolManager.PermsConfig memory restrictedPerms = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,

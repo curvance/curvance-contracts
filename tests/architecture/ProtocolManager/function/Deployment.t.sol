@@ -26,8 +26,8 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = ProtocolManager.PeriodLimits({
             collRatioLimit: 100,
-            marginSoftLimit: 50,
-            marginHardLimit: 100,
+            collReqSoftLimit: 50,
+            collReqHardLimit: 100,
             collateralCapLimit: 1_000_000e18,
             baseInterestRateLimit: 200,
             debtCapLimit: 1_000_000e18,
@@ -43,8 +43,8 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         });
         limits[1] = ProtocolManager.PeriodLimits({
             collRatioLimit: 150,
-            marginSoftLimit: 75,
-            marginHardLimit: 150,
+            collReqSoftLimit: 75,
+            collReqHardLimit: 150,
             collateralCapLimit: 2_000_000e18,
             baseInterestRateLimit: 250,
             debtCapLimit: 2_000_000e18,
@@ -62,6 +62,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         // Setup permissions config - all permissions enabled
         ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
+            canDisablePriceGuards: true,
             canModifyTokenConfig: true,
             canModifyIRM: true,
             canUnpause: true,
@@ -105,8 +106,8 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
             protocolManager.config(address(borrowableCUSDC_MONAD));
         assertTrue(hasAuthority0, "borrowableCUSDC_MONAD should have authority");
         assertEq(storedLimits0.collRatioLimit, 100, "limits0.collRatioLimit mismatch");
-        assertEq(storedLimits0.marginSoftLimit, 50, "limits0.marginSoftLimit mismatch");
-        assertEq(storedLimits0.marginHardLimit, 100, "limits0.marginHardLimit mismatch");
+        assertEq(storedLimits0.collReqSoftLimit, 50, "limits0.collReqSoftLimit mismatch");
+        assertEq(storedLimits0.collReqHardLimit, 100, "limits0.collReqHardLimit mismatch");
         assertEq(storedLimits0.collateralCapLimit, 1_000_000e18, "limits0.collateralCapLimit mismatch");
         assertEq(storedLimits0.baseInterestRateLimit, 200, "limits0.baseInterestRateLimit mismatch");
         assertEq(storedLimits0.debtCapLimit, 1_000_000e18, "limits0.debtCapLimit mismatch");
@@ -125,8 +126,8 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
             protocolManager.config(address(borrowableCWMON));
         assertTrue(hasAuthority1, "borrowableCWMON should have authority");
         assertEq(storedLimits1.collRatioLimit, 150, "limits1.collRatioLimit mismatch");
-        assertEq(storedLimits1.marginSoftLimit, 75, "limits1.marginSoftLimit mismatch");
-        assertEq(storedLimits1.marginHardLimit, 150, "limits1.marginHardLimit mismatch");
+        assertEq(storedLimits1.collReqSoftLimit, 75, "limits1.collReqSoftLimit mismatch");
+        assertEq(storedLimits1.collReqHardLimit, 150, "limits1.collReqHardLimit mismatch");
         assertEq(storedLimits1.collateralCapLimit, 2_000_000e18, "limits1.collateralCapLimit mismatch");
         assertEq(storedLimits1.baseInterestRateLimit, 250, "limits1.baseInterestRateLimit mismatch");
         assertEq(storedLimits1.debtCapLimit, 2_000_000e18, "limits1.debtCapLimit mismatch");
@@ -142,10 +143,10 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
 
         // Assert constants are correct
         assertEq(protocolManager.MAXIMUM_COLL_RATIO_LIMIT(), 500, "MAXIMUM_COLL_RATIO_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_MARGIN_LIMIT(), 300, "MAXIMUM_MARGIN_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_COLL_REQ_LIMIT(), 500, "MAXIMUM_COLL_REQ_LIMIT mismatch");
         assertEq(protocolManager.MAXIMUM_INTEREST_RATE_LIMIT(), 1000, "MAXIMUM_INTEREST_RATE_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT(), 500, "MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT mismatch");
-        assertEq(protocolManager.MAXIMUM_DECAY_RATE_LIMIT(), 200, "MAXIMUM_DECAY_RATE_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT(), 300, "MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT mismatch");
+        assertEq(protocolManager.MAXIMUM_DECAY_RATE_LIMIT(), 120, "MAXIMUM_DECAY_RATE_LIMIT mismatch");
         assertEq(protocolManager.MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT(), 50000, "MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT mismatch");
         assertEq(protocolManager.periodDuration(), 604800, "periodDuration mismatch");
     }
@@ -289,7 +290,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].adjustmentVelocityLimit = 501; // Exceeds max of 500
+        limits[0].adjustmentVelocityLimit = 301; // Exceeds max of 300
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -309,7 +310,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].decayPerAdjustmentLimit = 201; // Exceeds max of 200
+        limits[0].decayPerAdjustmentLimit = 121; // Exceeds max of 120
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -343,13 +344,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_marginSoftLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_collReqSoftLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].marginSoftLimit = 301; // Exceeds max of 300
+        limits[0].collReqSoftLimit = 501; // Exceeds max of 500
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -363,13 +364,13 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
-    function test_ProtocolManagerDeployment_fail_marginHardLimitExceedsMax() public {
+    function test_ProtocolManagerDeployment_fail_collReqHardLimitExceedsMax() public {
         address[] memory managedAddresses = new address[](1);
         managedAddresses[0] = address(borrowableCUSDC_MONAD);
 
         ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
         limits[0] = _getValidLimits();
-        limits[0].marginHardLimit = 301; // Exceeds max of 300
+        limits[0].collReqHardLimit = 501; // Exceeds max of 500
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
