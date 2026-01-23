@@ -586,7 +586,7 @@ contract ProtocolManager is ReentrancyGuard {
         address cToken,
         uint8 action,
         bool state
-    ) external {
+    ) external nonReentrant {
         if (!state && !canUnpause) {
             revert ProtocolManager__Unauthorized();
         }
@@ -626,7 +626,7 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         address pm,
         bool add
-    ) external {
+    ) external nonReentrant {
         _checkAuthority(managedAddress, canModifyPositionManagers);
 
         if (add) {
