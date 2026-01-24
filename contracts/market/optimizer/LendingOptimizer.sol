@@ -108,6 +108,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @dev Maximum vesting period (3 days).
     uint256 internal constant _MAXIMUM_VESTING_PERIOD = 3 days;
 
+    uint256 internal constant _MAXIMUM_ROUNDING_BUFFER = 10_000;
+
     /// STORAGE ///
 
     /// @notice The underlying asset address.
@@ -140,6 +142,12 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @notice Whether deposits are enabled.
     /// @dev 0 = uninitialized; 1 = active; 2 = paused.
     uint8 public mintPaused;
+    /// @notice The tolerance (in wei) for bad debt detection during active vesting.
+    /// @dev Accounts for cumulative cToken rounding losses from rebalancing.
+    ///      Higher values allow more rebalances before triggering false positives.
+    ///      Should be adjusted based on rebalancing frequency and vault AUM.
+    ///      Default: 1000 wei (covers ~500 rebalance operations).
+    uint256 public roundingBuffer;
 
 
     /// ERRORS ///
@@ -172,6 +180,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     event Rebalanced(uint256 totalAssets);
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
+    event RoundingBufferUpdated(uint256 newBuffer);
 
     /// CONSTRUCTOR ///
 
@@ -245,6 +254,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         approvedCTokensList = _approvedCTokens;
         // Store the high watermark exchange rate as 100% (WAD).
         exchangeRateHighWatermark = WAD;
+        // Store the default rebalance rounding buffer.
+        roundingBuffer = 1000;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -487,16 +498,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        // Track the intended deposited assets and the actual deposited assets 
-        // to account for rounding loss.
+        // Track the intended deposited assets.
         uint256 intentDeposited;
-        uint256 actualDeposited;
         // Second pass: process deposits.
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
-                uint256 assets = _depositToMarket(address(actions[i].cToken), actions[i].assets);
-                actualDeposited += assets;
+                _depositToMarket(address(actions[i].cToken), actions[i].assets);
                 intentDeposited += actions[i].assets;
             }
         }
@@ -504,11 +512,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Check that the manager intended to withdraw and deposit the same amount of assets.
         if (intentWithdrawn != intentDeposited) {
             revert LendingOptimizer__AssetMismatch();
-        }
-
-        // In order to not trigger bad debt detection, we need to keep _totalAssets in sync with rawTa.
-        if (intentDeposited > actualDeposited) {
-            _totalAssets -= (intentDeposited - actualDeposited);
         }
 
         // Calculate total assets for cap verification.
@@ -575,10 +578,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Delete the allocation cap for the removed market.
         delete allocationCaps[address(cTokenToRemove)];
 
-        // assetsReallocated - track the caller intent amount to reallocate
+        // Track the caller intent amount to reallocate.
         uint256 intentReallocated;
-        // actualReallocated - track the actual amount of assets reallocated after rounding loss.
-        uint256 actualReallocated;
         for (uint256 i; i < removeActions.length; ++i) {
             // Instantiate cToken address for readability.
             address cTokenAddress = address(removeActions[i].cToken);
@@ -590,21 +591,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Deposit reallocation amount to the target market.
             uint256 reallocationAmount = removeActions[i].reallocationAmount;
-            // Deposit reallocation amount to the target market and track the 
-            // actual amount of assets reallocated after rounding loss.
-            actualReallocated += _depositToMarket(cTokenAddress, reallocationAmount);
-            // Track the caller intent amount to reallocate.
+            _depositToMarket(cTokenAddress, reallocationAmount);
             intentReallocated += reallocationAmount;
         }
 
         // Revert if reallocated assets do not match redeemed assets.
         if (intentReallocated != assetsRedeemed) {
             revert LendingOptimizer__AssetMismatch();
-        }
-
-        // Account for deposit rounding loss to keep _totalAssets in sync with rawTa.
-        if (actualReallocated < intentReallocated) {
-            _totalAssets -= (intentReallocated - actualReallocated);
         }
 
         // Update approved markets list using swap and pop.
@@ -744,6 +737,23 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         emit ActionPaused("Mint Paused", state);
     }
 
+    /// @notice Updates the bad debt detection tolerance.
+    /// @dev Requires harvester permissions. The tolerance should be set based on
+    ///      expected rebalancing frequency and vault AUM. Higher AUM or more frequent
+    ///      rebalancing may require a larger tolerance to prevent false positives
+    ///      from cToken rounding losses.
+    /// @param newTolerance The new tolerance value in wei.
+    function setBadDebtTolerance(uint256 newTolerance) external {
+        _hasHarvesterPermissions();
+
+        if (newTolerance > _MAXIMUM_ROUNDING_BUFFER) {
+            revert LendingOptimizer__InvalidParameter();
+        }
+
+        roundingBuffer = newTolerance;
+
+        emit RoundingBufferUpdated(newTolerance);
+    }
 
     /// @notice Accrues interest, vests yield, charges fees, and returns exchange rate.
     /// @dev Triggers full state update: accrues underlying markets, vests pending
@@ -1194,13 +1204,24 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @dev Synchronizes optimizer state: vests pending yield, detects new yield
     ///      from underlying markets, and accrues performance fees.
     ///
+    ///      Bad Debt Detection
+    ///      During active vesting periods, bad debt is detected immediately when
+    ///      actual market value (rawTa) falls below expected value (totalAssets)
+    ///      by more than `roundingBuffer`. This configurable tolerance accounts
+    ///      for cumulative cToken rounding losses from frequent rebalancing.
+    ///      Curators can adjust the tolerance via `setBadDebtTolerance()` based on
+    ///      expected rebalancing frequency and vault AUM (higher AUM or more frequent
+    ///      rebalancing may require larger tolerance to prevent false positives).
+    ///
     ///      Vesting Mechanism
     ///      Yield is smoothed over `vestingPeriod` to prevent frontrunning attacks
     ///      where users deposit before yield accrues and withdraw immediately after.
-    ///      Pending vested assets are checkpointed on each call.
+    ///      During vesting, totalAssets() includes time-weighted vested amounts so
+    ///      users see a gradual increase without needing storage updates.
     ///
     ///      New yield from underlying markets is only detected when the current
-    ///      vesting period ends. This prevents overlapping vesting periods.
+    ///      vesting period ends. At that point, `_totalAssets` is synced to the
+    ///      actual market value (rawTa), absorbing any accumulated rounding losses.
     ///
     ///      Performance Fees
     ///      Fees are charged on vested yield only (not unvested).
@@ -1212,29 +1233,31 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         uint256 ta = totalAssets();
 
-        // If rawTa < totalAssets, bad debt detected.
-        if (rawTa < ta) {
-            // Bad debt detected, update _totalAssets immediately.
+        // During active vesting, only check for significant bad debt.
+        // Small rounding losses from rebalancing are tolerated and will be
+        // absorbed when vesting finishes and _totalAssets syncs to rawTa.
+        if (!_checkVestingFinished(_vestingData)) {
+            if (rawTa + roundingBuffer < ta) {
+                // Loss exceeds tolerance - real bad debt detected.
+                // Apply immediately: sync _totalAssets and clear vesting.
+                _totalAssets = rawTa;
+                _setVestingData(0);
+            }
+            return;
+        }
+
+        // Vesting finished - sync _totalAssets to actual market value.
+        // This absorbs any accumulated rounding losses from rebalancing.
+        uint256 newYield;
+        if (rawTa > ta) {
+            // New yield detected - start new vesting period.
+            newYield = rawTa - ta;
+            _totalAssets = ta;
+            _setVestingData(newYield);
+        } else {
+            // No yield or small loss - sync to reality.
             _totalAssets = rawTa;
             _setVestingData(0);
-            return;
-        }
-
-        // Only vest and detect new yield after the current vesting period ends.
-        // During vesting, totalAssets() includes _assetsToVest() so users see
-        // the correct gradual increase without needing storage updates.
-        if (!_checkVestingFinished(_vestingData)) {
-            return;
-        }
-
-        // Calculate pending vested assets.
-        uint256 assetsToVest = rawTa - ta;
-
-        // Vest pending assets, if there is any.
-        if (assetsToVest > 0) {
-            // Update _totalAssets invariant with vested assets added.
-            _totalAssets = ta;
-            _setVestingData(assetsToVest);
         }
 
         // Fees are charged on vested yield only, based on exchange rate vs watermark.
@@ -1250,8 +1273,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Cache the high watermark exchange rate.
         uint256 highRate = exchangeRateHighWatermark;
 
-        // Get total assets (indexed + pending vest from new vesting period).
-        uint256 currentAssets = ta + assetsToVest;
+        // Use rawTa as the canonical current assets value.
+        uint256 currentAssets = rawTa;
 
         // Calculate the current exchange rate.
         // currentRate = (WAD * currentAssets) / supply
