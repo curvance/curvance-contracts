@@ -70,8 +70,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         IBorrowableCToken cToken;
         /// @notice The amount of underlying assets to deposit or withdraw.
         uint256 assets;
-        /// @notice The minimum amount of underlying assets to receive.
-        uint256 minAssetsOut;
         /// @notice True for deposit, false for withdrawal.
         bool isDeposit;
     }
@@ -168,7 +166,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     error LendingOptimizer__NotInitialized();
     error LendingOptimizer__AlreadyInitialized();
     error LendingOptimizer__MintPaused();
-    error LendingOptimizer__InsufficientAssetsReceived();
 
 
     /// EVENTS ///
@@ -1224,104 +1221,98 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      actual market value (rawTa), absorbing any accumulated rounding losses.
     ///
     ///      Performance Fees
-    ///      Fees are charged on vested yield only (not unvested).
+    ///      Fees are charged on vested yield only, using totalAssets() for
+    ///      consistency with share pricing. This ensures fees vest along with
+    ///      yield - no fee is charged at vesting boundaries when yield hasn't
+    ///      vested yet, preventing unfair dilution of existing shareholders.
     ///      The high watermark ensures fees are only charged on new all-time-high
     ///      profits, preventing double-charging after drawdowns.
     function _accrueIfNeeded() internal {
-        // Get actual assets from underlying markets (triggers underlying interest accrual).
+        // =====================================================================
+        // STEP 1: Sync with underlying cToken markets
+        // =====================================================================
+        // Trigger interest accrual in each cToken and sum all market values.
         uint256 rawTa = _accrueMarkets();
-
         uint256 ta = totalAssets();
 
-        // During active vesting, only check for significant bad debt.
-        // Small rounding losses from rebalancing are tolerated and will be
-        // absorbed when vesting finishes and _totalAssets syncs to rawTa.
+        // =====================================================================
+        // STEP 2: During active vesting - only check for bad debt
+        // =====================================================================
+        // Small rounding losses from rebalancing are tolerated during vesting.
+        // They'll be absorbed when vesting finishes and _totalAssets syncs.
         if (!_checkVestingFinished(_vestingData)) {
             if (rawTa + roundingBuffer < ta) {
-                // Loss exceeds tolerance - real bad debt detected.
-                // Apply immediately: sync _totalAssets and clear vesting.
+                // Loss exceeds tolerance - bad debt detected.
                 _totalAssets = rawTa;
                 _setVestingData(0);
             }
             return;
         }
 
-        // Vesting finished - sync _totalAssets to actual market value.
-        // This absorbs any accumulated rounding losses from rebalancing.
-        uint256 newYield;
+        // =====================================================================
+        // STEP 3: Vesting finished - detect new yield and start new vesting
+        // =====================================================================
+        // Previous yield has fully vested. Check for new yield to vest.
         if (rawTa > ta) {
-            // New yield detected - start new vesting period.
-            newYield = rawTa - ta;
+            // New yield detected: start vesting it over vestingPeriod.
+            // _totalAssets = ta locks in current value (includes old vested yield).
+            // New yield will gradually increase totalAssets() as it vests.
+            uint256 newYield = rawTa - ta;
             _totalAssets = ta;
             _setVestingData(newYield);
         } else {
-            // No yield or small loss - sync to reality.
+            // No new yield (or small loss). Sync to actual market value.
             _totalAssets = rawTa;
             _setVestingData(0);
         }
 
-        // Fees are charged on vested yield only, based on exchange rate vs watermark.
-        // If no fee is configured, exit immediately.
+        // =====================================================================
+        // STEP 4: Charge performance fee on vested yield
+        // =====================================================================
+        // Fees are only charged on yield reflected in totalAssets(), not rawTa.
+        // This prevents dilution: if we charged fees on unvested yield, we'd
+        // mint shares against assets users can't access yet, dropping the rate.
         if (fee == 0) return;
 
-        // Cache the total supply of optimizer shares.
         uint256 supply = totalSupply();
-
-        // Skip if no shares exist (nothing to charge fees on).
         if (supply == 0) return;
 
-        // Cache the high watermark exchange rate.
-        uint256 highRate = exchangeRateHighWatermark;
-
-        // Use rawTa as the canonical current assets value.
-        uint256 currentAssets = rawTa;
-
-        // Calculate the current exchange rate.
-        // currentRate = (WAD * currentAssets) / supply
+        // Calculate exchange rate from vested assets only.
+        // New yield that just started vesting has _assetsToVest() = 0,
+        // so fees on that yield are deferred until it vests.
+        uint256 currentAssets = totalAssets();
         uint256 currentRate = FixedPointMathLib.mulDiv(WAD, currentAssets, supply);
 
-        // Only charge fees if we've exceeded the previous all-time-high rate.
-        // This prevents double-charging after losses recover.
+        // High watermark: only charge fees on NEW all-time-high profits.
+        uint256 highRate = exchangeRateHighWatermark;
         if (currentRate <= highRate) {
             return;
         }
 
-        // Calculate profit above the watermark in asset terms.
+        // Calculate profit above watermark and fee amount.
         uint256 highAssets = FixedPointMathLib.mulDiv(highRate, supply, WAD);
-        // Calculate the profit above the high watermark.
         uint256 profit = currentAssets - highAssets;
-
-        // Calculate the fee amount in assets (rounds up to favor protocol).
-        // feeAssets = (profit * fee) / WAD
         uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
 
-        // If fee rounds to zero, just update the watermark and return.
         if (feeAssets == 0) {
             exchangeRateHighWatermark = currentRate;
             return;
         }
 
-        // Calculate shares to mint to the DAO for the fee.
-        // Uses the formula: feeShares = (feeAssets * supply) / (currentAssets - feeAssets)
-        // This ensures the DAO receives shares worth exactly feeAssets.
+        // Mint fee shares: feeShares = (feeAssets * supply) / (currentAssets - feeAssets)
+        // This formula ensures DAO receives shares worth exactly feeAssets.
         uint256 feeShares = FixedPointMathLib.fullMulDivUp(
             feeAssets,
             supply,
             currentAssets - feeAssets
         );
 
-        // Get the DAO address from the central registry.
         address dao = centralRegistry.daoAddress();
-        // Mint fee shares to the DAO.
         _mint(dao, feeShares);
 
-        // Calculate and store the new high watermark exchange rate.
-        // This accounts for the dilution from minting fee shares.
-        uint256 sAfter = supply + feeShares;
-        uint256 rAfter = FixedPointMathLib.mulDiv(WAD, currentAssets, sAfter);
-
-        // Update the high watermark to the new exchange rate.
-        exchangeRateHighWatermark = rAfter;
+        // Update watermark to post-fee exchange rate.
+        uint256 supplyAfter = supply + feeShares;
+        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(WAD, currentAssets, supplyAfter);
 
         emit PerformanceFeeAccrued(feeShares, dao);
     }

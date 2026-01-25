@@ -926,19 +926,16 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         actions[0] = LendingOptimizer.RebalanceAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC)),
             assets: market3Assets,
-            minAssetsOut: 0,
             isDeposit: true
         });
         actions[1] = LendingOptimizer.RebalanceAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC2)),
             assets: 0,
-            minAssetsOut: 0,
             isDeposit: false
         });
         actions[2] = LendingOptimizer.RebalanceAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC3)),
             assets: market3Assets,
-            minAssetsOut: 0,
             isDeposit: false
         });
 

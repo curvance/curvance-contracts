@@ -489,9 +489,10 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         uint256 feeWad = (feeBps * WAD) / BPS;
         uint256 daoBalanceBefore = harness.balanceOf(_daoAddress());
 
-        // Get rawTa (what currentAssets will be during fee calculation)
-        // This is what _accrueMarkets() returns - actual assets in underlying markets
-        uint256 rawTa = harness.exposed_accrueMarkets();
+        // Get totalAssets() which is what _accrueIfNeeded uses for fee calculation.
+        // Fee calculation uses totalAssets() (not rawTa) so fees vest along with yield,
+        // preventing dilution at vesting boundaries.
+        uint256 currentAssets = harness.totalAssets();
 
         // Trigger accrual - this ends vesting and detects new yield
         harness.accrueIfNeeded();
@@ -500,9 +501,9 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         uint256 actualFeeShares = daoBalanceAfter - daoBalanceBefore;
 
         if (actualFeeShares > 0) {
-            // Calculate expected fee shares using rawTa (what _accrueIfNeeded uses as currentAssets)
+            // Calculate expected fee shares using totalAssets() (what _accrueIfNeeded uses)
             uint256 expectedFeeShares = _expectedFeeShares(
-                rawTa,
+                currentAssets,
                 supplyBefore,
                 watermarkBefore,
                 feeWad

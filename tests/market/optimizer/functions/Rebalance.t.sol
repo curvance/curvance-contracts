@@ -51,19 +51,16 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
             withdrawAmount,
-            0,    // minAssetsOut
             true  // deposit
         );
         actions[1] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
             0,
-            0,    // minAssetsOut
             true  // no action (0 assets)
         );
         actions[2] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
             withdrawAmount,
-            0,     // minAssetsOut
             false  // withdraw
         );
 
@@ -126,19 +123,16 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
             transferAmount,
-            0,     // minAssetsOut
             false  // withdraw from Market 0
         );
         actions[1] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
             0,
-            0,    // minAssetsOut
             true  // no action
         );
         actions[2] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
             transferAmount,
-            0,    // minAssetsOut
             true  // deposit to Market 2 (will exceed 20% cap)
         );
 
@@ -158,9 +152,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         _depositToAllMarkets(10_000e6);
 
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, 0, true);
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);
+        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);
 
         // Mock harvest permissions to return false (unauthorized).
         vm.mockCall(
@@ -178,8 +172,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Create actions array with wrong length (2 instead of 3).
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -196,9 +190,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Create actions with wrong market order (swapped index 1 and 2).
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, 0, true);  // Wrong: should be WBTC
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, 0, true);  // Wrong: should be WETH
+        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
+        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);  // Wrong: should be WBTC
+        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);  // Wrong: should be WETH
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -269,13 +263,11 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             actions[0] = LendingOptimizer.RebalanceAction(
                 IBorrowableCToken(cUSDC_WMON_MARKET),
                 transferAmount,
-                0,    // minAssetsOut - allow any rounding
                 true  // deposit
             );
             actions[1] = LendingOptimizer.RebalanceAction(
                 IBorrowableCToken(cUSDC_WBTC_MARKET),
                 transferAmount,
-                0,
                 false // withdraw
             );
 
@@ -310,30 +302,30 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         assertGt(assets, 0, "Should be able to redeem after rebalance");
     }
 
-    /// @notice Verifies minAssetsOut slippage protection works during rebalance.
-    function test_lendingOptimizer_rebalance_fail_whenSlippageExceedsMinAssetsOut() public {
+    /// @notice Tests that rebalance reverts when final allocation exceeds market caps.
+    function test_lendingOptimizer_rebalance_fail_whenAllocationExceedsCap() public {
+        // Deposit to all markets equally. This puts market 2 at 33% allocation,
+        // which already exceeds its 20% cap.
         _depositToAllMarkets(10_000e6);
 
         uint256 transferAmount = 1_000e6;
 
-        // Set minAssetsOut equal to transfer amount - any rounding loss will revert.
+        // Attempt to rebalance - even though we withdraw from market 2,
+        // it will still be over its 20% cap after the rebalance.
         LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
         actions[0] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
             transferAmount,
-            transferAmount,  // minAssetsOut = exact amount (no tolerance for rounding)
             true
         );
         actions[1] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            0,
             0,
             true
         );
         actions[2] = LendingOptimizer.RebalanceAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
             transferAmount,
-            0,
             false
         );
 
@@ -343,8 +335,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        // This should revert because cToken rounding will cause trackedAssets < minAssetsOut.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAssetsReceived.selector);
+        // Reverts because market 2's allocation (~30%) exceeds its 20% cap.
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
         optimizer.rebalance(actions);
     }
 }
