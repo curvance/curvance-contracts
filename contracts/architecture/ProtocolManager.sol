@@ -31,12 +31,13 @@ import { IChainlinkStyleAdaptor } from "contracts/interfaces/IChainlinkStyleAdap
 contract ProtocolManager is ReentrancyGuard {
     /// TYPES ///
 
+    /// @notice Configuration for a managed protocol address.
     struct ManagementConfig {
         bool hasAuthority;
         PeriodLimits limits;
     }
 
-    /// @title Period Adjustments.
+    /// @notice Period adjustments tracking for managed addresses.
     struct PeriodAdjustments {
         // Token Configs - Debt Cap
         int24 collRatio;
@@ -58,7 +59,7 @@ contract ProtocolManager is ReentrancyGuard {
         int96 minPriceNative;
     }
 
-    /// @title Period Adjustment Limitations.
+    /// @notice Period adjustment limitations for managed addresses.
     struct PeriodLimits {
         // Token Configs - Debt Cap
         uint24 collRatioLimit;
@@ -80,6 +81,7 @@ contract ProtocolManager is ReentrancyGuard {
         uint96 minPriceNativeLimit;
     }
 
+    /// @notice Permission flags for ProtocolManager capabilities.
     struct PermsConfig {
         bool canModifyPriceGuards;
         bool canDisablePriceGuards;
@@ -137,16 +139,17 @@ contract ProtocolManager is ReentrancyGuard {
     bool public immutable canModifyRedeemStatus;
     /// @notice Whether the protocol manager can modify market transfer status.
     bool public immutable canModifyTransferStatus;
+    /// @notice Whether the protocol manager can modify position managers.
     bool public immutable canModifyPositionManagers;
 
     /// @notice The duration of the period in which any value adjustment
     ///         restrictions are measured in, in seconds.
     /// @dev 604800 = 1 week.
-    uint256 public constant periodDuration = 604800;
+    uint256 public constant PERIOD_DURATION = 604800;
 
     /// @notice The initial timestamp that value adjustment restriction
     ///         periods are calculated off of.
-    uint256 internal constant _unixStartTimestamp = 1766966400;
+    uint256 internal constant _UNIX_START_TIMESTAMP = 1766966400;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -160,7 +163,7 @@ contract ProtocolManager is ReentrancyGuard {
     /// @dev Protocol address => Management Configuration
     mapping(address => ManagementConfig) public config;
 
-    /// @notice Management adjustments per period (length = `periodDuration`).
+    /// @notice Management adjustments per period (length = `PERIOD_DURATION`).
     /// @dev Protocol Address => Period Timestamp Start => Adjustments.
     mapping(address => mapping(uint256 => PeriodAdjustments)) internal _periodAdjustments;
 
@@ -280,7 +283,7 @@ contract ProtocolManager is ReentrancyGuard {
             revert ProtocolManager__Unauthorized();
         }
 
-        if (block.timestamp - getPeriodTimestamp() < (periodDuration * 2) / 3) {
+        if (block.timestamp - getPeriodTimestamp() < (PERIOD_DURATION * 2) / 3) {
             revert ProtocolManager__TooEarlyInPeriod();
         }
 
@@ -341,7 +344,7 @@ contract ProtocolManager is ReentrancyGuard {
         p.collReqHard = int24(_calcAdj(n.collReqHard, collReqHard - BPS, p.collReqHard, l.collReqHardLimit));
         p.collateralCap = int120(_calcAdj(n.collateralCap, mm.collateralCaps(n.cToken), p.collateralCap, l.collateralCapLimit));
         p.debtCap = int112(_calcAdj(n.debtCap, mm.debtCaps(n.cToken), p.debtCap, l.debtCapLimit));
-        
+
         mm.updateTokenConfig(n);
     }
 
@@ -394,7 +397,7 @@ contract ProtocolManager is ReentrancyGuard {
         p.adjustmentVelocity = int16(_calcAdj(adjustmentVelocity, rc.adjustmentVelocity, p.adjustmentVelocity, l.adjustmentVelocityLimit));
         p.decayPerAdjustment = int16(_calcAdj(decayPerAdjustment, rc.decayPerAdjustment, p.decayPerAdjustment, l.decayPerAdjustmentLimit));
         p.vertexMultiplierMax = int24(_calcAdj(vertexMultiplierMax, rc.vertexMultiplierMax / WAD_TO_BPS, p.vertexMultiplierMax, l.vertexMultiplierMaxLimit));
-        
+
         DynamicIRM(managedAddress).updateDynamicIRM(
             baseRatePerYear,
             vertexRatePerYear,
@@ -406,17 +409,16 @@ contract ProtocolManager is ReentrancyGuard {
         );
     }
 
-
     /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
     ///         or native tokens depending on `inUSD`.
-    /// @param asset The address of the asset to set a PriceGuard data on.
+    /// @param asset The address of the asset to configure a PriceGuard for.
     /// @param inUSD Specifies whether the PriceGuard should be in
     ///              USD (true) or a chain's native token (false).
     /// @param timestampStart When `ips` should start increasing `basePrice`
     ///                       raising the maximum price returned when pricing
     ///                       `asset`.
-    /// @param ips The magnitude that `basePrice` should increase overtime
-    ///            overtime from `timestampStart`, in `WAD`, in seconds.
+    /// @param ips The magnitude that `basePrice` should increase
+    ///            overtime from `timestampStart`, in `WAD`, per second.
     /// @param basePrice The base price that should be the maximum price
     ///                  returned when pricing `asset`.
     /// @param minPrice The minimum price that should be allowed to be
@@ -639,12 +641,12 @@ contract ProtocolManager is ReentrancyGuard {
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the current period timestamp for adjustment tracking.
-    /// @dev Periods are calculated from `_unixStartTimestamp` in increments
-    ///      of `periodDuration`. Used to bucket adjustments by time period.
+    /// @dev Periods are calculated from `_UNIX_START_TIMESTAMP` in increments
+    ///      of `PERIOD_DURATION`. Used to bucket adjustments by time period.
     /// @return x The start timestamp of the current period.
     function getPeriodTimestamp() public view returns (uint256 x) {
-        uint256 periods = (block.timestamp - _unixStartTimestamp) / periodDuration;
-        x = _unixStartTimestamp + (periods * periodDuration);
+        uint256 periods = (block.timestamp - _UNIX_START_TIMESTAMP) / PERIOD_DURATION;
+        x = _UNIX_START_TIMESTAMP + (periods * PERIOD_DURATION);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -664,8 +666,8 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 limit
     ) internal pure returns (int256 adj) {
         adj = _toInt256(newValue) - _toInt256(currentValue) + existingAdj;
-        // We dont have to worry about overflow when casting these later since
-        // adjustment limit values are same bit size `adj` is cast to later.
+        // We don't have to worry about overflow when casting these later since
+        // adjustment limit values are the same bit size `adj` is cast to later.
         if (_abs(adj) > limit) revert ProtocolManager__ParametersAreInvalid();
     }
 
@@ -727,9 +729,11 @@ contract ProtocolManager is ReentrancyGuard {
 
         address cachedAddress;
         PeriodLimits memory limits;
-        for (uint i; i < numManagedAddresses; ++i) {
+        for (uint256 i; i < numManagedAddresses; ++i) {
             cachedAddress = managedAddresses[i];
-            config[cachedAddress].hasAuthority = hasAuthority;
+            ManagementConfig storage cfg = config[cachedAddress];
+
+            cfg.hasAuthority = hasAuthority;
 
             if (hasAuthority) {
                 limits = l[i];
@@ -754,17 +758,17 @@ contract ProtocolManager is ReentrancyGuard {
                     revert ProtocolManager__ParametersAreInvalid();
                 }
 
-                config[cachedAddress].limits = limits;
+                cfg.limits = limits;
             } else {
-                delete config[cachedAddress].limits;
+                delete cfg.limits;
             }
 
             emit ManagementAuthorityUpdated(
                 cachedAddress,
                 hasAuthority,
-                config[cachedAddress].limits
+                cfg.limits
             );
-        }  
+        }
     }
 
     /// @notice Validates caller authority and managed address permissions.
@@ -776,15 +780,10 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         bool authority
     ) internal view {
-        if (msg.sender != protocolManager) {
-            revert ProtocolManager__Unauthorized();
-        }
-
-        if (!authority) {
-            revert ProtocolManager__Unauthorized();
-        }
-
-        if (!config[managedAddress].hasAuthority) {
+        if (msg.sender != protocolManager || 
+            !authority ||
+            !config[managedAddress].hasAuthority)
+        {
             revert ProtocolManager__Unauthorized();
         }
     }
@@ -801,7 +800,7 @@ contract ProtocolManager is ReentrancyGuard {
         bool authority
     ) internal view {
         _checkAuthority(managedAddress, authority);
-        
+
         if (!config[asset].hasAuthority) {
             revert ProtocolManager__Unauthorized();
         }
@@ -847,8 +846,7 @@ contract ProtocolManager is ReentrancyGuard {
     /// @param value The signed integer to compute the absolute value of.
     /// @return x The absolute value of `value`.
     function _abs(int256 value) internal pure returns (uint256 x) {
-        // For negative: negate in int space, cast to uint, then add 1
-        // -value == ~value + 1 (two's complement)
+        // Two's complement: -value == ~value + 1
         x = value >= 0 ? uint256(value) : uint256(~value) + 1;
     }
 
