@@ -148,7 +148,7 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         assertEq(protocolManager.MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT(), 300, "MAXIMUM_ADJUSTMENT_VELOCITY_LIMIT mismatch");
         assertEq(protocolManager.MAXIMUM_DECAY_RATE_LIMIT(), 120, "MAXIMUM_DECAY_RATE_LIMIT mismatch");
         assertEq(protocolManager.MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT(), 50000, "MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT mismatch");
-        assertEq(protocolManager.periodDuration(), 604800, "periodDuration mismatch");
+        assertEq(protocolManager.PERIOD_DURATION(), 604800, "periodDuration mismatch");
     }
 
     function test_ProtocolManagerDeployment_fail_invalidCentralRegistry() public {
