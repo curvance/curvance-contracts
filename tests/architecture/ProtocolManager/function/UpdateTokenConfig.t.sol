@@ -391,9 +391,6 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory newLimits = new ProtocolManager.PeriodLimits[](1);
         newLimits[0] = _getValidLimits();
 
-        // Warp to valid time window for updateManagementConfig
-        _warpToValidManagementConfigWindow();
-
         // Update management config to add authority for unlisted token
         protocolManager.updateManagementConfig(newManagedAddresses, newLimits, true);
 

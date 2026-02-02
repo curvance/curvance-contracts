@@ -28,9 +28,6 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
             limits
         );
         newManagedAddress = makeAddr("newManagedAddress");
-
-        // Warp to valid time window for updateManagementConfig
-        _warpToValidManagementConfigWindow();
     }
 
     /// SUCCESS TESTS ///
@@ -214,25 +211,6 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         address unauthorizedCaller = makeAddr("unauthorizedCaller");
         vm.prank(unauthorizedCaller);
         vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
-        protocolManager.updateManagementConfig(managedAddresses, limits, true);
-    }
-
-    /// @notice Test that updateManagementConfig reverts if called before final 1/3 of period
-    function test_updateManagementConfig_fail_tooEarlyInPeriod() public {
-        // Warp to the start of the current period (before the valid window)
-        uint256 unixStartTimestamp = 1766966400;
-        uint256 periodDuration = 604800;
-        uint256 currentPeriod = (block.timestamp - unixStartTimestamp) / periodDuration;
-        uint256 periodStart = unixStartTimestamp + (currentPeriod * periodDuration);
-        vm.warp(periodStart + 1); // Just after period start, well before 2/3 mark
-
-        address[] memory managedAddresses = new address[](1);
-        managedAddresses[0] = newManagedAddress;
-
-        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
-        limits[0] = _getValidLimits();
-
-        vm.expectRevert(ProtocolManager.ProtocolManager__TooEarlyInPeriod.selector);
         protocolManager.updateManagementConfig(managedAddresses, limits, true);
     }
 

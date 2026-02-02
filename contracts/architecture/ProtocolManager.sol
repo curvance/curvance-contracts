@@ -101,7 +101,8 @@ contract ProtocolManager is ReentrancyGuard {
 
     /// @notice Maximum allowed period adjustment limits for token and IRM configs.
     /// @dev These cap the `PeriodLimits` values that can be set via `updateManagementConfig`.
-    ///      All values in BPS unless otherwise noted.
+    ///      All values in BPS unless otherwise noted. Limits are sized to fit within their
+    ///      corresponding signed storage types in `PeriodAdjustments`.
     uint256 public constant MAXIMUM_COLL_RATIO_LIMIT = 500;
     uint256 public constant MAXIMUM_COLL_REQ_LIMIT = 500;
     uint256 public constant MAXIMUM_COLL_CAP_LIMIT = type(uint112).max;
@@ -111,7 +112,10 @@ contract ProtocolManager is ReentrancyGuard {
     uint256 public constant MAXIMUM_DECAY_RATE_LIMIT = 120;
     uint256 public constant MAXIMUM_VERTEX_MULTIPLIER_MAX_LIMIT = 50000;
     /// @notice Maximum allowed period adjustment limit for price guard configs.
-    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = uint256(uint96(type(int96).max));
+    /// @dev Capped at uint88 max since prices in oracle adaptors are stored as uint88.
+    uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = type(uint88).max;
+    /// @notice Minimum liquidation incentive to ensure liquidations remain profitable.
+    uint256 public constant MINIMUM_LIQUIDATION_INCENTIVE = 100;
     /// @notice Conversion factor from WAD (1e18) to BPS (1e4).
     uint256 public constant WAD_TO_BPS = 1e14;
 
@@ -181,7 +185,6 @@ contract ProtocolManager is ReentrancyGuard {
     error ProtocolManager__Unauthorized();
     error ProtocolManager__MulDivFailed();
     error ProtocolManager__UintToIntError();
-    error ProtocolManager__TooEarlyInPeriod();
 
     constructor(
         ICentralRegistry cr,
@@ -267,10 +270,6 @@ contract ProtocolManager is ReentrancyGuard {
     ///      {ManagementAuthorityUpdated} for each address in
     ///      `managedAddresses`.
     ///
-    ///      Can only be called in the final 1/3 of an adjustment period to
-    ///      prevent inconsistent behavior when limits are reduced mid-period
-    ///      while adjustments are already active. This ensures any temporary
-    ///      state inconsistency resolves when the period resets.
     /// @param managedAddresses Array of addresses to configure.
     /// @param l Array of period adjustment limits for each address.
     /// @param hasAuthority Whether these addresses should have authority.
@@ -281,10 +280,6 @@ contract ProtocolManager is ReentrancyGuard {
     ) external nonReentrant {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             revert ProtocolManager__Unauthorized();
-        }
-
-        if (block.timestamp - getPeriodTimestamp() < (PERIOD_DURATION * 2) / 3) {
-            revert ProtocolManager__TooEarlyInPeriod();
         }
 
         _updateManagementConfig(managedAddresses, l, hasAuthority);
@@ -330,6 +325,11 @@ contract ProtocolManager is ReentrancyGuard {
         MarketManagerIsolated mm = MarketManagerIsolated(managedAddress);
 
         if (!mm.isListed(n.cToken)) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
+
+        // Ensure liquidation incentive floor to prevent unprofitable liquidations.
+        if (n.liqIncMin < MINIMUM_LIQUIDATION_INCENTIVE) {
             revert ProtocolManager__ParametersAreInvalid();
         }
 

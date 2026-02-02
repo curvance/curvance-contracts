@@ -786,9 +786,6 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory additionalLimits = new ProtocolManager.PeriodLimits[](1);
         additionalLimits[0] = _getValidLimits();
 
-        // Warp to valid time window for updateManagementConfig
-        _warpToValidManagementConfigWindow();
-
         // DAO adds authority for the second token
         protocolManager.updateManagementConfig(additionalAddresses, additionalLimits, true);
 
@@ -1090,9 +1087,6 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
         ProtocolManager.PeriodLimits[] memory additionalLimits = new ProtocolManager.PeriodLimits[](1);
         additionalLimits[0] = _getValidLimits();
 
-        // Warp to valid time window for updateManagementConfig
-        _warpToValidManagementConfigWindow();
-
         // DAO adds authority for the second token
         protocolManager.updateManagementConfig(additionalAddresses, additionalLimits, true);
 
@@ -1393,9 +1387,6 @@ contract TestProtocolManagerSetPaused is TestProtocolManagerBase {
 
         ProtocolManager.PeriodLimits[] memory additionalLimits = new ProtocolManager.PeriodLimits[](1);
         additionalLimits[0] = _getValidLimits();
-
-        // Warp to valid time window for updateManagementConfig
-        _warpToValidManagementConfigWindow();
 
         // DAO adds authority for the second token
         protocolManager.updateManagementConfig(additionalAddresses, additionalLimits, true);
