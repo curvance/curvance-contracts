@@ -58,7 +58,7 @@ contract DeployMarkets is DeployScript {
                 string.concat(name, ".address")
             );
 
-            plugin_deployer.deployPlugins(icr, market, wrappedNative, name, plugins[i]);
+            plugin_deployer.deployPlugins(icr, market, wrappedNative, names[i], plugins[i]);
 
             address[] memory cTokens = deployCTokens(
                 tokens,
