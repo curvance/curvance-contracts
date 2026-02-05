@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IEarnAUSDVault } from "contracts/interfaces/external/Upshift/IEarnAUSDVault.sol";
+import { IEarnAUSDVault } from "contracts/interfaces/external/upshift/IEarnAUSDVault.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -114,7 +114,7 @@ contract TestEarnAUSDPositionManager is TestBaseMarketIsolated {
     function test_constructor_revertsOnInvalidVault() public {
         // Deploy with a vault that doesn't have mint/burn permissions
         address fakeVault = makeAddr("fakeVault");
-        
+
         vm.expectRevert(EarnAUSDVaultPositionManager.EarnAUSDPositionManager__InvalidVault.selector);
         new EarnAUSDVaultPositionManager(
             ICentralRegistry(liveCentralRegistry),
@@ -177,18 +177,18 @@ contract TestEarnAUSDPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
         IERC20(EARN_AUSD_RECEIPT_TOKEN).approve(address(cEarnAUSD), earnAUSDAmount);
         cEarnAUSD.depositAsCollateral(earnAUSDAmount, user1);
-        
+
         uint256 collateralBefore = cEarnAUSD.balanceOf(user1);
         uint256 debtBefore = cAUSD.debtBalance(user1);
-        
+
         // Prepare leverage action: borrow AUSD -> deposit into vault -> get more earnAUSD
         uint256 borrowAmount = 500e6;
-        
+
         EarnAUSDVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(cAUSD));
         leverageAction.borrowAssets = borrowAmount;
         leverageAction.cToken = ICToken(address(cEarnAUSD));
-        
+
         // For EarnAUSD vault, no swap needed when borrowing AUSD to deposit into vault
         // The SingleSidedVaultPositionManager handles this case
         leverageAction.swapAction.inputToken = AUSD;
@@ -196,13 +196,13 @@ contract TestEarnAUSDPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.outputToken = AUSD; // Same token, no swap needed
         leverageAction.swapAction.call = ""; // Empty call means direct deposit
         leverageAction.swapAction.target = address(0);
-        
+
         positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
-        
+
         uint256 collateralAfter = cEarnAUSD.balanceOf(user1);
         uint256 debtAfter = cAUSD.debtBalance(user1);
-        
+
         assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
         assertEq(debtBefore, 0, "Should start with no debt");
         assertEq(debtAfter, borrowAmount, "Debt should equal borrowed amount");
@@ -248,7 +248,7 @@ contract TestEarnAUSDPositionManager is TestBaseMarketIsolated {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // DELEVERAGE TESTS  
+    // DELEVERAGE TESTS
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_deleverage_swapEarnAUSDForDebtAsset() public {

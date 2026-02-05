@@ -48,7 +48,8 @@ contract DeployMarkets is DeployScript {
         OracleManager router = OracleManager(registry.oracleManager());
 
         for (uint256 i = 0; i < names.length; i++) {
-            string memory name = string.concat("markets.", names[i]);
+            string memory market_name = names[i];
+            string memory name = string.concat("markets.", market_name);
             ListConfig[] memory tokens = tokens[i];
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18, isCorrelatedMarkets[i]);
@@ -58,7 +59,7 @@ contract DeployMarkets is DeployScript {
                 string.concat(name, ".address")
             );
 
-            plugin_deployer.deployPlugins(icr, market, wrappedNative, names[i], plugins[i]);
+            plugin_deployer.deployPlugins(icr, market, wrappedNative, market_name, plugins[i]);
 
             address[] memory cTokens = deployCTokens(
                 tokens,
