@@ -96,8 +96,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// @dev Mask of `VESTING_RATE` entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
-    /// @dev Mask of all bits except `LAST_VEST` entry in `_vestingData`.
-    uint256 internal constant _BITMASK_LAST_VEST_COMPLEMENT = (1 << 216) - 1;
     /// @dev The bit position of `VEST_END` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 176;
     /// @dev The bit position of `LAST_VEST` in `_vestingData`.
@@ -277,8 +275,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Set mintPaused to 1 to indicate deposits are active.
         mintPaused = 1;
 
-        // Initialize vesting state.
-        _setLastVestingClaim(uint40(block.timestamp));
+        // Initialize vesting state (LAST_VEST = now, rate and vestEnd remain 0).
+        _vestingData = uint256(uint40(block.timestamp)) << _BITPOS_LAST_VEST;
 
         emit Deposit(msg.sender, address(0), assets, shares);
     }
@@ -772,12 +770,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        // If no market has cap headroom, fall back to the first market.
-        // This allows deposits to proceed even when all markets are at capacity,
-        // though the allocation cap check will occur during rebalancing.
-        if (!foundViable) {
-            targetIndex = 0;
-        }
+        // If no market has cap headroom, targetIndex defaults to 0 (first market).
     }
 
     /// @notice Finds the optimal market for withdrawing assets.
@@ -810,7 +803,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
 
             // Calculate the current assets held by this optimizer in the market.
-            uint256 marketAssets = cToken.convertToAssets(cToken.balanceOf(address(this)));
+            uint256 marketAssets = _getMarketAssets(address(cToken));
 
             // Only consider markets that meet both conditions:
             // 1. The optimizer has enough cTokens to cover the withdrawal.
@@ -1258,23 +1251,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             )
             // Update packed `_vestingData` based on new vesting config.
             sstore(_vestingData.slot, period)
-        }
-    }
-
-    /// @dev Updates lastVestingClaim timestamp.
-    function _setLastVestingClaim(uint40 newVestClaim) internal {
-        // Cache `_vestingData`, the packed vesting data storage value.
-        uint256 vestingData = _vestingData;
-
-        assembly ("memory-safe") {
-            // Mask `vestingData` to the lower 216 bits, to wipe out previous
-            // `LAST_VEST` timestamp so we can simply shift newVestClaim left.
-            vestingData := or(
-                and(vestingData, _BITMASK_LAST_VEST_COMPLEMENT),
-                shl(_BITPOS_LAST_VEST, newVestClaim)
-            )
-            // Update packed `_vestingData` with new last vesting timestamp.
-            sstore(_vestingData.slot, vestingData)
         }
     }
 
