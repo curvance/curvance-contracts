@@ -30,13 +30,20 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return _assetsToVest();
     }
 
-    /// @notice Exposes _assetsToVest(rate, end, lastClaim) for testing with specific params.
+    /// @notice Computes vesting with specific params for testing.
     function exposed_assetsToVest(
         uint256 vestingRate,
         uint256 vestingEnd,
         uint256 lastVestingClaim
     ) external view returns (uint256) {
-        return _assetsToVest(vestingRate, vestingEnd, lastVestingClaim);
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
+            return (
+                block.timestamp < vestingEnd
+                    ? vestingRate * (block.timestamp - lastVestingClaim)
+                    : vestingRate * (vestingEnd - lastVestingClaim)
+            ) / 1e18;
+        }
+        return 0;
     }
 
     /// @notice Returns the indexed total assets (without pending vest).

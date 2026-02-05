@@ -294,7 +294,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        shares = _deposit(assets, receiver, _getOptimalDepositMarket(assets));
+        shares = _processDeposit(assets, receiver, approvedCTokensList[optimalDepositTarget(assets)]);
     }
 
     /// @notice Deposits assets into a specific market and mints shares to receiver.
@@ -311,7 +311,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
-        shares = _deposit(assets, receiver, targetMarket);
+        shares = _processDeposit(assets, receiver, targetMarket);
     }
 
     /// @notice Standard ERC4626 mint - mints shares by depositing into optimal market.
@@ -326,7 +326,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        assets = _mint(shares, receiver, _getOptimalDepositMarket(previewMint(shares)));
+        assets = _mint(shares, receiver, approvedCTokensList[optimalDepositTarget(previewMint(shares))]);
     }
 
     /// @notice Mints shares by depositing into a specific market.
@@ -360,7 +360,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _withdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
+        _withdraw(assets, shares, receiver, owner, approvedCTokensList[optimalWithdrawalTarget(assets)]);
     }
 
     /// @notice Withdraws assets from a specific market.
@@ -395,7 +395,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _withdraw(assets, shares, receiver, owner, _getOptimalWithdrawalMarket(assets));
+        _withdraw(assets, shares, receiver, owner, approvedCTokensList[optimalWithdrawalTarget(assets)]);
     }
 
     /// @notice Redeems shares from a specific market.
@@ -976,26 +976,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         trackedAssets = cToken_.convertToAssets(sharesReceived);
     }
 
-    /// @dev Withdraws assets from a specific market.
-    ///      Updates _totalAssets for user withdrawals.
-    function _withdrawFromMarket(address cToken, uint256 assets) internal {
-        IBorrowableCToken(cToken).withdraw(assets, address(this), address(this));
-        _totalAssets -= assets;
-    }
-
-    /// @dev Deposit path - input is assets, returns shares.
-    /// @param assets The amount of assets to deposit.
-    /// @param receiver The address to receive the minted shares.
-    /// @param targetMarket The target cToken market to deposit into.
-    /// @return shares The amount of shares minted.
-    function _deposit(
-        uint256 assets,
-        address receiver,
-        address targetMarket
-    ) internal returns (uint256 shares) {
-        shares = _processDeposit(assets, receiver, targetMarket);
-    }
-
     /// @dev Mint path - input is shares, returns assets.
     /// @param shares The target amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
@@ -1053,9 +1033,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address owner,
         address targetMarket
     ) internal {
-        _updateAllowance(owner, shares);
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
-        _withdrawFromMarket(targetMarket, assets);
+        IBorrowableCToken(targetMarket).withdraw(assets, address(this), address(this));
+        _totalAssets -= assets;
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
@@ -1102,15 +1083,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         return allocationCaps[market] != 0;
     }
 
-    /// @dev Updates the allowance for the caller.
-    /// @param owner The owner of the allowance.
-    /// @param amount The spent amount of the allowance.
-    function _updateAllowance(address owner, uint256 amount) internal {
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, amount);
-        }
-    }
-
     /// @dev Synchronizes optimizer state: vests pending yield, detects new yield
     ///      from underlying markets, and accrues performance fees.
     ///
@@ -1153,7 +1125,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // =====================================================================
         // Small rounding losses from rebalancing are tolerated during vesting.
         // They'll be absorbed when vesting finishes and _totalAssets syncs.
-        if (!_checkVestingFinished(_vestingData)) {
+        if (block.timestamp < uint40(_vestingData >> _BITPOS_VEST_END)) {
             if (rawTa + roundingBuffer < ta) {
                 // Loss exceeds tolerance - bad debt detected.
                 emit BadDebtDetected(ta, rawTa, ta - rawTa);
@@ -1232,20 +1204,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     }
 
     /// @dev Calculates pending assets to vest based on elapsed time.
-    function _assetsToVest(
-        uint256 vestingRate,
-        uint256 vestingEnd,
-        uint256 lastVestingClaim
-    ) internal view returns (uint256 assets) {
-        // Check whether there are pending yield vesting.
+    function _assetsToVest() internal view returns (uint256 assets) {
+        uint256 vestingData = _vestingData;
+        uint256 vestingRate = uint176(vestingData);
+        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+
         if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
-            // When calculating pending assets to vest, if the vesting period
-            // has not ended:
-            // assets = vestingRate * (block.timestamp - lastVestingClaim).
-            // If the vesting period has ended:
-            // assets = vestingRate * (vestingEnd - lastVestingClaim).
-            // Then in either case:
-            // Divide the pending yield by `WAD` (1e18) for precision.
             assets =
                 (
                     block.timestamp < vestingEnd
@@ -1253,20 +1218,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                         : vestingRate * (vestingEnd - lastVestingClaim)
                 ) / WAD;
         }
-    }
-
-    /// @dev Calculates pending assets that have been vested.
-    ///         If there are no pending assets or the vesting period has ended,
-    ///         it returns 0.
-    /// @return assets The calculated pending assets to vest.
-    function _assetsToVest() internal view returns (uint256 assets) {
-        // Cache `_vestingData`, the packed vesting data storage value.
-        uint256 vestingData = _vestingData;
-        assets = _assetsToVest(
-            uint176(vestingData),
-            uint40(vestingData >> _BITPOS_VEST_END),
-            uint40(vestingData >> _BITPOS_LAST_VEST)
-        );
     }
 
     /// @dev Checks if deposits are paused.
@@ -1277,16 +1228,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (mintPaused_ == 0) revert LendingOptimizer__NotInitialized();
         // Revert if the optimizer is paused.
         if (mintPaused_ > 1) revert LendingOptimizer__MintPaused();
-    }
-
-    /// @dev Returns the optimal market address for depositing assets.
-    function _getOptimalDepositMarket(uint256 assets) internal view returns (address) {
-        return approvedCTokensList[optimalDepositTarget(assets)];
-    }
-
-    /// @dev Returns the optimal market address for withdrawing assets.
-    function _getOptimalWithdrawalMarket(uint256 assets) internal view returns (address) {
-        return approvedCTokensList[optimalWithdrawalTarget(assets)];
     }
 
     /// @dev Sets vesting schedule for new yield.
@@ -1335,20 +1276,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             // Update packed `_vestingData` with new last vesting timestamp.
             sstore(_vestingData.slot, vestingData)
         }
-    }
-
-    /// @dev Returns whether the current vesting period has ended.
-    ///         Returns true if current time is past vestingEnd, allowing
-    ///         vesting to finalize and new yield detection to proceed.
-    ///         Also returns true if vestingEnd is 0 (no active vesting).
-    /// @param vestingData Current packed vault data value.
-    /// @return result Boolean value indicating whether the current
-    ///                vesting period has ended or not.
-    function _checkVestingFinished(
-        uint256 vestingData
-    ) internal view returns (bool result) {
-        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
-        result = block.timestamp >= vestingEnd;
     }
 
     /// @dev Returns the underlying token decimals.
