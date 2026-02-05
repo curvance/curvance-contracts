@@ -156,6 +156,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
     event RoundingBufferUpdated(uint256 newBuffer);
+    event BadDebtDetected(uint256 expectedAssets, uint256 actualAssets, uint256 loss);
 
     /// ERRORS ///
 
@@ -187,20 +188,12 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 _vestingPeriod
     ) PluginDelegable(_centralRegistry) {
         // Revert if trying to add more than `MAX_MARKETS`.
-        if (_approvedCTokens.length > MAX_MARKETS) {
-            revert LendingOptimizer__TooManyMarkets();
-        }
-        if (_approvedCTokens.length == 0) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (_approvedCTokens.length > MAX_MARKETS) revert LendingOptimizer__TooManyMarkets();
+        if (_approvedCTokens.length == 0) revert LendingOptimizer__InvalidParameter();
         // Revert if constructor's arrays mismatch in length.
-        if (_approvedCTokens.length != _allocationCapsBps.length) {
-            revert LendingOptimizer__ArrayLengthMismatch();
-        }
+        if (_approvedCTokens.length != _allocationCapsBps.length) revert LendingOptimizer__ArrayLengthMismatch();
         // Revert if the performance fee is more than the allowed max.
-        if (_feeBps > MAX_FEE_BPS) {
-            revert LendingOptimizer__FeeTooHigh();
-        }
+        if (_feeBps > MAX_FEE_BPS) revert LendingOptimizer__FeeTooHigh();
 
         // Set essential storage slots.
         _asset = asset_;
@@ -218,9 +211,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             address cToken = _approvedCTokens[i];
 
             // Revert if the cToken has already been added (duplicate check).
-            if (allocationCaps[cToken] != 0) {
-                revert LendingOptimizer__MarketAlreadyApproved();
-            }
+            if (allocationCaps[cToken] != 0) revert LendingOptimizer__MarketAlreadyApproved();
 
             // Validate the cToken's underlying and market manager.
             _validateCToken(cToken);
@@ -234,14 +225,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Revert if the totalAllocation is less than 100% (WAD).
-        if (totalAllocation < WAD) {
-            revert LendingOptimizer__InsufficientAllocationCaps();
-        }
+        if (totalAllocation < WAD) revert LendingOptimizer__InsufficientAllocationCaps();
 
         // Validate vesting period.
-        if (_vestingPeriod == 0 || _vestingPeriod > _MAXIMUM_VESTING_PERIOD) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (_vestingPeriod == 0 || _vestingPeriod > _MAXIMUM_VESTING_PERIOD) revert LendingOptimizer__InvalidParameter();
         vestingPeriod = _vestingPeriod;
 
         // Store the provided cToken list.
@@ -265,13 +252,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _hasMarketPermissions();
 
         // Revert if the market has already been initialized.
-        if (mintPaused != 0) {
-            revert LendingOptimizer__AlreadyInitialized();
-        }
+        if (mintPaused != 0) revert LendingOptimizer__AlreadyInitialized();
         // Array length sanity check.
-        if (targetMarket >= approvedCTokensList.length) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
+        if (targetMarket >= approvedCTokensList.length) revert LendingOptimizer__MarketNotApproved();
 
         // Transfer _BASE_UNDERLYING_RESERVE assets.
         uint256 assets = _BASE_UNDERLYING_RESERVE;
@@ -325,9 +308,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 shares) {
         _checkMintPaused();
-        if (!_isApprovedMarket(targetMarket)) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
+        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
         shares = _deposit(assets, receiver, targetMarket);
@@ -360,9 +341,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 assets) {
         _checkMintPaused();
-        if (!_isApprovedMarket(targetMarket)) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
+        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
         assets = _mint(shares, receiver, targetMarket);
@@ -396,9 +375,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address owner,
         address targetMarket
     ) external nonReentrant returns (uint256 shares) {
-        if (!_isApprovedMarket(targetMarket)) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
+        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
@@ -433,9 +410,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address owner,
         address targetMarket
     ) external nonReentrant returns (uint256 assets) {
-        if (!_isApprovedMarket(targetMarket)) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
+        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
@@ -467,9 +442,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Cache approved markets length.
         uint256 l = approvedCTokensList.length;
         // Revert if the actions array length does not match approved markets.
-        if (actions.length != l) {
-            revert LendingOptimizer__ArrayLengthMismatch();
-        }
+        if (actions.length != l) revert LendingOptimizer__ArrayLengthMismatch();
 
         uint256 intentWithdrawn;
         // First pass: process withdrawals.
@@ -477,9 +450,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             address expectedCToken = approvedCTokensList[i];
 
             // Revert if action cToken does not match expected market at index.
-            if (address(actions[i].cToken) != expectedCToken) {
-                revert LendingOptimizer__InvalidParameter();
-            }
+            if (address(actions[i].cToken) != expectedCToken) revert LendingOptimizer__InvalidParameter();
 
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
@@ -504,9 +475,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Check that the manager intended to withdraw and deposit the same amount of assets.
-        if (intentWithdrawn != intentDeposited) {
-            revert LendingOptimizer__AssetMismatch();
-        }
+        if (intentWithdrawn != intentDeposited) revert LendingOptimizer__AssetMismatch();
 
         // Calculate total assets for cap verification.
         uint256 ta = totalAssets();
@@ -521,9 +490,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                 uint256 currentAllocation = FixedPointMathLib.mulDivUp(marketAssets, WAD, ta);
 
                 // Revert if the market allocation exceeds its cap.
-                if (currentAllocation > allocationCaps[cToken]) {
-                    revert LendingOptimizer__AllocationExceedsCap();
-                }
+                if (currentAllocation > allocationCaps[cToken]) revert LendingOptimizer__AllocationExceedsCap();
             }
         }
 
@@ -544,13 +511,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         uint256 l = approvedCTokensList.length;
         // Revert if there is only one market.
-        if (l == 1) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (l == 1) revert LendingOptimizer__InvalidParameter();
         // Revert if the index is out of bounds.
-        if (indexRemove >= l) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (indexRemove >= l) revert LendingOptimizer__InvalidParameter();
 
         // Cache the cToken to remove.
         IBorrowableCToken cTokenToRemove = IBorrowableCToken(approvedCTokensList[indexRemove]);
@@ -578,9 +541,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             address cTokenAddress = address(removeActions[i].cToken);
 
             // Revert if the reallocation target is not an approved market.
-            if (!_isApprovedMarket(cTokenAddress)) {
-                revert LendingOptimizer__MarketNotApproved();
-            }
+            if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
 
             // Deposit reallocation amount to the target market.
             uint256 reallocationAmount = removeActions[i].reallocationAmount;
@@ -589,9 +550,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Revert if reallocated assets do not match redeemed assets.
-        if (intentReallocated != assetsRedeemed) {
-            revert LendingOptimizer__AssetMismatch();
-        }
+        if (intentReallocated != assetsRedeemed) revert LendingOptimizer__AssetMismatch();
 
         // Update approved markets list using swap and pop.
         uint256 lastIndex = approvedCTokensList.length - 1;
@@ -613,24 +572,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _hasMarketPermissions();
 
         // Revert if the new asset address is zero.
-        if (newAsset == address(0)) {
-            revert LendingOptimizer__InvalidParameter();
-        }
-
+        if (newAsset == address(0)) revert LendingOptimizer__InvalidParameter();
         // Revert if the cap is zero or exceeds 100%.
-        if (capBps == 0 || capBps > BPS) {
-            revert LendingOptimizer__InvalidParameter();
-        }
-
+        if (capBps == 0 || capBps > BPS) revert LendingOptimizer__InvalidParameter();
         // Revert if the market is already approved.
-        if (_isApprovedMarket(newAsset)) {
-            revert LendingOptimizer__MarketAlreadyApproved();
-        }
-
+        if (_isApprovedMarket(newAsset)) revert LendingOptimizer__MarketAlreadyApproved();
         // Revert if adding would exceed maximum markets.
-        if (approvedCTokensList.length >= MAX_MARKETS) {
-            revert LendingOptimizer__TooManyMarkets();
-        }
+        if (approvedCTokensList.length >= MAX_MARKETS) revert LendingOptimizer__TooManyMarkets();
 
         // Validate the cToken's underlying and market manager.
         _validateCToken(newAsset);
@@ -653,14 +601,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _hasMarketPermissions();
 
         // Revert if the market is not approved.
-        if (!_isApprovedMarket(cToken)) {
-            revert LendingOptimizer__MarketNotApproved();
-        }
-
+        if (!_isApprovedMarket(cToken)) revert LendingOptimizer__MarketNotApproved();
         // Revert if the new cap is zero or exceeds 100%.
-        if (newCapBps > BPS || newCapBps == 0) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (newCapBps > BPS || newCapBps == 0) revert LendingOptimizer__InvalidParameter();
 
         // Convert BPS to WAD and cache old cap.
         uint256 newCapWad = _bpsToWad(newCapBps);
@@ -703,9 +646,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Revert if the new fee exceeds the maximum allowed (50%).
-        if (newFeeBps > MAX_FEE_BPS) {
-            revert LendingOptimizer__FeeTooHigh();
-        }
+        if (newFeeBps > MAX_FEE_BPS) revert LendingOptimizer__FeeTooHigh();
 
         // Update the fee.
         fee = newFeeBps;
@@ -720,9 +661,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _hasMarketPermissions();
 
         // Cannot pause or unpause if not initialized.
-        if (mintPaused == 0) {
-            revert LendingOptimizer__NotInitialized();
-        }
+        if (mintPaused == 0) revert LendingOptimizer__NotInitialized();
 
         mintPaused = state ? 2 : 1; // 2 = paused; 1 = active.
 
@@ -738,9 +677,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     function setBadDebtTolerance(uint256 newTolerance) external {
         _hasHarvesterPermissions();
 
-        if (newTolerance > _MAXIMUM_ROUNDING_BUFFER) {
-            revert LendingOptimizer__InvalidParameter();
-        }
+        if (newTolerance > _MAXIMUM_ROUNDING_BUFFER) revert LendingOptimizer__InvalidParameter();
 
         roundingBuffer = newTolerance;
 
@@ -782,12 +719,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Revert if there are no approved markets.
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
+        // If only one market exists, return index 0 immediately.
+        if (l == 1) return 0;
 
         // Get total assets currently held across all markets.
         uint256 ta = totalAssets();
-
-        // If only one market exists, return index 0 immediately.
-        if (l == 1) return 0;
 
         // Calculate the new total assets after the deposit.
         // This is used to compute allocation percentages against caps.
@@ -858,7 +794,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Revert if there are no approved markets.
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
-
         // If only one market exists, return index 0 immediately.
         if (l == 1) return 0;
 
@@ -900,9 +835,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Revert if no market has sufficient liquidity for the withdrawal.
         // This prevents partial withdrawals that would require multiple markets.
-        if (!foundViable) {
-            revert LendingOptimizer__InsufficientLiquidity();
-        }
+        if (!foundViable) revert LendingOptimizer__InsufficientLiquidity();
     }
 
     /// @notice Returns total assets held across all approved markets.
@@ -1141,9 +1074,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                 totalCaps += allocationCaps[market];
             }
         }
-        if (totalCaps < WAD) {
-            revert LendingOptimizer__InsufficientAllocationCaps();
-        }
+        if (totalCaps < WAD) revert LendingOptimizer__InsufficientAllocationCaps();
     }
 
     /// @dev Converts BPS to WAD (e.g., 1000 BPS = 0.1 WAD = 10%).
@@ -1160,12 +1091,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// @dev Validates cToken has correct underlying and registered market manager.
     function _validateCToken(address cToken) internal view {
-        if (IBorrowableCToken(cToken).asset() != address(_asset)) {
-            revert LendingOptimizer__InvalidUnderlying();
-        }
-        if (!centralRegistry.isMarketManager(
-            address(IBorrowableCToken(cToken).marketManager())
-        )) {
+        if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
+        if (!centralRegistry.isMarketManager(address(IBorrowableCToken(cToken).marketManager()))) {
             revert LendingOptimizer__InvalidMarketManager();
         }
     }
@@ -1229,6 +1156,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (!_checkVestingFinished(_vestingData)) {
             if (rawTa + roundingBuffer < ta) {
                 // Loss exceeds tolerance - bad debt detected.
+                emit BadDebtDetected(ta, rawTa, ta - rawTa);
                 _totalAssets = rawTa;
                 _setVestingData(0);
             }
@@ -1345,15 +1273,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     function _checkMintPaused() internal view {
         // Cache the mint paused state.
         uint256 mintPaused_ = mintPaused;
-
         // Revert if the optimizer is not initialized.
-        if (mintPaused_ == 0) {
-            revert LendingOptimizer__NotInitialized();
-        }
+        if (mintPaused_ == 0) revert LendingOptimizer__NotInitialized();
         // Revert if the optimizer is paused.
-        if (mintPaused_ > 1) {
-            revert LendingOptimizer__MintPaused();
-        }
+        if (mintPaused_ > 1) revert LendingOptimizer__MintPaused();
     }
 
     /// @dev Returns the optimal market address for depositing assets.
@@ -1376,7 +1299,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 rate =
             FixedPointMathLib.mulDiv(assetsToVest, WAD, period);
         uint256 newVestingEnd = block.timestamp + period;
-        
+
         // Reuse `period` as a temporary variable to store the newly packed
         // `_vestingData` storage value.
         assembly ("memory-safe") {
@@ -1446,15 +1369,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// @dev Checks if caller has harvester permissions.
     function _hasHarvesterPermissions() internal view {
-        if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
-            revert LendingOptimizer__Unauthorized();
-        }
+        if (!centralRegistry.hasHarvestPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
     }
 
     /// @dev Checks if caller has market permissions.
     function _hasMarketPermissions() internal view {
-        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
-            revert LendingOptimizer__Unauthorized();
-        }
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
     }
 }
