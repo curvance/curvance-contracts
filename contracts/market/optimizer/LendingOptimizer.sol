@@ -259,8 +259,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
 
         // Deposit into target market.
-        address cToken = approvedCTokensList[targetMarket];
-        uint256 trackedAssets = _depositToMarket(cToken, assets);
+        uint256 trackedAssets = _depositToMarket(approvedCTokensList[targetMarket], assets);
 
         // Update _totalAssets with the actual recoverable value.
         _totalAssets += trackedAssets;
@@ -269,8 +268,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // We use trackedAssets (returned by _depositToMarket) rather than input assets
         // because cToken share rounding may cause the recoverable value to differ
         // slightly from the input. This ensures the initial exchange rate is exactly 1:1.
-        uint256 shares = trackedAssets;
-        _mint(address(0), shares);
+        _mint(address(0), trackedAssets);
 
         // Set mintPaused to 1 to indicate deposits are active.
         mintPaused = 1;
@@ -278,7 +276,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Initialize vesting state (LAST_VEST = now, rate and vestEnd remain 0).
         _vestingData = uint256(uint40(block.timestamp)) << _BITPOS_LAST_VEST;
 
-        emit Deposit(msg.sender, address(0), assets, shares);
+        emit Deposit(msg.sender, address(0), assets, trackedAssets);
     }
 
     /// @notice Standard ERC4626 deposit - deposits into optimal market.
@@ -445,10 +443,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 intentWithdrawn;
         // First pass: process withdrawals.
         for (uint256 i; i < l; ++i) {
-            address expectedCToken = approvedCTokensList[i];
-
             // Revert if action cToken does not match expected market at index.
-            if (address(actions[i].cToken) != expectedCToken) revert LendingOptimizer__InvalidParameter();
+            if (address(actions[i].cToken) != approvedCTokensList[i]) revert LendingOptimizer__InvalidParameter();
 
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
@@ -514,10 +510,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (indexRemove >= l) revert LendingOptimizer__InvalidParameter();
 
         // Cache the cToken to remove.
-        IBorrowableCToken cTokenToRemove = IBorrowableCToken(approvedCTokensList[indexRemove]);
+        address cTokenAddr = approvedCTokensList[indexRemove];
+        IBorrowableCToken cTokenToRemove = IBorrowableCToken(cTokenAddr);
 
         // Validate remaining allocation caps sum to >= 100%.
-        _validateAllocationCaps(address(cTokenToRemove), 0);
+        _validateAllocationCaps(cTokenAddr, 0);
 
         // Update vesting data and accrue protocol's performance fee.
         _accrueIfNeeded();
@@ -530,7 +527,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         );
 
         // Delete the allocation cap for the removed market.
-        delete allocationCaps[address(cTokenToRemove)];
+        delete allocationCaps[cTokenAddr];
 
         // Track the caller intent amount to reallocate.
         uint256 intentReallocated;
@@ -557,7 +554,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
         approvedCTokensList.pop();
 
-        emit MarketRemoved(address(cTokenToRemove));
+        emit MarketRemoved(cTokenAddr);
     }
 
     /// @notice Adds a new approved market for allocation.
@@ -603,12 +600,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if the new cap is zero or exceeds 100%.
         if (newCapBps > BPS || newCapBps == 0) revert LendingOptimizer__InvalidParameter();
 
-        // Convert BPS to WAD and cache old cap.
         uint256 newCapWad = _bpsToWad(newCapBps);
-        uint256 oldCap = allocationCaps[cToken];
 
         // If decreasing cap, validate total caps still >= 100%.
-        if (newCapWad < oldCap) {
+        if (newCapWad < allocationCaps[cToken]) {
             _validateAllocationCaps(cToken, newCapWad);
         }
 
@@ -888,13 +883,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             projectedAssetsHeld = currentAssetsHeld - assets;
         }
 
-        // Get current outstanding debt in the market.
-        uint256 debt = cToken.marketOutstandingDebt();
-
         // Calculate projected supply rate using the market's IRM.
         projectedRate = cToken.IRM().supplyRate(
             projectedAssetsHeld,
-            debt,
+            cToken.marketOutstandingDebt(),
             cToken.interestFee()
         );
     }
@@ -959,14 +951,12 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         IBorrowableCToken cToken_ = IBorrowableCToken(cToken);
 
-        uint256 sharesReceived = cToken_.deposit(assets, address(this));
-
         // Track the actual recoverable value of shares received, not the input amount.
         // cToken share math involves two rounding operations (assets→shares, shares→assets)
         // which can cause a 1 wei difference between input and recoverable value.
         // Using convertToAssets ensures _totalAssets stays in sync with what
         // _accrueMarkets() reports, preventing false bad debt detection.
-        trackedAssets = cToken_.convertToAssets(sharesReceived);
+        trackedAssets = cToken_.convertToAssets(cToken_.deposit(assets, address(this)));
     }
 
     /// @dev Mint path - input is shares, returns assets.
@@ -1136,9 +1126,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             // New yield detected: start vesting it over vestingPeriod.
             // _totalAssets = ta locks in current value (includes old vested yield).
             // New yield will gradually increase totalAssets() as it vests.
-            uint256 newYield = rawTa - ta;
             _totalAssets = ta;
-            _setVestingData(newYield);
+            _setVestingData(rawTa - ta);
         } else {
             // No new yield (or small loss). Sync to actual market value.
             _totalAssets = rawTa;
@@ -1169,8 +1158,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         }
 
         // Calculate profit above watermark and fee amount.
-        uint256 highAssets = FixedPointMathLib.mulDiv(highRate, supply, WAD);
-        uint256 profit = currentAssets - highAssets;
+        uint256 profit = currentAssets - FixedPointMathLib.mulDiv(highRate, supply, WAD);
         uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
 
         if (feeAssets == 0) {
@@ -1190,8 +1178,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _mint(dao, feeShares);
 
         // Update watermark to post-fee exchange rate.
-        uint256 supplyAfter = supply + feeShares;
-        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(WAD, currentAssets, supplyAfter);
+        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(WAD, currentAssets, supply + feeShares);
 
         emit PerformanceFeeAccrued(feeShares, dao);
     }
