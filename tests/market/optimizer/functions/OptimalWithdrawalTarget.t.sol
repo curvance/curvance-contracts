@@ -160,7 +160,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
     // ============ Revert Tests ============
 
     function test_lendingOptimizer_optimalWithdrawalTarget_fail_notInitialized() public {
-        // Create optimizer but don't initialize
+        // Create optimizer but don't initialize.
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -178,8 +178,9 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
             1 days
         );
 
-        // Should revert because not initialized
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
+        // Reverts with InsufficientLiquidity because no market has assets
+        // to fulfill the withdrawal (optimizer is uninitialized).
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientLiquidity.selector);
         uninitOptimizer.optimalWithdrawalTarget(1000e6);
     }
 

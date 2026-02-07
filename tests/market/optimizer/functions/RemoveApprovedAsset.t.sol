@@ -22,7 +22,8 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // After removing 20% cap market, remaining 60% + 50% = 110% >= 100%.
         _setUpThreeMarkets();
 
-        // Deposit to all markets.
+        // Deposit to markets 0 and 1, with a smaller deposit to market 2
+        // so the reallocation after removal fits within remaining caps.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
         optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
@@ -31,9 +32,9 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
         optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WETH_MARKET);
+        deal(USDC_MONAD, address(this), 1_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
+        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Record state before removal.
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -45,7 +46,8 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
         );
 
-        // Create remove actions to reallocate all assets from market 2 to market 0.
+        // Reallocate removed assets to market 0 (which has cap headroom).
+        // After removal: total ~21K, market 0 ~11K (52%), cap 60% — within bounds.
         LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
         removeActions[0] = LendingOptimizer.RemoveAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),

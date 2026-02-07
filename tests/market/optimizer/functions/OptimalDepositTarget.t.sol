@@ -137,8 +137,8 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         assertLt(target, 3);
     }
 
-    function test_lendingOptimizer_optimalDepositTarget_revert_notInitialized() public {
-        // Create optimizer but don't initialize
+    function test_lendingOptimizer_optimalDepositTarget_success_notInitialized() public {
+        // Create optimizer but don't initialize.
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -156,9 +156,9 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
             1 days
         );
 
-        // Should revert because not initialized
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        uninitOptimizer.optimalDepositTarget(1000e6);
+        // View function returns default index 0 when uninitialized (no deposits, no cap usage).
+        uint256 target = uninitOptimizer.optimalDepositTarget(1000e6);
+        assertEq(target, 0, "Should return index 0 when uninitialized");
     }
 
     function test_lendingOptimizer_optimalDepositTarget_success_twoMarkets() public {
