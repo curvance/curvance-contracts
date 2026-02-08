@@ -155,7 +155,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     event MarketRemoved(address indexed cToken);
     event AllocationCapUpdated(address indexed cToken, uint256 newCap);
     event FeeUpdated(uint256 newFee);
-    event Rebalanced(uint256 totalAssets);
+    event Rebalanced(uint256 totalAssets, address[] markets, uint256[] allocations);
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
     event RoundingBufferUpdated(uint256 newBuffer);
@@ -478,10 +478,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Check that the manager intended to withdraw and deposit the same amount of assets.
         if (sumDeclaredWithdrawals != sumDeclaredReallocated) revert LendingOptimizer__AssetMismatch();
 
-        // Verify allocation caps are respected after rebalance.
+        // Verify allocation caps and emit post-rebalance state.
         _verifyAllocationCaps();
-
-        emit Rebalanced(totalAssets());
     }
 
     /// @notice Removes an approved market and reallocates its assets.
@@ -1086,19 +1084,23 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         return allocationCaps[market] != 0;
     }
 
-    /// @dev Verifies that every market's current allocation does not exceed its cap.
-    ///      Used after rebalancing and market removal to enforce cap compliance.
-    function _verifyAllocationCaps() internal view {
+    /// @dev Verifies that every market's current allocation does not exceed its cap
+    ///      and emits the post-rebalance state with per-market allocations.
+    function _verifyAllocationCaps() internal {
         uint256 ta = totalAssets();
+        uint256 l = approvedCTokensList.length;
+        uint256[] memory allocations = new uint256[](l);
+
         if (ta > 0) {
-            uint256 l = approvedCTokensList.length;
             for (uint256 i; i < l; ++i) {
                 address cToken = approvedCTokensList[i];
-                uint256 marketAssets = _getMarketAssets(cToken);
-                uint256 currentAllocation = FixedPointMathLib.mulDiv(marketAssets, WAD, ta);
+                allocations[i] = _getMarketAssets(cToken);
+                uint256 currentAllocation = FixedPointMathLib.mulDiv(allocations[i], WAD, ta);
                 if (currentAllocation > allocationCaps[cToken]) revert LendingOptimizer__AllocationExceedsCap();
             }
         }
+
+        emit Rebalanced(ta, approvedCTokensList, allocations);
     }
 
     /// @dev Synchronizes optimizer state: vests pending yield, detects new yield
