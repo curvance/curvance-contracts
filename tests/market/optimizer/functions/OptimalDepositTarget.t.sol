@@ -116,16 +116,23 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
     function test_lendingOptimizer_optimalDepositTarget_success_differentAmountsCanYieldDifferentTargets() public {
         _setUpThreeMarkets();
 
-        // Very small vs very large deposits might pick different markets
-        // due to how rates change with utilization
-        uint256 targetSmall = optimizer.optimalDepositTarget(1e6);
-        uint256 targetLarge = optimizer.optimalDepositTarget(1_000_000e6); // 1M USDC
+        // Push market 0 (60% cap) near its cap so a large deposit would
+        // exceed it while a small deposit still fits.
+        uint256 seedDeposit = 500_000e6;
+        deal(USDC_MONAD, address(this), seedDeposit);
+        IERC20(USDC_MONAD).approve(address(optimizer), seedDeposit);
+        optimizer.deposit(seedDeposit, address(this), cUSDC_WMON_MARKET);
 
-        // Both should be valid indices
+        // Small deposit fits under market 0's remaining cap headroom.
+        uint256 targetSmall = optimizer.optimalDepositTarget(100e6);
+        // Large deposit would push market 0 over its 60% cap, forcing
+        // the optimizer to pick a different market.
+        uint256 targetLarge = optimizer.optimalDepositTarget(500_000e6);
+
         assertLt(targetSmall, 3);
         assertLt(targetLarge, 3);
 
-        // Should pick different markets
+        // The large deposit should be routed to a different market.
         assertNotEq(targetSmall, targetLarge);
     }
 
