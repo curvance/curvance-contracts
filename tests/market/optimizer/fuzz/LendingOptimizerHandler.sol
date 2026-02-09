@@ -277,6 +277,8 @@ contract LendingOptimizerHandler is Test {
         } catch {
             // Unexpected revert.
         }
+
+        _updateExchangeRate();
     }
 
     /// @notice Toggle mint paused state.

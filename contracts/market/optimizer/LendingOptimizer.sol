@@ -149,6 +149,18 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      Default: 1000 wei (covers ~500 rebalance operations).
     uint256 public roundingBuffer;
 
+    /// @notice Storage configuration for pending fee update.
+    /// @param updateNeeded Whether there is a pending fee update.
+    /// @param newFee The pending new performance fee, in BPS.
+    struct PendingFeeData {
+        bool updateNeeded;
+        uint248 newFee;
+    }
+
+    /// @notice Whether there is a pending update to performance fee,
+    ///         after the current vesting period ends.
+    PendingFeeData public pendingFeeUpdate;
+
     /// EVENTS ///
 
     event MarketAdded(address indexed cToken, uint256 allocationCap);
@@ -618,29 +630,19 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
-        // Accrue fees on existing profits.
-        _accrueIfNeeded();
-
-        // If enabling fees from 0, update watermark to current rate
-        // so fees only apply to future yield.
-        if (fee == 0 && newFeeBps > 0) {
-            uint256 supply = totalSupply();
-            if (supply > 0) {
-                exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
-                    WAD,
-                    totalAssets(),
-                    supply
-                );
-            }
-        }
-
         // Revert if the new fee exceeds the maximum allowed (50%).
         if (newFeeBps > MAX_FEE_BPS) revert LendingOptimizer__FeeTooHigh();
 
-        // Update the fee.
-        fee = newFeeBps;
+        // Accrue fees on existing profits.
+        _accrueIfNeeded();
 
-        emit FeeUpdated(newFeeBps);
+        // Queue the fee change.
+        pendingFeeUpdate = PendingFeeData(true, uint248(newFeeBps));
+
+        // If no active vesting, apply immediately.
+        if (block.timestamp >= uint40(_vestingData >> _BITPOS_VEST_END)) {
+            _updateFeeIfNeeded();
+        }
     }
 
     /// @notice Pauses or unpauses deposits. Emits an {ActionPaused} event.
@@ -1195,47 +1197,40 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Fees are only charged on yield reflected in totalAssets(), not rawTa.
         // This prevents dilution: if we charged fees on unvested yield, we'd
         // mint shares against assets users can't access yet, dropping the rate.
-        if (fee == 0) return;
+        if (fee > 0) {
+            uint256 supply = totalSupply();
+            if (supply > 0) {
+                uint256 currentAssets = totalAssets();
+                uint256 currentRate = FixedPointMathLib.mulDiv(WAD, currentAssets, supply);
+                uint256 highRate = exchangeRateHighWatermark;
 
-        uint256 supply = totalSupply();
-        if (supply == 0) return;
+                if (currentRate > highRate) {
+                    uint256 profit = currentAssets - FixedPointMathLib.mulDiv(highRate, supply, WAD);
+                    uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
 
-        // Calculate exchange rate from vested assets only.
-        // New yield that just started vesting has _assetsToVest() = 0,
-        // so fees on that yield are deferred until it vests.
-        uint256 currentAssets = totalAssets();
-        uint256 currentRate = FixedPointMathLib.mulDiv(WAD, currentAssets, supply);
-
-        // High watermark: only charge fees on NEW all-time-high profits.
-        uint256 highRate = exchangeRateHighWatermark;
-        if (currentRate <= highRate) {
-            return;
+                    if (feeAssets > 0) {
+                        uint256 feeShares = FixedPointMathLib.fullMulDivUp(
+                            feeAssets, supply, currentAssets - feeAssets
+                        );
+                        address dao = centralRegistry.daoAddress();
+                        _mint(dao, feeShares);
+                        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
+                            WAD, currentAssets, supply + feeShares
+                        );
+                        emit PerformanceFeeAccrued(feeShares, dao);
+                    } else {
+                        exchangeRateHighWatermark = currentRate;
+                    }
+                }
+            }
         }
 
-        // Calculate profit above watermark and fee amount.
-        uint256 profit = currentAssets - FixedPointMathLib.mulDiv(highRate, supply, WAD);
-        uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
-
-        if (feeAssets == 0) {
-            exchangeRateHighWatermark = currentRate;
-            return;
-        }
-
-        // Mint fee shares: feeShares = (feeAssets * supply) / (currentAssets - feeAssets)
-        // This formula ensures DAO receives shares worth exactly feeAssets.
-        uint256 feeShares = FixedPointMathLib.fullMulDivUp(
-            feeAssets,
-            supply,
-            currentAssets - feeAssets
-        );
-
-        address dao = centralRegistry.daoAddress();
-        _mint(dao, feeShares);
-
-        // Update watermark to post-fee exchange rate.
-        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(WAD, currentAssets, supply + feeShares);
-
-        emit PerformanceFeeAccrued(feeShares, dao);
+        // =====================================================================
+        // STEP 6: Apply pending fee update
+        // =====================================================================
+        // If a fee change was queued during vesting, apply it now that
+        // the previous vesting cycle's fees have been settled.
+        _updateFeeIfNeeded();
     }
 
     /// @dev Calculates pending assets to vest based on elapsed time.
@@ -1263,6 +1258,34 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (mintPaused_ == 0) revert LendingOptimizer__NotInitialized();
         // Revert if the optimizer is paused.
         if (mintPaused_ > 1) revert LendingOptimizer__MintPaused();
+    }
+
+    /// @notice Applies a pending fee update, if one exists.
+    /// @dev Mirrors StrategyCToken._updateVestingPeriodIfNeeded().
+    ///      Called after fee settlement in _accrueIfNeeded (deferred path)
+    ///      and from setFee when no vesting is active (immediate path).
+    function _updateFeeIfNeeded() internal {
+        if (pendingFeeUpdate.updateNeeded) {
+            uint256 newFee = pendingFeeUpdate.newFee;
+
+            // If enabling fees from 0, update watermark to current rate
+            // so fees only apply to future yield.
+            if (fee == 0 && newFee > 0) {
+                uint256 supply = totalSupply();
+                if (supply > 0) {
+                    exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
+                        WAD,
+                        totalAssets(),
+                        supply
+                    );
+                }
+            }
+
+            fee = newFee;
+            delete pendingFeeUpdate;
+
+            emit FeeUpdated(newFee);
+        }
     }
 
     /// @dev Sets vesting schedule for new yield.
