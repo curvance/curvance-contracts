@@ -28,10 +28,11 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      Withdrawals similarly select the lowest-yielding market to
 ///      preserve capital in higher-performing markets.
 ///
-///      Yield is smoothed over a configurable vesting period to prevent
-///      frontrunning attacks where users deposit before yield accrues
-///      and withdraw immediately after. New yield is only detected after
-///      the previous vesting period ends, preventing overlapping vests.
+///      Yield is smoothed over a configurable vesting period. Deposits
+///      are priced using fully-diluted assets (vested + unvested yield)
+///      to prevent frontrunning, while withdrawals use vested-only
+///      pricing. New yield is only detected after the previous vesting
+///      period ends, preventing overlapping vests.
 ///
 ///      Performance fees are charged on yield above a high watermark,
 ///      ensuring fees are only taken on new all-time-high profits. This
@@ -51,12 +52,17 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      inflation attacks. All state-changing functions have reentrancy
 ///      protection.
 ///
-///      Note: Per the ERC4626 specification, preview and
-///      convert functions (previewDeposit, previewMint, convertToShares)
-///      are allowed to be inaccurate and may differ from actual results.
-///      Due to cToken share rounding (assets → shares → tracked assets),
-///      actual shares received may be 1-2 wei less than previewed. This
-///      rounding favors the vault per standard ERC4626 security practices.
+///      Note: During active vesting, `previewDeposit` and `previewMint`
+///      differ from `convertToShares`/`convertToAssets` — the former use
+///      fully-diluted pricing (anti-frontrunning), while the latter use
+///      vested-only pricing (used by withdrawals). This means a deposit
+///      followed by an immediate redeem during vesting incurs a loss
+///      proportional to the depositor's share of unvested yield. This is
+///      the intended anti-frontrunning mechanism; depositors who hold
+///      through vesting completion break even. Due to cToken share
+///      rounding (assets → shares → tracked assets), actual shares
+///      received may be 1-2 wei less than previewed. This rounding
+///      favors the vault per standard ERC4626 security practices.
 contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// TYPES ///
@@ -858,6 +864,16 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             _fullyDilutedAssets(),
             supply
         );
+    }
+
+    /// @notice Returns 0 when deposits are paused or uninitialized.
+    function maxDeposit(address) public view override returns (uint256) {
+        return mintPaused == 1 ? type(uint256).max : 0;
+    }
+
+    /// @notice Returns 0 when deposits are paused or uninitialized.
+    function maxMint(address) public view override returns (uint256) {
+        return mintPaused == 1 ? type(uint256).max : 0;
     }
 
     /// @notice Returns the maximum amount of assets that can be withdrawn from `owner`.
