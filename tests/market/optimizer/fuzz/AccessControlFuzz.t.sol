@@ -150,8 +150,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             caps,
-            1_000,
-            1 days
+            1_000
         );
 
         vm.mockCall(
@@ -281,6 +280,20 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
             abi.encode(true)
         );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Deposit into all three markets so allocations are within caps.
+        // Without this, all assets sit in market 0 (100% allocation > 60% cap)
+        // and _verifyAllocationCaps() would revert on rebalance.
+        deal(USDC_MONAD, address(this), 300_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 300_000e6);
+        optimizer.deposit(150_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(100_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
         uint256 exchangeRateBefore = optimizer.exchangeRate();

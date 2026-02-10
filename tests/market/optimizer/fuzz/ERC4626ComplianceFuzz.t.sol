@@ -41,8 +41,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days
+            1_000 // 10% fee
         );
 
         uint256 initAssets = 77777;
@@ -437,13 +436,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         // Skip time for yield to accrue.
         skip(skipTime);
 
-        // Trigger vesting.
-        harness.accrueIfNeeded();
-
-        // Skip past vesting.
-        skip(harness.vestingPeriod() + 1);
-
-        // Trigger again to finalize.
+        // Trigger accrual.
         harness.accrueIfNeeded();
 
         // Each user redeems all.

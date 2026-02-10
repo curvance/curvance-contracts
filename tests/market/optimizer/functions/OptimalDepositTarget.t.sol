@@ -159,8 +159,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // View function returns default index 0 when uninitialized (no deposits, no cap usage).

@@ -48,8 +48,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -72,8 +71,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -99,8 +97,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -264,7 +261,26 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         // Bound withdraw to what is actually withdrawable.
         uint256 maxW = harness.maxWithdraw(user1);
         vm.assume(maxW >= 1e6);
-        withdrawAmount = bound(withdrawAmount, 1e6, maxW);
+
+        // Further bound withdrawal to the maximum liquidity available in any
+        // single market. The optimizer's optimalWithdrawalTarget selects a
+        // single market, so the withdrawal amount must fit within one market's
+        // available liquidity.
+        uint256 maxSingleMarketLiquidity;
+        for (uint256 i = 0; i < harness.numApprovedMarkets(); i++) {
+            address m = harness.approvedCTokensList(i);
+            uint256 mAssets = _getMarketAssets(m);
+            uint256 mLiquidity = IBorrowableCToken(m).assetsHeld();
+            uint256 available = mAssets < mLiquidity ? mAssets : mLiquidity;
+            if (available > maxSingleMarketLiquidity) {
+                maxSingleMarketLiquidity = available;
+            }
+        }
+        vm.assume(maxSingleMarketLiquidity >= 1e6);
+
+        uint256 effectiveMax = maxW < maxSingleMarketLiquidity ? maxW : maxSingleMarketLiquidity;
+        vm.assume(effectiveMax >= 1e6);
+        withdrawAmount = bound(withdrawAmount, 1e6, effectiveMax);
 
         // Call optimalWithdrawalTarget.
         uint256 targetIndex = harness.optimalWithdrawalTarget(withdrawAmount);

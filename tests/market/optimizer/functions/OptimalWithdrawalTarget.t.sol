@@ -174,8 +174,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Reverts with InsufficientLiquidity because no market has assets

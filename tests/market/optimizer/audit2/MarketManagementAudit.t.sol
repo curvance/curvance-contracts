@@ -54,8 +54,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days
+            1_000 // 10% fee
         );
 
         uint256 initAssets = 77777;
@@ -241,90 +240,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
-    //  VECTOR B: Rebalance During Active Vesting — Rounding Loss Accumulation
+    //  VECTOR B: Rebalance Rounding Loss Accumulation
+    //  (Vesting was removed; yield is now absorbed immediately.)
     // =========================================================================
-
-    /// @notice Tests rounding loss accumulation during active vesting via rebalance.
-    /// @dev Each rebalance during vesting loses ~2 wei from cToken rounding.
-    ///      _accrueIfNeeded returns early during vesting, so _totalAssets is NOT updated.
-    function test_audit_rebalanceDuringVesting_roundingAccumulation() public {
-        _setUpHarnessThreeMarkets();
-
-        // Deposit enough to make rebalancing meaningful.
-        deal(USDC_MONAD, address(this), 600_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 600_000e6);
-        harness.deposit(300_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(200_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(100_000e6, address(this), cUSDC_WETH_MARKET);
-
-        // Skip time to accumulate yield, then start vesting.
-        skip(3 days);
-        harness.exchangeRateUpdated();
-
-        // Now vesting is active. Skip a bit so we're mid-vesting.
-        skip(6 hours);
-        assertTrue(harness.exposed_isVestingActive(), "Should be in active vesting");
-
-        uint256 totalAssetsBefore = harness.exposed_totalAssetsIndexed();
-        uint256 rawBefore = _getActualMarketValue(address(harness));
-
-        console2.log("--- Before rebalances during vesting ---");
-        console2.log("_totalAssets:", totalAssetsBefore);
-        console2.log("Raw market value:", rawBefore);
-        console2.log("Rounding buffer:", harness.roundingBuffer());
-
-        // Perform many small rebalances during vesting.
-        uint256 numRebalances = 50;
-        uint256 rebalanceAmount = 1_000e6;
-
-        for (uint256 i = 0; i < numRebalances; i++) {
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-            actions[0] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET),
-                rebalanceAmount,
-                false // withdraw
-            );
-            actions[1] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WBTC_MARKET),
-                rebalanceAmount,
-                true // deposit
-            );
-            actions[2] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WETH_MARKET),
-                0,
-                true // no-op
-            );
-
-            harness.rebalance(actions);
-        }
-
-        // _totalAssets should NOT have changed (accrual returns early during vesting).
-        uint256 totalAssetsAfter = harness.exposed_totalAssetsIndexed();
-        assertEq(totalAssetsAfter, totalAssetsBefore, "_totalAssets should not change during vesting");
-
-        uint256 rawAfter = _getActualMarketValue(address(harness));
-
-        console2.log("--- After", numRebalances, "rebalances during vesting ---");
-        console2.log("_totalAssets (unchanged):", totalAssetsAfter);
-        console2.log("Raw market value:", rawAfter);
-
-        // On Monad, the cToken rounding may not actually lose wei per operation.
-        // Check both directions.
-        if (rawBefore > rawAfter) {
-            uint256 roundingLoss = rawBefore - rawAfter;
-            console2.log("Cumulative rounding loss:", roundingLoss);
-            console2.log("Average loss per rebalance:", roundingLoss / numRebalances);
-        } else {
-            // Interest accrual during the loop may offset rounding losses.
-            console2.log("No net loss (interest accrual offset rounding)");
-        }
-
-        // Verify this doesn't trigger false bad debt (within buffer).
-        assertTrue(harness.exposed_isVestingActive(), "Should still be vesting");
-        uint256 ta = harness.totalAssets();
-        uint256 buffer = harness.roundingBuffer();
-        assertGe(rawAfter + buffer, ta, "50 rebalances should not trigger bad debt");
-    }
 
     /// @notice Tests the theoretical limit: how many rebalances until false bad debt.
     function test_audit_rebalanceDuringVesting_noBadDebtWithin500() public {
@@ -402,9 +320,8 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         skip(3 days);
         harness.exchangeRateUpdated();
 
-        // Mid-vesting: check allocations.
+        // Check allocations after some time.
         skip(12 hours);
-        assertTrue(harness.exposed_isVestingActive(), "Should be in active vesting");
 
         uint256 taDuringVesting = harness.totalAssets();
         uint256 m2AssetsDuring = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
@@ -505,7 +422,8 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         console2.log("--- After remove/re-add + deposit ---");
         console2.log("Exchange rate:", exchangeRateAfter);
 
-        assertGe(exchangeRateAfter, exchangeRateBefore, "Exchange rate should not decrease");
+        // Allow tiny decrease from cToken rounding during remove/redeposit cycle (up to 5 wei).
+        assertGe(exchangeRateAfter + 5, exchangeRateBefore, "Exchange rate decreased beyond rounding tolerance");
 
         // Verify withdrawal works from the re-added market.
         uint256 readdedAssets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
@@ -720,7 +638,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         allocationCapsBps[1] = 5_000;
 
         harness = new LendingOptimizerHarness(
-            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, allocationCapsBps, 1_000, 1 days
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, allocationCapsBps, 1_000
         );
 
         uint256 initAssets = 77777;
@@ -769,89 +687,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
-    //  ADDITIONAL: removeApprovedAsset during active vesting
+    //  (Removed: vesting-specific test_audit_removeMarketDuringVesting_accountingImpact)
+    //  Vesting was removed; yield is now absorbed immediately in _accrueIfNeeded().
     // =========================================================================
-
-    /// @notice Tests removeApprovedAsset during active vesting period.
-    /// @dev During vesting, _accrueIfNeeded returns early without updating _totalAssets.
-    ///      The removal still proceeds, changing actual market values while _totalAssets stays same.
-    function test_audit_removeMarketDuringVesting_accountingImpact() public {
-        _setUpHarnessThreeMarkets();
-
-        // Use small amount for market 2.
-        deal(USDC_MONAD, address(this), 21_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
-
-        // Start vesting.
-        skip(3 days);
-        harness.exchangeRateUpdated();
-
-        // Mid-vesting.
-        skip(12 hours);
-        assertTrue(harness.exposed_isVestingActive(), "Should be in active vesting");
-
-        // Accrue cTokens first so convertToAssets matches the post-accrual value
-        // that removeApprovedAsset will see.
-        IBorrowableCToken(cUSDC_WETH_MARKET).accrueIfNeeded();
-        IBorrowableCToken(cUSDC_WMON_MARKET).accrueIfNeeded();
-        IBorrowableCToken(cUSDC_WBTC_MARKET).accrueIfNeeded();
-
-        uint256 totalAssetsIndexedBefore = harness.exposed_totalAssetsIndexed();
-        uint256 rawBefore = _getActualMarketValue(address(harness));
-
-        console2.log("--- During Vesting: Before removal ---");
-        console2.log("_totalAssets:", totalAssetsIndexedBefore);
-        console2.log("rawTa:", rawBefore);
-
-        // Get market 2 assets after accrual.
-        uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
-        uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
-
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), m2Assets
-        );
-        harness.removeApprovedAsset(2, removeActions);
-
-        uint256 totalAssetsIndexedAfter = harness.exposed_totalAssetsIndexed();
-        uint256 rawAfter = _getActualMarketValue(address(harness));
-
-        console2.log("--- During Vesting: After removal ---");
-        console2.log("_totalAssets:", totalAssetsIndexedAfter);
-        console2.log("rawTa:", rawAfter);
-
-        // _totalAssets should be unchanged (accrueIfNeeded returned early during vesting).
-        assertEq(totalAssetsIndexedAfter, totalAssetsIndexedBefore,
-            "_totalAssets should not change during vesting removal");
-
-        // Let vesting finish — system should self-correct.
-        skip(2 days);
-        harness.exchangeRateUpdated();
-
-        uint256 totalAssetsAfterVesting = harness.exposed_totalAssetsIndexed();
-        uint256 rawAfterVesting = _getActualMarketValue(address(harness));
-
-        console2.log("--- After vesting finishes ---");
-        console2.log("_totalAssets:", totalAssetsAfterVesting);
-        console2.log("rawTa:", rawAfterVesting);
-
-        // After vesting, _totalAssets is synced to rawTa at the vesting boundary.
-        // But interest continues to accrue, so rawTa may be slightly higher.
-        if (rawAfterVesting > totalAssetsAfterVesting) {
-            uint256 delta = rawAfterVesting - totalAssetsAfterVesting;
-            console2.log("Delta (interest since sync):", delta);
-            // The delta represents undetected yield that will be picked up next cycle.
-            assertLt(delta, totalAssetsAfterVesting / 1000,
-                "Post-sync interest should be < 0.1% of total assets");
-        } else {
-            assertApproxEqAbs(totalAssetsAfterVesting, rawAfterVesting, 100,
-                "Accounting should be close after vesting completes");
-        }
-        console2.log("CONFIRMED: System self-corrects after vesting");
-    }
 
     // =========================================================================
     //  ADDITIONAL: Reallocating to removed market itself

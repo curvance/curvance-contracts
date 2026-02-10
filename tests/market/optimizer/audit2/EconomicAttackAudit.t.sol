@@ -52,8 +52,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            0,
-            1 days
+            0
         );
 
         _initializeHarness();
@@ -61,7 +60,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         _mockMarketManagerPermissions(mktManager);
     }
 
-    /// @dev Sets up a harness with two markets, 10% fee, 1-day vesting.
+    /// @dev Sets up a harness with two markets, 10% fee.
     function _setUpHarnessTwoMarketsWithFee() internal {
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -76,8 +75,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days
+            1_000 // 10% fee
         );
 
         _initializeHarness();
@@ -85,7 +83,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         _mockMarketManagerPermissions(mktManager);
     }
 
-    /// @dev Sets up a harness with one market, configurable fee, 1-day vesting.
+    /// @dev Sets up a harness with one market, configurable fee.
     function _setUpHarnessSingleMarket(uint256 feeBps) internal {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -98,8 +96,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
 
         _initializeHarness();
@@ -179,9 +176,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days);
         harness.exchangeRateUpdated();
 
-        // Confirm vesting is active.
-        assertTrue(harness.exposed_isVestingActive(), "Vesting should be active");
-
         // Harvester sets rounding buffer to minimum.
         vm.prank(maliciousHarvester);
         harness.setRoundingBuffer(1000);
@@ -244,21 +238,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("  _totalAssets:", indexedAfter);
 
         // Rounding losses should have accumulated.
-        // Check if bad debt was triggered (vesting would be canceled).
-        bool vestingStillActive = harness.exposed_isVestingActive();
-        console2.log("  Vesting still active:", vestingStillActive);
-
-        if (!vestingStillActive) {
-            console2.log("  BAD DEBT TRIGGERED: Vesting was canceled by false positive");
-            console2.log("  Rounding losses exceeded buffer of 1000 wei");
-
-            // This is the vulnerability: harvester-induced false bad debt
-            // cancels unvested yield, hurting all depositors.
+        // Check if rounding losses caused significant asset discrepancy.
+        if (totalAssetsAfter < totalAssetsBefore) {
             uint256 lostYield = totalAssetsBefore - totalAssetsAfter;
-            console2.log("  Yield lost by depositors:", lostYield);
+            console2.log("  Rounding losses caused asset decrease:", lostYield);
         } else {
-            console2.log("  Vesting survived (buffer not yet exhausted)");
-            console2.log("  Would need more rebalances to exhaust buffer");
+            console2.log("  No significant asset decrease from rounding");
         }
     }
 
@@ -284,9 +269,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         harness.exchangeRateUpdated();
 
         // After multiple cycles, yield-per-cycle becomes very small.
-        // If vesting is still active, we still measure the rounding loss.
-        bool vestingActive = harness.exposed_isVestingActive();
-        console2.log("Vesting active after settling:", vestingActive);
 
         uint256 rawBefore = harness.exposed_accrueMarkets();
         uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
@@ -417,8 +399,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days);
         harness.exchangeRateUpdated();
 
-        assertTrue(harness.exposed_isVestingActive(), "Vesting should be active");
-
         uint256 feeSharesBefore = harness.balanceOf(
             liveCentralRegistry.daoAddress()
         );
@@ -432,18 +412,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         vm.prank(mktManager);
         harness.setFee(0);
 
-        // Check: fee should still be old value during vesting (pending).
-        console2.log("Fee after setFee(0) during vesting:", harness.fee());
-        (bool updateNeeded, uint248 newFee) = harness.pendingFeeUpdate();
-        console2.log("Pending update:", updateNeeded, "newFee:", uint256(newFee));
+        // Fee should apply after next accrual cycle.
+        console2.log("Fee after setFee(0):", harness.fee());
 
-        // Wait for vesting to end.
+        // Wait and trigger accrual.
         skip(1 days + 1);
-
-        // Trigger accrual - this will:
-        // 1. Finalize vesting (step 4: _totalAssets = ta)
-        // 2. Charge fees at OLD rate (step 5: fee is still 1000)
-        // 3. Apply pending fee update (step 6: fee = 0)
         harness.exchangeRateUpdated();
 
         uint256 feeSharesAfter = harness.balanceOf(
@@ -495,27 +468,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("  DAO fee shares:", feeShares1);
 
         // Phase 2: Manager sets fee to 0.
-        // If vesting is active (new yield detected), the fee change is deferred.
-        // We need to wait for vesting to end first, then set fee.
-        if (harness.exposed_isVestingActive()) {
-            skip(1 days + 1);
-            harness.exchangeRateUpdated();
-            // May start another vesting. Wait again.
-            if (harness.exposed_isVestingActive()) {
-                skip(1 days + 1);
-                harness.exchangeRateUpdated();
-            }
-        }
+        // Wait for yield to settle before changing fee.
+        skip(1 days + 1);
+        harness.exchangeRateUpdated();
 
         vm.prank(mktManager);
         harness.setFee(0);
-
-        // If no vesting is active, fee applies immediately.
-        // If vesting somehow started, wait for it to end.
-        if (harness.fee() != 0) {
-            skip(1 days + 1);
-            harness.exchangeRateUpdated();
-        }
 
         console2.log("  Fee after setting to 0:", harness.fee());
 
@@ -751,25 +709,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("  DAO shares:", initialDaoShares);
 
         // Step 1: Manager sets fee to 0.
-        // If vesting is active (from the exchangeRateUpdated above), the fee is deferred.
-        // We need to ensure it takes effect.
-        if (harness.exposed_isVestingActive()) {
-            skip(1 days + 1);
-            harness.exchangeRateUpdated();
-            if (harness.exposed_isVestingActive()) {
-                skip(1 days + 1);
-                harness.exchangeRateUpdated();
-            }
-        }
+        // Wait for yield to settle before changing fee.
+        skip(1 days + 1);
+        harness.exchangeRateUpdated();
 
         vm.prank(mktManager);
         harness.setFee(0);
-
-        // If still deferred, force apply.
-        if (harness.fee() != 0) {
-            skip(1 days + 1);
-            harness.exchangeRateUpdated();
-        }
         assertEq(harness.fee(), 0, "Fee should be 0 after settling");
 
         // Update DAO shares after additional cycles to settle.
@@ -798,12 +743,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         assertEq(daoSharesDuringFreeYield, initialDaoShares, "No fees during fee=0");
 
         // Step 3: Manager sets fee back to 10%.
-        // Ensure no active vesting first.
-        if (harness.exposed_isVestingActive()) {
-            skip(1 days + 1);
-            harness.exchangeRateUpdated();
-        }
-
         vm.prank(mktManager);
         harness.setFee(1_000);
 
@@ -857,95 +796,65 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     // H. PERMISSIONLESS exchangeRateUpdated() AS GRIEFING TOOL
     // =====================================================================
 
-    /// @notice Tests that calling exchangeRateUpdated() after every vesting period
-    ///         creates near-permanent vesting, hurting new depositors with
-    ///         fully-diluted pricing.
-    function test_attack_H_perpetualVestingHurtsNewDepositors() public {
+    /// @notice Tests that calling exchangeRateUpdated() repeatedly does not
+    ///         adversely affect new depositors. With immediate yield (no vesting),
+    ///         new depositors get shares at the current fair rate.
+    function test_attack_H_repeatedAccrualDoesNotHurtNewDepositors() public {
         _setUpHarnessSingleMarket(0);
 
         // Initial deposit.
         _userDeposit(victim, 1_000_000e6);
 
-        uint256 vestingPeriod = harness.vestingPeriod();
-        uint256 cyclesWithVesting = 0;
-
-        // Simulate 5 cycles of perpetual vesting via permissionless calls.
+        // Simulate 5 cycles of repeated accrual via permissionless calls.
         for (uint256 i = 0; i < 5; i++) {
             // Wait for yield to accrue.
-            skip(vestingPeriod + 1);
+            skip(1 days + 1);
 
-            // Trigger accrual - starts new vesting if yield detected.
+            // Trigger accrual - yield is immediately recognized.
             harness.exchangeRateUpdated();
 
-            bool vestingActive = harness.exposed_isVestingActive();
-            if (vestingActive) {
-                cyclesWithVesting++;
+            // Record share price for a new depositor.
+            uint256 depositAmount = 100_000e6;
+            uint256 previewShares = harness.previewDeposit(depositAmount);
+            uint256 convertShares = harness.convertToShares(depositAmount);
 
-                // Advance to mid-vesting.
-                skip(vestingPeriod / 2);
+            console2.log("Cycle", i, ":");
+            console2.log("  previewDeposit:", previewShares);
+            console2.log("  convertToShares:", convertShares);
 
-                // Record share price for a new depositor.
-                uint256 depositAmount = 100_000e6;
-                uint256 previewSharesDuringVesting = harness.previewDeposit(depositAmount);
-                uint256 convertSharesNormal = harness.convertToShares(depositAmount);
-
-                console2.log("Cycle", i, "- mid-vesting:");
-                console2.log("  previewDeposit (fully-diluted):", previewSharesDuringVesting);
-                console2.log("  convertToShares (vested-only):", convertSharesNormal);
-
-                if (convertSharesNormal > previewSharesDuringVesting) {
-                    uint256 penalty = convertSharesNormal - previewSharesDuringVesting;
-                    console2.log("  New depositor PENALTY:", penalty, "fewer shares");
-                    console2.log("  Penalty %:", penalty * 10000 / convertSharesNormal, "bps");
-                }
-
-                // Rewind for next cycle.
-                rewind(vestingPeriod / 2);
-            }
-        }
-
-        console2.log("\nCycles with active vesting:", cyclesWithVesting, "out of 5");
-
-        if (cyclesWithVesting >= 3) {
-            console2.log("GRIEFING CONFIRMED: Perpetual vesting via permissionless calls");
-            console2.log("  New depositors consistently get fewer shares (fully-diluted pricing)");
-            console2.log("  This is anti-frontrunning working as designed, but can be weaponized");
+            // With no vesting, previewDeposit and convertToShares should be equal.
+            uint256 diff = convertShares > previewShares
+                ? convertShares - previewShares
+                : previewShares - convertShares;
+            console2.log("  Difference:", diff);
         }
     }
 
-    /// @notice Quantifies the actual impact on a new depositor during perpetual vesting.
+    /// @notice Quantifies the actual impact on a new depositor when yield is immediate.
     function test_attack_H_quantifyNewDepositorImpact() public {
         _setUpHarnessSingleMarket(0);
 
         // Existing depositor.
         _userDeposit(victim, 1_000_000e6);
 
-        // Let yield accrue and start vesting.
+        // Let yield accrue.
         skip(1 days);
         harness.exchangeRateUpdated();
-        assertTrue(harness.exposed_isVestingActive(), "Vesting should be active");
 
-        // Advance to 50% vesting.
-        skip(harness.vestingPeriod() / 2);
-
-        // New depositor deposits during vesting.
+        // New depositor deposits after yield accrual.
         uint256 newDeposit = 100_000e6;
         _userDeposit(victim2, newDeposit);
 
         uint256 victim2Shares = harness.balanceOf(victim2);
         console2.log("New depositor shares:", victim2Shares);
 
-        // Let vesting complete.
-        skip(harness.vestingPeriod());
+        // Let more yield accrue.
+        skip(2 days);
         harness.exchangeRateUpdated();
 
-        // Wait for any new vesting to complete too.
-        skip(harness.vestingPeriod() + 1);
-        harness.exchangeRateUpdated();
-
-        // Calculate new depositor's value after vesting.
+        // Calculate new depositor's value after yield.
         uint256 victim2Assets = harness.convertToAssets(victim2Shares);
-        console2.log("New depositor asset value after vesting:", victim2Assets);
+        console2.log("New depositor asset value after yield:", victim2Assets);
         console2.log("New depositor original deposit:", newDeposit);
 
         if (victim2Assets > newDeposit) {
@@ -953,7 +862,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             console2.log("This is normal: depositor earned yield proportional to time held");
         } else if (victim2Assets < newDeposit) {
             console2.log("New depositor LOST:", newDeposit - victim2Assets);
-            console2.log("This could indicate unfair pricing during vesting");
+            console2.log("This could indicate unfair pricing");
         }
     }
 
@@ -972,12 +881,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Let yield accrue.
         skip(1 days);
         harness.exchangeRateUpdated();
-        assertTrue(harness.exposed_isVestingActive(), "Vesting should be active");
 
         uint256 totalAssetsBefore = harness.totalAssets();
         uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
 
-        console2.log("During active vesting:");
+        console2.log("After yield accrual:");
         console2.log("  totalAssets():", totalAssetsBefore);
         console2.log("  _totalAssets:", indexedBefore);
 
@@ -990,13 +898,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         bool badDebtTriggered = false;
 
         for (uint256 i = 0; i < 30; i++) {
-            // Check if vesting was canceled (bad debt triggered).
-            if (!harness.exposed_isVestingActive()) {
-                badDebtTriggered = true;
-                console2.log("Bad debt triggered after", i * 2, "rebalance operations");
-                break;
-            }
-
             LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
             actions[0] = LendingOptimizer.RebalanceAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
@@ -1051,43 +952,31 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    // FEE EDGE CASE: setFee DURING ACTIVE VESTING DEFERRED CORRECTLY
+    // FEE EDGE CASE: setFee APPLIES CORRECTLY
     // =====================================================================
 
-    /// @notice Verifies that setFee during active vesting properly defers
-    ///         the update and charges fees at the old rate.
-    function test_defense_setFeeDuringVestingDeferred() public {
+    /// @notice Verifies that setFee applies correctly and fees are charged.
+    function test_defense_setFeeAppliesCorrectly() public {
         _setUpHarnessSingleMarket(1_000); // 10% fee
 
         _userDeposit(victim, 1_000_000e6);
 
-        // Start vesting.
+        // Let yield accrue.
         skip(1 days);
         harness.exchangeRateUpdated();
-        assertTrue(harness.exposed_isVestingActive(), "Vesting active");
 
-        // During vesting, try to set fee to 50% (max).
+        // Set fee to 50% (max).
         vm.prank(mktManager);
         harness.setFee(5_000);
 
-        // Fee should NOT have changed yet.
-        console2.log("Fee during vesting:", harness.fee());
-        (bool pending,) = harness.pendingFeeUpdate();
-        assertTrue(pending, "Fee update should be pending");
-
-        // Let vesting complete.
-        skip(1 days + 1);
-        harness.exchangeRateUpdated();
-
-        // Now fee should be updated.
         uint256 feeAfter = harness.fee();
-        console2.log("Fee after vesting:", feeAfter);
+        console2.log("Fee after setFee:", feeAfter);
         assertEq(feeAfter, 5_000, "Fee should be 50% now");
 
-        // Verify fees were charged at OLD rate (10%) for the vesting period.
+        // Verify fees were charged.
         uint256 daoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
-        console2.log("DAO shares (charged at 10% rate):", daoShares);
-        assertGt(daoShares, 0, "Fees should have been charged at old rate");
+        console2.log("DAO shares:", daoShares);
+        assertGt(daoShares, 0, "Fees should have been charged");
     }
 
     // =====================================================================
@@ -1130,24 +1019,23 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("Rate after fee change:", rate2);
         previousRate = rate2;
 
-        // Cycle 3: New deposit mid-vesting.
+        // Cycle 3: New deposit after yield accrual.
         skip(1 days);
         harness.exchangeRateUpdated();
-        skip(harness.vestingPeriod() / 2);
 
         _userDeposit(victim2, 500_000e6);
 
         uint256 rate3 = harness.exchangeRate();
-        assertGe(rate3, previousRate, "Rate decreased after mid-vesting deposit");
-        console2.log("Rate after mid-vesting deposit:", rate3);
+        assertGe(rate3, previousRate, "Rate decreased after deposit");
+        console2.log("Rate after new deposit:", rate3);
         previousRate = rate3;
 
-        // Complete vesting.
-        skip(harness.vestingPeriod());
+        // More yield accrual.
+        skip(1 days + 1);
         harness.exchangeRateUpdated();
 
         uint256 rate4 = harness.exchangeRate();
-        assertGe(rate4, previousRate, "Rate decreased after vesting completion");
+        assertGe(rate4, previousRate, "Rate decreased after yield accrual");
         console2.log("Final rate:", rate4);
     }
 

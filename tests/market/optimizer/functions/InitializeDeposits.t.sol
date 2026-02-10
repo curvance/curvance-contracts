@@ -28,8 +28,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Verify not initialized (totalSupply == 0)
@@ -74,8 +73,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -112,8 +110,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -142,8 +139,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 depositAmount = 1000e6;
@@ -174,8 +170,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 depositAmount = 1000e6;
@@ -210,8 +205,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -247,8 +241,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -284,8 +277,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -319,8 +311,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -352,8 +343,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -382,8 +372,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Only deal half the required amount
@@ -413,8 +402,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -444,8 +432,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -474,8 +461,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -512,8 +498,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -554,8 +539,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -588,8 +572,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -621,8 +604,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Verify high watermark is WAD before initialization
@@ -660,8 +642,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -696,8 +677,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 depositAmount = 1000e6;
@@ -726,8 +706,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 depositAmount = 1000e6;

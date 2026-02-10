@@ -30,8 +30,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
 
         // Verify immutable state
@@ -93,8 +92,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
 
         // Verify storage state - fee is stored in BPS format
@@ -131,8 +129,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
 
         assertEq(optimizer.fee(), 0);
@@ -152,8 +149,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
 
         // Fee is stored in BPS format
@@ -175,8 +171,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            feeBps,
-            1 days
+            feeBps
         );
     }
 
@@ -194,8 +189,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
     }
 
@@ -216,8 +210,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
     }
 
@@ -237,8 +230,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
     }
 
@@ -258,8 +250,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
     }
 
@@ -281,8 +272,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Verify PluginDelegable functions are available
@@ -317,8 +307,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // With no deposits, exchange rate should be WAD (1e18)

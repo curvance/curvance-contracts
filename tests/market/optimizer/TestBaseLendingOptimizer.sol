@@ -53,8 +53,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
     }
 
     /// @dev Verifies that shares minted match the previewDeposit invariant.
-    /// @notice Uses previewDeposit() as the reference, which includes fully-diluted
-    ///         pricing during active vesting to prevent yield frontrunning.
+    /// @notice Uses previewDeposit() as the reference, which uses standard ERC4626 pricing.
     ///         Must be called AFTER accrueIfNeeded() to match deposit()'s internal state.
     /// @param assets The deposited assets
     /// @param sharesMinted The shares that were minted
@@ -88,8 +87,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -118,8 +116,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;
@@ -150,8 +147,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         uint256 initAssets = 77777;

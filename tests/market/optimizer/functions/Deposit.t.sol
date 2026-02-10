@@ -35,8 +35,7 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         // Create an uninitialized optimizer for testing revert cases
@@ -45,8 +44,7 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000,
-            1 days
+            1_000
         );
 
         deal(USDC_MONAD, address(this), 77777, true);

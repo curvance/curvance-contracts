@@ -193,8 +193,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             approvedCTokens,
             allocationCapsBps,
-            1000, // 10% performance fee
-            1 days
+            1000 // 10% performance fee
         );
 
         // Initialize optimizer
@@ -738,7 +737,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
 
     // ==================== VESTING DURING BAD DEBT ====================
 
-    function test_lendingOptimizer_badDebt_duringActiveVesting() public {
+    function test_lendingOptimizer_badDebt_duringActiveYield() public {
         // Deposit
         uint256 depositAmount = 100_000e6;
         _prepareUSDC(depositor1, depositAmount);
@@ -747,22 +746,16 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
-        // Let some yield accrue and start vesting
+        // Let some yield accrue
         skip(2 days);
         optimizer.exchangeRateUpdated();
 
-        // Skip only partway through the new vesting period (vesting period is 1 day)
+        // Skip some time
         skip(6 hours);
 
-        // Verify vesting is active (if there was yield to vest)
-        bool vestingActive = optimizer.exposed_isVestingActive();
-
         uint256 rateBeforeBadDebt = optimizer.exchangeRate();
-        uint256 pendingVest = optimizer.exposed_assetsToVest();
 
-        console2.log("Vesting active:", vestingActive);
         console2.log("Rate before bad debt:", rateBeforeBadDebt);
-        console2.log("Pending vest:", pendingVest);
 
         // Refresh feeds to avoid stale price errors
         _refreshMockFeeds();

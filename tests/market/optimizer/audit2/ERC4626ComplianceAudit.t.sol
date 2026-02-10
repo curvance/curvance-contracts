@@ -14,9 +14,9 @@ import { console2 } from "forge-std/console2.sol";
 /// @title ERC4626 Compliance & Invariant Audit
 /// @notice Auditor 4: Tests ERC4626 compliance, invariant violations, and edge
 ///         cases that prior audits missed.
-/// @dev Covers: share transfer consistency, concurrent deposits during vesting,
+/// @dev Covers: share transfer consistency, concurrent deposits,
 ///      round-trip properties, maxDeposit spec compliance, dead shares robustness,
-///      previewDeposit vs actual deposit during vesting, preview/max withdrawal
+///      previewDeposit vs actual deposit, preview/max withdrawal
 ///      consistency, exchange rate invariant, zero-amount operations, and more.
 contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
 
@@ -51,8 +51,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            0,
-            1 days
+            0
         );
 
         deal(USDC_MONAD, address(this), BASE_RESERVE);
@@ -79,8 +78,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days
+            1_000 // 10% fee
         );
 
         deal(USDC_MONAD, address(this), BASE_RESERVE);
@@ -107,8 +105,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            0,
-            1 // 1 second vesting period - minimum
+            0
         );
 
         deal(USDC_MONAD, address(this), BASE_RESERVE);
@@ -130,13 +127,8 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
-    /// @dev Trigger a vesting cycle: warp past current vest end, call accrual
-    ///      to detect new yield and start a new vesting period.
-    function _triggerVesting() internal {
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        if (block.timestamp < vestEnd) {
-            vm.warp(vestEnd);
-        }
+    /// @dev Trigger yield accrual.
+    function _triggerAccrual() internal {
         harness.accrueIfNeeded();
     }
 
@@ -314,20 +306,14 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         }
     }
 
-    /// @notice Round-trip during active vesting.
-    function test_C_roundTrip_duringVesting() public {
+    /// @notice Round-trip after yield accrual.
+    function test_C_roundTrip_afterYieldAccrual() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Trigger yield accrual and start vesting.
+        // Trigger yield accrual.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Warp to mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
-
-        assertTrue(harness.exposed_isVestingActive(), "Should be in active vesting");
 
         uint256[4] memory testValues = [uint256(1), 7, ONE_USDC, MILLION_USDC];
 
@@ -337,7 +323,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             uint256 backToAssets = harness.convertToAssets(shares);
             assertLe(
                 backToAssets, x,
-                string.concat("Round-trip violated during vesting for index ", vm.toString(i))
+                string.concat("Round-trip violated after yield accrual for index ", vm.toString(i))
             );
         }
     }
@@ -471,22 +457,16 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     //  F. previewDeposit VS ACTUAL DEPOSIT DURING VESTING
     // =====================================================================
 
-    /// @notice During active vesting, previewDeposit should return no more
+    /// @notice After yield accrual, previewDeposit should return no more
     ///         shares than actual deposit (ERC4626: deposit MUST return >=
     ///         previewDeposit).
-    function test_F_previewDeposit_vs_actualDeposit_duringVesting() public {
+    function test_F_previewDeposit_vs_actualDeposit_afterYieldAccrual() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Generate yield and start vesting.
+        // Generate yield and accrue.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Warp to mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
-
-        assertTrue(harness.exposed_isVestingActive(), "Should be in active vesting");
 
         uint256 depositAmount = 100_000e6;
 
@@ -506,94 +486,75 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         }
     }
 
-    /// @notice At vesting boundary, test if _accrueIfNeeded changes state between
+    /// @notice At accrual boundary, test if _accrueIfNeeded changes state between
     ///         preview and deposit causing divergence.
-    function test_F_previewDeposit_atVestingEnd() public {
+    function test_F_previewDeposit_atAccrualBoundary() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Generate yield and start vesting.
+        // Generate yield -- do not accrue yet.
         vm.warp(block.timestamp + 1 days);
-        harness.accrueIfNeeded();
-
-        // Warp to exactly vesting end.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(vestEnd);
 
         uint256 depositAmount = 100_000e6;
 
-        // Preview uses current state (vesting just ended).
+        // Preview uses current state (before accrual).
         uint256 previewShares = harness.previewDeposit(depositAmount);
 
         // deposit() calls _accrueIfNeeded() which will:
-        // 1. Detect vesting ended
-        // 2. Start new vesting cycle (if new yield detected)
+        // 1. Detect new yield
+        // 2. Update _totalAssets
         // 3. Charge performance fees (if any)
         // This changes state before computing shares.
         uint256 actualShares = _depositAs(user2Addr, depositAmount);
 
-        console2.log("Preview at vesting end:", previewShares);
-        console2.log("Actual at vesting end:", actualShares);
+        console2.log("Preview at accrual boundary:", previewShares);
+        console2.log("Actual at accrual boundary:", actualShares);
 
         uint256 diff = previewShares > actualShares
             ? previewShares - actualShares
             : actualShares - previewShares;
 
         console2.log("Diff:", diff);
-
-        // If the accrual detected new yield and started a new vest,
-        // _fullyDilutedAssets() would increase, giving fewer shares per asset.
-        // This would mean actualShares < previewShares, violating ERC4626.
-        if (actualShares + 2 < previewShares) {
-            console2.log("[FINDING] Vesting boundary: deposit returned significantly fewer shares than preview");
-            console2.log("  previewShares:", previewShares);
-            console2.log("  actualShares:", actualShares);
-            console2.log("  shortfall:", previewShares - actualShares);
-        }
     }
 
-    /// @notice At vesting start (t=0 of new vest), preview should match deposit.
-    function test_F_previewDeposit_atVestingStart() public {
+    /// @notice Right after accrual, preview should match deposit.
+    function test_F_previewDeposit_afterAccrual() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Generate yield and start vesting.
+        // Generate yield and accrue.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
 
-        // Don't warp further - we're right at vesting start.
+        // Right after accrual.
         uint256 depositAmount = 100_000e6;
         uint256 previewShares = harness.previewDeposit(depositAmount);
         uint256 actualShares = _depositAs(user2Addr, depositAmount);
 
-        console2.log("Preview at vesting start:", previewShares);
-        console2.log("Actual at vesting start:", actualShares);
+        console2.log("Preview after accrual:", previewShares);
+        console2.log("Actual after accrual:", actualShares);
 
         uint256 diff = previewShares > actualShares
             ? previewShares - actualShares
             : actualShares - previewShares;
 
-        // At vesting start, _accrueIfNeeded() should return early (still in vesting),
+        // After accrual, _accrueIfNeeded() should return early (no new yield),
         // so preview and actual should closely match (within cToken rounding).
-        assertLe(diff, 2, "previewDeposit should match actual at vesting start (within cToken rounding)");
+        assertLe(diff, 2, "previewDeposit should match actual after accrual (within cToken rounding)");
     }
 
     // =====================================================================
     //  G. previewWithdraw/previewRedeem DURING VESTING
     // =====================================================================
 
-    /// @notice previewWithdraw(maxWithdraw(owner)) <= balanceOf(owner) during vesting.
+    /// @notice previewWithdraw(maxWithdraw(owner)) <= balanceOf(owner) after yield.
     function test_G_previewWithdraw_maxWithdraw_consistency() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 maxW = harness.maxWithdraw(user1Addr);
         uint256 sharesNeeded = harness.previewWithdraw(maxW);
@@ -609,18 +570,14 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         );
     }
 
-    /// @notice previewRedeem(maxRedeem(owner)) <= _totalAssets during vesting.
+    /// @notice previewRedeem(maxRedeem(owner)) <= _totalAssets after yield.
     function test_G_previewRedeem_maxRedeem_consistency() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 maxR = harness.maxRedeem(user1Addr);
         uint256 assetsOut = harness.previewRedeem(maxR);
@@ -636,18 +593,14 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         );
     }
 
-    /// @notice maxWithdraw should be capped at _totalAssets (fix confirmed).
+    /// @notice maxWithdraw should be capped at _totalAssets.
     function test_G_maxWithdraw_cappedAtTotalAssets() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 maxW = harness.maxWithdraw(user1Addr);
         uint256 totalAssetsIndexed = harness.exposed_totalAssetsIndexed();
@@ -658,46 +611,37 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         assertLe(maxW, totalAssetsIndexed, "maxWithdraw should be capped at _totalAssets");
     }
 
-    /// @notice After fix, withdraw(maxWithdraw(owner)) should succeed during vesting.
-    function test_G_maxWithdraw_doesNotRevert_duringVesting() public {
+    /// @notice withdraw(maxWithdraw(owner)) should succeed after yield accrual.
+    function test_G_maxWithdraw_doesNotRevert_afterYieldAccrual() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 maxW = harness.maxWithdraw(user1Addr);
         if (maxW > 0) {
             vm.prank(user1Addr);
-            // This should not revert now that maxWithdraw is capped.
             harness.withdraw(maxW, user1Addr, user1Addr);
-            console2.log("withdraw(maxWithdraw) succeeded during vesting with amount:", maxW);
+            console2.log("withdraw(maxWithdraw) succeeded with amount:", maxW);
         }
     }
 
-    /// @notice After fix, redeem(maxRedeem(owner)) should succeed during vesting.
-    function test_G_maxRedeem_doesNotRevert_duringVesting() public {
+    /// @notice redeem(maxRedeem(owner)) should succeed after yield accrual.
+    function test_G_maxRedeem_doesNotRevert_afterYieldAccrual() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 maxR = harness.maxRedeem(user1Addr);
         if (maxR > 0) {
             vm.prank(user1Addr);
             harness.redeem(maxR, user1Addr, user1Addr);
-            console2.log("redeem(maxRedeem) succeeded during vesting with shares:", maxR);
+            console2.log("redeem(maxRedeem) succeeded with shares:", maxR);
         }
     }
 
@@ -718,42 +662,25 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         _assertExchangeRateInvariant("after deposit", 2);
     }
 
-    /// @notice Invariant during active vesting at 25%, 50%, 75%.
-    function test_H_exchangeRateInvariant_duringVesting() public {
+    /// @notice Invariant through multiple yield accrual cycles.
+    function test_H_exchangeRateInvariant_multipleAccruals() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Start vesting.
+        // After first accrual.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
+        _assertExchangeRateInvariant("after first accrual", 2);
 
-        (, uint256 vestEnd, uint256 lastClaim) = harness.exposed_getVestingData();
-        uint256 vestDuration = vestEnd - lastClaim;
-
-        // 25% vested.
-        vm.warp(lastClaim + vestDuration / 4);
-        _assertExchangeRateInvariant("25% vested", 2);
-
-        // 50% vested.
-        vm.warp(lastClaim + vestDuration / 2);
-        _assertExchangeRateInvariant("50% vested", 2);
-
-        // 75% vested.
-        vm.warp(lastClaim + (vestDuration * 3) / 4);
-        _assertExchangeRateInvariant("75% vested", 2);
-    }
-
-    /// @notice Invariant at vesting end.
-    function test_H_exchangeRateInvariant_atVestingEnd() public {
-        _setUpHarnessNoFee();
-        _depositAs(user1Addr, MILLION_USDC);
-
+        // After second accrual.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
+        _assertExchangeRateInvariant("after second accrual", 2);
 
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(vestEnd);
-        _assertExchangeRateInvariant("at vesting end", 2);
+        // After third accrual.
+        vm.warp(block.timestamp + 1 days);
+        harness.accrueIfNeeded();
+        _assertExchangeRateInvariant("after third accrual", 2);
     }
 
     /// @notice Invariant after fee accrual.
@@ -761,7 +688,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         _setUpHarnessWithFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // Complete a full vesting cycle to accrue fees.
+        // Generate yield and accrue fees.
         vm.warp(block.timestamp + 2 days);
         harness.accrueIfNeeded();
         vm.warp(block.timestamp + 2 days);
@@ -985,11 +912,11 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  ADDITIONAL: Multi-user exchange rate consistency through vesting
+    //  ADDITIONAL: Multi-user exchange rate consistency through yield accrual
     // =====================================================================
 
     /// @notice Exchange rate should be monotonically non-decreasing through
-    ///         deposit, vesting, and withdrawal sequences.
+    ///         deposit, yield accrual, and withdrawal sequences.
     function test_exchangeRate_monotonicity_complexSequence() public {
         _setUpHarnessWithFee();
 
@@ -1005,12 +932,12 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             lastRate = newRate;
         }
 
-        // Warp through multiple vesting cycles.
+        // Warp through multiple yield accrual cycles.
         for (uint256 cycle = 0; cycle < 3; cycle++) {
             vm.warp(block.timestamp + 2 days);
             harness.accrueIfNeeded();
             uint256 newRate = harness.exchangeRate();
-            assertGe(newRate, lastRate, "Rate decreased during vesting cycle");
+            assertGe(newRate, lastRate, "Rate decreased during yield accrual cycle");
             lastRate = newRate;
             console2.log("Rate after cycle", cycle, ":", newRate);
         }
@@ -1024,7 +951,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  ADDITIONAL: maxWithdraw multi-user fairness during vesting
+    //  ADDITIONAL: maxWithdraw multi-user fairness
     // =====================================================================
 
     /// @notice With multiple users, sum of all maxWithdraw should not exceed _totalAssets.
@@ -1034,13 +961,9 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         _depositAs(user2Addr, 300_000e6);
         _depositAs(user3Addr, 200_000e6);
 
-        // Start vesting.
+        // Accrue yield.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
-
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
 
         uint256 mw1 = harness.maxWithdraw(user1Addr);
         uint256 mw2 = harness.maxWithdraw(user2Addr);
@@ -1092,40 +1015,35 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  ADDITIONAL: Share price consistency pre and post vesting completion
+    //  ADDITIONAL: Share price consistency pre and post yield accrual
     // =====================================================================
 
-    /// @notice convertToShares should use different pricing than previewDeposit
-    ///         during active vesting (anti-frontrunning), but same when no vest.
+    /// @notice convertToShares and previewDeposit should be consistent.
     function test_convertToShares_vs_previewDeposit_behavior() public {
         _setUpHarnessNoFee();
         _depositAs(user1Addr, MILLION_USDC);
 
-        // When no vesting is active, they should be identical.
+        // Before yield accrual, they should be identical.
         uint256 amount = 100_000e6;
         uint256 convert = harness.convertToShares(amount);
         uint256 preview = harness.previewDeposit(amount);
-        assertEq(convert, preview, "Without vesting, convertToShares should equal previewDeposit");
+        assertEq(convert, preview, "convertToShares should equal previewDeposit before yield");
 
-        // Start vesting.
+        // After yield accrual.
         vm.warp(block.timestamp + 1 days);
         harness.accrueIfNeeded();
 
-        // Mid-vesting.
-        (, uint256 vestEnd,) = harness.exposed_getVestingData();
-        vm.warp(block.timestamp + (vestEnd - block.timestamp) / 2);
+        uint256 convertAfterYield = harness.convertToShares(amount);
+        uint256 previewAfterYield = harness.previewDeposit(amount);
 
-        uint256 convertDuringVest = harness.convertToShares(amount);
-        uint256 previewDuringVest = harness.previewDeposit(amount);
+        console2.log("After yield - convertToShares:", convertAfterYield);
+        console2.log("After yield - previewDeposit:", previewAfterYield);
 
-        console2.log("During vesting - convertToShares:", convertDuringVest);
-        console2.log("During vesting - previewDeposit:", previewDuringVest);
-
-        // previewDeposit uses fully-diluted assets (larger denominator),
-        // so it should return FEWER shares than convertToShares.
-        assertLe(
-            previewDuringVest, convertDuringVest,
-            "previewDeposit should return <= convertToShares during vesting (anti-frontrunning)"
+        // With immediate yield recognition, previewDeposit and convertToShares
+        // should be equal since there is no pricing difference.
+        assertEq(
+            previewAfterYield, convertAfterYield,
+            "previewDeposit should equal convertToShares with immediate yield"
         );
     }
 }

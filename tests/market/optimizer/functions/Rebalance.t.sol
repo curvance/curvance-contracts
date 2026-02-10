@@ -222,8 +222,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days
+            1_000 // 10% fee
         );
 
         // Initialize the optimizer.

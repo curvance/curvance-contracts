@@ -39,8 +39,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            1_000, // 10% fee
-            1 days // vesting period
+            1_000 // 10% fee
         );
 
         uint256 initAssets = BASE_RESERVE;
@@ -68,8 +67,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
-            0, // 0% fee
-            1 days
+            0 // 0% fee
         );
 
         uint256 initAssets = BASE_RESERVE;
@@ -104,16 +102,6 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         if (feeAssets == 0) return 0;
 
         return FixedPointMathLib.fullMulDivUp(feeAssets, supply, currentAssets - feeAssets);
-    }
-
-    /// @dev Calculates expected vesting rate: newYield * WAD / vestingPeriod
-    function _expectedVestingRate(uint256 newYield, uint256 vestingPeriod) internal pure returns (uint256) {
-        return FixedPointMathLib.mulDiv(newYield, WAD, vestingPeriod);
-    }
-
-    /// @dev Calculates expected vested assets: vestingRate * elapsed / WAD
-    function _expectedVestedAssets(uint256 vestingRate, uint256 elapsed) internal pure returns (uint256) {
-        return (vestingRate * elapsed) / WAD;
     }
 
     // ==================== BASIC ACCRUAL BEHAVIOR ====================
@@ -161,154 +149,19 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
 
         // Record state after first accrual
         uint256 indexedAfterFirst = harness.exposed_totalAssetsIndexed();
-        (uint256 rateAfterFirst, uint256 vestEndAfterFirst, uint256 lastClaimAfterFirst) = harness.exposed_getVestingData();
 
         // Call again in same block
         harness.accrueIfNeeded();
 
-        // State should be identical (no double-vesting or double-detection)
+        // State should be identical (no double-detection)
         uint256 indexedAfterSecond = harness.exposed_totalAssetsIndexed();
-        (uint256 rateAfterSecond, uint256 vestEndAfterSecond, uint256 lastClaimAfterSecond) = harness.exposed_getVestingData();
 
         assertEq(indexedAfterFirst, indexedAfterSecond, "Indexed should not change on same-block call");
-        assertEq(rateAfterFirst, rateAfterSecond, "Vesting rate should not change on same-block call");
-        assertEq(vestEndAfterFirst, vestEndAfterSecond, "Vesting end should not change on same-block call");
-        assertEq(lastClaimAfterFirst, lastClaimAfterSecond, "Last claim should not change on same-block call");
     }
 
-    // ==================== VESTING YIELD ====================
-
-    function test_lendingOptimizer_accrueIfNeeded_vestsAssetsCorrectly() public {
-        _setUpHarness();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Skip to trigger yield detection and start first vesting period
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        // Record state at vesting start
-        uint256 indexedAtStart = harness.exposed_totalAssetsIndexed();
-        (uint256 vestingRate, uint256 vestEnd, uint256 lastClaim) = harness.exposed_getVestingData();
-        uint256 vestingPeriod = vestEnd - lastClaim;
-
-        // Calculate total yield that will be vested over the full period
-        uint256 totalYieldToVest = _expectedVestedAssets(vestingRate, vestingPeriod);
-
-        // Skip past vesting end to trigger indexed update
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        uint256 indexedAfterVest = harness.exposed_totalAssetsIndexed();
-
-        // Indexed assets should now include the fully vested yield from previous period
-        assertEq(
-            indexedAfterVest,
-            indexedAtStart + totalYieldToVest,
-            "Indexed should increase by vested amount"
-        );
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_updatesLastVestingClaim() public {
-        _setUpHarness();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Start first vesting period
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        (, , uint256 lastClaimFirstPeriod) = harness.exposed_getVestingData();
-
-        // Skip past vesting end to trigger new vesting period
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        (, , uint256 lastClaimSecondPeriod) = harness.exposed_getVestingData();
-
-        // Last claim should update when new vesting period starts
-        assertEq(lastClaimSecondPeriod, block.timestamp, "Last claim should update to current timestamp");
-        assertGt(lastClaimSecondPeriod, lastClaimFirstPeriod, "Last claim should have advanced");
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_vestingCapsAtVestEnd() public {
-        _setUpHarness();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Start vesting
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        (uint256 vestingRate, uint256 vestEnd, uint256 lastClaim) = harness.exposed_getVestingData();
-        uint256 vestingPeriod = vestEnd - lastClaim;
-
-        // Calculate max vested (full vesting period)
-        uint256 maxVested = _expectedVestedAssets(vestingRate, vestingPeriod);
-
-        // Skip way past vesting end
-        skip(7 days);
-
-        // Vested assets should cap at max
-        uint256 actualVested = harness.exposed_assetsToVest();
-        assertEq(actualVested, maxVested, "Vested should cap at max when past vestEnd");
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_noVestingWhenRateZero() public {
-        _setUpHarness();
-
-        // Immediately after setup, vesting rate should be 0
-        (uint256 vestingRate, , ) = harness.exposed_getVestingData();
-        assertEq(vestingRate, 0, "Vesting rate should be 0 initially");
-
-        uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
-
-        // Accrual should not change indexed assets (no yield yet)
-        harness.accrueIfNeeded();
-
-        uint256 indexedAfter = harness.exposed_totalAssetsIndexed();
-        assertEq(indexedAfter, indexedBefore, "Indexed should not change when no vesting");
-    }
-
-    // ==================== NEW YIELD DETECTION ====================
+    // ==================== YIELD DETECTION ====================
 
     function test_lendingOptimizer_accrueIfNeeded_detectsNewYield() public {
-        _setUpHarnessNoFee();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
-
-        // Skip to end of initial vesting period (to allow yield detection)
-        skip(2 days);
-
-        // Trigger yield detection
-        harness.accrueIfNeeded();
-
-        // Get raw assets from underlying
-        uint256 rawAssets = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
-            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
-        );
-
-        // Get vesting data
-        (uint256 vestingRate, uint256 vestEnd, ) = harness.exposed_getVestingData();
-
-        // If new yield exists, vesting should have started
-        if (rawAssets > indexedBefore) {
-            assertGt(vestingRate, 0, "Vesting rate should be non-zero when yield detected");
-            assertGt(vestEnd, block.timestamp, "Vesting end should be in the future");
-        }
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_startsNewVestingWithCorrectRate() public {
         _setUpHarnessNoFee();
 
         deal(USDC_MONAD, address(this), 100_000e6);
@@ -320,81 +173,19 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         // Skip to allow yield accumulation
         skip(2 days);
 
-        // Get raw assets before accrual
-        uint256 rawAssets = harness.exposed_accrueMarkets();
-        uint256 newYield = rawAssets > indexedBefore ? rawAssets - indexedBefore : 0;
-
-        // Now actually trigger accrual
+        // Trigger yield detection
         harness.accrueIfNeeded();
 
-        if (newYield > 0) {
-            (uint256 vestingRate, uint256 vestEnd, uint256 lastClaim) = harness.exposed_getVestingData();
-            uint256 vestingPeriod = harness.vestingPeriod();
+        uint256 indexedAfter = harness.exposed_totalAssetsIndexed();
 
-            // Verify vesting rate: newYield * WAD / vestingPeriod
-            uint256 expectedRate = _expectedVestingRate(newYield, vestingPeriod);
-            assertEq(vestingRate, expectedRate, "Vesting rate should match: yield * WAD / period");
+        // Get raw assets from underlying
+        uint256 rawAssets = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
+        );
 
-            // Verify vesting timestamps
-            assertEq(vestEnd, block.timestamp + vestingPeriod, "Vesting end should be now + period");
-            assertEq(lastClaim, block.timestamp, "Last claim should be now");
-        }
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_noYieldDetectionDuringActiveVesting() public {
-        _setUpHarness();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Start first vesting
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        // Record vesting data
-        (uint256 rate1, uint256 vestEnd1, ) = harness.exposed_getVestingData();
-
-        // Skip partway through (not past vestEnd)
-        skip(12 hours);
-        assertTrue(harness.exposed_isVestingActive(), "Should still be in active vesting");
-
-        // Accrue - should vest but NOT detect new yield
-        harness.accrueIfNeeded();
-
-        (uint256 rate2, uint256 vestEnd2, ) = harness.exposed_getVestingData();
-
-        // Vesting data should be unchanged (no new yield detection)
-        assertEq(rate1, rate2, "Vesting rate should not change during active vesting");
-        assertEq(vestEnd1, vestEnd2, "Vesting end should not change during active vesting");
-    }
-
-    function test_lendingOptimizer_accrueIfNeeded_detectsYieldAfterVestingEnds() public {
-        _setUpHarnessNoFee();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Start first vesting
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        (uint256 rate1, , ) = harness.exposed_getVestingData();
-
-        // Skip past vesting end
-        skip(2 days);
-        assertFalse(harness.exposed_isVestingActive(), "Vesting should have ended");
-
-        // Accrue - should detect new yield and start new vesting
-        harness.accrueIfNeeded();
-
-        (uint256 rate2, uint256 vestEnd2, ) = harness.exposed_getVestingData();
-
-        // New vesting should have started (if there was yield)
-        if (rate2 > 0) {
-            // VestEnd should be fresh (in the future from now)
-            assertEq(vestEnd2, block.timestamp + harness.vestingPeriod(), "New vesting should have fresh end time");
+        // If new yield exists, indexed should have been updated
+        if (rawAssets > indexedBefore) {
+            assertGe(indexedAfter, indexedBefore, "Indexed should not decrease when yield detected");
         }
     }
 
@@ -476,7 +267,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Build up yield - need to complete first vesting period
+        // Build up yield
         skip(2 days);
         harness.accrueIfNeeded();
         skip(2 days);
@@ -489,21 +280,23 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         uint256 feeWad = (feeBps * WAD) / BPS;
         uint256 daoBalanceBefore = harness.balanceOf(_daoAddress());
 
-        // Get totalAssets() which is what _accrueIfNeeded uses for fee calculation.
-        // Fee calculation uses totalAssets() (not rawTa) so fees vest along with yield,
-        // preventing dilution at vesting boundaries.
-        uint256 currentAssets = harness.totalAssets();
+        // _accrueIfNeeded absorbs yield immediately (rawTa), then charges fees.
+        // Trigger cToken accrual first (same as _accrueMarkets does), then read value.
+        IBorrowableCToken(cUSDC_WMON_MARKET).accrueIfNeeded();
+        uint256 rawTa = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
+        );
 
-        // Trigger accrual - this ends vesting and detects new yield
+        // Trigger accrual - absorbs yield and charges fee
         harness.accrueIfNeeded();
 
         uint256 daoBalanceAfter = harness.balanceOf(_daoAddress());
         uint256 actualFeeShares = daoBalanceAfter - daoBalanceBefore;
 
         if (actualFeeShares > 0) {
-            // Calculate expected fee shares using totalAssets() (what _accrueIfNeeded uses)
+            // Calculate expected fee shares using rawTa (what _accrueIfNeeded uses after absorption)
             uint256 expectedFeeShares = _expectedFeeShares(
-                currentAssets,
+                rawTa,
                 supplyBefore,
                 watermarkBefore,
                 feeWad
@@ -540,11 +333,10 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         // Watermark should have increased from initial WAD
         assertGt(newWatermark, initialWatermark, "Watermark should increase after fee accrual");
 
-        // Watermark is calculated using currentAssets (rawTa) which includes new yield to vest.
-        // exchangeRate() uses totalAssets() which starts vesting the new yield gradually.
+        // Watermark is calculated using currentAssets (rawTa).
         // So watermark >= currentRate immediately after accrual.
         uint256 currentRate = harness.exchangeRate();
-        assertGe(newWatermark, currentRate, "Watermark should be >= current rate (includes unvested yield)");
+        assertGe(newWatermark, currentRate, "Watermark should be >= current rate");
     }
 
     function test_lendingOptimizer_accrueIfNeeded_emitsFeeEvent() public {
@@ -618,7 +410,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         // Skip to allow yield
         skip(3 days);
 
-        // Accrue and start vesting
+        // Accrue yield
         optimizer.accrueIfNeeded();
 
         // Verify rate is maintained properly
@@ -668,14 +460,14 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         assertGt(totalSupply, 0, "Total supply should be positive");
     }
 
-    function test_lendingOptimizer_accrueIfNeeded_vestingWithZeroElapsed() public {
+    function test_lendingOptimizer_accrueIfNeeded_sameBlockNoChange() public {
         _setUpHarness();
 
         deal(USDC_MONAD, address(this), 100_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Start vesting
+        // Trigger accrual
         skip(2 days);
         harness.accrueIfNeeded();
 
@@ -686,7 +478,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
 
         uint256 indexedAfterSecond = harness.exposed_totalAssetsIndexed();
 
-        // Indexed should not change (zero elapsed = zero vested)
+        // Indexed should not change
         assertEq(indexedAfterSecond, indexedAfterStart, "Indexed unchanged with zero elapsed");
     }
 
@@ -699,18 +491,17 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Start vesting
+        // Trigger accrual
         skip(2 days);
         harness.accrueIfNeeded();
 
-        // Record totalAssets before (includes vesting via _assetsToVest())
+        // Record totalAssets before
         uint256 totalAssetsBefore = harness.totalAssets();
 
-        // Skip forward (still within vesting period)
+        // Skip forward
         skip(12 hours);
 
         // Deposit should internally call accrueIfNeeded
-        // During active vesting, indexed is not updated but totalAssets() still reflects vesting
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 10_000e6);
         harness.deposit(10_000e6, address(this));
@@ -719,7 +510,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         uint256 totalAssetsAfter = harness.totalAssets();
 
         // totalAssets should have increased by approximately the deposit amount
-        // (allowing for vesting progress and cToken rounding)
+        // (allowing for yield accrual and cToken rounding)
         assertGe(
             totalAssetsAfter,
             totalAssetsBefore + 10_000e6 - 1,
@@ -734,24 +525,22 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Start vesting
+        // Trigger accrual
         skip(2 days);
         harness.accrueIfNeeded();
 
-        // Record totalAssets before (includes vesting via _assetsToVest())
+        // Record totalAssets before
         uint256 totalAssetsBefore = harness.totalAssets();
 
-        // Skip forward (still within vesting period)
+        // Skip forward
         skip(12 hours);
 
         // Withdraw should internally call accrueIfNeeded
-        // During active vesting, indexed is not updated but totalAssets() still reflects vesting
         harness.withdraw(1_000e6, address(this), address(this));
 
         uint256 totalAssetsAfter = harness.totalAssets();
 
         // totalAssets should have decreased by approximately the withdraw amount
-        // (vesting progress may add some, but net effect should show withdrawal)
         assertLe(
             totalAssetsAfter,
             totalAssetsBefore,
@@ -766,63 +555,30 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Start vesting
+        // Trigger accrual
         skip(2 days);
         harness.exchangeRateUpdated();
 
-        // Record totalAssets (includes vesting via _assetsToVest())
+        // Record totalAssets
         uint256 totalAssetsBefore = harness.totalAssets();
 
-        // Skip forward (still within vesting period)
+        // Skip forward
         skip(12 hours);
 
         // exchangeRateUpdated should internally call accrueIfNeeded
-        // During active vesting, indexed is not updated but totalAssets() reflects vesting
         harness.exchangeRateUpdated();
 
         uint256 totalAssetsAfter = harness.totalAssets();
 
-        // totalAssets should have increased due to vesting progress
+        // totalAssets should have increased due to yield accrual
         assertGe(
             totalAssetsAfter,
             totalAssetsBefore,
-            "exchangeRateUpdated should reflect vesting in totalAssets"
+            "exchangeRateUpdated should reflect yield in totalAssets"
         );
     }
 
     // ==================== FUZZ TESTS ====================
-
-    function testFuzz_lendingOptimizer_accrueIfNeeded_vestingMathConsistent(
-        uint256 elapsed
-    ) public {
-        _setUpHarnessNoFee();
-
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
-        harness.deposit(100_000e6, address(this));
-
-        // Start vesting
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        (uint256 vestingRate, uint256 vestEnd, uint256 lastClaim) = harness.exposed_getVestingData();
-
-        if (vestingRate == 0) return; // No yield to vest
-
-        // Bound elapsed to reasonable range
-        elapsed = bound(elapsed, 0, 2 days);
-        skip(elapsed);
-
-        // Calculate expected vested
-        uint256 effectiveElapsed = block.timestamp < vestEnd
-            ? block.timestamp - lastClaim
-            : vestEnd - lastClaim;
-        uint256 expectedVested = _expectedVestedAssets(vestingRate, effectiveElapsed);
-
-        uint256 actualVested = harness.exposed_assetsToVest();
-
-        assertEq(actualVested, expectedVested, "Vested assets should match formula");
-    }
 
     function testFuzz_lendingOptimizer_accrueIfNeeded_indexedNeverDecreases(
         uint256 depositAmount,
@@ -845,57 +601,6 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         uint256 indexedAfter = harness.exposed_totalAssetsIndexed();
 
         assertGe(indexedAfter, indexedBefore, "Indexed assets should never decrease");
-    }
-
-    function testFuzz_lendingOptimizer_accrueIfNeeded_totalAssetsConsistent(
-        uint256 depositAmount,
-        uint256 timeWarp
-    ) public {
-        _setUpHarnessNoFee();
-
-        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
-        timeWarp = bound(timeWarp, 1 hours, 30 days);
-
-        deal(USDC_MONAD, address(this), depositAmount);
-        IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, address(this));
-
-        skip(timeWarp);
-        harness.accrueIfNeeded();
-
-        // Verify totalAssets = indexed + pending vest
-        uint256 indexedAssets = harness.exposed_totalAssetsIndexed();
-        uint256 pending = harness.exposed_assetsToVest();
-        uint256 totalAssets = harness.totalAssets();
-
-        assertEq(totalAssets, indexedAssets + pending, "totalAssets should equal indexed + pending");
-    }
-
-    function testFuzz_lendingOptimizer_accrueIfNeeded_vestingRateFormula(
-        uint256 newYield
-    ) public {
-        _setUpHarnessNoFee();
-
-        // Test the vesting rate formula with various yield amounts
-        newYield = bound(newYield, 1e6, 1_000_000e6);
-        uint256 vestingPeriod = harness.vestingPeriod();
-
-        // Expected rate formula: newYield * WAD / vestingPeriod
-        uint256 expectedRate = _expectedVestingRate(newYield, vestingPeriod);
-
-        // The rate should be positive and proportional to yield
-        assertGt(expectedRate, 0, "Rate should be positive for non-zero yield");
-
-        // Over the full vesting period, we should get back the full yield
-        uint256 totalVested = _expectedVestedAssets(expectedRate, vestingPeriod);
-
-        // Allow for rounding error (up to 1 unit per second of vesting)
-        assertApproxEqAbs(
-            totalVested,
-            newYield,
-            vestingPeriod / WAD + 1,
-            "Full vest should return original yield"
-        );
     }
 
     function testFuzz_lendingOptimizer_accrueIfNeeded_feesNeverExceedProfit(
@@ -926,7 +631,8 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             uint256 feeAssetsValue = harness.convertToAssets(feeSharesMinted);
 
             // Fee assets should not exceed yield * fee percentage
-            uint256 maxFee = FixedPointMathLib.mulDivUp(yield, harness.fee(), WAD);
+            // fee() is in BPS, so divide by BPS (not WAD)
+            uint256 maxFee = FixedPointMathLib.mulDivUp(yield, harness.fee(), BPS);
             assertLe(
                 feeAssetsValue,
                 maxFee + 1, // +1 for rounding
