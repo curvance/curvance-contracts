@@ -833,6 +833,33 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         return _totalAssets + _assetsToVest();
     }
 
+    /// @notice Returns the shares that would be minted for a deposit, using
+    ///         fully-diluted pricing during active vesting to prevent frontrunning.
+    /// @dev During active vesting, uses fully-diluted assets (vested + unvested)
+    ///      as the denominator, giving fewer shares than convertToShares() would.
+    ///      When no vesting is active, identical to convertToShares().
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return assets;
+        return FixedPointMathLib.fullMulDiv(
+            assets,
+            supply,
+            _fullyDilutedAssets()
+        );
+    }
+
+    /// @notice Returns the assets needed to mint shares, using fully-diluted
+    ///         pricing during active vesting to prevent frontrunning.
+    function previewMint(uint256 shares) public view override returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return shares;
+        return FixedPointMathLib.fullMulDivUp(
+            shares,
+            _fullyDilutedAssets(),
+            supply
+        );
+    }
+
     /// @notice Returns the maximum amount of assets that can be withdrawn from `owner`.
     /// @dev Caps at `_totalAssets` to prevent arithmetic underflow in `_withdraw()`
     ///      during active vesting, when `totalAssets()` includes unvested yield
@@ -1011,9 +1038,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Deposit assets to the target market and track the actual recoverable value.
         uint256 trackedAssets = _depositToMarket(targetMarket, assets);
 
-        // Calculate shares based on actual tracked value and current totalAssets (pre-deposit).
-        // This ensures the exchange rate never decreases due to cToken rounding.
-        shares = convertToShares(trackedAssets);
+        // Use fully-diluted pricing via previewDeposit to prevent yield
+        // frontrunning. Pass trackedAssets (not raw assets) to account
+        // for cToken rounding.
+        shares = previewDeposit(trackedAssets);
 
         // Update _totalAssets after calculating shares.
         _totalAssets += trackedAssets;
@@ -1248,6 +1276,27 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
                         : vestingRate * (vestingEnd - lastVestingClaim)
                 ) / WAD;
         }
+    }
+
+    /// @dev Returns total assets including ALL pending yield (vested + unvested).
+    ///      Used as the denominator for deposit/mint pricing to prevent yield
+    ///      frontrunning. cTokens compute yield from a deterministic formula
+    ///      (rate * time * principal), so there is no hidden yield at any point.
+    ///      The optimizer discovers yield by diffing cToken values against its
+    ///      tracked `_totalAssets` — yield exists in the cTokens before the
+    ///      optimizer recognizes it, creating an exploitable window that
+    ///      fully-diluted pricing closes. When no vesting is active, equals
+    ///      totalAssets().
+    function _fullyDilutedAssets() internal view returns (uint256) {
+        uint256 vestingData = _vestingData;
+        uint256 vestingRate = uint176(vestingData);
+        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
+            return _totalAssets + vestingRate * (vestingEnd - lastVestingClaim) / WAD;
+        }
+        return _totalAssets;
     }
 
     /// @dev Checks if deposits are paused.

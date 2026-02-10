@@ -52,27 +52,27 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         expectedShares = (assets * totalSupplyBefore) / totalAssetsBefore;
     }
 
-    /// @dev Verifies that shares minted match the exchange rate invariant
-    /// @notice IMPORTANT: totalAssetsBefore/totalSupplyBefore must be captured AFTER
-    ///         calling accrueIfNeeded(), since deposit() calls _accrueIfNeeded() internally
-    ///         before calculating shares.
+    /// @dev Verifies that shares minted match the previewDeposit invariant.
+    /// @notice Uses previewDeposit() as the reference, which includes fully-diluted
+    ///         pricing during active vesting to prevent yield frontrunning.
+    ///         Must be called AFTER accrueIfNeeded() to match deposit()'s internal state.
     /// @param assets The deposited assets
     /// @param sharesMinted The shares that were minted
-    /// @param totalAssetsBefore Total assets before deposit (post-accrual)
-    /// @param totalSupplyBefore Total supply before deposit (post-accrual)
     function _assertSharesMatchInvariant(
         uint256 assets,
         uint256 sharesMinted,
-        uint256 totalAssetsBefore,
-        uint256 totalSupplyBefore
-    ) internal pure {
-        uint256 expectedShares = _calculateExpectedShares(assets, totalAssetsBefore, totalSupplyBefore);
-        
-        // Allow for 1 wei rounding difference due to integer division
-        uint256 diff = sharesMinted > expectedShares 
-            ? sharesMinted - expectedShares 
+        uint256,
+        uint256
+    ) internal view {
+        uint256 expectedShares = optimizer.previewDeposit(assets);
+
+        // Allow for small difference due to cToken rounding in _depositToMarket.
+        // The actual deposit tracks assets via cToken.convertToAssets(cToken.deposit()),
+        // which may differ slightly from the raw `assets` input.
+        uint256 diff = sharesMinted > expectedShares
+            ? sharesMinted - expectedShares
             : expectedShares - sharesMinted;
-        
+
         require(diff <= 1, "Shares minted deviate from exchange rate invariant");
     }
 
