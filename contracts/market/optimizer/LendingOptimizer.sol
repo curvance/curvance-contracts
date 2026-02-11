@@ -579,11 +579,15 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (fee == 0 && newFeeBps > 0) {
             uint256 supply = totalSupply();
             if (supply > 0) {
-                exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
+                uint256 exchangeRateCurrent = FixedPointMathLib.mulDiv(
                     WAD,
                     totalAssets(),
                     supply
                 );
+                // Never lower the watermark.
+                if (exchangeRateCurrent > exchangeRateHighWatermark) {
+                    exchangeRateHighWatermark = exchangeRateCurrent;
+                }
             }
         }
 
