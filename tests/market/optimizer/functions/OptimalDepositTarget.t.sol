@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -21,7 +22,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
 
         _setUpThreeMarkets();
 
-        uint256 targetDeposit = optimizer.optimalDepositTarget(1000e6);
+        uint256 targetDeposit = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
 
         // Verify the target deposits a valid index
         // It chooses the market with the highest projected rate
@@ -33,7 +34,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
 
     function test_lendingOptimizer_optimalDepositTarget_success_oneMarketFirstDeposit() public {
         _setUpOneMarket();
-        uint256 targetDeposit = optimizer.optimalDepositTarget(1000e6);
+        uint256 targetDeposit = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
         assertEq(targetDeposit, 0);
     }
 
@@ -41,7 +42,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Small deposit that won't push any market over cap
-        uint256 targetDeposit = optimizer.optimalDepositTarget(100e6);
+        uint256 targetDeposit = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(100e6);
 
         // Should pick market with highest projected supply rate
         // Market 1 (cUSDC_WBTC_MARKET) has highest utilization -> highest rate
@@ -52,7 +53,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Tiny deposit - 1 USDC
-        uint256 targetDeposit = optimizer.optimalDepositTarget(1e6);
+        uint256 targetDeposit = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1e6);
 
         // Should still pick optimal market
         assertLt(targetDeposit, 3);
@@ -67,11 +68,11 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), largeDeposit);
 
         // Get optimal target and deposit there
-        uint256 firstTarget = optimizer.optimalDepositTarget(largeDeposit);
+        uint256 firstTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(largeDeposit);
         optimizer.deposit(largeDeposit, address(this), optimizer.approvedCTokensList(firstTarget));
 
         // Now check optimal target for another deposit
-        uint256 secondTarget = optimizer.optimalDepositTarget(50_000e6);
+        uint256 secondTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(50_000e6);
 
         // Should return a valid market index
         assertLt(secondTarget, 3);
@@ -93,7 +94,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         optimizer.deposit(hugeDeposit, address(this), cUSDC_WMON_MARKET);
 
         // Now optimal target should consider cap headroom
-        uint256 target = optimizer.optimalDepositTarget(500_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(500_000e6);
 
         // Should return a valid index
         assertLt(target, 3);
@@ -105,9 +106,9 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Call multiple times with same input - should be deterministic
-        uint256 target1 = optimizer.optimalDepositTarget(1000e6);
-        uint256 target2 = optimizer.optimalDepositTarget(1000e6);
-        uint256 target3 = optimizer.optimalDepositTarget(1000e6);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
+        uint256 target3 = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
 
         assertEq(target1, target2);
         assertEq(target2, target3);
@@ -124,10 +125,10 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         optimizer.deposit(seedDeposit, address(this), cUSDC_WMON_MARKET);
 
         // Small deposit fits under market 0's remaining cap headroom.
-        uint256 targetSmall = optimizer.optimalDepositTarget(100e6);
+        uint256 targetSmall = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(100e6);
         // Large deposit would push market 0 over its 60% cap, forcing
         // the optimizer to pick a different market.
-        uint256 targetLarge = optimizer.optimalDepositTarget(500_000e6);
+        uint256 targetLarge = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(500_000e6);
 
         assertLt(targetSmall, 3);
         assertLt(targetLarge, 3);
@@ -140,7 +141,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Zero deposit should still return a valid target
-        uint256 target = optimizer.optimalDepositTarget(0);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(0);
         assertLt(target, 3);
     }
 
@@ -154,7 +155,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         allocationCapsBps[0] = 6_000;
         allocationCapsBps[1] = 5_000;
 
-        LendingOptimizer uninitOptimizer = new LendingOptimizer(
+        LendingOptimizerHarness uninitOptimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -170,7 +171,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
     function test_lendingOptimizer_optimalDepositTarget_success_twoMarkets() public {
         _setUpTwoMarkets();
 
-        uint256 target = optimizer.optimalDepositTarget(1000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
 
         // Should be either 0 or 1
         assertLt(target, 2);
@@ -186,7 +187,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         optimizer.deposit(deposit1, address(this), cUSDC_WMON_MARKET);
 
         // Check optimal for next deposit
-        uint256 target = optimizer.optimalDepositTarget(50_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(50_000e6);
         assertLt(target, 2);
     }
 
@@ -194,7 +195,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Extremely large deposit - should handle gracefully
-        uint256 target = optimizer.optimalDepositTarget(type(uint128).max);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(type(uint128).max);
 
         // Should return valid index (likely fallback to 0 if all caps exceeded)
         assertLt(target, 3);
@@ -215,7 +216,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
             uint256 expectedTarget = _calculateExpectedTarget(depositAmount);
 
             // Get actual target from the optimizer
-            uint256 actualTarget = optimizer.optimalDepositTarget(depositAmount);
+            uint256 actualTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(depositAmount);
 
             // Verify they match
             assertEq(
@@ -281,12 +282,12 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
     function test_lendingOptimizer_optimalDepositTarget_success_afterTimePassesRatesChange() public {
         _setUpThreeMarkets();
 
-        uint256 target1 = optimizer.optimalDepositTarget(1000e6);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
 
         // Skip forward to simulate yield accrual
         skip(1 days);
 
-        uint256 target2 = optimizer.optimalDepositTarget(1000e6);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(1000e6);
 
         // Both should be valid (may or may not be equal depending on rate changes)
         assertLt(target1, 3);

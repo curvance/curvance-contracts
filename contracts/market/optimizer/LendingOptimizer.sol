@@ -86,13 +86,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
 
-    /// @dev Maximum cToken rounding buffer (10,000 wei).
-    uint256 internal constant _MAXIMUM_ROUNDING_BUFFER = 10_000;
-    /// @dev Minimum cToken rounding buffer (100 wei).
-    /// Prevents a harvester from setting buffer to 0, which would cause
-    /// any 1-wei rounding loss to trigger false bad debt detection.
-    uint256 internal constant _MINIMUM_ROUNDING_BUFFER = 1000;
-
     /// STORAGE ///
 
     /// @notice The underlying asset address.
@@ -116,14 +109,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @notice Whether deposits are enabled.
     /// @dev 0 = uninitialized; 1 = active; 2 = paused.
     uint8 public mintPaused;
-    /// @notice The tolerance (in wei) for bad debt detection.
-    /// @dev Accounts for cumulative cToken rounding losses from rebalancing.
-    ///      Applied on every accrual.
-    ///      Higher values allow more rebalances before triggering false positives.
-    ///      Should be adjusted based on rebalancing frequency and vault AUM.
-    ///      Default: 1000 wei (covers ~500 rebalance operations).
-    uint256 public roundingBuffer;
-
     /// EVENTS ///
 
     event MarketAdded(address indexed cToken, uint256 allocationCap);
@@ -133,8 +118,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     event Rebalanced(uint256 totalAssets, address[] markets, uint256[] allocations);
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
-    event RoundingBufferUpdated(uint256 newBuffer);
-    event BadDebtDetected(uint256 expectedAssets, uint256 actualAssets, uint256 loss);
 
     /// ERRORS ///
 
@@ -208,8 +191,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         approvedCTokensList = _approvedCTokens;
         // Store the high watermark exchange rate as 100% (WAD).
         exchangeRateHighWatermark = WAD;
-        // Store the default rebalance rounding buffer.
-        roundingBuffer = _MINIMUM_ROUNDING_BUFFER;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -262,7 +243,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        shares = _processDeposit(assets, receiver, approvedCTokensList[optimalDepositTarget(assets)]);
+        shares = _processDeposit(assets, receiver, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
     }
 
     /// @notice Deposits assets into a specific market and mints shares to receiver.
@@ -294,7 +275,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        assets = _mint(shares, receiver, approvedCTokensList[optimalDepositTarget(convertToAssets(shares))]);
+        assets = convertToAssets(shares);
+        _processDeposit(assets, receiver, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
     }
 
     /// @notice Mints shares by depositing into a specific market.
@@ -312,7 +294,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
-        assets = _mint(shares, receiver, targetMarket);
+        assets = convertToAssets(shares);
+        _processDeposit(assets, receiver, targetMarket);
     }
 
     /// @notice Standard ERC4626 withdraw - withdraws from optimal market.
@@ -328,7 +311,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _withdraw(assets, shares, receiver, owner, approvedCTokensList[optimalWithdrawalTarget(assets)]);
+        _withdraw(assets, shares, receiver, owner, approvedCTokensList[_optimalTarget(assets, false /* withdrawal */)]);
     }
 
     /// @notice Withdraws assets from a specific market.
@@ -363,7 +346,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _withdraw(assets, shares, receiver, owner, approvedCTokensList[optimalWithdrawalTarget(assets)]);
+        _withdraw(assets, shares, receiver, owner, approvedCTokensList[_optimalTarget(assets, false /* withdrawal */)]);
     }
 
     /// @notice Redeems shares from a specific market.
@@ -406,7 +389,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Revert if the caller does not have harvester permissions.
         _hasHarvesterPermissions();
 
-        // Update vesting data and accrue protocol's performance fee.
+        // Accrue yield and charge protocol's performance fee.
         _accrueIfNeeded();
 
         // Cache approved markets length.
@@ -476,7 +459,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Validate remaining allocation caps sum to >= 100%.
         _validateAllocationCaps(cTokenAddr, 0);
 
-        // Update vesting data and accrue protocol's performance fee.
+        // Accrue yield and charge protocol's performance fee.
         _accrueIfNeeded();
 
         // Redeem all shares from the market being removed.
@@ -622,22 +605,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         emit ActionPaused("Mint Paused", state);
     }
 
-    /// @notice Updates the bad debt detection tolerance.
-    /// @dev Requires harvester permissions. The tolerance should be set based on
-    ///      expected rebalancing frequency and vault AUM. Higher AUM or more frequent
-    ///      rebalancing may require a larger tolerance to prevent false positives
-    ///      from cToken rounding losses.
-    /// @param newTolerance The new tolerance value in wei.
-    function setRoundingBuffer(uint256 newTolerance) external {
-        _hasHarvesterPermissions();
-
-        if (newTolerance < _MINIMUM_ROUNDING_BUFFER || newTolerance > _MAXIMUM_ROUNDING_BUFFER) revert LendingOptimizer__InvalidParameter();
-
-        roundingBuffer = newTolerance;
-
-        emit RoundingBufferUpdated(newTolerance);
-    }
-
     /// @notice Accrues interest, absorbs yield, charges fees, and returns exchange rate.
     /// @dev Triggers full state update: accrues underlying markets, absorbs
     ///      yield, and charges performance fees if rate exceeds watermark.
@@ -659,133 +626,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     }
 
     /// VIEW FUNCTIONS ///
-
-    /// @notice Finds the optimal market for depositing assets.
-    /// @dev Uses previewAssetImpact() to find market with highest projected rate after deposit.
-    ///      The algorithm prioritizes markets that:
-    ///      1. Have remaining allocation cap headroom.
-    ///      2. Would yield the highest supply rate after the deposit.
-    /// @param assets Amount of assets to deposit.
-    /// @return targetIndex Index of the optimal target market.
-    function optimalDepositTarget(uint256 assets) public view returns (uint256 targetIndex) {
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Revert if there are no approved markets.
-        if (l == 0) revert LendingOptimizer__MarketNotApproved();
-        // If only one market exists, return index 0 immediately.
-        if (l == 1) return 0;
-
-        // Get total assets currently held across all markets.
-        uint256 ta = totalAssets();
-
-        // Calculate the new total assets after the deposit.
-        // This is used to compute allocation percentages against caps.
-        uint256 newTotal = ta + assets;
-
-        // Track the highest projected supply rate found across viable markets.
-        uint256 maxProjectedRate;
-
-        // Flag to track if any market has cap headroom for the deposit.
-        bool foundViable;
-
-        // Iterate through all approved markets to find the optimal target.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken address for this market.
-            address cTokenAddr = approvedCTokensList[i];
-
-            // Calculate the current assets held by this optimizer in the market.
-            uint256 marketAssets = _getMarketAssets(cTokenAddr);
-
-            // Get the allocation cap for this market (in WAD, 1e18 = 100%).
-            uint256 cap = allocationCaps[cTokenAddr];
-
-            // Calculate the maximum assets this market can hold based on its cap.
-            // maxAllocation = (cap * newTotal) / WAD
-            uint256 maxAllocation = FixedPointMathLib.mulDiv(cap, newTotal, WAD);
-
-            // Only consider markets that have remaining allocation headroom.
-            // If maxAllocation <= marketAssets, the market is at or over its cap.
-            if (maxAllocation > marketAssets) {
-                // Mark that we found at least one viable market.
-                foundViable = true;
-
-                // Calculate the projected supply rate after depositing `assets`
-                // into this market using the market's interest rate model.
-                uint256 projectedRate = previewAssetImpact(
-                    IBorrowableCToken(cTokenAddr),
-                    assets,
-                    true
-                );
-
-                // Update the target if this market offers a higher projected rate.
-                if (projectedRate > maxProjectedRate) {
-                    maxProjectedRate = projectedRate;
-                    targetIndex = i;
-                }
-            }
-        }
-
-        // If no market has cap headroom, targetIndex defaults to 0 (first market).
-    }
-
-    /// @notice Finds the optimal market for withdrawing assets.
-    /// @dev Uses previewAssetImpact() to find market with lowest projected rate after withdrawal.
-    ///      The algorithm prioritizes markets that:
-    ///      1. Have sufficient liquidity to fulfill the withdrawal.
-    ///      2. Would have the lowest supply rate after the withdrawal (weakest performer).
-    ///      This strategy preserves capital in higher-yielding markets.
-    /// @param assets Amount of assets to withdraw.
-    /// @return targetIndex Index of the optimal target market.
-    function optimalWithdrawalTarget(uint256 assets) public view returns (uint256 targetIndex) {
-        // Cache the number of approved markets.
-        uint256 l = approvedCTokensList.length;
-
-        // Revert if there are no approved markets.
-        if (l == 0) revert LendingOptimizer__MarketNotApproved();
-        // If only one market exists, return index 0 immediately.
-        if (l == 1) return 0;
-
-        // Track the lowest projected supply rate found across viable markets.
-        // Initialize to max uint256 so any valid rate will be lower.
-        uint256 minProjectedRate = type(uint256).max;
-
-        // Flag to track if any market has sufficient liquidity for the withdrawal.
-        bool foundViable;
-
-        // Iterate through all approved markets to find the optimal target.
-        for (uint256 i; i < l; ++i) {
-            // Cache the cToken interface for this market.
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
-
-            // Calculate the current assets held by this optimizer in the market.
-            uint256 marketAssets = _getMarketAssets(address(cToken));
-
-            // Only consider markets that meet both conditions:
-            // 1. The optimizer has enough cTokens to cover the withdrawal.
-            // 2. The market has enough idle liquidity (assets not lent out).
-            if (marketAssets >= assets && cToken.assetsHeld() >= assets) {
-                // Mark that we found at least one viable market.
-                foundViable = true;
-
-                // Calculate the projected supply rate after withdrawing `assets`
-                // from this market using the market's interest rate model.
-                uint256 projectedRate = previewAssetImpact(cToken, assets, false);
-
-                // Update the target if this market has a lower projected rate.
-                // Withdrawing from the weakest performer preserves yield in
-                // higher-performing markets, optimizing overall returns.
-                if (projectedRate < minProjectedRate) {
-                    minProjectedRate = projectedRate;
-                    targetIndex = i;
-                }
-            }
-        }
-
-        // Revert if no market has sufficient liquidity for the withdrawal.
-        // This prevents partial withdrawals that would require multiple markets.
-        if (!foundViable) revert LendingOptimizer__InsufficientLiquidity();
-    }
 
     /// @notice Returns total assets held across all approved markets.
     /// @dev Unlike totalAssetsUpdated(), this does not trigger interest accrual.
@@ -856,7 +696,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         } else {
             // If market doesn't have enough liquidity, return max uint256 to signal
             // this market is not viable for withdrawals of this size.
-            // This ensures it won't be selected in optimalWithdrawalTarget
+            // This ensures it won't be selected as the optimal withdrawal target
             // (which picks the lowest rate).
             if (assets > currentAssetsHeld) {
                 return type(uint256).max;
@@ -910,6 +750,86 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @dev Selects the best market index for a deposit or withdrawal.
+    ///
+    ///      The algorithm iterates every approved market and applies two
+    ///      filters depending on the direction:
+    ///
+    ///      DEPOSITS  – A market is "viable" when its allocation cap still
+    ///                   has headroom for more assets.  Among viable markets
+    ///                   the one whose interest-rate model projects the
+    ///                   **highest** supply rate after the deposit wins.
+    ///                   If no market has headroom, falls back to index 0.
+    ///
+    ///      WITHDRAWALS – A market is "viable" when (a) this optimizer holds
+    ///                    enough cToken shares to cover the withdrawal AND
+    ///                    (b) the market itself has enough idle liquidity.
+    ///                    Among viable markets the one that projects the
+    ///                    **lowest** supply rate after the withdrawal wins,
+    ///                    so capital is pulled from the weakest performer
+    ///                    first, preserving yield in stronger markets.
+    ///                    Reverts if no market qualifies.
+    ///
+    /// @param assets  Amount of underlying assets to deposit or withdraw.
+    /// @param isDeposit  `true` for a deposit, `false` for a withdrawal.
+    /// @return targetIndex  Index into `approvedCTokensList` of the chosen market.
+    function _optimalTarget(uint256 assets, bool isDeposit) internal view returns (uint256 targetIndex) {
+        uint256 l = approvedCTokensList.length;
+
+        // Safety: revert if the market list is empty.
+        if (l == 0) revert LendingOptimizer__MarketNotApproved();
+        // Short-circuit: only one market means no comparison needed.
+        if (l == 1) return 0;
+
+        // For deposits we want the highest rate  → start at 0 (any rate beats it).
+        // For withdrawals we want the lowest rate → start at max (any rate beats it).
+        uint256 optimalRate = isDeposit ? 0 : type(uint256).max;
+        bool foundViable;
+
+        // Deposits need `newTotal` (current assets + incoming deposit) so we
+        // can evaluate each market's allocation as a percentage of the new total.
+        uint256 newTotal;
+        if (isDeposit) newTotal = totalAssets() + assets;
+
+        for (uint256 i; i < l; ++i) {
+            address cTokenAddr = approvedCTokensList[i];
+            // How many underlying assets this optimizer currently holds in market `i`.
+            uint256 marketAssets = _getMarketAssets(cTokenAddr);
+
+            // --- Viability check (direction-dependent) ---
+            bool viable;
+            if (isDeposit) {
+                // Cap-based: maximum assets this market may hold after the deposit.
+                // maxAllocation = allocationCap * newTotal / WAD
+                uint256 maxAllocation = FixedPointMathLib.mulDiv(allocationCaps[cTokenAddr], newTotal, WAD);
+                // Viable only if there is room under the cap.
+                viable = maxAllocation > marketAssets;
+            } else {
+                // Liquidity-based: the optimizer must own enough shares AND the
+                // market must hold enough idle (unlent) assets.
+                viable = marketAssets >= assets && IBorrowableCToken(cTokenAddr).assetsHeld() >= assets;
+            }
+
+            if (viable) {
+                foundViable = true;
+
+                // Project the supply rate *after* the action using the market's IRM.
+                uint256 projectedRate = previewAssetImpact(IBorrowableCToken(cTokenAddr), assets, isDeposit);
+
+                // Deposits: pick the highest projected rate (maximize yield).
+                // Withdrawals: pick the lowest projected rate (drain weakest first).
+                if (isDeposit ? projectedRate > optimalRate : projectedRate < optimalRate) {
+                    optimalRate = projectedRate;
+                    targetIndex = i;
+                }
+            }
+        }
+
+        // Deposits: if every market is at/over cap, `targetIndex` stays 0 (first market).
+        // Withdrawals: revert – partial multi-market withdrawals are not supported.
+        if (!isDeposit && !foundViable) revert LendingOptimizer__InsufficientLiquidity();
+    }
+
     /// @dev Accrues interest on all markets and returns total assets.
     function _accrueMarkets() internal returns (uint256 ta) {
         uint256 l = approvedCTokensList.length;
@@ -936,26 +856,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // cToken share math involves two rounding operations (assets→shares, shares→assets)
         // which can cause a 1 wei difference between input and recoverable value.
         // Using convertToAssets ensures _totalAssets stays in sync with what
-        // _accrueMarkets() reports, preventing false bad debt detection.
+        // _accrueMarkets() reports.
         trackedAssets = cToken_.convertToAssets(cToken_.deposit(assets, address(this)));
     }
 
-    /// @dev Mint path - input is shares, returns assets.
-    /// @param shares The target amount of shares to mint.
-    /// @param receiver The address to receive the minted shares.
-    /// @param targetMarket The target cToken market to deposit into.
-    /// @return assets The amount of assets deposited.
-    function _mint(
-        uint256 shares,
-        address receiver,
-        address targetMarket
-    ) internal returns (uint256 assets) {
-        assets = convertToAssets(shares);
-        // Note: actual shares minted may differ slightly due to cToken rounding.
-        _processDeposit(assets, receiver, targetMarket);
-    }
-
-    /// @dev Core deposit processing shared by _deposit and _mint.
+    /// @dev Core deposit processing shared by deposit and mint.
     ///      Handles transfer, cToken deposit, share calculation, and state updates.
     /// @param assets The amount of assets to deposit.
     /// @param receiver The address to receive the minted shares.
@@ -1074,60 +979,34 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      an attacker depositing at an accrual boundary gets no excess yield
     ///      because yield is already priced in.
     ///
-    ///      Bad Debt Detection
-    ///      If actual market value (rawTa) falls below tracked value
-    ///      (`_totalAssets`) by more than `roundingBuffer`, this indicates
-    ///      real bad debt. The tolerance accounts for cumulative cToken
-    ///      rounding losses from frequent rebalancing. Curators can adjust
-    ///      via `setRoundingBuffer()`.
-    ///
     ///      Performance Fees
     ///      Fees are charged on yield above a high watermark, ensuring fees
     ///      are only taken on new all-time-high profits. This prevents
     ///      double-charging after drawdowns recover.
     function _accrueIfNeeded() internal {
-        // =====================================================================
-        // STEP 1: Sync with underlying cToken markets
-        // =====================================================================
+        // Sync with underlying cToken markets and absorb yield
         uint256 rawTa = _accrueMarkets();
-        uint256 ta = _totalAssets;
-
-        // =====================================================================
-        // STEP 2: Bad debt detection
-        // =====================================================================
-        if (rawTa + roundingBuffer < ta) {
-            emit BadDebtDetected(ta, rawTa, ta - rawTa);
-            _totalAssets = rawTa;
-            return;
-        }
-
-        // =====================================================================
-        // STEP 3: Absorb yield immediately
-        // =====================================================================
         _totalAssets = rawTa;
 
-        // =====================================================================
-        // STEP 4: Charge performance fee on absorbed yield
-        // =====================================================================
+        // Charge performance fee on absorbed yield
         if (fee > 0) {
             uint256 supply = totalSupply();
             if (supply > 0) {
-                uint256 currentAssets = rawTa;
-                uint256 currentRate = FixedPointMathLib.mulDiv(WAD, currentAssets, supply);
+                uint256 currentRate = FixedPointMathLib.mulDiv(WAD, rawTa, supply);
                 uint256 highRate = exchangeRateHighWatermark;
 
                 if (currentRate > highRate) {
-                    uint256 profit = currentAssets - FixedPointMathLib.mulDiv(highRate, supply, WAD);
+                    uint256 profit = rawTa - FixedPointMathLib.mulDiv(highRate, supply, WAD);
                     uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
 
                     if (feeAssets > 0) {
                         uint256 feeShares = FixedPointMathLib.fullMulDivUp(
-                            feeAssets, supply, currentAssets - feeAssets
+                            feeAssets, supply, rawTa - feeAssets
                         );
                         address dao = centralRegistry.daoAddress();
                         _mint(dao, feeShares);
                         exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
-                            WAD, currentAssets, supply + feeShares
+                            WAD, rawTa, supply + feeShares
                         );
                         emit PerformanceFeeAccrued(feeShares, dao);
                     } else {

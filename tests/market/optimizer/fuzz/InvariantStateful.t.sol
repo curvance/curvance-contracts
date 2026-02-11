@@ -167,7 +167,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         }
     }
 
-    /// @notice totalAssets should track the actual sum of market values within the rounding buffer.
+    /// @notice totalAssets should track the actual sum of market values closely.
     function invariant_totalAssetsTracking() public view {
         uint256 numMarkets = harness.numApprovedMarkets();
         uint256 sumMarkets;
@@ -179,7 +179,6 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         }
 
         uint256 ta = harness.totalAssets();
-        uint256 buffer = harness.roundingBuffer();
 
         // totalAssets may lag behind sumMarkets (new yield not yet detected)
         // or may be slightly above.
@@ -187,7 +186,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         if (ta > sumMarkets) {
             assertLe(
                 ta - sumMarkets,
-                buffer + ta / 100, // Allow buffer + 1% for yield detection timing difference
+                ta / 100, // Allow 1% for yield detection timing difference
                 "INVARIANT VIOLATED: totalAssets far exceeds actual market sum"
             );
         }

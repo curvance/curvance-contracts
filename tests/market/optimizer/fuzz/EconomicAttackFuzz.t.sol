@@ -232,9 +232,8 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
     // TEST 4: Rounding Loss Accumulation
     // =========================================================================
 
-    /// @notice Multiple rebalances should not cause _totalAssets to drift beyond
-    ///         roundingBuffer, the exchange rate to meaningfully decrease, or
-    ///         false bad debt detection.
+    /// @notice Multiple rebalances should not cause _totalAssets to drift
+    ///         significantly or the exchange rate to meaningfully decrease.
     function testFuzz_roundingLossAccumulation(
         uint256 numRebalances,
         uint256 rebalanceSize
@@ -271,8 +270,6 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         roundingHarness.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
 
         uint256 exchangeRateBefore = roundingHarness.exchangeRate();
-        uint256 rBuffer = roundingHarness.roundingBuffer();
-        bool badDebtTriggered = false;
 
         // Perform many rebalances back and forth.
         for (uint256 i = 0; i < numRebalances; i++) {
@@ -333,27 +330,11 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             }
         }
 
-        // Check _totalAssets drift.
-        uint256 rawTa = roundingHarness.exposed_accrueMarkets();
-        uint256 trackedTa = roundingHarness.exposed_totalAssetsIndexed();
-
-        // Drift should be within roundingBuffer.
-        if (rawTa >= trackedTa) {
-            // No concern if actual exceeds tracked; that means yield, not loss.
-        } else {
-            uint256 drift = trackedTa - rawTa;
-            assertLe(
-                drift,
-                rBuffer,
-                "totalAssets drift exceeded roundingBuffer"
-            );
-        }
-
         // Exchange rate should not have decreased by more than negligible amount.
-        uint256 exchangeRateAfter = roundingHarness.exchangeRate();
         // Each rebalance round-trip (withdraw + deposit) can lose a small amount
         // from cToken share truncation. The loss scales with both the number of
         // rebalances and the rebalance size. Use a relative tolerance (0.001%).
+        uint256 exchangeRateAfter = roundingHarness.exchangeRate();
         assertGe(
             exchangeRateAfter + exchangeRateBefore / 100_000,
             exchangeRateBefore,
@@ -362,81 +343,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
-    // TEST 5: Bad Debt Detection
-    // =========================================================================
-
-    /// @notice If a cToken loses value (bad debt), the optimizer
-    ///         should detect it and sync _totalAssets if loss > roundingBuffer.
-    function testFuzz_badDebtDetection(
-        uint256 lossAmount
-    ) public {
-        lossAmount = bound(lossAmount, 1, 100_000e6);
-
-        // Deposit.
-        uint256 depositAmount = 2_000_000e6;
-        deal(USDC_MONAD, user1, depositAmount);
-        vm.startPrank(user1);
-        IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-        vm.stopPrank();
-
-        // Wait for yield to accrue, then trigger accrual.
-        skip(2 days);
-        harness.accrueIfNeeded();
-
-        uint256 totalAssetsBefore = harness.totalAssets();
-        uint256 rBuffer = harness.roundingBuffer();
-
-        // Compute how much the optimizer holds in market 0.
-        uint256 optimizerCTokenBal = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness));
-        uint256 currentMarketValue = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(optimizerCTokenBal);
-
-        // Mock bad debt: make cToken's convertToAssets return less.
-        uint256 effectiveLoss = lossAmount;
-        if (effectiveLoss > currentMarketValue) {
-            effectiveLoss = currentMarketValue / 2;
-        }
-        uint256 reducedValue = currentMarketValue - effectiveLoss;
-
-        vm.mockCall(
-            cUSDC_WMON_MARKET,
-            abi.encodeWithSelector(IBorrowableCToken.convertToAssets.selector, optimizerCTokenBal),
-            abi.encode(reducedValue)
-        );
-
-        // Trigger accrual with bad debt.
-        harness.exposed_accrueIfNeeded();
-
-        // Clear mock for assertions.
-        vm.clearMockedCalls();
-
-        // Re-mock permissions (cleared by clearMockedCalls).
-        vm.mockCall(
-            address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
-            abi.encode(true)
-        );
-        vm.mockCall(
-            address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
-            abi.encode(true)
-        );
-
-        if (effectiveLoss > rBuffer) {
-            // Bad debt should have been detected: _totalAssets synced down.
-            uint256 trackedTa = harness.exposed_totalAssetsIndexed();
-            assertLt(
-                trackedTa,
-                totalAssetsBefore,
-                "totalAssets should decrease after bad debt detection"
-            );
-        }
-        // If loss <= roundingBuffer, no bad debt should be triggered.
-        // The system tolerates small rounding losses.
-    }
-
-    // =========================================================================
-    // TEST 6: Fee Extraction Timing
+    // TEST 5: Fee Extraction Timing
     // =========================================================================
 
     /// @notice Varying fee rates across multiple yield cycles should correctly use

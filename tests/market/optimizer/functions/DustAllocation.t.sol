@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -37,7 +38,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         allocationCapsBps[1] = 10_000; // 100%
         allocationCapsBps[2] = 10_000; // 100%
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -107,7 +108,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         _createExtremeImbalance();
 
         // Try to withdraw 1000 USDC - dust markets can't fulfill this.
-        uint256 target = optimizer.optimalWithdrawalTarget(1000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(1000e6);
 
         // Should select market 0 (the only one with sufficient balance).
         assertEq(target, 0, "Should skip dust markets and select market 0");
@@ -148,7 +149,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
 
         // This is a tricky case - can we withdraw exactly the dust amount?
         // The optimal target might not select this market due to liquidity checks.
-        uint256 target = optimizer.optimalWithdrawalTarget(dustMarketAssets);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(dustMarketAssets);
 
         // Log for debugging.
         emit log_named_uint("Dust market assets", dustMarketAssets);

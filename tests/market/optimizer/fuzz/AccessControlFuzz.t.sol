@@ -120,21 +120,6 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         optimizer.setMintPaused(true);
     }
 
-    /// @notice Random callers without harvester permissions cannot setRoundingBuffer.
-    function testFuzz_unauthorized_setRoundingBuffer(address caller) public {
-        vm.assume(caller != address(0));
-
-        vm.mockCall(
-            address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, caller),
-            abi.encode(false)
-        );
-
-        vm.prank(caller);
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.setRoundingBuffer(5000);
-    }
-
     /// @notice Random callers without market permissions cannot initializeDeposits.
     function testFuzz_unauthorized_initializeDeposits(address caller) public {
         vm.assume(caller != address(0));

@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -31,7 +32,7 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         allocationCapsBps[1] = 4_000;
         allocationCapsBps[2] = 1_000;
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -312,7 +313,7 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         uint256 expectedAssets = optimizer.previewRedeem(sharesToRedeem);
 
         // Get the expected optimal target before redeem
-        uint256 expectedTarget = optimizer.optimalWithdrawalTarget(expectedAssets);
+        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(expectedAssets);
         address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
 
         // Get market balance before
@@ -679,8 +680,9 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
 
         uint256 totalAssetsAfter = optimizer.totalAssets();
 
-        // Total assets should decrease by exactly the amount withdrawn
-        assertEq(totalAssetsBefore - totalAssetsAfter, assets, "Total assets should decrease by redeemed amount");
+        // Allow 0-2 wei variance due to cToken interest accrual between
+        // the totalAssets() read and the redeem() call (which accrues internally).
+        assertApproxEqAbs(totalAssetsBefore - totalAssetsAfter, assets, 2, "Total assets should decrease by redeemed amount");
 
         vm.stopPrank();
     }

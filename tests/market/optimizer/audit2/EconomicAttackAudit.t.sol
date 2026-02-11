@@ -156,97 +156,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
-    // =====================================================================
-    // A. MALICIOUS HARVESTER: ROUNDING BUFFER MANIPULATION
-    // =====================================================================
-
-    /// @notice Tests whether a malicious harvester can trigger false bad debt
-    ///         by setting minimum buffer and doing rapid rebalances.
-    /// @dev Each rebalance (withdraw from A, deposit to B) loses ~2 wei from
-    ///      cToken rounding. With buffer at 1000, ~500 rebalances needed.
-    ///      We test with a smaller number to show the rounding accumulation.
-    function test_attack_A_roundingBufferManipulation_rapidRebalance() public {
-        _setUpHarnessTwoMarketsNoFee();
-
-        // Deposit to both markets.
-        _userDeposit(victim, 500_000e6);
-        _userDepositToMarket(victim, 500_000e6, cUSDC_WBTC_MARKET);
-
-        // Let yield accrue and start vesting.
-        skip(1 days);
-        harness.exchangeRateUpdated();
-
-        // Harvester sets rounding buffer to minimum.
-        vm.prank(maliciousHarvester);
-        harness.setRoundingBuffer(1000);
-        assertEq(harness.roundingBuffer(), 1000, "Buffer should be 1000");
-
-        // Record state before rebalances.
-        uint256 totalAssetsBefore = harness.totalAssets();
-        uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
-
-        console2.log("Before rapid rebalances:");
-        console2.log("  totalAssets():", totalAssetsBefore);
-        console2.log("  _totalAssets:", indexedBefore);
-        console2.log("  roundingBuffer:", harness.roundingBuffer());
-
-        // Perform rapid round-trip rebalances to accumulate rounding losses.
-        // Each round-trip: withdraw from market 0, deposit to market 1, then reverse.
-        uint256 rebalanceAmount = 10_000e6; // 10k USDC per move
-        uint256 numRebalances = 20;
-
-        for (uint256 i = 0; i < numRebalances; i++) {
-            // Move from market 0 to market 1.
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-            actions[0] = LendingOptimizer.RebalanceAction({
-                cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: rebalanceAmount,
-                isDeposit: false
-            });
-            actions[1] = LendingOptimizer.RebalanceAction({
-                cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: rebalanceAmount,
-                isDeposit: true
-            });
-
-            vm.prank(maliciousHarvester);
-            harness.rebalance(actions);
-
-            // Move back from market 1 to market 0.
-            LendingOptimizer.RebalanceAction[] memory reverseActions = new LendingOptimizer.RebalanceAction[](2);
-            reverseActions[0] = LendingOptimizer.RebalanceAction({
-                cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: rebalanceAmount,
-                isDeposit: true
-            });
-            reverseActions[1] = LendingOptimizer.RebalanceAction({
-                cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: rebalanceAmount,
-                isDeposit: false
-            });
-
-            vm.prank(maliciousHarvester);
-            harness.rebalance(reverseActions);
-        }
-
-        // Check state after rebalances.
-        uint256 totalAssetsAfter = harness.totalAssets();
-        uint256 indexedAfter = harness.exposed_totalAssetsIndexed();
-
-        console2.log("\nAfter", numRebalances * 2, "rebalances:");
-        console2.log("  totalAssets():", totalAssetsAfter);
-        console2.log("  _totalAssets:", indexedAfter);
-
-        // Rounding losses should have accumulated.
-        // Check if rounding losses caused significant asset discrepancy.
-        if (totalAssetsAfter < totalAssetsBefore) {
-            uint256 lostYield = totalAssetsBefore - totalAssetsAfter;
-            console2.log("  Rounding losses caused asset decrease:", lostYield);
-        } else {
-            console2.log("  No significant asset decrease from rounding");
-        }
-    }
-
     /// @notice Quantifies rounding loss per rebalance operation.
     function test_attack_A_quantifyRoundingLossPerRebalance() public {
         _setUpHarnessTwoMarketsNoFee();
@@ -867,12 +776,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    // COMBINED ATTACK: HARVESTER BUFFER MANIPULATION + PERPETUAL VESTING
+    // COMBINED ATTACK: RAPID REBALANCING ROUNDING LOSS
     // =====================================================================
 
-    /// @notice Tests combined attack where harvester manipulates buffer during
-    ///         ongoing vesting to trigger false bad debt.
-    function test_attack_combined_bufferMinDuringVesting() public {
+    /// @notice Tests whether rapid rebalancing accumulates significant rounding losses.
+    function test_attack_combined_rapidRebalancingRoundingLoss() public {
         _setUpHarnessTwoMarketsNoFee();
 
         _userDeposit(victim, 500_000e6);
@@ -888,10 +796,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("After yield accrual:");
         console2.log("  totalAssets():", totalAssetsBefore);
         console2.log("  _totalAssets:", indexedBefore);
-
-        // Harvester reduces buffer to minimum.
-        vm.prank(maliciousHarvester);
-        harness.setRoundingBuffer(1000);
 
         // Harvester does rapid rebalances to accumulate rounding losses.
         uint256 rebalanceAmt = 50_000e6;
@@ -1040,49 +944,10 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    // HARVESTER CANNOT EXCEED ROUNDING BUFFER BOUNDS
-    // =====================================================================
-
-    /// @notice Verifies harvester cannot set buffer below minimum or above maximum.
-    function test_defense_roundingBufferBoundsEnforced() public {
-        _setUpHarnessSingleMarket(0);
-
-        // Try setting below minimum (1000).
-        vm.prank(maliciousHarvester);
-        vm.expectRevert();
-        harness.setRoundingBuffer(999);
-
-        // Try setting above maximum (10000).
-        vm.prank(maliciousHarvester);
-        vm.expectRevert();
-        harness.setRoundingBuffer(10_001);
-
-        // Try setting to 0.
-        vm.prank(maliciousHarvester);
-        vm.expectRevert();
-        harness.setRoundingBuffer(0);
-
-        // Valid values should work.
-        vm.prank(maliciousHarvester);
-        harness.setRoundingBuffer(1000);
-        assertEq(harness.roundingBuffer(), 1000);
-
-        vm.prank(maliciousHarvester);
-        harness.setRoundingBuffer(5000);
-        assertEq(harness.roundingBuffer(), 5000);
-
-        vm.prank(maliciousHarvester);
-        harness.setRoundingBuffer(10000);
-        assertEq(harness.roundingBuffer(), 10000);
-
-        console2.log("DEFENSE CONFIRMED: Rounding buffer bounds enforced [1000, 10000]");
-    }
-
-    // =====================================================================
     // UNAUTHORIZED ACCESS CHECKS
     // =====================================================================
 
-    /// @notice Verifies that non-harvesters cannot call rebalance or setRoundingBuffer.
+    /// @notice Verifies that non-harvesters cannot call rebalance.
     function test_defense_harvesterOnlyFunctions() public {
         _setUpHarnessTwoMarketsNoFee();
 
@@ -1102,11 +967,6 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         vm.prank(attacker);
         vm.expectRevert();
         harness.rebalance(actions);
-
-        // Random user tries setRoundingBuffer.
-        vm.prank(attacker);
-        vm.expectRevert();
-        harness.setRoundingBuffer(5000);
 
         console2.log("DEFENSE CONFIRMED: Harvester-only functions properly restricted");
     }

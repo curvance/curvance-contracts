@@ -37,4 +37,14 @@ contract LendingOptimizerHarness is LendingOptimizer {
     function exposed_accrueMarkets() external returns (uint256) {
         return _accrueMarkets();
     }
+
+    /// @notice Exposes _optimalTarget for deposit target selection.
+    function optimalDepositTarget(uint256 assets) external view returns (uint256) {
+        return _optimalTarget(assets, true);
+    }
+
+    /// @notice Exposes _optimalTarget for withdrawal target selection.
+    function optimalWithdrawalTarget(uint256 assets) external view returns (uint256) {
+        return _optimalTarget(assets, false);
+    }
 }

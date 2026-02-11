@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -29,7 +30,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         optimizer.deposit(depositAmount, address(this));
 
         // Optimal withdrawal target should be 0 (only one market)
-        uint256 target = optimizer.optimalWithdrawalTarget(1000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(1000e6);
         assertEq(target, 0, "Single market should return index 0");
     }
 
@@ -47,7 +48,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         optimizer.deposit(depositAmount, address(this), cUSDC_WBTC_MARKET);
 
         // Should return a valid target
-        uint256 target = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
         assertLt(target, 2, "Target should be valid index");
     }
 
@@ -58,7 +59,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         _depositToAllMarkets(50_000e6);
 
         // Should return a valid target
-        uint256 target = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
         assertLt(target, 3, "Target should be valid index");
     }
 
@@ -69,7 +70,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         _depositToAllMarkets(50_000e6);
 
         // Very small withdrawal
-        uint256 target = optimizer.optimalWithdrawalTarget(1e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(1e6);
         assertLt(target, 3, "Target should be valid index for small withdrawal");
     }
 
@@ -90,7 +91,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         optimizer.deposit(25_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Get optimal target
-        uint256 target = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
         assertLt(target, 3, "Target should be valid index");
 
         // The target should be the market with lowest projected rate after withdrawal
@@ -104,9 +105,9 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         _depositToAllMarkets(50_000e6);
 
         // Call multiple times with same input - should be deterministic
-        uint256 target1 = optimizer.optimalWithdrawalTarget(10_000e6);
-        uint256 target2 = optimizer.optimalWithdrawalTarget(10_000e6);
-        uint256 target3 = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
+        uint256 target3 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
 
         assertEq(target1, target2, "Results should be consistent");
         assertEq(target2, target3, "Results should be consistent");
@@ -128,7 +129,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         }
 
         // Should still return valid target
-        uint256 target = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
         assertLt(target, 3, "Target should be valid index");
     }
 
@@ -144,13 +145,13 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
         optimizer.deposit(100_000e6, address(this), cUSDC_WBTC_MARKET);
 
-        uint256 target1 = optimizer.optimalWithdrawalTarget(50_000e6);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(50_000e6);
 
         // Withdraw from that market
         optimizer.withdraw(50_000e6, address(this), address(this), optimizer.approvedCTokensList(target1));
 
         // After withdrawal, optimal target might change
-        uint256 target2 = optimizer.optimalWithdrawalTarget(30_000e6);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(30_000e6);
 
         // Both should be valid
         assertLt(target1, 2, "First target should be valid");
@@ -169,7 +170,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         allocationCapsBps[0] = 6_000;
         allocationCapsBps[1] = 5_000;
 
-        LendingOptimizer uninitOptimizer = new LendingOptimizer(
+        LendingOptimizerHarness uninitOptimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -189,7 +190,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         // Only small deposit in initialization
         // Try to withdraw more than available
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientLiquidity.selector);
-        optimizer.optimalWithdrawalTarget(1_000_000e6);
+        LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(1_000_000e6);
     }
 
     function test_lendingOptimizer_optimalWithdrawalTarget_fail_noMarketHasEnoughBalance() public {
@@ -206,7 +207,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
 
         // Try to withdraw more than any single market has
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientLiquidity.selector);
-        optimizer.optimalWithdrawalTarget(5000e6);
+        LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(5000e6);
     }
 
     // ============ Edge Cases ============
@@ -226,7 +227,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         );
 
         // Should work for exact balance (minus a small buffer for rounding)
-        uint256 target = optimizer.optimalWithdrawalTarget(marketBalance - 1000);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(marketBalance - 1000);
         assertEq(target, 0, "Should return valid target");
     }
 
@@ -236,12 +237,12 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         // Deposit to all markets
         _depositToAllMarkets(50_000e6);
 
-        uint256 target1 = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
 
         // Skip forward to simulate yield accrual
         skip(1 days);
 
-        uint256 target2 = optimizer.optimalWithdrawalTarget(10_000e6);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(10_000e6);
 
         // Both should be valid (may or may not be equal depending on rate changes)
         assertLt(target1, 3, "First target should be valid");
@@ -255,7 +256,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         _depositToAllMarkets(50_000e6);
 
         // Zero withdrawal should still work
-        uint256 target = optimizer.optimalWithdrawalTarget(0);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(0);
         assertLt(target, 3, "Should return valid target for zero withdrawal");
     }
 
@@ -272,7 +273,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         // Large withdrawal - should only be viable from market 0
-        uint256 target = optimizer.optimalWithdrawalTarget(100_000e6);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(100_000e6);
         
         // Should pick market 0 since it's the only one with enough liquidity
         assertEq(target, 0, "Should select market with sufficient liquidity");
@@ -287,7 +288,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         _depositToAllMarkets(50_000e6);
 
         uint256 withdrawAmount = 10_000e6;
-        uint256 expectedTarget = optimizer.optimalWithdrawalTarget(withdrawAmount);
+        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
         address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
 
         // Get market balance before
@@ -354,7 +355,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         uint256 expectedTarget = _calculateExpectedWithdrawalTarget(withdrawAmount);
 
         // Get actual target from optimizer
-        uint256 actualTarget = optimizer.optimalWithdrawalTarget(withdrawAmount);
+        uint256 actualTarget = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
 
         assertEq(actualTarget, expectedTarget, "Target should match expected calculation");
     }
@@ -370,7 +371,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
 
         for (uint256 i = 0; i < numWithdrawals; i++) {
             // Get optimal target
-            uint256 target = optimizer.optimalWithdrawalTarget(withdrawAmount);
+            uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
             assertLt(target, 3, string.concat("Withdrawal ", vm.toString(i + 1), ": Target should be valid"));
 
             // Make the withdrawal
@@ -390,7 +391,7 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         withdrawAmount = bound(withdrawAmount, 1e6, 50_000e6);
 
         // Should return valid index without reverting
-        uint256 target = optimizer.optimalWithdrawalTarget(withdrawAmount);
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
         assertLt(target, 3, "Target should be valid index");
     }
 
@@ -404,8 +405,8 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
         withdrawAmount = bound(withdrawAmount, 1e6, 50_000e6);
 
         // Multiple calls should be consistent
-        uint256 target1 = optimizer.optimalWithdrawalTarget(withdrawAmount);
-        uint256 target2 = optimizer.optimalWithdrawalTarget(withdrawAmount);
+        uint256 target1 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
+        uint256 target2 = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(withdrawAmount);
 
         assertEq(target1, target2, "Results should be consistent");
     }

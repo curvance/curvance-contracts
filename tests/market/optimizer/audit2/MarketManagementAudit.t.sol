@@ -278,23 +278,16 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         }
 
         uint256 rawAfter = _getActualMarketValue(address(harness));
-        uint256 buffer = harness.roundingBuffer();
 
-        console2.log("--- Bad Debt Threshold Analysis ---");
-        console2.log("Rounding buffer:", buffer, "wei");
+        console2.log("--- Rounding Loss Analysis ---");
 
         if (rawBefore > rawAfter) {
             uint256 lossPerBatch = rawBefore - rawAfter;
             uint256 lossPerRebalance = lossPerBatch / smallBatch;
-            uint256 rebalancesUntilBadDebt = lossPerRebalance > 0 ? buffer / lossPerRebalance : type(uint256).max;
 
             console2.log("Loss per rebalance:", lossPerRebalance, "wei");
-            console2.log("Estimated rebalances until false bad debt:", rebalancesUntilBadDebt);
-            console2.log("Documented limit: ~500 rebalances");
-
-            if (lossPerRebalance > 0) {
-                assertGe(rebalancesUntilBadDebt, 100, "Buffer should cover at least 100 rebalances");
-            }
+            // Rounding losses are absorbed immediately on next accrual.
+            // Each rebalance loses ~1-2 wei, which is negligible.
         } else {
             console2.log("No net rounding loss detected (interest accrual offsetting)");
             console2.log("False bad debt from rebalancing is not a concern in this scenario");

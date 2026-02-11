@@ -14,6 +14,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "./LendingOptimizerHarness.sol";
 
 
 contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
@@ -82,7 +83,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         uint256[] memory allocationCapsBps = new uint256[](1);
         allocationCapsBps[0] = 10_000;
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -111,7 +112,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         allocationCapsBps[0] = 6_000;
         allocationCapsBps[1] = 5_000;
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -142,7 +143,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         allocationCapsBps[1] = 5_000;
         allocationCapsBps[2] = 2_000;
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,

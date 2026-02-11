@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -27,7 +28,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         allocationCapsBps[1] = 4_000;
         allocationCapsBps[2] = 1_000;
 
-        optimizer = new LendingOptimizer(
+        optimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -268,7 +269,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
 
         // Get the expected optimal target before mint
-        uint256 expectedTarget = optimizer.optimalDepositTarget(expectedAssets);
+        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(expectedAssets);
         address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
 
         // Get market balance before
