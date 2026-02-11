@@ -83,7 +83,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         // Keep liquidation parameters valid (these are not tracked by ProtocolManager)
         config.liqIncBase = 1000;
         config.liqIncHard = 1500;
-        config.liqIncMin = 10;
+        config.liqIncMin = 150;
         config.liqIncMax = 2000;
         config.closeFactorBase = 2000;
         config.closeFactorMin = 2000;
@@ -318,7 +318,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         config.collReqHard = 3000;
         config.liqIncBase = 1000;
         config.liqIncHard = 1500;
-        config.liqIncMin = 10;
+        config.liqIncMin = 150;
         config.liqIncMax = 2000;
         config.closeFactorBase = 2000;
         config.closeFactorMin = 2000;
@@ -401,7 +401,7 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
         config.collReqHard = 3000;
         config.liqIncBase = 1000;
         config.liqIncHard = 1500;
-        config.liqIncMin = 10;
+        config.liqIncMin = 150;
         config.liqIncMax = 2000;
         config.closeFactorBase = 2000;
         config.closeFactorMin = 2000;
@@ -1180,6 +1180,47 @@ contract TestProtocolManagerUpdateTokenConfig is TestProtocolManagerBase {
             periodTimestamp
         );
         assertEq(usdcAdj, -50, "USDC should be updated independently of WMON limit");
+    }
+
+    /// LIQUIDATION INCENTIVE BOUNDARY TESTS ///
+
+    /// @notice Test that liqIncMin below MINIMUM_LIQUIDATION_INCENTIVE reverts
+    function test_updateTokenConfig_fail_liqIncMinBelowMinimum() public {
+        MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
+            address(borrowableCWMON),
+            0,
+            0,
+            0,
+            0,
+            0
+        );
+        // Set liqIncMin below the ProtocolManager minimum (150 bps)
+        config.liqIncMin = 149;
+
+        vm.prank(manager);
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
+    }
+
+    /// @notice Test that liqIncMin above MAX_LIQUIDATION_INCENTIVE reverts
+    function test_updateTokenConfig_fail_liqIncMinAboveMaximum() public {
+        MarketManagerIsolated.TokenConfig memory config = _getValidTokenConfig(
+            address(borrowableCWMON),
+            0,
+            0,
+            0,
+            0,
+            0
+        );
+        // Set liqIncMin above MarketManagerIsolated.MAX_LIQUIDATION_INCENTIVE (3000 bps)
+        config.liqIncMin = 3001;
+        config.liqIncMax = 3001;
+        config.liqIncBase = 3001;
+        config.liqIncHard = 3002;
+
+        vm.prank(manager);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        protocolManager.updateTokenConfig(address(marketManagerIsolated), config);
     }
 
 }

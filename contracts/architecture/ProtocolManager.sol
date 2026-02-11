@@ -115,7 +115,7 @@ contract ProtocolManager is ReentrancyGuard {
     /// @dev Capped at uint88 max since prices in oracle adaptors are stored as uint88.
     uint256 public constant MAXIMUM_PRICE_GUARD_PRICE_LIMIT = type(uint88).max;
     /// @notice Minimum liquidation incentive to ensure liquidations remain profitable.
-    uint256 public constant MINIMUM_LIQUIDATION_INCENTIVE = 100;
+    uint256 public constant MINIMUM_LIQUIDATION_INCENTIVE = 150;
     /// @notice Conversion factor from WAD (1e18) to BPS (1e4).
     uint256 public constant WAD_TO_BPS = 1e14;
 
@@ -494,7 +494,7 @@ contract ProtocolManager is ReentrancyGuard {
             asset,
             inUSD
         );
-        // Validate that the aggregator for the asset and inUSD matches the 
+        // Validate that the aggregator for the asset and inUSD matches the
         // managedAddress (combined aggregator).
         if (aggregator != managedAddress) {
             revert ProtocolManager__ParametersAreInvalid();
@@ -780,7 +780,7 @@ contract ProtocolManager is ReentrancyGuard {
         address managedAddress,
         bool authority
     ) internal view {
-        if (msg.sender != protocolManager || 
+        if (msg.sender != protocolManager ||
             !authority ||
             !config[managedAddress].hasAuthority)
         {
