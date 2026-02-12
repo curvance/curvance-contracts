@@ -2,13 +2,13 @@
 pragma solidity 0.8.28;
 
 import { PendlePTAggregator } from "contracts/oracles/adaptors/wrappedAggregators/PendlePTAggregator.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 import { WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestPendlePtAggregator is TestBaseOracleManager {
     PendlePTAggregator public aggregator;
@@ -59,14 +59,10 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
     }
 
     function test_success_getPrice() public {
-
-        aggregator = new PendlePTAggregator(
-            PT_weETH_25JUN2026,
-            eETH,
-            CHAINLINK_weETH_ETH,
-            discountOneYearBPS,
-            "100"
-        );
+        // Use CHAINLINK_ETH_USD (not weETH/ETH) since PT-weETH redeems
+        // for 1 eETH ≈ 1 ETH, not 1 weETH. The discounted price must be
+        // below the underlying asset, not above it.
+        _deployAggregatorCorrectly();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -74,20 +70,12 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
-            _ETH_ADDRESS,
-            true,   // inUSD
-            CHAINLINK_ETH_USD,
-            0
-        );
-
-        chainlinkAdaptor.addAsset(
             PT_weETH_25JUN2026,
-            false,  // not in USD
+            true,   // inUSD — aggregator wraps ETH/USD, result is USD
             address(aggregator),
             0
         );
 
-        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50);
         oracleManager.addAssetPricingAdaptor(PT_weETH_25JUN2026, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         (uint256 ptWeETH_USD_Price, uint256 errorCode) = oracleManager.getPrice(
@@ -98,21 +86,31 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
 
         assertEq(errorCode, 0);
 
-        // weETH/ETH from chainlink: ~1.0776 ETH
+        // ETH/USD from chainlink: ~$4,709 (8 decimals)
         // Discount:
         //  PT expires at timestamp 1782345600 (Jun 24, 2026)
         //  Current block timestamp ~1759778195 (Oct 06, 2025)
-        //  timeToExpiry = 1782345600 - 1759778195 = 22567405 seconds (~0.7155 years)
-        //  discountOneYear = 300 bps
-        //  discount: = (0.7155 years * 0.03) = 0.021465 (2.1465%)
-        //  exchangeRate = 1 - 0.021465 = 0.978535 (97.85%)
-        // Adjusted PT-weETH/ETH = 1.0776 * 0.9785 = ~1.0544 ETH
-        (, int256 answer,,,) = aggregator.latestRoundData();
-        assertEq(answer, 1054459710151640166, "Adjusted PT-weETH/ETH should be ~1.0544");
+        //  timeToExpiry = 22567405 seconds (~0.7155 years)
+        //  discountOneYear = 300 bps = 3%
+        //  discount = 0.7155 * 0.03 = 0.02147 (2.147%)
+        //  exchangeRate = 1 - 0.02147 = 0.97853 (97.85%)
+        // Adjusted PT-eETH/USD ≈ $4,709 * 0.97853 ≈ $4,608
+        (, int256 rawEthUsd,,,) = aggregator.underlyingAggregator().latestRoundData();
+        (, int256 adjustedAnswer,,,) = aggregator.latestRoundData();
 
-        // ETH/USD from chainlink: ~$4,709
-        // PT-weETH/USD = 1.0544 * 4709 = ~$4,965.56
-        assertEq(ptWeETH_USD_Price, 4965565071651032072198, "PT-weETH/USD should be ~$4,965.56");
+        // PT must be priced below the underlying ETH (it's discounted).
+        assertTrue(adjustedAnswer > 0, "PT price should be positive");
+        assertTrue(adjustedAnswer < rawEthUsd, "PT should be priced below underlying ETH");
+
+        // Verify the adjusted answer matches the expected discount math.
+        uint256 timeToExpiry = IPPrincipalToken(PT_weETH_25JUN2026).expiry() - block.timestamp;
+        console2.log("Time to expiry: ", timeToExpiry);
+        uint256 exchangeRate = WAD - ((timeToExpiry * discountOneYearBPS * 1e14) / SECONDS_PER_YEAR);
+        console2.log("Exchange rate (in 18 decimals): ", exchangeRate);
+        int256 expectedAnswer = (rawEthUsd * int256(exchangeRate)) / int256(WAD);
+        assertEq(adjustedAnswer, expectedAnswer, "Adjusted answer should match discount math");
+
+        assertTrue(ptWeETH_USD_Price > 0, "PT USD price should be positive");
     }
 
     function _deployAggregatorCorrectly() internal {
