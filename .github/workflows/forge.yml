@@ -27,7 +27,7 @@ jobs:
         with:
           path: |
             cache
-            out
+            artifacts
           key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
           restore-keys: |
             forge-build-
@@ -65,5 +65,5 @@ jobs:
         with:
           path: |
             cache
-            out
+            artifacts
           key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
