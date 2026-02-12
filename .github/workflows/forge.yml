@@ -22,8 +22,8 @@ jobs:
       - name: Install Forge dependencies
         run: forge install
 
-      - name: Cache Forge build artifacts
-        uses: actions/cache@v4
+      - name: Restore Forge build cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             cache
@@ -58,3 +58,12 @@ jobs:
           ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
           ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
           MON_NODE_URI_MONAD_MAINNET: ${{ secrets.MON_NODE_URI_MONAD_MAINNET }}
+
+      - name: Save Forge build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache
+            out
+          key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
