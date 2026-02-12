@@ -457,6 +457,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (l == 1) revert LendingOptimizer__InvalidParameter();
         // Revert if the index is out of bounds.
         if (indexRemove >= l) revert LendingOptimizer__InvalidParameter();
+        // Revert if no reallocation targets are provided.
+        if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
 
         // Cache the cToken to remove.
         address cTokenAddr = approvedCTokensList[indexRemove];
@@ -520,7 +522,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      underlying asset and a registered market manager. Max 6 markets.
     /// @param newAsset Address of the cToken market to add.
     /// @param capBps Allocation cap in BPS. Stored as WAD internally.
-    function addApprovedAsset(address newAsset, uint256 capBps) external {
+    function addApprovedAsset(address newAsset, uint256 capBps) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
@@ -549,7 +551,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      caps remain >= 100% to ensure full allocation is possible.
     /// @param cToken Address of the cToken market (must be approved).
     /// @param newCapBps New allocation cap in BPS (1-10000).
-    function updateCap(address cToken, uint256 newCapBps) external {
+    function updateCap(address cToken, uint256 newCapBps) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
@@ -576,7 +578,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      If enabling from 0, watermark resets to current rate so fees only
     ///      apply to future yield. Max 50%.
     /// @param newFeeBps New fee in BPS.
-    function setFee(uint256 newFeeBps) external {
+    function setFee(uint256 newFeeBps) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
@@ -610,7 +612,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @notice Pauses or unpauses deposits. Emits an {ActionPaused} event.
     /// @dev Requires market permissions.
     /// @param state True to pause, false to unpause.
-    function setMintPaused(bool state) external {
+    function setMintPaused(bool state) external nonReentrant {
         _hasMarketPermissions();
 
         // Cannot pause or unpause if not initialized.
@@ -648,7 +650,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      The returned value may be slightly stale if markets haven't been
     ///      accrued recently.
     /// @return The total assets held by the optimizer across all markets.
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() public view override nonReadReentrant returns (uint256) {
         return _totalAssets;
     }
 
@@ -874,6 +876,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         // Using convertToAssets ensures _totalAssets stays in sync with what
         // _accrueMarkets() reports.
         trackedAssets = cToken_.convertToAssets(cToken_.deposit(assets, address(this)));
+
+        // Remove any residual approval for USDT-like token compatibility.
+        SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);
     }
 
     /// @dev Core deposit processing shared by deposit and mint.
