@@ -16,9 +16,22 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
 
       - name: Install Forge dependencies
         run: forge install
+
+      - name: Cache Forge build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache
+            out
+          key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
+          restore-keys: |
+            forge-build-
+
       - name: Run test harness (with automatic retry after delay)
         shell: bash
         run: |
