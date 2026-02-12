@@ -135,8 +135,9 @@ contract PendleLPPositionManager is BasePositionManager {
     ///                                deleveraged, in assets.
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
+    ///               repayAssets The minimum amount, in assets, to be
+    ///                           creditable to caller through repayment
+    ///                           and/or direct transfer.
     ///               swapActions Swap actions instructions converting
     ///                           collateral asset into debt asset to
     ///                           facilitate deleveraging.

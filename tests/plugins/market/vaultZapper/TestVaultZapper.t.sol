@@ -185,14 +185,18 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         simpleCUSDC.setDelegateApproval(address(vaultZapper), true);
 
         // try borrow()
-        borrowableCDAI.borrow(500 ether, user1);
+        // Borrow slightly more, the zapper will repay as much as possible.
+        // This small amount extra repays the loan under the minimum loan size.
+        borrowableCDAI.borrow(550 ether, user1);
         vm.stopPrank();
 
-        assertEq(dai.balanceOf(user1), 500 ether);
-        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 500 ether, 1 ether);
+        assertEq(dai.balanceOf(user1), 550 ether);
+        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 550 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
+
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _USDC_ADDRESS;
@@ -226,8 +230,9 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         );
         vm.stopPrank();
 
-        assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 50 ether, 1 ether);
+        uint256 debtAfter = borrowableCDAI.debtBalance(user1);
+        uint256 repaid = debtBefore - debtAfter;
+        assertGe(repaid, 450 ether); // repayAssets is a minimum. Actually repays ~499 dai
     }
 
     function testRedeemAndSwapCToken() public {

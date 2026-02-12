@@ -329,17 +329,24 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageAction.repayAssets
-        );
+
+        uint256 repaid =
+            borrowableCDAISnapshotBefore.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
+        assertLe(repaid, borrowableCDAISnapshotBefore.debtBalance);
+        assertGe(repaid, deleverageAction.repayAssets);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets
+            strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets,
+            "balance of mismatch"
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets);
+        assertEq(
+            strategyCTokenUSDCDAISnapshot.collateralPosted,
+            strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets,
+            "collateral posted mismatch"
+        );
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());

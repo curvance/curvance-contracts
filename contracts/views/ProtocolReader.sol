@@ -21,7 +21,7 @@ import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 
 contract ProtocolReader {
     /// TYPES ///
-    
+
     struct StaticMarketData {
         address _address;
         uint256[] adapters;
@@ -73,6 +73,8 @@ contract ProtocolReader {
     struct DynamicMarketToken {
         address _address;
         uint256 totalSupply;
+        uint256 exchangeRate;
+        uint256 totalAssets;
         uint256 collateral;
         uint256 debt;
         uint256 sharePrice;
@@ -116,7 +118,6 @@ contract ProtocolReader {
         uint256 userCollateral;
         uint256 userDebt;
         uint256 liquidationPrice;
-        uint256 exchangeRate;
     }
 
     /// @notice Data structure returned on hypothetical calculation containing
@@ -330,7 +331,7 @@ contract ProtocolReader {
         }
 
         if (debt == 0) {
-            positionHealth = type(uint256).max; 
+            positionHealth = type(uint256).max;
         } else {
             positionHealth = (soft * WAD) / debt;
         }
@@ -347,7 +348,7 @@ contract ProtocolReader {
         uint256 amount;
         uint256 offset;
         uint256 currPrice;
-        
+
         // If its a long liquidation need to calc margin requirement whereas
         // debt is valued 1:1.
         // Temporarily use offset to hold error code.
@@ -388,7 +389,7 @@ contract ProtocolReader {
         if (!mm.isListed(cToken) || amount == 0) {
             return (price, errorHit);
         }
-        
+
         uint256 margin;
         uint256 debt;
         // We use isAuction = true to grab pessimistic liquidation values.
@@ -443,7 +444,7 @@ contract ProtocolReader {
                 });
             }
         }
-        
+
         address[] memory markets = centralRegistry.marketManagers();
         uint256 numMarkets = markets.length;
         data.markets = new UserMarket[](numMarkets);
@@ -660,7 +661,7 @@ contract ProtocolReader {
             revert ProtocolReader__TokenNotListed();
         }
 
-        HypotheticalResult memory r = 
+        HypotheticalResult memory r =
             hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
         loanSizeError = r.loanSizeError;
         oracleError = r.oracleError;
@@ -860,7 +861,7 @@ contract ProtocolReader {
         IBorrowableCToken bcToken;
         uint256 outstandingDebt;
         uint256 assetsHeld;
-        
+
         if (cToken.isBorrowable()) {
             bcToken = IBorrowableCToken(address(collateralCToken));
             outstandingDebt = _outstandingDebt(bcToken);
@@ -872,8 +873,8 @@ contract ProtocolReader {
         bcToken = IBorrowableCToken(debtBorrowableCToken);
         if (_debtBalance(bcToken, user) != 0) {
             outstandingDebt = _outstandingDebt(bcToken);
-            assetsHeld = _assetsHeld(bcToken) > newDebtAssets 
-                ? _assetsHeld(bcToken) - newDebtAssets 
+            assetsHeld = _assetsHeld(bcToken) > newDebtAssets
+                ? _assetsHeld(bcToken) - newDebtAssets
                 : 0;
             borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
@@ -1079,7 +1080,7 @@ contract ProtocolReader {
                 cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
             }
         }
-        
+
         // Get `account` lFactor.
         if (cSoft >= debt) {
             // Indicates no liquidation.
@@ -1152,7 +1153,7 @@ contract ProtocolReader {
         t.symbol = cToken.symbol();
         t.decimals = cToken.decimals();
         t.asset = _getStaticTokenAsset(cToken);
-        
+
         t.collateralCap = mm.collateralCaps(address(cToken));
         t.debtCap = mm.debtCaps(address(cToken));
 
@@ -1256,7 +1257,6 @@ contract ProtocolReader {
         umt.userShareBalance = cToken.balanceOf(account);
         umt.userUnderlyingBalance = underlying.balanceOf(account);
         umt.userDebt = cToken.isBorrowable() ? _debtBalance(IBorrowableCToken(address(cToken)), account) : 0;
-        umt.exchangeRate = cToken.exchangeRate();
         umt.userCollateral = _collateralPosted(address(cToken), account);
         (umt.liquidationPrice, ) = getLiquidationPrice(
             account,
@@ -1272,7 +1272,7 @@ contract ProtocolReader {
         address[] memory tokenAddresses = mm.queryTokensListed();
         uint256 numTokens = tokenAddresses.length;
         UserMarketToken[] memory tokens = new UserMarketToken[](numTokens);
-        
+
         for (uint256 j; j < numTokens; ++j) {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
@@ -1303,6 +1303,8 @@ contract ProtocolReader {
         dmt.sharePrice = getPriceSafely(address(ctoken), true, false, 3);
         dmt.sharePriceLower = getPriceSafely(address(ctoken), true, true, 3);
         dmt.totalSupply = ctoken.totalSupply();
+        dmt.exchangeRate = ctoken.exchangeRate();
+        dmt.totalAssets = ctoken.totalAssets();
         dmt.collateral = ctoken.marketCollateralPosted();
 
         if(ctoken.isBorrowable()) {
@@ -1441,7 +1443,7 @@ contract ProtocolReader {
 
         return (snapshots, prices, numAssets, errorCodeHit);
     }
-    
+
     function _marketManager(
         address cToken
     ) internal view returns (IMarketManager mm) {

@@ -49,4 +49,5 @@ tests/austin.t.sol
 script/deployment/Fix.s.sol
 verify.sh
 verify2.sh
+verify3.sh
 dune.sh

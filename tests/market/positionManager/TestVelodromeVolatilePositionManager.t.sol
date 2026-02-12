@@ -42,6 +42,11 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
     address public owner;
     address public user;
 
+    uint256 internal constant _EXPECTED_DELEVERAGE_REPAID_DAI =
+        2426580936575951199490;
+    uint256 internal constant _EXPECTED_DELEVERAGE_WITH_FEE_REPAID_DAI  =
+        2402556357338630008143;
+
     receive() external payable {}
 
     fallback() external payable {}
@@ -420,10 +425,13 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        // repayAssets is a minimum
+        uint256 repaid =
+            borrowableCDAIBeforeSnapshot.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
+        assertLe(repaid, borrowableCDAIBeforeSnapshot.debtBalance);
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI, "repaid mismatch");
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
@@ -507,10 +515,13 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        // repayAssets is a minimum
+        uint256 repaid =
+            borrowableCDAIBeforeSnapshot.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
+        assertLe(repaid, borrowableCDAIBeforeSnapshot.debtBalance);
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_WITH_FEE_REPAID_DAI, "repaid mismatch");
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
@@ -662,10 +673,13 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        // repayAssets is a minimum
+        uint256 repaid =
+            borrowableCDAIBeforeSnapshot.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
+        assertLe(repaid, borrowableCDAIBeforeSnapshot.debtBalance);
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI, "repaid mismatch");
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(

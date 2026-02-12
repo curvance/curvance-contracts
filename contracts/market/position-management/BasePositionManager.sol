@@ -270,8 +270,9 @@ abstract contract BasePositionManager is
     ///                                deleveraged, in assets.
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
+    ///               repayAssets The minimum amount, in assets, to be
+    ///                           creditable to caller through repayment
+    ///                           and/or direct transfer.
     ///               swapActions Swap actions instructions converting
     ///                           collateral asset into debt asset to
     ///                           facilitate deleveraging.
@@ -298,8 +299,9 @@ abstract contract BasePositionManager is
     ///                                deleveraged, in assets.
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
+    ///               repayAssets The minimum amount, in assets, to be
+    ///                           creditable to caller through repayment
+    ///                           and/or direct transfer.
     ///               swapActions Swap actions instructions converting
     ///                           collateral asset into debt asset to
     ///                           facilitate deleveraging.
@@ -414,8 +416,9 @@ abstract contract BasePositionManager is
     ///                                deleveraged, in assets.
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
+    ///               repayAssets The minimum amount, in assets, to be
+    ///                           creditable to caller through repayment
+    ///                           and/or direct transfer.
     ///               swapActions Swap actions instructions converting
     ///                           collateral asset into debt asset to
     ///                           facilitate deleveraging.
@@ -454,16 +457,17 @@ abstract contract BasePositionManager is
         address debtAsset = borrowableCToken.asset();
         uint256 assetsHeld = IERC20(debtAsset).balanceOf(address(this));
         uint256 repayAssets = action.repayAssets;
-        if (repayAssets == 0) {
-            // Accrue any interest owed so repayAssets includes all
-            // `owner` debt.
-            repayAssets = borrowableCToken.debtBalanceUpdated(owner);
-        }
 
+        // Make sure we received at least `repayAssets`.
         if (repayAssets > assetsHeld) {
             revert BasePositionManager__InsufficientAssetsForRepayment();
         }
-        uint256 remaining = assetsHeld - repayAssets;
+
+        // Pull the latest debt amount owed by `owner`.
+        uint256 totalDebt = borrowableCToken.debtBalanceUpdated(owner);
+
+        // Repay as much as possible, up to `totalDebt`.
+        repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
 
         // Approve `repayAssets` of `debtAsset` to `borrowableCToken` contract.
         SwapperLib._approveIfNeeded(
@@ -472,9 +476,10 @@ abstract contract BasePositionManager is
             repayAssets
         );
 
-        // Repay debt.
+        // Repay `repayAssets` debt owed by `owner`.
         borrowableCToken.repayFor(repayAssets, owner);
 
+        uint256 remaining = IERC20(debtAsset).balanceOf(address(this));
         // Transfer remaining borrow underlying back to user.
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(debtAsset, owner, remaining);
@@ -626,8 +631,9 @@ abstract contract BasePositionManager is
     ///                                deleveraged, in assets.
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
+    ///               repayAssets The minimum amount, in assets, to be
+    ///                           creditable to caller through repayment
+    ///                           and/or direct transfer.
     ///               swapActions Swap actions instructions converting
     ///                           collateral asset into debt asset to
     ///                            facilitate deleveraging.
@@ -639,6 +645,12 @@ abstract contract BasePositionManager is
         DeleverageAction memory action,
         address account
     ) internal {
+        // Zero amount repayment is not supported in Position Managers as we
+        // already repay as much debt as possible.
+        if (action.repayAssets == 0) {
+            revert BasePositionManager__InvalidAmount();
+        }
+
         // Validate `action.cToken` is a known Curvance token.
         if (!marketManager.isListed(address(action.cToken))) {
             revert BasePositionManager__Unauthorized();
