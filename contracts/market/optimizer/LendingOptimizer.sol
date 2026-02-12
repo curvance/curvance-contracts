@@ -168,6 +168,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Loop through all cTokens and validate.
         for (uint256 i; i < _approvedCTokens.length; ++i) {
+            // Revert if allocation cap is 0 which would cause a dead market,
+            // and also prevent allocating cap > 100% to cause dirty allocation math.
+            if (_allocationCapsBps[i] == 0 || _allocationCapsBps[i] > BPS)
+                    revert LendingOptimizer__InvalidParameter();
+
             address cToken = _approvedCTokens[i];
 
             // Revert if the cToken has already been added (duplicate check).
@@ -435,8 +440,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     /// @notice Removes an approved market and reallocates its assets.
     /// @dev After removal, remaining market caps must sum to >= 100%. If not,
     ///      call `updateCap()` to increase a remaining market's cap before removal.
-    ///      NOTE: cToken rounding during redeem/deposit incurs a small asset loss
-    ///      (~1-2 wei per action). This is absorbed on the next accrual.
+    ///      The caller specifies reallocation amounts that must not exceed the
+    ///      redeemed total. Any residual dust from cToken rounding is automatically
+    ///      deposited into the first reallocation target.
     /// @param indexRemove Index of the market to remove.
     /// @param removeActions Actions specifying how to reallocate assets.
     function removeApprovedAsset(
@@ -487,8 +493,14 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             sumDeclaredReallocated += reallocationAmount;
         }
 
-        // Revert if reallocated assets do not match redeemed assets.
-        if (sumDeclaredReallocated != assetsRedeemed) revert LendingOptimizer__AssetMismatch();
+        // Revert if caller tried to reallocate more than was redeemed.
+        if (sumDeclaredReallocated > assetsRedeemed) revert LendingOptimizer__AssetMismatch();
+
+        // Deposit any residual dust (from cToken rounding) into the first reallocation target.
+        uint256 residual = assetsRedeemed - sumDeclaredReallocated;
+        if (residual > 0) {
+            _depositToMarket(address(removeActions[0].cToken), residual);
+        }
 
         // Update approved markets list using swap and pop.
         uint256 lastIndex = approvedCTokensList.length - 1;
@@ -908,8 +920,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ) internal {
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
-        IBorrowableCToken(targetMarket).withdraw(assets, address(this), address(this));
         _totalAssets -= assets;
+        IBorrowableCToken(targetMarket).withdraw(assets, address(this), address(this));
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
