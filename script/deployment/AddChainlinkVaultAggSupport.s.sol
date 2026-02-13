@@ -26,6 +26,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
         address assetToken,
         address feed,
         bool inUSD,
+        uint256 heartbeat,
         PriceGuard memory guardConfig
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
@@ -49,7 +50,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
             )
         );
 
-        chainlink.addAsset(vaultToken, inUSD, vaultAgg, 0);
+        chainlink.addAsset(vaultToken, inUSD, vaultAgg, heartbeat);
         oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
 
         if(guardConfig.enabled) {
