@@ -650,7 +650,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ///      The returned value may be slightly stale if markets haven't been
     ///      accrued recently.
     /// @return The total assets held by the optimizer across all markets.
-    function totalAssets() public view override nonReadReentrant returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         return _totalAssets;
     }
 
