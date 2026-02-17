@@ -18,6 +18,7 @@ import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
+import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 contract ProtocolReader {
     /// TYPES ///
@@ -146,6 +147,41 @@ contract ProtocolReader {
         bool oracleError;
     }
 
+    struct OptimizerCTokenData {
+        /// @notice The cToken address.
+        address _address;
+        /// @notice Underlying assets allocated to this cToken by the optimizer.
+        uint256 allocatedAssets;
+        /// @notice Idle (non-loaned) liquidity available in this cToken market.
+        uint256 liquidity;
+    }
+
+    struct OptimizerMarketData {
+        /// @notice The optimizer address.
+        address _address;
+        /// @notice The underlying asset address (e.g., USDC).
+        address asset;
+        /// @notice Total underlying assets held across all markets.
+        uint256 totalAssets;
+        /// @notice Per-cToken market data.
+        OptimizerCTokenData[] markets;
+        /// @notice Total idle liquidity across all cToken markets.
+        uint256 totalLiquidity;
+        /// @notice Optimizer share price (exchange rate) in WAD.
+        uint256 sharePrice;
+        /// @notice Performance fee in BPS.
+        uint256 performanceFee;
+    }
+
+    struct OptimizerUserData {
+        /// @notice The optimizer address.
+        address _address;
+        /// @notice User's optimizer share balance.
+        uint256 shareBalance;
+        /// @notice User's redeemable underlying amount (from their optimizer shares).
+        uint256 redeemable;
+    }
+
     /// CONSTANTS ///
 
     /// @notice Minimum loan size allowed inside Curvance that can be created
@@ -176,6 +212,66 @@ contract ProtocolReader {
     }
 
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns market data for a list of LendingOptimizers.
+    /// @param optimizers The LendingOptimizer addresses.
+    /// @return data The market data for each optimizer.
+    function getOptimizerMarketData(
+        address[] calldata optimizers
+    ) public view returns (OptimizerMarketData[] memory data) {
+        uint256 len = optimizers.length;
+        data = new OptimizerMarketData[](len);
+
+        for (uint256 i; i < len; ++i) {
+            ILendingOptimizer opt = ILendingOptimizer(optimizers[i]);
+
+            data[i]._address = optimizers[i];
+            data[i].asset = opt.asset();
+            data[i].totalAssets = opt.totalAssets();
+            data[i].sharePrice = opt.exchangeRate();
+            data[i].performanceFee = opt.fee();
+
+            address[] memory cTokens = opt.getApprovedMarkets();
+            uint256 l = cTokens.length;
+            data[i].markets = new OptimizerCTokenData[](l);
+
+            for (uint256 j; j < l; ++j) {
+                IBorrowableCToken cToken = IBorrowableCToken(cTokens[j]);
+                uint256 allocated = cToken.convertToAssets(
+                    cToken.balanceOf(optimizers[i])
+                );
+                uint256 liquidity = cToken.assetsHeld();
+
+                data[i].markets[j] = OptimizerCTokenData({
+                    _address: cTokens[j],
+                    allocatedAssets: allocated,
+                    liquidity: liquidity
+                });
+                data[i].totalLiquidity += liquidity;
+            }
+        }
+    }
+
+    /// @notice Returns user-specific data for a list of LendingOptimizers.
+    /// @param optimizers The LendingOptimizer addresses.
+    /// @param account The user address to query.
+    /// @return data The user data for each optimizer.
+    function getOptimizerUserData(
+        address[] calldata optimizers,
+        address account
+    ) public view returns (OptimizerUserData[] memory data) {
+        uint256 len = optimizers.length;
+        data = new OptimizerUserData[](len);
+
+        for (uint256 i; i < len; ++i) {
+            ILendingOptimizer opt = ILendingOptimizer(optimizers[i]);
+            uint256 shares = opt.balanceOf(account);
+
+            data[i]._address = optimizers[i];
+            data[i].shareBalance = shares;
+            data[i].redeemable = opt.convertToAssets(shares);
+        }
+    }
 
     function getAllDynamicState(address account) public view returns (
         DynamicMarketData[] memory market,
