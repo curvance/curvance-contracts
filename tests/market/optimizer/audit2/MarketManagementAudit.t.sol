@@ -415,8 +415,10 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         console2.log("--- After remove/re-add + deposit ---");
         console2.log("Exchange rate:", exchangeRateAfter);
 
-        // Allow tiny decrease from cToken rounding during remove/redeposit cycle (up to 5 wei).
-        assertGe(exchangeRateAfter + 5, exchangeRateBefore, "Exchange rate decreased beyond rounding tolerance");
+        // Allow tiny decrease from cToken rounding during remove/redeposit cycle.
+        // Each cToken round-trip can lose ~1 USDC-wei, which at WAD scale equals
+        // ~WAD/totalSupply (~4.76e7 for 21k USDC). Tolerance of 1e8 covers 2 rounding ops.
+        assertGe(exchangeRateAfter + 1e8, exchangeRateBefore, "Exchange rate decreased beyond rounding tolerance");
 
         // Verify withdrawal works from the re-added market.
         uint256 readdedAssets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(

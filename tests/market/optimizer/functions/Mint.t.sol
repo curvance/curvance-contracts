@@ -193,9 +193,8 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
             totalShares += sharesToMint;
         }
 
-        // User should have exact shares from all mints
-        // minus numMints because of cToken rounding, 5 mints should lose 5 wei shares
-        assertEq(optimizer.balanceOf(user1), totalShares - numMints, "User should have exact total shares");
+        // User should have exact shares from all mints.
+        assertEq(optimizer.balanceOf(user1), totalShares, "User should have exact total shares");
 
         vm.stopPrank();
     }
@@ -483,8 +482,8 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         optimizer.mint(sharesToMint, user1);
         uint256 sharesAfter = optimizer.balanceOf(user1);
 
-        // Mint should give about 1 less share than expected due to rounding
-        assertEq(sharesAfter - sharesBefore, sharesToMint - 1, "Must mint exact shares requested");
+        // Mint should give exactly the requested shares.
+        assertEq(sharesAfter - sharesBefore, sharesToMint, "Must mint exact shares requested");
 
         vm.stopPrank();
     }

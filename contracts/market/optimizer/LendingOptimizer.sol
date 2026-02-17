@@ -140,6 +140,26 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// CONSTRUCTOR ///
 
+    /// @notice Deploys a new LendingOptimizer for a single underlying asset.
+    /// @dev Performs four categories of setup:
+    ///      1. Validation -- enforces array bounds, length parity, fee ceiling,
+    ///         per-market cap range (0 < cap <= 100%), no duplicates, correct
+    ///         underlying asset, and registered market manager for each cToken.
+    ///      2. ERC20 metadata -- derives the share token name/symbol/decimals
+    ///         from the underlying asset.
+    ///      3. Market registration -- converts each allocation cap from BPS to
+    ///         WAD and stores the approved cToken list. Reverts if total caps
+    ///         sum to less than 100%.
+    ///      4. Fee initialization -- stores the performance fee in BPS and sets
+    ///         the high watermark to WAD (1:1 exchange rate).
+    ///
+    ///      After construction the optimizer is NOT yet active; `initializeDeposits()`
+    ///      must be called to mint dead shares and enable deposits.
+    /// @param asset_ The underlying ERC20 asset (e.g. USDC).
+    /// @param _centralRegistry Protocol registry for permissions and market manager lookups.
+    /// @param _approvedCTokens Initial set of Curvance cToken markets (max 6).
+    /// @param _allocationCapsBps Per-market allocation caps in BPS (1-10000). Must sum >= 10000.
+    /// @param _feeBps Performance fee in BPS charged on yield above the high watermark (max 5000).
     constructor(
         IERC20 asset_,
         ICentralRegistry _centralRegistry,
@@ -238,6 +258,8 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     }
 
     /// @notice Standard ERC4626 deposit - deposits into optimal market.
+    /// @dev Shares are derived from the actual recoverable value (trackedAssets)
+    ///      via convertToShares, which rounds down -- favoring the vault.
     /// @param assets The amount of underlying assets to deposit.
     /// @param receiver The address to receive the minted shares.
     /// @return shares The amount of shares minted.
@@ -248,10 +270,19 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        shares = _processDeposit(assets, receiver, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        uint256 trackedAssets = _pullAndDeposit(assets, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        // Calculate shares from trackedAssets BEFORE updating _totalAssets,
+        // so convertToShares uses the pre-deposit totalAssets denominator.
+        shares = convertToShares(trackedAssets);
+        _totalAssets += trackedAssets;
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /// @notice Deposits assets into a specific market and mints shares to receiver.
+    /// @dev Shares are derived from the actual recoverable value (trackedAssets)
+    ///      via convertToShares, which rounds down -- favoring the vault.
     /// @param assets The amount of underlying assets to deposit.
     /// @param receiver The address to receive the minted shares.
     /// @param targetMarket The address of the target cToken market to deposit into.
@@ -265,12 +296,23 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
-        shares = _processDeposit(assets, receiver, targetMarket);
+        uint256 trackedAssets = _pullAndDeposit(assets, targetMarket);
+        // Calculate shares from trackedAssets BEFORE updating _totalAssets,
+        // so convertToShares uses the pre-deposit totalAssets denominator.
+        shares = convertToShares(trackedAssets);
+        _totalAssets += trackedAssets;
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @notice Standard ERC4626 mint - mints shares by depositing into optimal market.
-    /// @dev Due to cToken rounding, actual shares minted may be 1 less than requested.
-    /// @param shares The target amount of shares to mint.
+    /// @notice Standard ERC4626 mint - mints exact shares by depositing
+    ///         into the optimal market.
+    /// @dev Uses previewMint (rounds up) to compute the asset cost, ensuring
+    ///      the vault never under-charges. Mints exactly `shares` shares
+    ///      regardless of cToken rounding; any rounding dust is absorbed
+    ///      by the vault as a tiny surplus.
+    /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
     /// @return assets The amount of assets deposited.
     function mint(
@@ -280,13 +322,22 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        assets = convertToAssets(shares);
-        _processDeposit(assets, receiver, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        // Round up: user pays ceiling amount of assets for the requested shares.
+        assets = previewMint(shares);
+        uint256 trackedAssets = _pullAndDeposit(assets, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        _totalAssets += trackedAssets;
+        // Mint exact requested shares (not derived from trackedAssets).
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @notice Mints shares by depositing into a specific market.
-    /// @dev Due to cToken rounding, actual shares minted may be 1 less than requested.
-    /// @param shares The target amount of shares to mint.
+    /// @notice Mints exact shares by depositing into a specific market.
+    /// @dev Uses previewMint (rounds up) to compute the asset cost, ensuring
+    ///      the vault never under-charges. Mints exactly `shares` shares
+    ///      regardless of cToken rounding; any rounding dust is absorbed
+    ///      by the vault as a tiny surplus.
+    /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
     /// @param targetMarket The address of the target cToken market to deposit into.
     /// @return assets The amount of assets deposited.
@@ -299,8 +350,14 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
         _accrueIfNeeded();
 
-        assets = convertToAssets(shares);
-        _processDeposit(assets, receiver, targetMarket);
+        // Round up: user pays ceiling amount of assets for the requested shares.
+        assets = previewMint(shares);
+        uint256 trackedAssets = _pullAndDeposit(assets, targetMarket);
+        _totalAssets += trackedAssets;
+        // Mint exact requested shares (not derived from trackedAssets).
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /// @notice Standard ERC4626 withdraw - withdraws from optimal market.
@@ -881,33 +938,25 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);
     }
 
-    /// @dev Core deposit processing shared by deposit and mint.
-    ///      Handles transfer, cToken deposit, share calculation, and state updates.
-    /// @param assets The amount of assets to deposit.
-    /// @param receiver The address to receive the minted shares.
+    /// @dev Transfers assets from the caller and deposits them into a cToken market.
+    ///
+    ///      IMPORTANT: Does NOT update `_totalAssets`. The deposit() and mint()
+    ///      functions that call this helper must increment
+    ///      `_totalAssets += trackedAssets` themselves. This separation exists
+    ///      because deposit() must call convertToShares() with the pre-deposit
+    ///      totalAssets (before the increment), while mint() skips that
+    ///      calculation entirely and mints exact shares.
+    ///
+    /// @param assets The amount of underlying assets to transfer and deposit.
     /// @param targetMarket The target cToken market to deposit into.
-    /// @return shares The amount of shares minted (based on actual tracked value).
-    function _processDeposit(
+    /// @return trackedAssets The actual recoverable value after cToken rounding.
+    ///         May be up to 1 wei less than `assets` due to cToken share math.
+    function _pullAndDeposit(
         uint256 assets,
-        address receiver,
         address targetMarket
-    ) internal returns (uint256 shares) {
-        // Transfer assets from the caller to the optimizer.
+    ) internal returns (uint256 trackedAssets) {
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
-
-        // Deposit assets to the target market and track the actual recoverable value.
-        uint256 trackedAssets = _depositToMarket(targetMarket, assets);
-
-        // Standard ERC4626 share calculation. Safe because _accrueIfNeeded()
-        // absorbs yield immediately, so totalAssets() always reflects real value.
-        shares = convertToShares(trackedAssets);
-
-        // Update _totalAssets after calculating shares.
-        _totalAssets += trackedAssets;
-
-        _mint(receiver, shares);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
+        trackedAssets = _depositToMarket(targetMarket, assets);
     }
 
     /// @dev Core withdraw logic shared by withdraw() and redeem() variants.
