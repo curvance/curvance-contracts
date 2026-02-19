@@ -12,6 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
@@ -137,6 +138,7 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     error LendingOptimizer__NotInitialized();
     error LendingOptimizer__AlreadyInitialized();
     error LendingOptimizer__MintPaused();
+    error LendingOptimizer__MarketPaused();
 
     /// CONSTRUCTOR ///
 
@@ -270,7 +272,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        uint256 trackedAssets = _pullAndDeposit(assets, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        uint256 trackedAssets = 
+            _pullAndDeposit(
+                assets, 
+                approvedCTokensList[_optimalTarget(assets, true)] // true == deposit
+            );
         // Calculate shares from trackedAssets BEFORE updating _totalAssets,
         // so convertToShares uses the pre-deposit totalAssets denominator.
         shares = convertToShares(trackedAssets);
@@ -294,6 +300,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ) external nonReentrant returns (uint256 shares) {
         _checkMintPaused();
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
+        if (_isMarketPausedForAction(targetMarket, true)) {
+            revert LendingOptimizer__MarketPaused();
+        }
         _accrueIfNeeded();
 
         uint256 trackedAssets = _pullAndDeposit(assets, targetMarket);
@@ -324,7 +333,11 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Round up: user pays ceiling amount of assets for the requested shares.
         assets = previewMint(shares);
-        uint256 trackedAssets = _pullAndDeposit(assets, approvedCTokensList[_optimalTarget(assets, true /* deposit */)]);
+        uint256 trackedAssets = 
+            _pullAndDeposit(
+                assets, 
+                approvedCTokensList[_optimalTarget(assets, true)] // true == deposit
+            );
         _totalAssets += trackedAssets;
         // Mint exact requested shares (not derived from trackedAssets).
         _mint(receiver, shares);
@@ -348,6 +361,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     ) external nonReentrant returns (uint256 assets) {
         _checkMintPaused();
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
+        if (_isMarketPausedForAction(targetMarket, true)) {
+            revert LendingOptimizer__MarketPaused();
+        }
         _accrueIfNeeded();
 
         // Round up: user pays ceiling amount of assets for the requested shares.
@@ -373,7 +389,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _withdraw(assets, shares, receiver, owner, approvedCTokensList[_optimalTarget(assets, false /* withdrawal */)]);
+        _withdraw(
+            assets, 
+            shares, 
+            receiver, 
+            owner, 
+            approvedCTokensList[_optimalTarget(assets, false)]
+        );
     }
 
     /// @notice Withdraws assets from a specific market.
@@ -389,6 +411,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 shares) {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
+        if (_isMarketPausedForAction(targetMarket, false)) {
+            revert LendingOptimizer__MarketPaused();
+        }
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
@@ -408,7 +433,13 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _withdraw(assets, shares, receiver, owner, approvedCTokensList[_optimalTarget(assets, false /* withdrawal */)]);
+        _withdraw(
+            assets, 
+            shares, 
+            receiver, 
+            owner, 
+            approvedCTokensList[_optimalTarget(assets, false)]
+        );
     }
 
     /// @notice Redeems shares from a specific market.
@@ -424,6 +455,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 assets) {
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
+        if (_isMarketPausedForAction(targetMarket, false)) {
+            revert LendingOptimizer__MarketPaused();
+        }
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
@@ -467,6 +501,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
             // Process withdrawal if this action is a withdrawal with assets > 0.
             if (actions[i].assets > 0 && !actions[i].isDeposit) {
+                if (_isMarketPausedForAction(address(actions[i].cToken), false)) {
+                    revert LendingOptimizer__MarketPaused();
+                }
                 sumDeclaredWithdrawals += actions[i].assets;
                 actions[i].cToken.withdraw(
                     actions[i].assets,
@@ -482,6 +519,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         for (uint256 i; i < l; ++i) {
             // Process deposit if this action is a deposit with assets > 0.
             if (actions[i].assets > 0 && actions[i].isDeposit) {
+                if (_isMarketPausedForAction(address(actions[i].cToken), true)) {
+                    revert LendingOptimizer__MarketPaused();
+                }
                 _depositToMarket(address(actions[i].cToken), actions[i].assets);
                 sumDeclaredReallocated += actions[i].assets;
             }
@@ -807,18 +847,22 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         uint256 l = approvedCTokensList.length;
 
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
-        if (l == 1) return 0;
 
         uint256 optimalRate = isDeposit ? 0 : type(uint256).max;
         bool foundViable;
 
         for (uint256 i; i < l; ++i) {
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
+            address cTokenAddr = approvedCTokensList[i];
+
+            // Skip markets paused for this action type.
+            if (_isMarketPausedForAction(cTokenAddr, isDeposit)) continue;
+
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
             uint256 assetsHeld = cToken.assetsHeld();
 
             // Withdrawals require sufficient balance and idle liquidity.
             if (!isDeposit) {
-                if (_getMarketAssets(address(cToken)) < assets || assetsHeld < assets) continue;
+                if (_getMarketAssets(cTokenAddr) < assets || assetsHeld < assets) continue;
             }
 
             uint256 projectedRate = cToken.IRM().supplyRate(
@@ -834,7 +878,26 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
             }
         }
 
-        if (!isDeposit && !foundViable) revert LendingOptimizer__InsufficientLiquidity();
+        if (!foundViable) {
+            if (isDeposit) revert LendingOptimizer__MarketPaused();
+            revert LendingOptimizer__InsufficientLiquidity();
+        }
+    }
+
+    /// @dev Returns true if the market is paused for the given action.
+    ///      Deposits check per-token `mintPaused`; withdrawals check
+    ///      market-wide `redeemPaused`.
+    function _isMarketPausedForAction(
+        address cToken,
+        bool isDeposit
+    ) internal view returns (bool) {
+        IMarketManager mm = IBorrowableCToken(cToken).marketManager();
+        if (isDeposit) {
+            (bool mintPaused_,,) = mm.actionsPaused(cToken);
+            return mintPaused_;
+        } else {
+            return mm.redeemPaused() == 2;
+        }
     }
 
     /// @dev Accrues interest on all markets and returns total assets.

@@ -7,6 +7,7 @@ import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -1121,6 +1122,241 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             rateRebalanced,
             rateStatic,
             "Rebalancing in a uniformly depressed market should not lose yield"
+        );
+    }
+
+    // ============ Pause-Aware Rebalance ============
+
+    /// @notice When a market is redeem-paused, optimalRebalance must NOT
+    ///         produce withdrawal amounts for it. The rebalance should
+    ///         execute without reverting and still improve yield vs static.
+    function test_optimalRebalance_success_redeemPausedMarketNotWithdrawn() public {
+        _setUpUnconstrainedOptimizer();
+
+        // Deposit into all markets.
+        uint256 perMarket = 100_000e6;
+        deal(USDC_MONAD, address(this), perMarket * 3);
+        IERC20(USDC_MONAD).approve(address(optimizer), perMarket * 3);
+        optimizer.deposit(perMarket, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WETH_MARKET);
+
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+
+        // Flood market 0 to depress its rate — normally the optimizer
+        // would withdraw from market 0 and move to a better market.
+        address whale = address(0xBEEF);
+        deal(USDC_MONAD, whale, 5_000_000e6);
+        vm.startPrank(whale);
+        IERC20(USDC_MONAD).approve(cUSDC_WMON_MARKET, 5_000_000e6);
+        IBorrowableCToken(cUSDC_WMON_MARKET).deposit(5_000_000e6, whale);
+        vm.stopPrank();
+
+        uint256 snapshotId = vm.snapshot();
+
+        // ---- Path A: no rebalance (static) ----
+        skip(14 days);
+        uint256 rateStatic = optimizer.exchangeRateUpdated();
+
+        // ---- Path B: rebalance with redeem-paused WMON ----
+        vm.revertTo(snapshotId);
+
+        // Mock redeemPaused on WMON's market manager.
+        address mmWMON = address(IBorrowableCToken(cUSDC_WMON_MARKET).marketManager());
+        vm.mockCall(
+            mmWMON,
+            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encode(uint8(2))
+        );
+
+        // optimalRebalance should NOT suggest withdrawing from the paused market.
+        (
+            ,
+            ,
+            uint256[] memory withdrawAmounts
+        ) = reader.optimalRebalance(address(optimizer));
+
+        assertEq(withdrawAmounts[0], 0, "Should not withdraw from redeem-paused market");
+
+        // Execute and let yield accrue.
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+        skip(14 days);
+        uint256 rateRebalanced = optimizer.exchangeRateUpdated();
+
+        // Even with a locked market, rebalancing the remaining markets
+        // should yield at least as much as doing nothing.
+        assertGe(
+            rateRebalanced,
+            rateStatic,
+            "Pause-aware rebalance should not lose yield vs static"
+        );
+    }
+
+    /// @notice When a market is mint-paused, optimalRebalance should drain
+    ///         it and redirect to better markets, improving yield.
+    function test_optimalRebalance_success_mintPausedMarketDrained() public {
+        _setUpUnconstrainedOptimizer();
+
+        // Deposit into all markets without rebalancing — each market
+        // retains ~100K so the mint-paused one has assets to drain.
+        uint256 perMarket = 100_000e6;
+        deal(USDC_MONAD, address(this), perMarket * 3);
+        IERC20(USDC_MONAD).approve(address(optimizer), perMarket * 3);
+        optimizer.deposit(perMarket, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WETH_MARKET);
+
+        uint256 snapshotId = vm.snapshot();
+
+        // ---- Path A: no rebalance (static) ----
+        skip(14 days);
+        uint256 rateStatic = optimizer.exchangeRateUpdated();
+
+        // ---- Path B: rebalance with mint-paused WETH ----
+        vm.revertTo(snapshotId);
+
+        // Mock mintPaused on market 2 (WETH).
+        address mmWETH = address(IBorrowableCToken(cUSDC_WETH_MARKET).marketManager());
+        vm.mockCall(
+            mmWETH,
+            abi.encodeWithSelector(IMarketManager.actionsPaused.selector, cUSDC_WETH_MARKET),
+            abi.encode(true, false, false)
+        );
+
+        (
+            ,
+            uint256[] memory depositAmounts,
+            uint256[] memory withdrawAmounts
+        ) = reader.optimalRebalance(address(optimizer));
+
+        // Market 2 (index 2) should not receive deposits.
+        assertEq(depositAmounts[2], 0, "Should not deposit into mint-paused market");
+        // Market 2 should have a withdrawal (drain it).
+        assertGt(withdrawAmounts[2], 0, "Should withdraw from mint-paused market");
+
+        // Execute and let yield accrue.
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+        skip(14 days);
+        uint256 rateRebalanced = optimizer.exchangeRateUpdated();
+
+        // Draining the mint-paused market and redirecting to better
+        // markets should improve (or at minimum maintain) yield.
+        assertGe(
+            rateRebalanced,
+            rateStatic,
+            "Draining mint-paused market should not lose yield vs static"
+        );
+    }
+
+    /// @notice When a market is both mint- and redeem-paused, its allocation
+    ///         should be frozen — no deposits, no withdrawals.
+    function test_optimalRebalance_success_bothPausedMarketFrozen() public {
+        _setUpUnconstrainedOptimizer();
+
+        uint256 perMarket = 100_000e6;
+        deal(USDC_MONAD, address(this), perMarket * 3);
+        IERC20(USDC_MONAD).approve(address(optimizer), perMarket * 3);
+        optimizer.deposit(perMarket, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WETH_MARKET);
+
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+
+        // Mock both pauses on market 1 (WBTC).
+        address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
+        vm.mockCall(
+            mmWBTC,
+            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encode(uint8(2))
+        );
+        vm.mockCall(
+            mmWBTC,
+            abi.encodeWithSelector(IMarketManager.actionsPaused.selector, cUSDC_WBTC_MARKET),
+            abi.encode(true, false, false)
+        );
+
+        (
+            ,
+            uint256[] memory depositAmounts,
+            uint256[] memory withdrawAmounts
+        ) = reader.optimalRebalance(address(optimizer));
+
+        // Market 1 should be completely frozen.
+        assertEq(depositAmounts[1], 0, "Should not deposit into both-paused market");
+        assertEq(withdrawAmounts[1], 0, "Should not withdraw from both-paused market");
+    }
+
+    /// @notice Rebalance with 2 of 3 markets redeem-paused should still
+    ///         execute and maintain yield vs static allocation.
+    function test_optimalRebalance_success_twoRedeemPausedOneActive() public {
+        _setUpUnconstrainedOptimizer();
+
+        uint256 perMarket = 100_000e6;
+        deal(USDC_MONAD, address(this), perMarket * 3);
+        IERC20(USDC_MONAD).approve(address(optimizer), perMarket * 3);
+        optimizer.deposit(perMarket, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(perMarket, address(this), cUSDC_WETH_MARKET);
+
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+
+        // Flood market 2 to create a rate imbalance worth rebalancing for.
+        address whale = address(0xBEEF);
+        deal(USDC_MONAD, whale, 3_000_000e6);
+        vm.startPrank(whale);
+        IERC20(USDC_MONAD).approve(cUSDC_WETH_MARKET, 3_000_000e6);
+        IBorrowableCToken(cUSDC_WETH_MARKET).deposit(3_000_000e6, whale);
+        vm.stopPrank();
+
+        uint256 snapshotId = vm.snapshot();
+
+        // ---- Path A: no rebalance (static) ----
+        skip(14 days);
+        uint256 rateStatic = optimizer.exchangeRateUpdated();
+
+        // ---- Path B: rebalance with 2 redeem-paused markets ----
+        vm.revertTo(snapshotId);
+
+        // Pause redeem on markets 0 and 1.
+        address mmWMON = address(IBorrowableCToken(cUSDC_WMON_MARKET).marketManager());
+        address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
+        vm.mockCall(
+            mmWMON,
+            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encode(uint8(2))
+        );
+        vm.mockCall(
+            mmWBTC,
+            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encode(uint8(2))
+        );
+
+        (
+            ,
+            ,
+            uint256[] memory withdrawAmounts
+        ) = reader.optimalRebalance(address(optimizer));
+
+        // Neither paused market should have withdrawals.
+        assertEq(withdrawAmounts[0], 0, "Should not withdraw from redeem-paused WMON");
+        assertEq(withdrawAmounts[1], 0, "Should not withdraw from redeem-paused WBTC");
+
+        // Execute and let yield accrue.
+        optimizer.accrueIfNeeded();
+        _executeOptimalRebalance();
+        skip(14 days);
+        uint256 rateRebalanced = optimizer.exchangeRateUpdated();
+
+        // Even with most markets locked, rebalancing should not hurt.
+        assertGe(
+            rateRebalanced,
+            rateStatic,
+            "Rebalance with 2 paused markets should not lose yield vs static"
         );
     }
 

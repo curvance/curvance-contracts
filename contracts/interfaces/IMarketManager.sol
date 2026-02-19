@@ -58,6 +58,10 @@ interface IMarketManager {
         address cToken
     ) external view returns (bool, bool, bool);
 
+    /// @notice Whether market-wide token redemptions are paused.
+    /// @dev 1 = unpaused; 2 = paused.
+    function redeemPaused() external view returns (uint8);
+
     /// @notice Returns the current collateralization configuration
     ///         of `cToken`.
     /// @param cToken The address of the Curvance token to return

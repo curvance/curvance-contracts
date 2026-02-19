@@ -1204,10 +1204,18 @@ contract ProtocolReader {
         uint256 numMarkets = cTokens.length;
 
         if (numMarkets == 0) return address(0);
-        if (numMarkets == 1) return cTokens[0];
+        if (numMarkets == 1) {
+            // Single market: return address(0) if mint-paused.
+            (bool mintPaused_,,) = IBorrowableCToken(cTokens[0]).marketManager().actionsPaused(cTokens[0]);
+            return mintPaused_ ? address(0) : cTokens[0];
+        }
 
         uint256 bestRate;
         for (uint256 i; i < numMarkets; ++i) {
+            // Skip markets where minting is paused.
+            (bool mintPaused_,,) = IBorrowableCToken(cTokens[i]).marketManager().actionsPaused(cTokens[i]);
+            if (mintPaused_) continue;
+
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
             uint256 rate = ct.IRM().supplyRate(
                 ct.assetsHeld() + assets,
@@ -1238,6 +1246,9 @@ contract ProtocolReader {
         uint256 bestRate = type(uint256).max;
         for (uint256 i; i < numMarkets; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
+
+            // Skip markets where redemptions are paused.
+            if (ct.marketManager().redeemPaused() == 2) continue;
 
             // Must have enough optimizer balance and idle liquidity.
             if (ct.convertToAssets(ct.balanceOf(optimizer)) < assets || ct.assetsHeld() < assets) continue;
@@ -1305,8 +1316,14 @@ contract ProtocolReader {
         }
     }
 
+    /// @dev Returns true if minting is paused for `cToken` in its market manager.
+    function _isMintPaused(address cToken) internal view returns (bool mp) {
+        (mp,,) = IBorrowableCToken(cToken).marketManager().actionsPaused(cToken);
+    }
+
     /// @dev Chunked greedy allocation: computes the ideal per-market asset
-    ///      distribution for a LendingOptimizer, respecting allocation caps.
+    ///      distribution for a LendingOptimizer, respecting allocation caps
+    ///      and market pause states.
     ///      Separated from optimalRebalance to avoid stack-too-deep.
     function _computeIdealAllocation(
         address optimizer,
@@ -1319,7 +1336,9 @@ contract ProtocolReader {
         uint256[] memory fees = new uint256[](markets.length);
         uint256[] memory maxAllocation = new uint256[](markets.length);
 
-        // Snapshot per-market state.
+        // First pass: snapshot per-market state.
+        // Temporarily stores currentAssets in idealAssets[i] for the
+        // pause-adjustment pass below.
         {
             ILendingOptimizer opt = ILendingOptimizer(optimizer);
             for (uint256 i; i < markets.length; ++i) {
@@ -1334,13 +1353,49 @@ contract ProtocolReader {
                     : 0;
                 debt[i] = ct.marketOutstandingDebt();
                 fees[i] = ct.interestFee();
+                idealAssets[i] = currentAssets;
                 maxAllocation[i] = FixedPointMathLib.mulDiv(
                     ta, opt.allocationCaps(markets[i]), WAD
                 );
             }
         }
 
-        // Chunked greedy allocation: split totalAssets into 20 chunks.
+        // Second pass: adjust for market pause states.
+        // Reads currentAssets from idealAssets[i] stored in the first pass.
+        uint256 lockedAssets;
+        for (uint256 i; i < markets.length; ++i) {
+            uint256 current = idealAssets[i];
+            IMarketManager mm = IBorrowableCToken(markets[i]).marketManager();
+
+            if (mm.redeemPaused() == 2) {
+                // Redeem-paused: can't withdraw, lock floor at current level.
+                simAssetsHeld[i] += current;
+                lockedAssets += current;
+                (bool mp,,) = mm.actionsPaused(markets[i]);
+                if (mp) {
+                    // Both paused: frozen at current level.
+                    maxAllocation[i] = current;
+                } else if (maxAllocation[i] < current) {
+                    // Cap below current allocation; ensure floor.
+                    maxAllocation[i] = current;
+                }
+            } else {
+                // Not redeem-paused: reset idealAssets (not locked).
+                idealAssets[i] = 0;
+                (bool mp,,) = mm.actionsPaused(markets[i]);
+                if (mp) {
+                    // Mint-paused only: can withdraw but not deposit.
+                    maxAllocation[i] = 0;
+                }
+            }
+        }
+
+        // Subtract locked assets from the distributable total.
+        // maxAllocation was already computed with the original ta,
+        // so it's safe to reuse ta here for the chunk loop.
+        ta -= lockedAssets;
+
+        // Chunked greedy allocation: split distributable total into 20 chunks.
         uint256 chunkSize = ta / 20;
 
         for (uint256 c; c < 20; ++c) {
