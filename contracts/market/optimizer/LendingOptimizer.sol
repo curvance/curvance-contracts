@@ -24,7 +24,7 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      based on configurable allocation caps.
 ///
 ///      Deposits can target specific markets or be automatically routed
-///      to the optimal market based on projected yield and cap headroom.
+///      to the optimal market based on projected yield.
 ///      Withdrawals similarly select the lowest-yielding market to
 ///      preserve capital in higher-performing markets.
 ///
@@ -748,45 +748,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         return FixedPointMathLib.mulDiv(WAD, totalAssets(), supply);
     }
 
-    /// @notice Calculates the projected supply rate for a market after a deposit or withdrawal.
-    /// @dev Modified version of previewAssetImpact for optimizer use.
-    ///      Returns type(uint256).max if the market has insufficient liquidity for a withdrawal,
-    ///      which signals that the market should not be selected for withdrawals.
-    /// @param cToken The market to calculate impact for.
-    /// @param assets The amount of assets being deposited or withdrawn.
-    /// @param isDeposit True for deposit, false for withdrawal.
-    /// @return projectedRate The projected supply rate after the action, in WAD per second.
-    function previewAssetImpact(
-        IBorrowableCToken cToken,
-        uint256 assets,
-        bool isDeposit
-    ) public view returns (uint256 projectedRate) {
-        // Get current idle assets held in the market (not lent out).
-        uint256 currentAssetsHeld = cToken.assetsHeld();
-        uint256 projectedAssetsHeld;
-
-        // Calculate projected assets after the action.
-        if (isDeposit) {
-            projectedAssetsHeld = currentAssetsHeld + assets;
-        } else {
-            // If market doesn't have enough liquidity, return max uint256 to signal
-            // this market is not viable for withdrawals of this size.
-            // This ensures it won't be selected as the optimal withdrawal target
-            // (which picks the lowest rate).
-            if (assets > currentAssetsHeld) {
-                return type(uint256).max;
-            }
-            projectedAssetsHeld = currentAssetsHeld - assets;
-        }
-
-        // Calculate projected supply rate using the market's IRM.
-        projectedRate = cToken.IRM().supplyRate(
-            projectedAssetsHeld,
-            cToken.marketOutstandingDebt(),
-            cToken.interestFee()
-        );
-    }
-
     /// @notice Returns the number of approved markets.
     function numApprovedMarkets() external view returns (uint256) {
         return approvedCTokensList.length;
@@ -825,24 +786,18 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Selects the best market index for a deposit or withdrawal.
+    /// @dev Selects the best market index for a deposit or withdrawal
+    ///      by projecting each market's supply rate after the action.
     ///
-    ///      The algorithm iterates every approved market and applies two
-    ///      filters depending on the direction:
+    ///      DEPOSITS  – Every market is a candidate. The market whose IRM
+    ///                   projects the **highest** supply rate after the
+    ///                   deposit wins (routes capital where yield is best).
     ///
-    ///      DEPOSITS  – A market is "viable" when its allocation cap still
-    ///                   has headroom for more assets.  Among viable markets
-    ///                   the one whose interest-rate model projects the
-    ///                   **highest** supply rate after the deposit wins.
-    ///                   If no market has headroom, falls back to index 0.
-    ///
-    ///      WITHDRAWALS – A market is "viable" when (a) this optimizer holds
-    ///                    enough cToken shares to cover the withdrawal AND
-    ///                    (b) the market itself has enough idle liquidity.
-    ///                    Among viable markets the one that projects the
-    ///                    **lowest** supply rate after the withdrawal wins,
-    ///                    so capital is pulled from the weakest performer
-    ///                    first, preserving yield in stronger markets.
+    ///      WITHDRAWALS – A market is viable when (a) this optimizer holds
+    ///                    enough cToken shares AND (b) the market has enough
+    ///                    idle liquidity. Among viable markets the one that
+    ///                    projects the **lowest** supply rate wins, draining
+    ///                    the weakest performer first.
     ///                    Reverts if no market qualifies.
     ///
     /// @param assets  Amount of underlying assets to deposit or withdraw.
@@ -851,57 +806,34 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
     function _optimalTarget(uint256 assets, bool isDeposit) internal view returns (uint256 targetIndex) {
         uint256 l = approvedCTokensList.length;
 
-        // Safety: revert if the market list is empty.
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
-        // Short-circuit: only one market means no comparison needed.
         if (l == 1) return 0;
 
-        // For deposits we want the highest rate  → start at 0 (any rate beats it).
-        // For withdrawals we want the lowest rate → start at max (any rate beats it).
         uint256 optimalRate = isDeposit ? 0 : type(uint256).max;
         bool foundViable;
 
-        // Deposits need `newTotal` (current assets + incoming deposit) so we
-        // can evaluate each market's allocation as a percentage of the new total.
-        uint256 newTotal;
-        if (isDeposit) newTotal = totalAssets() + assets;
-
         for (uint256 i; i < l; ++i) {
-            address cTokenAddr = approvedCTokensList[i];
-            // How many underlying assets this optimizer currently holds in market `i`.
-            uint256 marketAssets = _getMarketAssets(cTokenAddr);
+            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
+            uint256 assetsHeld = cToken.assetsHeld();
 
-            // --- Viability check (direction-dependent) ---
-            bool viable;
-            if (isDeposit) {
-                // Cap-based: maximum assets this market may hold after the deposit.
-                // maxAllocation = allocationCap * newTotal / WAD
-                uint256 maxAllocation = FixedPointMathLib.mulDiv(allocationCaps[cTokenAddr], newTotal, WAD);
-                // Viable only if there is room under the cap.
-                viable = maxAllocation > marketAssets;
-            } else {
-                // Liquidity-based: the optimizer must own enough shares AND the
-                // market must hold enough idle (unlent) assets.
-                viable = marketAssets >= assets && IBorrowableCToken(cTokenAddr).assetsHeld() >= assets;
+            // Withdrawals require sufficient balance and idle liquidity.
+            if (!isDeposit) {
+                if (_getMarketAssets(address(cToken)) < assets || assetsHeld < assets) continue;
             }
 
-            if (viable) {
+            uint256 projectedRate = cToken.IRM().supplyRate(
+                isDeposit ? assetsHeld + assets : assetsHeld - assets,
+                cToken.marketOutstandingDebt(),
+                cToken.interestFee()
+            );
+
+            if (isDeposit ? projectedRate > optimalRate : projectedRate < optimalRate) {
                 foundViable = true;
-
-                // Project the supply rate *after* the action using the market's IRM.
-                uint256 projectedRate = previewAssetImpact(IBorrowableCToken(cTokenAddr), assets, isDeposit);
-
-                // Deposits: pick the highest projected rate (maximize yield).
-                // Withdrawals: pick the lowest projected rate (drain weakest first).
-                if (isDeposit ? projectedRate > optimalRate : projectedRate < optimalRate) {
-                    optimalRate = projectedRate;
-                    targetIndex = i;
-                }
+                optimalRate = projectedRate;
+                targetIndex = i;
             }
         }
 
-        // Deposits: if every market is at/over cap, `targetIndex` stays 0 (first market).
-        // Withdrawals: revert – partial multi-market withdrawals are not supported.
         if (!isDeposit && !foundViable) revert LendingOptimizer__InsufficientLiquidity();
     }
 

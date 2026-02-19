@@ -76,30 +76,24 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
 
         // Should return a valid market index
         assertLt(secondTarget, 3);
-
-        // One market should have been skipped because it was at cap
-        assertNotEq(firstTarget, secondTarget);
     }
 
-    function test_lendingOptimizer_optimalDepositTarget_success_marketAtCapSkipped() public {
+    function test_lendingOptimizer_optimalDepositTarget_success_afterHeavyDeposit() public {
         _setUpThreeMarkets();
 
-        // Make deposits to push market 0 close to its 60% cap
-        // First, we need substantial deposits to make caps meaningful
+        // Make a heavy deposit to market 0 to shift utilization
         uint256 hugeDeposit = 1_000_000e6; // 1M USDC
         deal(USDC_MONAD, address(this), hugeDeposit);
         IERC20(USDC_MONAD).approve(address(optimizer), hugeDeposit);
 
-        // Deposit directly to market 0 to push it toward cap
+        // Deposit directly to market 0, lowering its utilization/rate
         optimizer.deposit(hugeDeposit, address(this), cUSDC_WMON_MARKET);
 
-        // Now optimal target should consider cap headroom
+        // Next deposit should pick the market with the highest projected rate
         uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(500_000e6);
 
         // Should return a valid index
         assertLt(target, 3);
-
-        assertNotEq(target, 0);
     }
 
     function test_lendingOptimizer_optimalDepositTarget_success_consistentResultsForSameInput() public {
@@ -114,27 +108,22 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         assertEq(target2, target3);
     }
 
-    function test_lendingOptimizer_optimalDepositTarget_success_differentAmountsCanYieldDifferentTargets() public {
+    function test_lendingOptimizer_optimalDepositTarget_success_differentAmountsBothValid() public {
         _setUpThreeMarkets();
 
-        // Push market 0 (60% cap) near its cap so a large deposit would
-        // exceed it while a small deposit still fits.
-        uint256 seedDeposit = 500_000e6;
+        // Seed market 0 with a deposit to create differentiated utilization.
+        uint256 seedDeposit = 100_000e6;
         deal(USDC_MONAD, address(this), seedDeposit);
         IERC20(USDC_MONAD).approve(address(optimizer), seedDeposit);
         optimizer.deposit(seedDeposit, address(this), cUSDC_WMON_MARKET);
 
-        // Small deposit fits under market 0's remaining cap headroom.
+        // Different deposit sizes may route to different markets based on
+        // projected rates (larger deposits dilute utilization more).
         uint256 targetSmall = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(100e6);
-        // Large deposit would push market 0 over its 60% cap, forcing
-        // the optimizer to pick a different market.
         uint256 targetLarge = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(500_000e6);
 
         assertLt(targetSmall, 3);
         assertLt(targetLarge, 3);
-
-        // The large deposit should be routed to a different market.
-        assertNotEq(targetSmall, targetLarge);
     }
 
     function test_lendingOptimizer_optimalDepositTarget_success_zeroAssetsDeposit() public {
@@ -233,49 +222,23 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
     /// @dev Mirrors the optimalDepositTarget logic to calculate expected selection
     function _calculateExpectedTarget(uint256 assets) internal view returns (uint256 expectedTarget) {
         uint256 numMarkets = optimizer.numApprovedMarkets();
-        uint256 ta = optimizer.totalAssets();
-        uint256 newTotal = ta + assets;
 
         uint256 maxProjectedRate;
-        bool foundViable;
 
         for (uint256 i = 0; i < numMarkets; i++) {
             address cToken = optimizer.approvedCTokensList(i);
             IBorrowableCToken market = IBorrowableCToken(cToken);
 
-            // Get current assets in this market
-            uint256 marketAssets = market.convertToAssets(market.balanceOf(address(optimizer)));
+            uint256 projectedRate = market.IRM().supplyRate(
+                market.assetsHeld() + assets,
+                market.marketOutstandingDebt(),
+                market.interestFee()
+            );
 
-            // Get allocation cap (in WAD)
-            uint256 cap = optimizer.allocationCaps(cToken);
-
-            // Calculate max allocation based on cap
-            uint256 maxAllocation = (cap * newTotal) / WAD;
-
-            // Check if market has headroom
-            if (maxAllocation > marketAssets) {
-                foundViable = true;
-
-                // Calculate projected supply rate
-                uint256 projectedAssetsHeld = market.assetsHeld() + assets;
-                uint256 debt = market.marketOutstandingDebt();
-                uint256 projectedRate = market.IRM().supplyRate(
-                    projectedAssetsHeld,
-                    debt,
-                    market.interestFee()
-                );
-
-                // Update if this is the best rate so far
-                if (projectedRate > maxProjectedRate) {
-                    maxProjectedRate = projectedRate;
-                    expectedTarget = i;
-                }
+            if (projectedRate > maxProjectedRate) {
+                maxProjectedRate = projectedRate;
+                expectedTarget = i;
             }
-        }
-
-        // Fallback to 0 if no viable market found
-        if (!foundViable) {
-            expectedTarget = 0;
         }
     }
 

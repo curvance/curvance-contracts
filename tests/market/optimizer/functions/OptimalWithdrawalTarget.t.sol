@@ -315,25 +315,18 @@ contract TestLendingOptimizerOptimalWithdrawalTarget is TestBaseLendingOptimizer
             address cToken = optimizer.approvedCTokensList(i);
             IBorrowableCToken market = IBorrowableCToken(cToken);
 
-            // Get current assets in this market
             uint256 marketAssets = market.convertToAssets(market.balanceOf(address(optimizer)));
             uint256 assetsHeld = market.assetsHeld();
 
-            // Check if market is viable (has enough balance and liquidity)
             if (marketAssets >= assets && assetsHeld >= assets) {
-                foundViable = true;
-
-                // Calculate projected supply rate after withdrawal
-                uint256 projectedAssetsHeld = assetsHeld - assets;
-                uint256 debt = market.marketOutstandingDebt();
                 uint256 projectedRate = market.IRM().supplyRate(
-                    projectedAssetsHeld,
-                    debt,
+                    assetsHeld - assets,
+                    market.marketOutstandingDebt(),
                     market.interestFee()
                 );
 
-                // Update if this is the lowest rate so far
-                if (projectedRate < minProjectedRate) {
+                if (!foundViable || projectedRate < minProjectedRate) {
+                    foundViable = true;
                     minProjectedRate = projectedRate;
                     expectedTarget = i;
                 }
