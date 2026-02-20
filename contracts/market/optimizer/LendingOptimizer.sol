@@ -764,19 +764,6 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         shares = shares == 0 ? 0 : shares - 1;
     }
 
-    /// @notice Returns a conservative asset cost estimate for a given mint.
-    /// @dev Rounds up by 1 asset to account for the stale-state gap
-    ///      between this view call and the actual `mint()`, which
-    ///      accrues interest internally. This ensures
-    ///      `mint() <= previewMint()` per ERC4626 when the caller
-    ///      accrues state beforehand. Integrators should call
-    ///      `accrueIfNeeded()` before `previewMint()` in the same
-    ///      transaction for maximum accuracy.
-    function previewMint(uint256 shares) public view override returns (uint256 assets) {
-        assets = super.previewMint(shares);
-        assets = assets == 0 ? 0 : assets + 1;
-    }
-
     /// @notice Returns 0 when deposits are paused or uninitialized.
     function maxDeposit(address) public view override returns (uint256) {
         return mintPaused == 1 ? type(uint256).max : 0;
