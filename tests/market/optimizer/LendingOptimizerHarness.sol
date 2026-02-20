@@ -38,6 +38,12 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return _accrueMarkets();
     }
 
+    /// @notice Returns shares using the original ERC4626 previewDeposit
+    ///         (without the -2 adjustment) for comparison testing.
+    function oldPreviewDeposit(uint256 assets) external view returns (uint256) {
+        return convertToShares(assets);
+    }
+
     /// @notice Exposes _optimalTarget for deposit target selection.
     function optimalDepositTarget(uint256 assets) external view returns (uint256) {
         return _optimalTarget(assets, true);
