@@ -169,6 +169,48 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore, 10, "Total assets should be preserved");
     }
 
+    function test_lendingOptimizer_removeApprovedAsset_success_emitsMarketRemovedEvent() public {
+        // Setup with three markets (60% + 50% + 20% caps).
+        _setUpThreeMarkets();
+
+        // Deposit to markets so there are assets to reallocate.
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
+        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
+        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        deal(USDC_MONAD, address(this), 1_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
+        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+
+        // Get assets in market 2 for reallocation.
+        uint256 market2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
+        );
+
+        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
+        removeActions[0] = LendingOptimizer.RemoveAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            market2Assets
+        );
+
+        // Mock market permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Expect the MarketRemoved event with the correct cToken address.
+        vm.expectEmit(true, false, false, false, address(optimizer));
+        emit LendingOptimizer.MarketRemoved(cUSDC_WETH_MARKET);
+
+        optimizer.removeApprovedAsset(2, removeActions);
+    }
+
     function test_lendingOptimizer_removeApprovedAsset_fail_whenRemainingCapsUnder100() public {
         // Setup with two markets (60% + 50% = 110%).
         // Removing either one leaves remaining cap < 100%.

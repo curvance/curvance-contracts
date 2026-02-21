@@ -479,11 +479,14 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         console2.log("previewDeposit:", previewShares);
         console2.log("actualDeposit:", actualShares);
 
-        // ERC4626 spec: deposit MUST return >= previewDeposit.
-        // Allow 2 wei tolerance due to cToken rounding in _depositToMarket.
-        if (actualShares + 2 < previewShares) {
-            console2.log("[FINDING] deposit returned fewer shares than previewDeposit by:", previewShares - actualShares);
-        }
+        // ERC4626 spec: deposit() MUST return >= previewDeposit() shares.
+        // previewDeposit already subtracts 1 from convertToShares to account
+        // for cToken rounding, so actualShares should be >= previewShares
+        // with at most 1 wei tolerance for the cToken deposit round-trip.
+        assertGe(
+            actualShares, previewShares - 1,
+            "deposit must return >= previewDeposit minus cToken rounding"
+        );
     }
 
     /// @notice At accrual boundary, test if _accrueIfNeeded changes state between
@@ -797,6 +800,29 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         }
     }
 
+    /// @notice mint(0) should return 0 assets and not revert.
+    function test_J_mint_zero_shares() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC); // Need existing state.
+
+        deal(USDC_MONAD, user2Addr, 0);
+        vm.startPrank(user2Addr);
+        IERC20(USDC_MONAD).approve(address(harness), 0);
+
+        // mint(0) should either return 0 assets or revert.
+        // ERC4626 doesn't mandate that mint(0) must succeed, but it should
+        // not leave the vault in an inconsistent state.
+        try harness.mint(0, user2Addr) returns (uint256 assets) {
+            console2.log("mint(0) returned assets:", assets);
+            assertEq(assets, 0, "mint(0) should return 0 assets");
+            // Verify no shares were minted.
+            assertEq(harness.balanceOf(user2Addr), 0, "mint(0) should not mint any shares");
+        } catch {
+            console2.log("mint(0) reverted (acceptable)");
+        }
+        vm.stopPrank();
+    }
+
     /// @notice convertToShares(0) should return 0.
     function test_J_convertToShares_zero() public {
         _setUpHarnessNoFee();
@@ -824,6 +850,15 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         assertEq(shares, 0, "previewDeposit(0) should return 0");
     }
 
+    /// @notice previewMint(0) should return 0.
+    function test_J_previewMint_zero() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC);
+
+        uint256 assets = harness.previewMint(0);
+        assertEq(assets, 0, "previewMint(0) should return 0");
+    }
+
     /// @notice previewRedeem(0) should return 0.
     function test_J_previewRedeem_zero() public {
         _setUpHarnessNoFee();
@@ -831,6 +866,208 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
 
         uint256 assets = harness.previewRedeem(0);
         assertEq(assets, 0, "previewRedeem(0) should return 0");
+    }
+
+    // =====================================================================
+    //  K. DEPOSIT/MINT SKIP maxDeposit/maxMint CHECK (SPEC DEVIATION)
+    // =====================================================================
+    //  ERC4626 states that deposit() MUST revert if depositing more than
+    //  maxDeposit() allows, and mint() MUST revert if minting more than
+    //  maxMint() allows. The contract achieves the same end-result via
+    //  _checkMintPaused() instead of consulting maxDeposit/maxMint directly.
+    //  These tests document that behavior: when paused, maxDeposit returns 0
+    //  and deposit reverts (through _checkMintPaused), and when active,
+    //  maxDeposit returns type(uint256).max and deposit succeeds.
+
+    /// @notice When paused: maxDeposit returns 0 and deposit reverts.
+    function test_K_maxDeposit_paused_depositReverts() public {
+        _setUpHarnessNoFee();
+
+        // Pause deposits.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        harness.setMintPaused(true);
+
+        // maxDeposit should return 0 when paused.
+        uint256 maxDep = harness.maxDeposit(user1Addr);
+        assertEq(maxDep, 0, "maxDeposit should return 0 when paused");
+
+        // deposit should revert when paused (via _checkMintPaused, not maxDeposit check).
+        deal(USDC_MONAD, user1Addr, ONE_USDC);
+        vm.startPrank(user1Addr);
+        IERC20(USDC_MONAD).approve(address(harness), ONE_USDC);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MintPaused.selector);
+        harness.deposit(ONE_USDC, user1Addr);
+        vm.stopPrank();
+    }
+
+    /// @notice When paused: maxMint returns 0 and mint reverts.
+    function test_K_maxMint_paused_mintReverts() public {
+        _setUpHarnessNoFee();
+
+        // Pause deposits.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        harness.setMintPaused(true);
+
+        // maxMint should return 0 when paused.
+        uint256 maxM = harness.maxMint(user1Addr);
+        assertEq(maxM, 0, "maxMint should return 0 when paused");
+
+        // mint should revert when paused (via _checkMintPaused, not maxMint check).
+        deal(USDC_MONAD, user1Addr, MILLION_USDC);
+        vm.startPrank(user1Addr);
+        IERC20(USDC_MONAD).approve(address(harness), MILLION_USDC);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MintPaused.selector);
+        harness.mint(ONE_USDC, user1Addr);
+        vm.stopPrank();
+    }
+
+    /// @notice When active: maxDeposit returns type(uint256).max and deposit succeeds.
+    function test_K_maxDeposit_active_depositSucceeds() public {
+        _setUpHarnessNoFee();
+
+        // maxDeposit should return type(uint256).max when active.
+        uint256 maxDep = harness.maxDeposit(user1Addr);
+        assertEq(maxDep, type(uint256).max, "maxDeposit should return type(uint256).max when active");
+
+        // deposit should succeed when active.
+        uint256 shares = _depositAs(user1Addr, MILLION_USDC);
+        assertGt(shares, 0, "deposit should succeed and mint shares when active");
+    }
+
+    /// @notice When active: maxMint returns type(uint256).max and mint succeeds.
+    function test_K_maxMint_active_mintSucceeds() public {
+        _setUpHarnessNoFee();
+
+        // maxMint should return type(uint256).max when active.
+        uint256 maxM = harness.maxMint(user1Addr);
+        assertEq(maxM, type(uint256).max, "maxMint should return type(uint256).max when active");
+
+        // mint should succeed when active.
+        uint256 sharesToMint = 100_000e6;
+        uint256 assetCost = harness.previewMint(sharesToMint);
+
+        deal(USDC_MONAD, user1Addr, assetCost);
+        vm.startPrank(user1Addr);
+        IERC20(USDC_MONAD).approve(address(harness), assetCost);
+        uint256 actualAssets = harness.mint(sharesToMint, user1Addr);
+        vm.stopPrank();
+
+        assertGt(actualAssets, 0, "mint should succeed and spend assets when active");
+        assertEq(harness.balanceOf(user1Addr), sharesToMint, "mint should produce exact shares");
+    }
+
+    // =====================================================================
+    //  L. WITHDRAW/REDEEM SKIP maxWithdraw/maxRedeem CHECK (NATURAL PROTECTION)
+    // =====================================================================
+    //  ERC4626 states that withdraw() MUST revert if withdrawing more than
+    //  maxWithdraw() allows, and redeem() MUST revert if redeeming more than
+    //  maxRedeem() allows. The contract does not explicitly consult these
+    //  functions but achieves the same result through natural arithmetic
+    //  protections (share burn underflow, insufficient cToken balance).
+    //  These tests document that behavior.
+
+    /// @notice withdraw(maxWithdraw(owner)) succeeds and returns correct shares.
+    function test_L_withdraw_maxWithdraw_succeeds() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC);
+
+        // Accrue to ensure state is synced before querying maxWithdraw.
+        vm.warp(block.timestamp + 1 days);
+        harness.accrueIfNeeded();
+
+        uint256 maxW = harness.maxWithdraw(user1Addr);
+        assertGt(maxW, 0, "maxWithdraw should be > 0 after deposit");
+
+        // The shares needed to withdraw maxW.
+        uint256 expectedShares = harness.previewWithdraw(maxW);
+
+        vm.prank(user1Addr);
+        uint256 actualShares = harness.withdraw(maxW, user1Addr, user1Addr);
+
+        // Shares burned should match preview.
+        assertEq(actualShares, expectedShares, "withdraw(maxWithdraw) should burn previewWithdraw shares");
+
+        // User should have 0 or near-0 shares remaining (rounding dust possible).
+        assertLe(harness.balanceOf(user1Addr), 1, "User should have near-zero shares after full withdraw");
+
+        console2.log("maxWithdraw amount:", maxW);
+        console2.log("Shares burned:", actualShares);
+    }
+
+    /// @notice redeem(maxRedeem(owner)) succeeds and returns correct assets.
+    function test_L_redeem_maxRedeem_succeeds() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC);
+
+        // Accrue to ensure state is synced before querying maxRedeem.
+        vm.warp(block.timestamp + 1 days);
+        harness.accrueIfNeeded();
+
+        uint256 maxR = harness.maxRedeem(user1Addr);
+        assertGt(maxR, 0, "maxRedeem should be > 0 after deposit");
+
+        // The assets expected from redeeming maxR shares.
+        uint256 expectedAssets = harness.previewRedeem(maxR);
+
+        vm.prank(user1Addr);
+        uint256 actualAssets = harness.redeem(maxR, user1Addr, user1Addr);
+
+        // Assets returned should match preview.
+        assertEq(actualAssets, expectedAssets, "redeem(maxRedeem) should return previewRedeem assets");
+
+        // User should have 0 shares remaining.
+        assertEq(harness.balanceOf(user1Addr), 0, "User should have zero shares after full redeem");
+
+        console2.log("maxRedeem shares:", maxR);
+        console2.log("Assets received:", actualAssets);
+    }
+
+    /// @notice withdraw(maxWithdraw + 1 wei) reverts (natural arithmetic protection).
+    function test_L_withdraw_exceedsMax_reverts() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC);
+
+        // Accrue to ensure state is synced.
+        vm.warp(block.timestamp + 1 days);
+        harness.accrueIfNeeded();
+
+        uint256 maxW = harness.maxWithdraw(user1Addr);
+        assertGt(maxW, 0, "maxWithdraw should be > 0");
+
+        // Attempting to withdraw 1 wei more than maxWithdraw should revert.
+        // The revert comes from trying to burn more shares than the user holds
+        // (natural arithmetic underflow protection), not from a maxWithdraw check.
+        vm.prank(user1Addr);
+        vm.expectRevert();
+        harness.withdraw(maxW + 1, user1Addr, user1Addr);
+    }
+
+    /// @notice redeem(maxRedeem + 1) reverts (natural arithmetic protection).
+    function test_L_redeem_exceedsMax_reverts() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, MILLION_USDC);
+
+        // Accrue to ensure state is synced.
+        vm.warp(block.timestamp + 1 days);
+        harness.accrueIfNeeded();
+
+        uint256 maxR = harness.maxRedeem(user1Addr);
+        assertGt(maxR, 0, "maxRedeem should be > 0");
+
+        // Attempting to redeem 1 more share than maxRedeem should revert.
+        // The revert comes from trying to burn more shares than the user holds
+        // (natural arithmetic underflow protection), not from a maxRedeem check.
+        vm.prank(user1Addr);
+        vm.expectRevert();
+        harness.redeem(maxR + 1, user1Addr, user1Addr);
     }
 
     // =====================================================================
@@ -855,10 +1092,9 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         console2.log("previewMint assets:", previewAssets);
         console2.log("actual mint assets:", actualAssets);
 
-        // ERC4626: mint should return same or fewer assets than previewMint.
-        // In practice, _accrueIfNeeded() inside mint() can shift the exchange rate
-        // by a tiny amount relative to the pre-accrual previewMint, causing up to
-        // 1 wei divergence. Allow for this accrual-boundary rounding.
+        // ERC4626 spec: mint() MUST spend <= previewMint() assets.
+        // Allow 1 wei tolerance: _accrueIfNeeded() inside mint() can shift
+        // the exchange rate between the external preview and actual mint.
         assertApproxEqAbs(
             actualAssets, previewAssets, 1,
             "mint() should not require more assets than previewMint() (within accrual rounding)"

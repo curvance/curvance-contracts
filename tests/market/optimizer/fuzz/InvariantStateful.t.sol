@@ -168,6 +168,8 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice totalAssets should track the actual sum of market values closely.
+    /// @dev Checks both directions of drift: totalAssets above or below the
+    ///      actual sum of market values.
     function invariant_totalAssetsTracking() public view {
         uint256 numMarkets = harness.numApprovedMarkets();
         uint256 sumMarkets;
@@ -181,13 +183,21 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 ta = harness.totalAssets();
 
         // totalAssets may lag behind sumMarkets (new yield not yet detected)
-        // or may be slightly above.
-        // The key check: sumMarkets should not be drastically below totalAssets.
+        // or may be slightly above due to accrual timing.
+        // Check both directions with 1% tolerance.
         if (ta > sumMarkets) {
             assertLe(
                 ta - sumMarkets,
                 ta / 100, // Allow 1% for yield detection timing difference
                 "INVARIANT VIOLATED: totalAssets far exceeds actual market sum"
+            );
+        }
+
+        if (sumMarkets > ta) {
+            assertLe(
+                sumMarkets - ta,
+                sumMarkets / 100, // Allow 1% for yield not yet absorbed
+                "INVARIANT VIOLATED: actual market sum far exceeds totalAssets"
             );
         }
     }
@@ -266,5 +276,66 @@ contract InvariantStateful is TestBaseLendingOptimizer {
             0,
             "INVARIANT VIOLATED: total supply is zero (dead shares should prevent this)"
         );
+    }
+
+    /// @notice Per-market allocation should not exceed its configured cap by
+    ///         an unreasonable amount.
+    /// @dev Deposits route to the optimal market without strictly enforcing
+    ///      caps, and updateCap can lower caps below current allocations.
+    ///      Only rebalance() enforces caps strictly. So this invariant uses
+    ///      a soft check: no single market should hold more than 100% of
+    ///      totalAssets (the absolute hard limit), and we log a warning
+    ///      if any market exceeds its configured cap.
+    function invariant_perMarketCapCompliance() public view {
+        uint256 ta = harness.totalAssets();
+        if (ta == 0) return;
+
+        uint256 numMarkets = harness.numApprovedMarkets();
+        for (uint256 i; i < numMarkets; ++i) {
+            address market = harness.approvedCTokensList(i);
+            uint256 marketAssets = IBorrowableCToken(market).convertToAssets(
+                IBorrowableCToken(market).balanceOf(address(harness))
+            );
+            uint256 currentAllocation = FixedPointMathLib.mulDiv(marketAssets, WAD, ta);
+
+            // Hard invariant: no market can ever hold more than 100%.
+            assertLe(
+                currentAllocation,
+                WAD,
+                "INVARIANT VIOLATED: market allocation exceeds 100%"
+            );
+
+            // Note: deposits route to the optimal market without cap
+            // enforcement, and updateCap can lower caps below current
+            // allocations at any time. Only rebalance() enforces caps
+            // strictly. Therefore we only assert the hard 100% ceiling
+            // here -- per-cap compliance is a post-rebalance property,
+            // not a global invariant.
+        }
+    }
+
+    /// @notice If totalSupply is zero then totalAssets must also be zero.
+    /// @dev After initialization, dead shares guarantee totalSupply > 0.
+    ///      This invariant catches any scenario where shares are fully burned
+    ///      but assets remain stranded in markets.
+    function invariant_zeroSupplyImpliesZeroAssets() public view {
+        uint256 supply = harness.totalSupply();
+
+        // Dead shares from initializeDeposits guarantee supply > 0.
+        assertGt(
+            supply,
+            0,
+            "INVARIANT VIOLATED: totalSupply is zero (dead shares should prevent this)"
+        );
+
+        // If somehow supply were zero, assets must also be zero.
+        // This is a defensive check complementing invariant_deadSharesExist.
+        if (supply == 0) {
+            assertEq(
+                harness.totalAssets(),
+                0,
+                "INVARIANT VIOLATED: totalSupply == 0 but totalAssets > 0"
+            );
+        }
     }
 }

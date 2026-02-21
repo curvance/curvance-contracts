@@ -36,6 +36,9 @@ contract LendingOptimizerHandler is Test {
     uint256 public ghost_totalSharesMinted;
     uint256 public ghost_totalSharesBurned;
 
+    // Track share transfers for balance consistency checks.
+    uint256 public ghost_transferCount;
+
     constructor(
         LendingOptimizerHarness _optimizer,
         IERC20 _usdc,
@@ -197,6 +200,30 @@ contract LendingOptimizerHandler is Test {
         _updateExchangeRate();
     }
 
+    /// @notice Transfer shares between two different actors.
+    function transferShares(uint256 seed, uint256 amount) external {
+        address sender = _selectActor(seed);
+        address receiver = actors[(seed + 1) % actors.length];
+
+        // Ensure sender and receiver are different.
+        if (sender == receiver) return;
+
+        uint256 balance = optimizer.balanceOf(sender);
+        if (balance == 0) return;
+
+        amount = bound(amount, 1, balance);
+
+        vm.prank(sender);
+
+        try optimizer.transfer(receiver, amount) returns (bool) {
+            ghost_transferCount++;
+        } catch {
+            // Unexpected revert.
+        }
+
+        _updateExchangeRate();
+    }
+
     /// @notice Rebalance assets between two markets.
     function rebalance(uint256 withdrawMarketIndex, uint256 depositMarketIndex, uint256 amount) external {
         uint256 numMarkets = markets.length;
@@ -281,24 +308,31 @@ contract LendingOptimizerHandler is Test {
         _updateExchangeRate();
     }
 
-    /// @notice Toggle mint paused state.
-    function togglePause() external {
+    /// @notice Pause deposits. Deposits/mints will revert while paused.
+    function pauseMint() external {
         _mockMarketPermissions(address(this));
 
         uint8 currentState = optimizer.mintPaused();
-        if (currentState == 0) return; // Not initialized.
+        if (currentState != 1) return; // Only pause if currently active.
 
-        bool newState = currentState == 1;
-
-        try optimizer.setMintPaused(newState) {
+        try optimizer.setMintPaused(true) {
             // Success.
         } catch {
             // Unexpected revert.
         }
+    }
 
-        // Unpause immediately to keep fuzzer productive.
-        if (newState) {
-            try optimizer.setMintPaused(false) {} catch {}
+    /// @notice Unpause deposits.
+    function unpauseMint() external {
+        _mockMarketPermissions(address(this));
+
+        uint8 currentState = optimizer.mintPaused();
+        if (currentState != 2) return; // Only unpause if currently paused.
+
+        try optimizer.setMintPaused(false) {
+            // Success.
+        } catch {
+            // Unexpected revert.
         }
     }
 
@@ -315,6 +349,22 @@ contract LendingOptimizerHandler is Test {
             // Expected revert (e.g., total caps < 100%).
         }
     }
+
+    // ========================================================================
+    // INTENTIONALLY EXCLUDED ACTIONS
+    // ========================================================================
+
+    // Market add/remove (addApprovedAsset / removeApprovedAsset) is excluded
+    // from the handler because:
+    // 1. Both require admin-level market permissions (not user actions).
+    // 2. removeApprovedAsset requires constructing valid RemoveAction arrays
+    //    with exact reallocation amounts matching redeemed totals, which is
+    //    difficult to fuzz meaningfully without hitting constant reverts.
+    // 3. addApprovedAsset requires deploying or referencing a valid cToken
+    //    with correct underlying, registered market manager, etc.
+    // 4. Changing the market set mid-sequence invalidates the cached `markets`
+    //    array used by all other handler functions.
+    // These operations are tested in dedicated unit/integration tests instead.
 
     // ========================================================================
     // VIEW HELPERS

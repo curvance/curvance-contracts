@@ -101,6 +101,51 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
+    // STANDARD 2-ARG DEPOSIT (ERC4626 SPEC)
+    // =========================================================================
+
+    /// @notice Standard 2-arg deposit(assets, receiver) should work correctly
+    ///         and return shares consistent with previewDeposit.
+    /// @dev Verifies the ERC4626 standard deposit signature routes to the
+    ///      optimal market and returns shares >= previewDeposit (within cToken
+    ///      rounding tolerance).
+    function testFuzz_standardDeposit_twoArg(uint256 assets) public {
+        assets = bound(assets, 1e6, 100_000e6);
+
+        // Snapshot preview before deposit (state is already accrued from setUp).
+        uint256 previewed = harness.previewDeposit(assets);
+
+        uint256 sharesBefore = harness.balanceOf(depositor);
+
+        deal(USDC_MONAD, depositor, assets);
+        vm.startPrank(depositor);
+        IERC20(USDC_MONAD).approve(address(harness), assets);
+        // Call the standard 2-arg deposit(assets, receiver) -- NOT the 3-arg version.
+        uint256 actual = harness.deposit(assets, depositor);
+        vm.stopPrank();
+
+        uint256 sharesAfter = harness.balanceOf(depositor);
+
+        // Shares returned must be > 0 for any non-dust deposit.
+        assertGt(actual, 0, "Standard 2-arg deposit returned 0 shares");
+
+        // ERC4626 spec: deposit() MUST return >= previewDeposit().
+        // Allow 1 wei tolerance for the cToken deposit round-trip rounding.
+        assertGe(
+            actual + 1,
+            previewed,
+            "Standard 2-arg deposit returned fewer shares than previewDeposit minus cToken rounding"
+        );
+
+        // User share balance should have increased by exactly the returned amount.
+        assertEq(
+            sharesAfter - sharesBefore,
+            actual,
+            "User share balance increase does not match returned shares"
+        );
+    }
+
+    // =========================================================================
     // PREVIEW MINT
     // =========================================================================
 
@@ -117,12 +162,11 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         uint256 actualAssets = harness.mint(shares, depositor);
         vm.stopPrank();
 
-        // Actual asset cost should match preview.
-        assertApproxEqAbs(
+        // ERC4626 spec: mint() MUST spend <= previewMint() assets.
+        assertLe(
             actualAssets,
             previewedAssets,
-            2,
-            "previewMint diverged from actual mint cost by > 2 wei"
+            "mint() must not require more assets than previewMint()"
         );
     }
 

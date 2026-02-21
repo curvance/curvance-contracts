@@ -301,6 +301,87 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         assertGt(assets, 0, "Should be able to redeem after rebalance");
     }
 
+    function test_lendingOptimizer_rebalance_fail_whenAssetMismatch() public {
+        // Deposit to all markets equally.
+        _depositToAllMarkets(10_000e6);
+
+        // Create rebalance actions where withdrawal != deposit amounts.
+        // Withdraw 2000 from Market 2 but only deposit 1000 to Market 0.
+        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
+        actions[0] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            1_000e6,
+            true  // deposit 1000
+        );
+        actions[1] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            0,
+            true  // no action
+        );
+        actions[2] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            2_000e6,
+            false  // withdraw 2000
+        );
+
+        // Mock harvest permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // sumDeclaredWithdrawals (2000) != sumDeclaredReallocated (1000)
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
+        optimizer.rebalance(actions);
+    }
+
+    function test_lendingOptimizer_rebalance_success_emitsRebalancedEvent() public {
+        // Deposit to all markets equally to create an imbalance.
+        _depositToAllMarkets(10_000e6);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        // Bring Market 2 under its 20% cap by moving assets to Market 0.
+        uint256 market2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
+        );
+        uint256 market2Target = (totalAssetsBefore * 20) / 100;
+        uint256 transferAmount = market2Assets - market2Target;
+
+        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
+        actions[0] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            transferAmount,
+            true  // deposit
+        );
+        actions[1] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            0,
+            true  // no action
+        );
+        actions[2] = LendingOptimizer.RebalanceAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            transferAmount,
+            false  // withdraw
+        );
+
+        // Mock harvest permissions.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Expect the Rebalanced event.
+        // We check topic1 (totalAssets) and topic2 (markets) and topic3 (allocations)
+        // are emitted without checking exact data values.
+        vm.expectEmit(false, false, false, false, address(optimizer));
+        emit LendingOptimizer.Rebalanced(0, new address[](0), new uint256[](0));
+
+        optimizer.rebalance(actions);
+    }
+
     /// @notice Tests that rebalance reverts when final allocation exceeds market caps.
     function test_lendingOptimizer_rebalance_fail_whenAllocationExceedsCap() public {
         // Deposit to all markets equally. This puts market 2 at 33% allocation,

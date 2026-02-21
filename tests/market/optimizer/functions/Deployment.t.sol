@@ -255,9 +255,46 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizer_deployment_fail_whenInvalidMarketManager() public {
-        // Create a mock cToken with invalid market manager
-        // This would require deploying a mock - skipping for now
-        // as it requires more complex setup
+        // Deploy a mock cToken that returns the correct underlying but
+        // has a market manager that is NOT registered in the central registry.
+        address mockCToken = address(0xBEEF);
+        address fakeMarketManager = address(0xDEAD);
+
+        // Mock cToken.asset() to return USDC (matching underlying).
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("asset()"),
+            abi.encode(USDC_MONAD)
+        );
+
+        // Mock cToken.marketManager() to return the fake market manager.
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("marketManager()"),
+            abi.encode(fakeMarketManager)
+        );
+
+        // Mock centralRegistry.isMarketManager() to return false for the fake manager.
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.isMarketManager.selector, fakeMarketManager),
+            abi.encode(false)
+        );
+
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = mockCToken;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidMarketManager.selector);
+        new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
     }
 
     function test_lendingOptimizer_deployment_verifyPluginDelegableInherited() public {
