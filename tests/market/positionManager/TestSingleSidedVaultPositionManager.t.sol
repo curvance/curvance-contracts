@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
+import { SingleSidedVaultPositionManager } from "contracts/market/position-management/SingleSidedVaultPositionManager.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -20,7 +20,7 @@ import { BasePositionManager } from "contracts/market/position-management/BasePo
 
 /// @dev
 /// Test overview:
-/// - This suite exercises VaultPositionManager on an Ethereum mainnet fork so we can rely on
+/// - This suite exercises SingleSidedVaultPositionManager on an Ethereum mainnet fork so we can rely on
 ///   Uniswap V3 liquidity and FRAX/sFRAX availability.
 ///
 /// Environments:
@@ -49,9 +49,9 @@ import { BasePositionManager } from "contracts/market/position-management/BasePo
 /// - testDeleverage (USDC/DAI, enforced swap).
 /// - test_Leverage_fail_... (input validation: invalid target/call/tokens/amounts/wrong recipient).
 
-contract TestVaultPositionManager is TestBaseMarketIsolated {
+contract TestSingleSidedVaultPositionManager is TestBaseMarketIsolated {
 
-    VaultPositionManager public positionManager;
+    SingleSidedVaultPositionManager public positionManager;
 
     address internal _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address internal _SFRAX_ADDRESS = 0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
@@ -135,7 +135,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         console2.log("amountForLeverage", amountForLeverage);
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -184,7 +184,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         uint256 amountForLeverage = 800e6;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -246,7 +246,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         console2.log("amountForLeverage", amountForLeverage);
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCFRAX));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -273,7 +273,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         uint256 amountForLeverage = 800e18;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCFRAX));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -319,7 +319,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         // 3. On this fork, 62_350_000 provides enough headroom to be >= 60e18 repayAssets
         uint256 usdcToRepay = 62_350_000;
 
-        VaultPositionManager.DeleverageAction memory deleverageAction;
+        SingleSidedVaultPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = usdcToRepay;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -379,7 +379,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -422,7 +422,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -454,7 +454,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -495,7 +495,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -536,7 +536,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -577,7 +577,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             user1, address(borrowableCUSDC)
         ) / 2;
 
-        VaultPositionManager.LeverageAction memory leverageAction;
+        SingleSidedVaultPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSFRAX));
@@ -633,7 +633,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(simpleCSFRAX), 1_000_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
-        positionManager = new VaultPositionManager(
+        positionManager = new SingleSidedVaultPositionManager(
             ICentralRegistry(address(centralRegistry)),
             address(marketManagerIsolated),
             _WETH_ADDRESS
@@ -661,7 +661,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(simpleCSFRAX), 1_000_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCFRAX), 1_000_000e18, 1_000_000e18);
 
-        positionManager = new VaultPositionManager(
+        positionManager = new SingleSidedVaultPositionManager(
             ICentralRegistry(address(centralRegistry)),
             address(marketManagerIsolated),
             _WETH_ADDRESS
@@ -697,7 +697,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
         _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
 
-        positionManager = new VaultPositionManager(
+        positionManager = new SingleSidedVaultPositionManager(
             ICentralRegistry(address(centralRegistry)),
             address(marketManagerIsolated),
             _WETH_ADDRESS

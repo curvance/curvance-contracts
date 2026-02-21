@@ -36,6 +36,10 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
     address public owner;
     address public user;
 
+    // Hardcoded for extra coverage. If we change the fork block or swap calldata, update.
+    uint256 internal constant _EXPECTED_DELEVERAGE_REPAID_DAI =
+        870368325243587698645;
+
     address positionManagerAddress = 0x27cc01A4676C73fe8b6d0933Ac991BfF1D77C4da;
 
     receive() external payable {}
@@ -367,10 +371,11 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        uint256 repaid =
+            borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        // repayAssets is a minimum
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI, "debt balance mismatch");
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH.getSnapshot(
             user

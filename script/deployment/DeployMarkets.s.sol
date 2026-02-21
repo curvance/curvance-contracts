@@ -7,7 +7,6 @@ import { AddPlugins } from "./AddPlugins.s.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -49,7 +48,8 @@ contract DeployMarkets is DeployScript {
         OracleManager router = OracleManager(registry.oracleManager());
 
         for (uint256 i = 0; i < names.length; i++) {
-            string memory name = string.concat("markets.", names[i]);
+            string memory market_name = names[i];
+            string memory name = string.concat("markets.", market_name);
             ListConfig[] memory tokens = tokens[i];
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18, isCorrelatedMarkets[i]);
@@ -59,7 +59,7 @@ contract DeployMarkets is DeployScript {
                 string.concat(name, ".address")
             );
 
-            plugin_deployer.deployPlugins(icr, market, wrappedNative, name, plugins[i]);
+            plugin_deployer.deployPlugins(icr, market, wrappedNative, market_name, plugins[i]);
 
             address[] memory cTokens = deployCTokens(
                 tokens,
@@ -89,46 +89,16 @@ contract DeployMarkets is DeployScript {
         for (uint256 i = 0; i < tokens.length; i++) {
             ListConfig memory listConfig = tokens[i];
 
-            if (listConfig.canBorrow) {
-                cTokens[i] = deployBorrowableCToken(
-                    listConfig,
-                    marketName,
-                    market,
-                    icr
-                );
-            } else {
-                cTokens[i] = deploySimpleCToken(
-                    listConfig,
-                    marketName,
-                    market,
-                    icr
-                );
-            }
+            cTokens[i] = deployBorrowableCToken(
+                listConfig,
+                marketName,
+                market,
+                icr
+            );
 
             listConfig.tokenConfig.cToken = cTokens[i];
             router.addCTokenSupport(cTokens[i]);
         }
-    }
-
-    function deploySimpleCToken(
-        ListConfig memory config,
-        string memory marketName,
-        MarketManagerIsolated market,
-        ICentralRegistry icr
-    ) public useDeployer returns (address) {
-        IERC20 asset = IERC20(config.asset);
-
-        address cToken = address(
-            new SimpleCToken(icr, asset, address(market))
-        );
-        emit ContractDeployed(
-            cToken,
-            string.concat(marketName, ".tokens.", asset.symbol())
-        );
-
-        asset.approve(cToken, 1 * 10 ** asset.decimals());
-
-        return cToken;
     }
 
     function deployBorrowableCToken(

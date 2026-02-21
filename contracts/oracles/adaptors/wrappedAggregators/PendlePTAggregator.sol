@@ -5,8 +5,6 @@ import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggrega
 
 import { WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
@@ -43,15 +41,9 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     /// @notice The discount `PT` is valued at versus `asset` annualized,
     ///         in `WAD`.
     uint256 internal immutable _discountOneYear;
-    /// @notice The expanded decimal precision (10 ** decimals) for
-    ///         `PT` asset.
-    uint256 internal immutable _PTDecimalPrecision;
-    /// @notice The expanded decimal precision (10 ** decimals) for
-    ///         `asset` asset, in int256 form.
-    int256 internal immutable _assetDecimalPrecision;
 
     /// CONSTRUCTOR ///
-    
+
     constructor(
         address _PT,
         address _asset,
@@ -63,16 +55,17 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;
 
-        if (_discountOneYearBPS > WAD) {
+        if (_discountOneYearBPS > WAD ||
+            _discountOneYearBPS == 0) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
         _checkAssetConfig(_PT, _asset);
-        
+
         _expiry = IPPrincipalToken(_PT).expiry();
         uint256 timeToExpiry = _expiry >  block.timestamp ?
             _expiry - block.timestamp : 0;
-        
+
         // If somehow the pendle PT does not expire within a year this wrapped
         // aggregator would break, so revert.
         if (timeToExpiry > SECONDS_PER_YEAR) {
@@ -83,8 +76,6 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         asset = _asset;
 
         _discountOneYear = _discountOneYearBPS;
-        _PTDecimalPrecision = 10 ** ICToken(_PT).decimals();
-        _assetDecimalPrecision = _toInt256(10 ** ICToken(_asset).decimals());
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -97,28 +88,26 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     function getAdjustedAnswer(
         int256 answer
     ) public view virtual override returns (int256 result) {
-        // Adjust `answer` by current exchange rate and any difference in decimals.
-        result = (answer * _toInt256(_getExchangeRate())) / _assetDecimalPrecision;
+        // Adjust `answer` by current exchange rate normalized in `WAD`.
+        result = (answer * _toInt256(_getExchangeRate())) / int256(WAD);
     }
 
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Returns the current exchange rate between `PT` and the
-    ///         and the underlying `asset`, in `_PTDecimalPrecision`.
+    ///         underlying `asset`, normalized in `WAD`.
     /// @return The current exchange rate between `PT` and the underlying
-    ///         `asset`, in `_PTDecimalPrecision`.
+    ///         `asset`, in `WAD`.
     function _getExchangeRate() internal view returns (uint256) {
-        // If the PT has expired directly return 1 in `_PTDecimalPrecision`
+        // If the PT has expired directly return `WAD`
         // to price it 1:1 with underlying asset.
         if (block.timestamp >= _expiry) {
-            return _PTDecimalPrecision;
+            return WAD;
         }
 
         uint256 timeToExpiry = _expiry - block.timestamp;
-        // We know this wont overflow since even 1 year _expiry, 100% discount,
-        // 40 decimals is only 3.15e65, well below 1.15792e77 limit.
-        return _PTDecimalPrecision -
-            ((timeToExpiry * _discountOneYear * _PTDecimalPrecision) /
+        return WAD -
+            ((timeToExpiry * _discountOneYear * WAD) /
                 (SECONDS_PER_YEAR * WAD));
     }
 

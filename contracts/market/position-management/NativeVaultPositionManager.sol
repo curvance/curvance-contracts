@@ -56,11 +56,12 @@ contract NativeVaultPositionManager is SimplePositionManager {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Borrow callback: convert the debt asset to native (unwrap wrapped native
-    ///         if already wrapped; otherwise swap once to native), then deposit native
+    /// @notice Borrow callback: convert the debt asset to native
+    ///         (unwrap wrapped native if already wrapped; otherwise swap
+    ///         once to native), then deposit all resulting native tokens
     ///         into the ERC4626 vault to mint shares.
     /// @dev If `debtAsset == wrappedNative`, unwrap to native and deposit.
-    ///      Otherwise validate and execute exactly one aggregator swap from
+    ///      Otherwise, validate and execute exactly one aggregator swap from
     ///      `debtAsset` -> native.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that

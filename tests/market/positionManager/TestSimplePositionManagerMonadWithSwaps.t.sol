@@ -118,7 +118,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
+    function testLeverage_TestSimplePositionManagerMonadWithSwaps() public {
         deal(WMON_ADDRESS, user1, 5000e18);
         vm.startPrank(user1);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 5000e18);
@@ -177,8 +177,8 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
     }
 
-    function testDeleverage_TestVaultPositionManagerMonadWithSwaps() public {
-        testLeverage_TestVaultPositionManagerMonadWithSwaps();
+    function testDeleverage_TestSimplePositionManagerMonadWithSwaps() public {
+        testLeverage_TestSimplePositionManagerMonadWithSwaps();
         skip(20 minutes);
 
 		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
@@ -251,12 +251,14 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         vm.stopPrank();
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
-        uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
+        uint256 debtAfter = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
         uint256 usdcWalletAfter = IERC20(_USDC_ADDRESS).balanceOf(user1);
 
         assertEq(collateralBefore - collateralAfter, collateralAssetsToWithdraw, "Collateral should decrease by withdrawn amount");
 
-        assertEq(debtBefore - debtAfter, debtToRepay, "Debt should decrease by repaid amount");
+        uint256 repaid = debtBefore - debtAfter;
+        // repayAssets is a minimum
+        assertGe(repaid, debtToRepay, "Debt should decrease by at least repaid amount");
     }
 
     function testDeleverage_fail_whenBelowMinLoan() public {

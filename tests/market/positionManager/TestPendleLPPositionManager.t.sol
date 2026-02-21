@@ -35,6 +35,10 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
     address public owner;
     address public user;
 
+    // Hardcoded for extra coverage. If we change the fork block or swap calldata, update.
+    uint256 internal constant _EXPECTED_DELEVERAGE_REPAID_DAI =
+        6560499523705202758160;
+
     receive() external payable {}
 
     fallback() external payable {}
@@ -318,10 +322,10 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        // repayAssets is a minimum
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI);
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
@@ -459,10 +463,10 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        // repayAssets is a minimum
+        assertGe(repaid, deleverageAction.repayAssets);
+        assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI);
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user

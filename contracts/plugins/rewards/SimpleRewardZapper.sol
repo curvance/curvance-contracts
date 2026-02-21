@@ -187,7 +187,9 @@ contract SimpleRewardZapper is BaseZapper {
     ///                            swapping between tokens.
     ///                   call Swap instruction calldata.
     /// @param borrowableCToken The Curvance token address to repay debt to.
-    /// @param repayAssets The amount of debt to be repaid, in assets.
+    /// @param repayAssets The minimum amount, in assets, to be creditable
+    ///                    to `receiver` through repayment and/or direct
+    ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
     ///                   `receiver`.
@@ -197,6 +199,12 @@ contract SimpleRewardZapper is BaseZapper {
         uint256 repayAssets,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        // Zero amount repayment is not supported in Zappers as we already
+        // repay as much debt as possible.
+        if (repayAssets == 0) {
+            revert BaseZapper__InvalidRepaymentAmount();
+        }
+
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
@@ -236,7 +244,8 @@ contract SimpleRewardZapper is BaseZapper {
             );
         }
 
-        // Repay `repayAssets` outstanding debt.
+        // Revert if less than `repayAssets` was received, then repay as much
+        // of `receiver`'s debt as possible.
         outAmount = _repayDebt(
             borrowableCToken,
             debtAsset,

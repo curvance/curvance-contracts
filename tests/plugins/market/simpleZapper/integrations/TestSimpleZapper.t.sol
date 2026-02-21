@@ -117,9 +117,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
+        uint256 debt = borrowableCDAI.debtBalanceUpdated(user1);
+
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = 500e6;
+        swapAction.inputAmount = 505e6; // Buffer so we dont end up with lower than min loan.
         swapAction.outputToken = _DAI_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
@@ -128,7 +130,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.fee = 100;
         params.recipient = address(simpleZapper);
         params.deadline = block.timestamp;
-        params.amountIn = 500e6;
+        params.amountIn = 505e6;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
         swapAction.call = abi.encodeWithSelector(
@@ -136,59 +138,27 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             params
         );
 
-        _prepareUSDC(user1, 500e6);
+        _prepareUSDC(user1, 505e6);
         vm.startPrank(user1);
-        usdc.approve(address(simpleZapper), 500e6);
+        usdc.approve(address(simpleZapper), 505e6);
         simpleZapper.swapAndRepay(
             address(borrowableCDAI),
             false,
             swapAction,
-            450e18,
+            debt,// swapAndRepay will repay up to totalDebt and refund dust
             user1
         );
         vm.stopPrank();
 
-        assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 50 ether, 1 ether);
+        assertEq(borrowableCDAI.debtBalance(user1), 0);
+        assertGt(dai.balanceOf(user1), 500 ether, "user should receive swap dust");
     }
 
-    function testSwapAndRepayZeroRepayAssets() external {
-        testSwapAndDeposit();
-        vm.startPrank(user1);
-        simpleCUSDC.postCollateral(2e9);
-
-        // try borrow()
-        borrowableCDAI.borrow(500 ether, user1);
-        vm.stopPrank();
-
-        assertEq(dai.balanceOf(user1), 500 ether);
-
-        // skip min hold period
-        skip(20 minutes);
-
-        // swap 501 as a buffer for interest and slippage.
+    function testSwapAndRepay_fail_ZeroRepayAssets() external {
         SwapperLib.Swap memory swapAction;
-        swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = 501e6;
-        swapAction.outputToken = _DAI_ADDRESS;
-        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
-        IUniswapV3Router.ExactInputSingleParams memory params;
-        params.tokenIn = _USDC_ADDRESS;
-        params.tokenOut = _DAI_ADDRESS;
-        params.fee = 100;
-        params.recipient = address(simpleZapper);
-        params.deadline = block.timestamp;
-        params.amountIn = 501e6;
-        params.amountOutMinimum = 0;
-        params.sqrtPriceLimitX96 = 0;
-        swapAction.call = abi.encodeWithSelector(
-            IUniswapV3Router.exactInputSingle.selector,
-            params
-        );
 
-        _prepareUSDC(user1, 501e6);
-        vm.startPrank(user1);
-        usdc.approve(address(simpleZapper), 501e6);
+        vm.prank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__InvalidRepaymentAmount.selector);
         simpleZapper.swapAndRepay(
             address(borrowableCDAI),
             false,
@@ -196,14 +166,9 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             0,
             user1
         );
-        vm.stopPrank();
-
-        assertEq(borrowableCDAI.debtBalance(user1), 0, "Debt should be fully repaid");
-        assertGt(dai.balanceOf(user1), 500e18, "User1 should receive the excess dai from the swap.");
     }
 
     function testSwapAndRepayDifferentRepayer() external {
-        uint256 user2DaiBalanceBefore = dai.balanceOf(user2);
         testSwapAndDeposit();
         vm.startPrank(user1);
         simpleCUSDC.postCollateral(2e9);
@@ -217,10 +182,13 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
+        uint256 user2DaiBalanceBefore = dai.balanceOf(user2);
+        uint256 debt = borrowableCDAI.debtBalanceUpdated(user1);
+
         // swap 501 as a buffer for interest and slippage.
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = 501e6;
+        swapAction.inputAmount = 505e6; // buffer for interest + swap fee
         swapAction.outputToken = _DAI_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
@@ -229,7 +197,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.fee = 100;
         params.recipient = address(simpleZapper);
         params.deadline = block.timestamp;
-        params.amountIn = 501e6;
+        params.amountIn = 505e6;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
         swapAction.call = abi.encodeWithSelector(
@@ -238,14 +206,14 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         );
 
         // user2 pays the debt, and should receive the excess dai from the swap.
-        _prepareUSDC(user2, 501e6);
+        _prepareUSDC(user2, 505e6);
         vm.startPrank(user2);
-        usdc.approve(address(simpleZapper), 501e6);
+        usdc.approve(address(simpleZapper), 505e6);
         simpleZapper.swapAndRepay(
             address(borrowableCDAI),
             false,
             swapAction,
-            0,
+            debt, // must be non-zero
             user1
         );
         vm.stopPrank();

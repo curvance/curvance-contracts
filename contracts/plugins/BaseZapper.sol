@@ -64,8 +64,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
 
     error BaseZapper__Unauthorized();
     error BaseZapper__UnderlyingTokenIsNotInputToken();
+    error BaseZapper__InvalidRepaymentAmount();
+    error BaseZapper__InsufficientAssetsForRepayment();
     error BaseZapper__ExecutionError();
-    error BaseZapper__InsufficientToRepay();
 
     /// CONSTRUCTOR ///
 
@@ -198,7 +199,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     /// @param debtAsset The asset token for `borrowableCToken` to repay
     ///                  debt in.
     /// @param assetsHeld The amount of `debtAsset` on hand.
-    /// @param repayAssets The amount of debt to be repaid.
+    /// @param repayAssets The minimum amount, in assets, to be creditable
+    ///                    to `receiver` through repayment and/or direct
+    ///                    transfer.
     /// @param receiver Address that should have outstanding debt repaid.
     /// @return The amount of `debtAsset` that was returned to `receiver`.
     function _repayDebt(
@@ -210,22 +213,22 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     ) internal returns (uint256) {
         _checkAddresses(borrowableCToken, debtAsset);
 
-        if (repayAssets == 0) {
-            // Accrue any interest owed so repayAssets includes all
-            // `receiver` debt.
-            repayAssets = IBorrowableCToken(borrowableCToken)
-                .debtBalanceUpdated(receiver);
-        }
-        
-        // Revert if the swap experienced too much slippage.
-        if (assetsHeld < repayAssets) {
-            revert BaseZapper__InsufficientToRepay();
+        // Make sure we received at least `repayAssets`.
+        if (repayAssets > assetsHeld) {
+            revert BaseZapper__InsufficientAssetsForRepayment();
         }
 
-        // Approve `debtAsset` transfer to cToken contract, if needed.
+        // Pull the latest debt amount owed by `receiver`.
+        uint256 totalDebt = IBorrowableCToken(borrowableCToken)
+            .debtBalanceUpdated(receiver);
+
+        // Repay as much as possible, up to `totalDebt`.
+        repayAssets = assetsHeld > totalDebt ? totalDebt : assetsHeld;
+
+        // Approve `repayAssets` of `debtAsset` to `borrowableCToken` contract.
         SwapperLib._approveIfNeeded(debtAsset, borrowableCToken, repayAssets);
 
-        // Execute repayment of outstanding debt.
+        // Repay `repayAssets` debt owed by `receiver`.
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
         // Remove any leftover approval, if any.
