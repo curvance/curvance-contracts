@@ -43,7 +43,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     uint256 internal immutable _discountOneYear;
 
     /// CONSTRUCTOR ///
-    
+
     constructor(
         address _PT,
         address _asset,
@@ -55,16 +55,17 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;
 
-        if (_discountOneYearBPS > WAD) {
+        if (_discountOneYearBPS > WAD ||
+            _discountOneYearBPS == 0) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
         _checkAssetConfig(_PT, _asset);
-        
+
         _expiry = IPPrincipalToken(_PT).expiry();
         uint256 timeToExpiry = _expiry >  block.timestamp ?
             _expiry - block.timestamp : 0;
-        
+
         // If somehow the pendle PT does not expire within a year this wrapped
         // aggregator would break, so revert.
         if (timeToExpiry > SECONDS_PER_YEAR) {
