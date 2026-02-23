@@ -109,6 +109,9 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     /// @notice Whether deposits are enabled.
     /// @dev 0 = uninitialized; 1 = active; 2 = paused.
     uint8 public mintPaused;
+    /// @notice Central registry for permissions and market manager lookups.
+    ICentralRegistry public immutable centralRegistry;
+    
     /// EVENTS ///
 
     event MarketAdded(address indexed cToken, uint256 allocationCap);
@@ -167,7 +170,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address[] memory _approvedCTokens,
         uint256[] memory _allocationCapsBps,
         uint256 _feeBps
-    ) PluginDelegable(_centralRegistry) {
+    ) {
         // Revert if trying to add more than `MAX_MARKETS`.
         if (_approvedCTokens.length > MAX_MARKETS) revert LendingOptimizer__TooManyMarkets();
         if (_approvedCTokens.length == 0) revert LendingOptimizer__InvalidParameter();
