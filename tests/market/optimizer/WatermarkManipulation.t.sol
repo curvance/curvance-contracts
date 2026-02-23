@@ -114,7 +114,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1);
+        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // 2. Create a borrower so interest accrues in the USDC market.
@@ -183,7 +183,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1);
+        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Create a borrower so interest accrues.
@@ -236,7 +236,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1);
+        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Create a borrower so interest accrues.
@@ -271,7 +271,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1);
+        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Create a borrower so interest accrues.

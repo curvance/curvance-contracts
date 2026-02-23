@@ -480,9 +480,14 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
     function test_lendingOptimizer_feeInvariant_daoShareValue() public {
         _setUpOneMarket();
 
-        deal(USDC_MONAD, address(this), 100_000e6);
+        // Deposit from a separate user (not address(this) which is also the DAO)
+        // so that balanceOf(daoAddress) only reflects fee shares.
+        address depositor = address(0xDE90);
+        deal(USDC_MONAD, depositor, 100_000e6);
+        vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
-        optimizer.deposit(100_000e6, address(this));
+        optimizer.deposit(100_000e6, depositor);
+        vm.stopPrank();
 
         // Multiple cycles to accumulate fees
         for (uint256 i = 0; i < 3; i++) {

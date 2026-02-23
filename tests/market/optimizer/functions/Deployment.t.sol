@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { MockERC20 } from "tests/libraries/utils/mocks/MockERC20.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -235,8 +236,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizer_deployment_fail_whenInvalidUnderlying() public {
-        // Try to deploy with WETH as underlying but using USDC markets
-        address WETH_MONAD = 0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242;
+        // Deploy a mock WETH locally (the cToken markets use USDC, not WETH).
+        MockERC20 mockWeth = new MockERC20("WETH", "WETH", 18);
 
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET; // This is a USDC market
@@ -246,7 +247,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidUnderlying.selector);
         new LendingOptimizer(
-            IERC20(WETH_MONAD),
+            IERC20(address(mockWeth)),
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,

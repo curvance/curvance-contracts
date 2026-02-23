@@ -160,7 +160,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     function test_attack_A_quantifyRoundingLossPerRebalance() public {
         _setUpHarnessTwoMarketsNoFee();
 
-        _userDeposit(victim, 500_000e6);
+        _userDepositToMarket(victim, 500_000e6, cUSDC_WMON_MARKET);
         _userDepositToMarket(victim, 500_000e6, cUSDC_WBTC_MARKET);
 
         // Accrue to get a clean baseline. Multiple cycles to ensure

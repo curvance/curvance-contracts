@@ -63,6 +63,33 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         harness.initializeDeposits(0);
     }
 
+    /// @dev Like _setUpHarnessThreeMarkets but with unconstrained caps (100% each).
+    ///      Used for tests that focus on rounding/accounting rather than cap compliance.
+    function _setUpHarnessThreeMarketsUnconstrained() internal {
+        address[] memory approvedCTokens = new address[](3);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+        approvedCTokens[2] = cUSDC_WETH_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](3);
+        allocationCapsBps[0] = 10_000;
+        allocationCapsBps[1] = 10_000;
+        allocationCapsBps[2] = 10_000;
+
+        harness = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000 // 10% fee
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(harness), initAssets);
+        harness.initializeDeposits(0);
+    }
+
     /// @dev Helper: remove market 2 (WETH) and reallocate to both remaining markets
     ///      to stay within caps. Returns the actual redeemed amount.
     ///      Because convertToAssets(balance) may differ from redeem(balance),
@@ -166,7 +193,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
     /// @notice Tests repeated remove/add cycles to check for rounding drift.
     function test_audit_removeAddCycle_accumulatesRoundingDrift() public {
-        _setUpHarnessThreeMarkets();
+        _setUpHarnessThreeMarketsUnconstrained();
 
         // Use small amounts for market 2 to stay within caps.
         deal(USDC_MONAD, address(this), 21_000e6);
@@ -205,8 +232,8 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             );
             harness.removeApprovedAsset(2, removeActions);
 
-            // Add market 2 back.
-            harness.addApprovedAsset(cUSDC_WETH_MARKET, 2_000);
+            // Add market 2 back with unconstrained cap.
+            harness.addApprovedAsset(cUSDC_WETH_MARKET, 10_000);
 
             // Deposit a small amount to market 2 to give it assets.
             deal(USDC_MONAD, address(this), 1_000e6);

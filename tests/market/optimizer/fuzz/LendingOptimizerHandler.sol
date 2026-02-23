@@ -216,6 +216,11 @@ contract LendingOptimizerHandler is Test {
         vm.prank(sender);
 
         try optimizer.transfer(receiver, amount) returns (bool) {
+            // Track the asset value of transferred shares so that
+            // the round-trip invariant accounts for shares received
+            // via transfer (not just direct deposits).
+            uint256 assetValue = optimizer.convertToAssets(amount);
+            ghost_userDeposited[receiver] += assetValue;
             ghost_transferCount++;
         } catch {
             // Unexpected revert.
