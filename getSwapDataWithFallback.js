@@ -187,7 +187,7 @@ async function getKyberCalldata(
         sender: swapperAddress,
         recipient: swapperAddress,
         slippageTolerance: Number(slippageBps),
-        deadline: Math.floor(Date.now() / 1000) + 20 * 60,
+        deadline: Math.floor(Date.now() / 1000) + 60 * 60,
     };
 
     response = await fetch(buildUrl, {

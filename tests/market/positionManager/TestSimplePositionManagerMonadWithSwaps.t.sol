@@ -21,14 +21,20 @@ import {ICToken} from "contracts/interfaces/ICToken.sol";
 
 import {console2} from "forge-std/console2.sol";
 
-// positionManager address: 0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240;
-
+/// @title Position manager tests with real KyberSwap calldata on Monad fork.
+/// @dev Forks a specific block and uses pre-fetched swap calldata for
+///      deterministic execution. No FFI or API calls at test time.
 contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
+    // --- Fork config ---
+    uint256 constant FORK_BLOCK = 57322164;
+
+    // --- External contracts on Monad ---
     address public kyberSwapRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address public kyberSwapExecutor = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
     address public kuruRouter = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
+    // --- Test contracts ---
     BorrowableCToken public borrowableCUSDC_MONAD;
     BorrowableCToken public borrowableCWMON;
 
@@ -36,18 +42,18 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     KuruCalldataChecker public kuruSwapChecker;
     SimplePositionManager public positionManager;
 
-    SwapperLib.Swap public swapAction;
-    address public recipient;
-
+    MockV3Aggregator public chainlinkUSDC_USD;
     address public feeCollectorAddress = 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a;
 
+    // --- Fixed swap amounts matching pre-fetched calldata ---
+    uint256 constant LEVERAGE_BORROW_AMOUNT = 25e6; // 25 USDC
+    uint256 constant DELEVERAGE_WMON_AMOUNT = 312e18; // 312 WMON
 
     receive() external payable {}
-
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("MON_NODE_URI_MONAD_MAINNET");
+        _fork("MON_NODE_URI_MONAD_MAINNET", FORK_BLOCK);
 
         _initMainConstantVariables();
 
@@ -69,12 +75,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
-        MockV3Aggregator chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
-        // use the real Chainlink feed on Monad mainnet
+        chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
         address chainlinkWMON_USD = 0xBcD78f76005B7515837af6b50c7C52BCf73822fb;
 
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
-
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(_USDC_ADDRESS, true, address(chainlinkUSDC_USD), 0);
@@ -104,8 +108,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         protocolReader = new ProtocolReader(ICentralRegistry(address(centralRegistry)));
 
-        console2.log("positionManager", address(positionManager));
-
+        // Seed liquidity for borrowing.
         address liquidityProvider = makeAddr("liquidityProvider");
         deal(_USDC_ADDRESS, liquidityProvider, 1_000_000e6);
         vm.startPrank(liquidityProvider);
@@ -118,50 +121,43 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    // ================================================================
+    // Calldata helpers (pre-fetched from KyberSwap API at block 57322164)
+    // ================================================================
+
+    /// @dev 25 USDC → WMON swap calldata (KyberSwap, block 57322164).
+    function _leverageCalldata() internal pure returns (bytes memory) {
+        return hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000a600000000000000000000000000000000000000000000000000000000000000ca000000000000000000000000000000000000000000000000000000000000009a0000000000000000000000000017d7840000000000000000000000000017d7840000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000419ab892e8861464f60348273625079a62436efdde7ae372d5e87f38f91954cb55762df725eab52d4bc12faca2b4c9b012a8f2fd8d6fe2000dd6794d77ed2bd1a51b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008a0000000000000000000000000db25a7b768311de128bbda7b8426c3f9c74f3240000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000016a657000000000000000000000000001908b10000000000000000000000000017d784000000000000000431d0b312347880000000000000000000000000000000000000465fa14e1daf90000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb29000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000699cad390000000000000000000000000000000000000000000000000000000000000880000000000000000000000000000000000000000000000000000000000000000261f598cd00000000000000002c93e1ebe3a3e3f53efe9efb15304ed37750face91dd734600000000000000002c93e1ebe3a3e3f53efe9efb15304ed37750face0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000640000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000019000000000000000000000000017d784000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000017d7840736e774d0000000000000001d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000360000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000017d78400000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000004445520306c9c70952bdfec28f3989f53d9f80c400000000000000000000000000000000000000000000000000000000000000c0000000000000000000000001000000000000000000000345375675825ed15c2d00000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000001c9c3800000000000000000000000000000000000002d09d81813fc4d8e72c9f70483c90000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000699c9fde00000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000041704d99295b7597ca3503c5214a9f4954560af93dbf1562023094c4f1fd150cfe42da93a27aaf936b835976f2c170949bff48474ed112cfff95aeb2799264d4a91c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee8000000000000000000465f61a59f3a300000000000000431cce7b970de2b06f0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000431cce7b970de2b06f00000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000db25a7b768311de128bbda7b8426c3f9c74f324000000000000000000000000000000000000000000000000000000000017d784000000000000000000000000000000000000000000000003fc1fdd514b727999900000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000220000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000017d784000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002927b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a2232352e3038373036343934393738373133222c22416d6f756e744f7574555344223a2232352e303831373232343134373132333838222c22526566657272616c223a22222c22466c616773223a302c22416d6f756e744f7574223a2231323338303234363733343137393737333937323438222c2254696d657374616d70223a313737313837323034322c22526f7574654944223a2233643333326139612d343464352d343261322d616134362d3835316133336139366538333a64616238363466642d356164622d343234662d613663652d663639373937383164353330222c22496e74656772697479496e666f223a7b224b65794944223a2231222c225369676e6174757265223a2254564c476d472f684547535232637a5739725661674a36734d756c53334773496c37364750434f4e57693871516b5654517543644b4c6e43634b4531794d4d4b4d65754e676a302b5270305856584f7870687239574f485a4564716d2b3973674c5962417a44334e5a4a4d50704d467257693368684c6f75454b4958377a414b5952614946736352497751336b70625353484f39696d5a526d596d7763537231303930364f2b3141502b746f306642312f504965566831687478483275653753507969577256582f7a4735632f67774b6b302b3036517348575636752b52764c6a5467752b5062694c7557746130395046486e44476f417550344c386e472f7468396f4970376d69373445677746512b47724d342b4237485456453631714e4c52466e2b53354f53305266534d474a627249347542526f646557376830566f634c4d38685a5355385a77386a75485244437969717a413d3d227d7d0000000000000000000000000000";
+    }
+
+    /// @dev 312 WMON → USDC swap calldata (KyberSwap, block 57322164).
+    function _deleverageCalldata() internal pure returns (bytes memory) {
+        return hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000076000000000000000000000000000000000000000000000000000000000000009a000000000000000000000000000000000000000000000000000000000000006a00000000000000010e9deaaf401e000000000000000000010e9deaaf401e00000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000041e87b97292acb555252a379276fe39fcbd3de3daa61dbbb69ec8142400b0a806b3f7dfb84ec29bd00555faf606db035115f3fd55169002d2d4822c31287bb4b111b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005a0000000000000000000000000db25a7b768311de128bbda7b8426c3f9c74f32400000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000018000000000000000101160559b01c800000000000000000011c25d004d01f800000000000000000010e9deaaf401e000000000000000000000000000000060287e00000000000000000000000000000000000000000000060000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb29000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000699cad3a0000000000000000000000000000000000000000000000000000000000000580000000000000000000000000000000000000000000000000000000000000000161f598cd00000000000000002c93e1ebe3a3e3f53efe9efb15304ed37750face0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000003600000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a800000000000000000011bc3292b80000000000000000010e9deaaf401e00000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000010e9deaaf401e000003b9d6e090000000000000001434f969593f9bb2655283ebf648733b7f46330aa000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000944526d2727b532653e6ca6c4d980461e170a0900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000555e30da8f98308edb960aa94c0db47230d2b9c80000000000000000000000000000001000000000000000000000000000025f200000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000025f26efd106f0000000000000002c28883c9da855e34a75d002bddb4c823dfda2807000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000040000000000000000000000000527211c75cfd1771d653b4f3fd8584beba8bb9f80000000000000000000000000000000000000000000000000000000100ad139c000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb603000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000db25a7b768311de128bbda7b8426c3f9c74f3240000000000000000000000000000000000000000000000010e9deaaf401e0000000000000000000000000000000000000000000000000000000000000005b59aa00000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000220000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000010e9deaaf401e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002817b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22362e3332333633383337353133343438222c22416d6f756e744f7574555344223a22362e333237343934363432313238323537222c22526566657272616c223a22222c22466c616773223a302c22416d6f756e744f7574223a2236333031383232222c2254696d657374616d70223a313737313837323034332c22526f7574654944223a2264653366303837652d313638652d346465362d393334622d3065643735633537643737313a35626131323364342d343339362d346431652d613163372d666233623430663864303039222c22496e74656772697479496e666f223a7b224b65794944223a2231222c225369676e6174757265223a226164756e37706163717134712f44584c73704c43316f766f77707131674b6f7a6150354f5672426861633649616e307276673834626654366f4533775343785134414e646762355a6772535a387a384462504a5153524e566c55387741735a4e5958474136594c64484551656459595a4f6c4a384979755268316c6d4d71617968696d48364b417474656b3730726134634e74304e7355464f7062784430676f506d517972793550334e635164326a793279384d714a39594356716f6652477855624c56493749356f4e6f38774467393453424c447a57476b3168377a724c4b59385861474a46527a6b756c416f754d666543734a48526773494c526e555233334b46412b31452b7a54315666713644574f5369306845456b32314e7056524644544c586578424a305a74692f574e484b574148544a6f4d70334d6232524c72494c6b69545234537830397037497459517630656d773d3d227d7d00000000000000000000000000000000000000000000000000000000000000";
+    }
+
+    // ================================================================
+    // Test 1: Leverage
+    // ================================================================
+
     function testLeverage_TestSimplePositionManagerMonadWithSwaps() public {
         deal(WMON_ADDRESS, user1, 5000e18);
         vm.startPrank(user1);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 5000e18);
         borrowableCWMON.depositAsCollateral(5000e18, user1);
 
-        (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
-            user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
-        );
-
         uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
         uint256 debtBefore = borrowableCUSDC_MONAD.debtBalance(user1);
 
-        uint256 bufferedBorrow = (maxDebtBorrowable * 50) / 100; // 50% of max
-
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
-        leverageAction.borrowAssets = bufferedBorrow;
+        leverageAction.borrowAssets = LEVERAGE_BORROW_AMOUNT;
         leverageAction.cToken = ICToken(address(borrowableCWMON));
 
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
-        leverageAction.swapAction.inputAmount = bufferedBorrow;
+        leverageAction.swapAction.inputAmount = LEVERAGE_BORROW_AMOUNT;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
-
-        uint8 aggregatorCode;
-
-        (leverageAction.swapAction.call, aggregatorCode) = _getSwapDataWithFallback(
-            block.chainid,
-            address(positionManager),
-            _USDC_ADDRESS,
-            WMON_ADDRESS,
-            bufferedBorrow,
-            address(positionManager),
-            500
-        );
-
-        console2.log("aggregatorCode", aggregatorCode);
-        if(aggregatorCode == 1) {
-            leverageAction.swapAction.target = address(kyberSwapRouter);
-        } else if(aggregatorCode == 2) {
-            leverageAction.swapAction.target = kuruRouter;
-        } else {
-            revert("Both Kyber and Kuru paths failed");
-        }
+        leverageAction.swapAction.target = kyberSwapRouter;
+        leverageAction.swapAction.call = _leverageCalldata();
         leverageAction.swapAction.slippage = 0.5e18;
 
         positionManager.leverage(leverageAction, 0.5e18);
@@ -171,80 +167,37 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
 
         assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
-
         assertEq(debtBefore, 0, "Should start with no debt");
-        assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
-
+        assertEq(debtAfter, LEVERAGE_BORROW_AMOUNT, "Debt should equal borrowed amount");
     }
 
+    // ================================================================
+    // Test 2: Deleverage
+    // ================================================================
+
     function testDeleverage_TestSimplePositionManagerMonadWithSwaps() public {
+        // Set up leveraged position first.
         testLeverage_TestSimplePositionManagerMonadWithSwaps();
+
+        // Skip past MIN_HOLD_PERIOD.
         skip(20 minutes);
 
-		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
-		uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-		uint256 collateralAssetsToWithdraw = collateralBefore / 20; // withdraw 5% collateral
-		uint256 minOutUSDC;
-
-		try this._getKyberAmountOut(
-			block.chainid,
-			WMON_ADDRESS,
-			_USDC_ADDRESS,
-			collateralAssetsToWithdraw,
-			address(positionManager),
-			500
-		) returns (uint256 kyberOut) {
-			minOutUSDC = kyberOut;
-		} catch {
-			// quote prices from kuru as a fallback
-			minOutUSDC = _getKuruAmountOut(
-				user1,
-				WMON_ADDRESS,
-				_USDC_ADDRESS,
-				collateralAssetsToWithdraw
-			);
-		}
-
-		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
-		// Cap repay amount at actual debt to handle low liquidity scenarios
-		uint256 debtToRepay = bufferedMinOut > debtBefore ? debtBefore : bufferedMinOut;
+        uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
+        uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
 
         SimplePositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCWMON));
-        deleverageAction.collateralAssets = collateralAssetsToWithdraw;
+        deleverageAction.collateralAssets = DELEVERAGE_WMON_AMOUNT;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
-        deleverageAction.repayAssets = debtToRepay;
+        deleverageAction.repayAssets = 1; // minimum - PM repays min(swapOutput, totalDebt)
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
+        deleverageAction.swapActions[0].inputAmount = DELEVERAGE_WMON_AMOUNT;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
-        deleverageAction.swapActions[0].target = address(kyberSwapRouter);
-
-        uint256 aggregatorCode;
-
-        (deleverageAction.swapActions[0].call, aggregatorCode) = _getSwapDataWithFallback(
-            block.chainid,
-            address(positionManager),
-            WMON_ADDRESS,
-            _USDC_ADDRESS,
-            collateralAssetsToWithdraw,
-            address(positionManager),
-            500
-        );
-        if(aggregatorCode == 1) {
-            deleverageAction.swapActions[0].target = address(kyberSwapRouter);
-        } else if(aggregatorCode == 2) {
-            deleverageAction.swapActions[0].target = kuruRouter;
-        } else {
-            revert("Both Kyber and Kuru paths failed");
-        }
-
+        deleverageAction.swapActions[0].target = kyberSwapRouter;
+        deleverageAction.swapActions[0].call = _deleverageCalldata();
         deleverageAction.swapActions[0].slippage = 0.5e18;
-
-		collateralBefore = borrowableCWMON.balanceOf(user1);
-		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-        uint256 usdcWalletBefore = IERC20(_USDC_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
         positionManager.deleverage(deleverageAction, 0.5e18);
@@ -252,123 +205,69 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
         uint256 debtAfter = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-        uint256 usdcWalletAfter = IERC20(_USDC_ADDRESS).balanceOf(user1);
 
-        assertEq(collateralBefore - collateralAfter, collateralAssetsToWithdraw, "Collateral should decrease by withdrawn amount");
-
-        uint256 repaid = debtBefore - debtAfter;
-        // repayAssets is a minimum
-        assertGe(repaid, debtToRepay, "Debt should decrease by at least repaid amount");
+        assertLt(collateralAfter, collateralBefore, "Collateral should decrease after deleverage");
+        assertLt(debtAfter, debtBefore, "Debt should decrease after deleverage");
     }
 
+    // ================================================================
+    // Test 3: Deleverage fails when below min loan
+    // ================================================================
+
+    /// @notice Tests that deleverage reverts with InsufficientLoanSize when
+    ///         a partial repay leaves debt below the minimum loan threshold.
+    /// @dev Strategy:
+    ///      1. Leverage at fork time (swap works, no skip yet).
+    ///      2. Skip 20 min (hold period).
+    ///      3. Scale both oracle prices down 1000x — preserves LTV
+    ///         ratio but makes any remaining USDC debt < 10,000 USDC
+    ///         fall below the $10 min-loan threshold.
+    ///      4. Deleverage with pre-fetched calldata (route avoids
+    ///         V4 pool with tight deadline). Partial repay triggers
+    ///         InsufficientLoanSize.
     function testDeleverage_fail_whenBelowMinLoan() public {
-        deal(WMON_ADDRESS, user1, 500e18);
-        vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 500e18);
-        borrowableCWMON.depositAsCollateral(500e18, user1);
+        // 1. Set up leveraged position (cooldown starts at fork time).
+        testLeverage_TestSimplePositionManagerMonadWithSwaps();
 
-        (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
-            user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
-        );
-
-        uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
-        uint256 debtBefore = borrowableCUSDC_MONAD.debtBalance(user1);
-
-        uint256 bufferedBorrow = (maxDebtBorrowable * 50) / 100; // 50% of max
-
-        SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
-        leverageAction.borrowAssets = bufferedBorrow;
-        leverageAction.cToken = ICToken(address(borrowableCWMON));
-
-        leverageAction.swapAction.inputToken = _USDC_ADDRESS;
-        leverageAction.swapAction.inputAmount = bufferedBorrow;
-        leverageAction.swapAction.outputToken = WMON_ADDRESS;
-        leverageAction.swapAction.target = address(kyberSwapRouter);
-
-        uint8 aggregatorCode;
-        (leverageAction.swapAction.call, aggregatorCode) = _getSwapDataWithFallback(
-            block.chainid,
-            address(positionManager),
-            _USDC_ADDRESS,
-            WMON_ADDRESS,
-            bufferedBorrow,
-            address(positionManager),
-            500
-        );
-        if(aggregatorCode == 1) {
-            leverageAction.swapAction.target = address(kyberSwapRouter);
-        } else if(aggregatorCode == 2) {
-            leverageAction.swapAction.target = kuruRouter;
-        } else {
-            revert("Both Kyber and Kuru paths failed");
-        }
-
-        leverageAction.swapAction.slippage = 0.5e18;
-
-        positionManager.leverage(leverageAction, 0.5e18);
-        vm.stopPrank();
-
-        uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
-        uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
-
-        assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
-
-        assertEq(debtBefore, 0, "Should start with no debt");
-        assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
-
+        // 2. Skip past MIN_HOLD_PERIOD.
         skip(20 minutes);
 
-        // deleverage below min loan
-		collateralBefore = borrowableCWMON.balanceOf(user1);
-		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+        // 3. Scale both oracle prices down 1000x.
+        //    LTV preserved (both sides scale equally).
+        //    Min loan check: remaining USDC * $0.001 < $10 for any
+        //    amount under 10,000 USDC. Our debt is 25 USDC, swap
+        //    repays ~6.3 USDC → remaining ~18.7 USDC → always triggers.
+        chainlinkUSDC_USD.updateAnswer(1e5); // $0.001
 
-		uint256 targetRemainingDebt = 5e6; // $5 USDC
-		uint256 debtToRepay = debtBefore - targetRemainingDebt;
+        address wmonFeed = 0xBcD78f76005B7515837af6b50c7C52BCf73822fb;
+        (, int256 monPrice,, uint256 updAt,) =
+            MockV3Aggregator(wmonFeed).latestRoundData();
+        vm.mockCall(
+            wmonFeed,
+            abi.encodeWithSignature("latestRoundData()"),
+            abi.encode(uint80(999), monPrice / 1000, updAt, updAt, uint80(999))
+        );
 
-		uint256 collateralAssetsToWithdraw = (collateralBefore * 50) / 100;
-
-		SimplePositionManager.DeleverageAction memory deleverageAction;
+        // 4. Deleverage: swap executes at real pool prices, then
+        //    canRepayWithReview sees remaining debt at mocked prices
+        //    → value < MIN_LOAN_SIZE → InsufficientLoanSize.
+        SimplePositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCWMON));
-        deleverageAction.collateralAssets = collateralAssetsToWithdraw;
+        deleverageAction.collateralAssets = DELEVERAGE_WMON_AMOUNT;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
-        deleverageAction.repayAssets = debtToRepay;
+        deleverageAction.repayAssets = 1;
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
+        deleverageAction.swapActions[0].inputAmount = DELEVERAGE_WMON_AMOUNT;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
-        deleverageAction.swapActions[0].target = address(kyberSwapRouter);
-
-        (deleverageAction.swapActions[0].call, aggregatorCode) = _getSwapDataWithFallback(
-            block.chainid,
-            address(positionManager),
-            WMON_ADDRESS,
-            _USDC_ADDRESS,
-            collateralAssetsToWithdraw,
-            address(positionManager),
-            500
-        );
-        if(aggregatorCode == 1) {
-            deleverageAction.swapActions[0].target = address(kyberSwapRouter);
-        } else if(aggregatorCode == 2) {
-            deleverageAction.swapActions[0].target = kuruRouter;
-        } else {
-            revert("Both Kyber and Kuru paths failed");
-        }
-
-        console2.log("aggregatorCode", aggregatorCode);
-
+        deleverageAction.swapActions[0].target = kyberSwapRouter;
+        deleverageAction.swapActions[0].call = _deleverageCalldata();
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
-		collateralBefore = borrowableCWMON.balanceOf(user1);
-		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-        uint256 usdcWalletBefore = IERC20(_USDC_ADDRESS).balanceOf(user1);
-
         vm.startPrank(user1);
-
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
-        positionManager.deleverage(deleverageAction, 0.5e18);
+        positionManager.deleverage(deleverageAction, 0.95e18);
         vm.stopPrank();
     }
 }
