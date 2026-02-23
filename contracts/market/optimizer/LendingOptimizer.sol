@@ -7,7 +7,6 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -50,7 +49,7 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      Dead shares minted to address(0) on initialization prevent
 ///      inflation attacks. All state-changing functions have reentrancy
 ///      protection.
-contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
+contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
 
     /// TYPES ///
 
@@ -272,9 +271,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        uint256 trackedAssets = 
+        uint256 trackedAssets =
             _pullAndDeposit(
-                assets, 
+                assets,
                 approvedCTokensList[_optimalTarget(assets, true)] // true == deposit
             );
         // Calculate shares from trackedAssets BEFORE updating _totalAssets,
@@ -333,9 +332,9 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         // Round up: user pays ceiling amount of assets for the requested shares.
         assets = previewMint(shares);
-        uint256 trackedAssets = 
+        uint256 trackedAssets =
             _pullAndDeposit(
-                assets, 
+                assets,
                 approvedCTokensList[_optimalTarget(assets, true)] // true == deposit
             );
         _totalAssets += trackedAssets;
@@ -390,10 +389,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         shares = previewWithdraw(assets);
         _withdraw(
-            assets, 
-            shares, 
-            receiver, 
-            owner, 
+            assets,
+            shares,
+            receiver,
+            owner,
             approvedCTokensList[_optimalTarget(assets, false)]
         );
     }
@@ -434,10 +433,10 @@ contract LendingOptimizer is ERC4626, PluginDelegable, ReentrancyGuard, ERC165 {
 
         assets = previewRedeem(shares);
         _withdraw(
-            assets, 
-            shares, 
-            receiver, 
-            owner, 
+            assets,
+            shares,
+            receiver,
+            owner,
             approvedCTokensList[_optimalTarget(assets, false)]
         );
     }
