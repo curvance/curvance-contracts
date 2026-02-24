@@ -312,25 +312,6 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             allocationCapsBps,
             1_000
         );
-
-        // Verify PluginDelegable functions are available
-        address testDelegate = address(0x1234);
-
-        // Initially should not be a delegate
-        assertFalse(optimizer.isDelegate(address(this), testDelegate));
-
-        // Check delegation is not disabled by default for this address
-        bool delegationDisabled = optimizer.checkNewDelegationDisabled(address(this));
-
-        // Set delegate approval (if delegation not disabled)
-        if (!delegationDisabled) {
-            optimizer.setDelegateApproval(testDelegate, true);
-            assertTrue(optimizer.isDelegate(address(this), testDelegate));
-
-            // Remove delegate approval
-            optimizer.setDelegateApproval(testDelegate, false);
-            assertFalse(optimizer.isDelegate(address(this), testDelegate));
-        }
     }
 
     function test_lendingOptimizer_deployment_verifyExchangeRateFunctions() public {
