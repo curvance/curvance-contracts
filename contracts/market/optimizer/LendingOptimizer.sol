@@ -180,6 +180,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         if (_feeBps > MAX_FEE_BPS) revert LendingOptimizer__FeeTooHigh();
 
         // Set essential storage slots.
+        centralRegistry = _centralRegistry;
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name(), " Optimizer");
         _symbol = string.concat("c", asset_.symbol(), "+");
