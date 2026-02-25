@@ -283,6 +283,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // Calculate shares from trackedAssets BEFORE updating _totalAssets,
         // so convertToShares uses the pre-deposit totalAssets denominator.
         shares = convertToShares(trackedAssets);
+        if (shares == 0) revert LendingOptimizer__InvalidParameter();
+
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
 
@@ -312,6 +314,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // Calculate shares from trackedAssets BEFORE updating _totalAssets,
         // so convertToShares uses the pre-deposit totalAssets denominator.
         shares = convertToShares(trackedAssets);
+        if (shares == 0) revert LendingOptimizer__InvalidParameter();
+        
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
 
