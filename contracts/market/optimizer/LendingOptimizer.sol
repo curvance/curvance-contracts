@@ -13,7 +13,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
+
 
 /// @title Curvance Lending Optimizer.
 /// @notice Optimizes yield across multiple Curvance lending markets
@@ -41,8 +41,9 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      all markets. The exchange rate is calculated as:
 ///      `(totalAssets * WAD) / totalSupply`.
 ///
-///      Allocation caps (in WAD) define the maximum percentage each
-///      market can hold. The sum of all caps must be >= 100% to ensure
+///      Allocation caps (stored internally in WAD, configured in BPS)
+///      define the maximum percentage each market can hold. The sum of
+///      all caps must be >= 100% to ensure
 ///      full allocation is possible. Authorized harvesters can rebalance
 ///      assets across markets while respecting these caps.
 ///
@@ -839,8 +840,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override returns (bool result) {
-        result = interfaceId == type(IPluginDelegable).interfaceId ||
-            interfaceId == type(ERC4626).interfaceId ||
+        result = interfaceId == type(ERC4626).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -905,8 +905,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     }
 
     /// @dev Returns true if the market is paused for the given action.
-    ///      Deposits check per-token `mintPaused`; withdrawals check
-    ///      market-wide `redeemPaused`.
+    ///      Deposits check per-cToken `mintPaused` via the market manager;
+    ///      withdrawals check market-wide `redeemPaused`.
     function _isMarketPausedForAction(
         address cToken,
         bool isDeposit
