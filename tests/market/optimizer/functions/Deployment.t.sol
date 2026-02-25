@@ -6,7 +6,7 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { MockERC20 } from "tests/libraries/utils/mocks/MockERC20.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
-import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
+
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -70,7 +70,6 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify ERC165 interface support
         assertTrue(optimizer.supportsInterface(type(IERC165).interfaceId));
-        assertTrue(optimizer.supportsInterface(type(IPluginDelegable).interfaceId));
         assertTrue(optimizer.supportsInterface(type(ERC4626).interfaceId));
     }
 
