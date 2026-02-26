@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { BPS, WAD, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, BAD_SOURCE, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -18,6 +18,7 @@ import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 contract ProtocolReader {
@@ -56,6 +57,10 @@ contract ProtocolReader {
         uint256 closeFactorMin;
         uint256 closeFactorMax;
         uint256[2] adapters;
+        uint256 irmBaseRate;
+        uint256 irmVertexRate;
+        uint256 irmVertexStart;
+        uint256 interestFee;
     }
 
     struct StaticMarketAsset {
@@ -1506,6 +1511,36 @@ contract ProtocolReader {
             t.closeFactorMin,
             t.closeFactorMax
         ) = mm.liquidationConfig(address(cToken));
+
+        if (cToken.isBorrowable()) {
+            _getIRMConfig(cToken, t);
+        }
+    }
+
+    /// @notice Reads IRM curve configuration for a borrowable cToken.
+    /// @dev Separated from `_getStaticTokenConfig` to avoid stack-too-deep.
+    /// @param cToken The borrowable cToken to read IRM config from.
+    /// @param t The StaticMarketToken struct to populate.
+    function _getIRMConfig(
+        ICToken cToken,
+        StaticMarketToken memory t
+    ) internal view {
+        IBorrowableCToken bcToken = IBorrowableCToken(address(cToken));
+        DynamicIRM irm = DynamicIRM(address(bcToken.IRM()));
+
+        (
+            uint64 baseRate,
+            uint64 vertexRate,
+            uint64 vertexStart,
+            ,,,,,  // increaseThresholdStart, decreaseThresholdEnd,
+                   // adjustmentVelocity, decayPerAdjustment,
+                   // vertexMultiplierMax, linkedToken
+        ) = irm.ratesConfig();
+
+        t.irmBaseRate = uint256(baseRate) * SECONDS_PER_YEAR;
+        t.irmVertexRate = uint256(vertexRate) * SECONDS_PER_YEAR;
+        t.irmVertexStart = uint256(vertexStart);
+        t.interestFee = bcToken.interestFee();
     }
 
     /// @notice Adds an newAdapter to the existingAdapters if it doesn't already exist
