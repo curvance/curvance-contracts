@@ -295,10 +295,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 shares) {
         _checkMintPaused();
-        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
-        if (_isMarketPausedForAction(targetMarket, true)) {
-            revert LendingOptimizer__MarketPaused();
-        }
+        _validateTargetMarket(targetMarket, true);
         _accrueIfNeeded();
 
         uint256 trackedAssets = _pullAndDeposit(assets, targetMarket);
@@ -306,7 +303,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // so convertToShares uses the pre-deposit totalAssets denominator.
         shares = convertToShares(trackedAssets);
         if (shares == 0) revert LendingOptimizer__InvalidParameter();
-        
+
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
 
@@ -358,10 +355,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address targetMarket
     ) external nonReentrant returns (uint256 assets) {
         _checkMintPaused();
-        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
-        if (_isMarketPausedForAction(targetMarket, true)) {
-            revert LendingOptimizer__MarketPaused();
-        }
+        _validateTargetMarket(targetMarket, true);
         _accrueIfNeeded();
 
         // Round up: user pays ceiling amount of assets for the requested shares.
@@ -408,10 +402,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address owner,
         address targetMarket
     ) external nonReentrant returns (uint256 shares) {
-        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
-        if (_isMarketPausedForAction(targetMarket, false)) {
-            revert LendingOptimizer__MarketPaused();
-        }
+        _validateTargetMarket(targetMarket, false);
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
@@ -452,10 +443,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address owner,
         address targetMarket
     ) external nonReentrant returns (uint256 assets) {
-        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
-        if (_isMarketPausedForAction(targetMarket, false)) {
-            revert LendingOptimizer__MarketPaused();
-        }
+        _validateTargetMarket(targetMarket, false);
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
@@ -891,6 +879,13 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         }
     }
 
+    /// @dev Validates that `market` is approved and not paused for the given action.
+    ///      Reverts if market is not approved or is paused.
+    function _validateTargetMarket(address market, bool isDeposit) internal view {
+        if (!_isApprovedMarket(market)) revert LendingOptimizer__MarketNotApproved();
+        if (_isMarketPausedForAction(market, isDeposit)) revert LendingOptimizer__MarketPaused();
+    }
+
     /// @dev Returns true if the market is paused for the given action.
     ///      Deposits check per-cToken `mintPaused` via the market manager;
     ///      withdrawals check market-wide `redeemPaused`.
@@ -898,7 +893,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address cToken,
         bool isDeposit
     ) internal view returns (bool) {
-        MarketManagerIsolated mm = 
+        MarketManagerIsolated mm =
             MarketManagerIsolated(address(IBorrowableCToken(cToken).marketManager()));
         if (isDeposit) {
             (bool mintPaused_,,) = mm.actionsPaused(cToken);
