@@ -449,46 +449,29 @@ contract ProtocolReader {
         uint256 amount;
         uint256 offset;
         uint256 currPrice;
+        uint256 errorCode;
+        address underlying = _asset(cToken);
 
-        // If its a long liquidation need to calc margin requirement whereas
-        // debt is valued 1:1.
-        // Temporarily use offset to hold error code.
+        // long: price cToken (getLower=true), short: price underlying (getLower=false).
+        (currPrice, errorCode) = getPrice(long ? cToken : underlying, true, long);
+        if (errorCode == 2) return (price, true);
+
+        // Divergent: offset source and amount source.
         if (long) {
-            (currPrice, offset) = getPrice(cToken, true, true);
-            if (offset == 2) {
-                return (price, true);
-            }
             (, offset,) = mm.collConfig(cToken);
             amount = _collateralPosted(cToken, account);
-            // Adjust decimals if needed.
-            amount = FixedPointMathLib.fullMulDiv(
-                amount,
-                WAD,
-                10 ** _decimals(_asset(cToken))
-            );
-            if (amount == 0) {
-                 return (price, false);
-            }
         } else {
-            (currPrice, offset) = getPrice(_asset(cToken), true, false);
-            if (offset == 2) {
-                return (price, true);
-            }
             offset = BPS;
             amount = debtBalanceAtTimestamp(account, cToken, block.timestamp);
-            // Adjust decimals if needed.
-            amount = FixedPointMathLib.fullMulDiv(
-                amount,
-                WAD,
-                10 ** _decimals(_asset(cToken))
-            );
-            if (amount == 0) {
-                 return (price, false);
-            }
         }
 
-        if (!mm.isListed(cToken) || amount == 0) {
-            return (price, errorHit);
+        // Shared: normalize amount to WAD precision.
+        amount = FixedPointMathLib.fullMulDiv(
+            amount, WAD, 10 ** _decimals(underlying)
+        );
+
+        if (amount == 0 || !mm.isListed(cToken)) {
+            return (price, false);
         }
 
         uint256 margin;
@@ -496,37 +479,21 @@ contract ProtocolReader {
         // We use isAuction = true to grab pessimistic liquidation values.
         (margin, , debt, , errorHit) = liquidationValuesOf(mm, account, true);
 
-        if (debt == 0) {
-            return (price, false);
-        }
-
-        if (errorHit) {
-            return (price, errorHit);
-        }
+        if (debt == 0) return (price, false);
+        if (errorHit) return (price, errorHit);
 
         uint256 buffer = mm.AUCTION_BUFFER();
 
-        // If they arent in liquidation already we calculate price below on
-        // collateral or price above on debt.
-        if (margin > debt) {
-            // margin > debt so will see liquidation level.
-            uint LHS = FixedPointMathLib.fullMulDiv(
-                margin - debt,
-                offset * WAD,
-                amount * buffer
-            );
+        // Compute absolute distance and direction, single fullMulDiv call.
+        bool marginExceedsDebt = margin > debt;
+        uint256 LHS = FixedPointMathLib.fullMulDiv(
+            marginExceedsDebt ? margin - debt : debt - margin,
+            offset * WAD,
+            amount * buffer
+        );
 
-            price = long ? currPrice - LHS : currPrice + LHS;
-        } else {
-            // debt > margin so will see liquidation level we passed.
-            uint LHS = FixedPointMathLib.fullMulDiv(
-                debt - margin,
-                offset * WAD,
-                amount * buffer
-            );
-
-            price = long ? currPrice + LHS : currPrice - LHS;
-        }
+        // long+surplus = price drops to liquidation; long+deficit = already past it.
+        price = (long == marginExceedsDebt) ? currPrice - LHS : currPrice + LHS;
     }
 
     function getUserData(
@@ -974,8 +941,9 @@ contract ProtocolReader {
         bcToken = IBorrowableCToken(debtBorrowableCToken);
         if (_debtBalance(bcToken, user) != 0) {
             outstandingDebt = _outstandingDebt(bcToken);
-            assetsHeld = _assetsHeld(bcToken) > newDebtAssets
-                ? _assetsHeld(bcToken) - newDebtAssets
+            assetsHeld = _assetsHeld(bcToken);
+            assetsHeld = assetsHeld > newDebtAssets
+                ? assetsHeld - newDebtAssets
                 : 0;
             borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
@@ -1211,15 +1179,13 @@ contract ProtocolReader {
         if (numMarkets == 0) return address(0);
         if (numMarkets == 1) {
             // Single market: return address(0) if mint-paused.
-            (bool mintPaused_,,) = IBorrowableCToken(cTokens[0]).marketManager().actionsPaused(cTokens[0]);
-            return mintPaused_ ? address(0) : cTokens[0];
+            return _isMintPaused(cTokens[0]) ? address(0) : cTokens[0];
         }
 
         uint256 bestRate;
         for (uint256 i; i < numMarkets; ++i) {
             // Skip markets where minting is paused.
-            (bool mintPaused_,,) = IBorrowableCToken(cTokens[i]).marketManager().actionsPaused(cTokens[i]);
-            if (mintPaused_) continue;
+            if (_isMintPaused(cTokens[i])) continue;
 
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
             uint256 rate = ct.IRM().supplyRate(
@@ -1321,9 +1287,17 @@ contract ProtocolReader {
         }
     }
 
-    /// @dev Returns true if minting is paused for `cToken` in its market manager.
+    /// @dev Returns true if minting is paused for `cToken`.
+    function _isMintPaused(
+        address cToken,
+        IMarketManager mm
+    ) internal view returns (bool mp) {
+        (mp,,) = mm.actionsPaused(cToken);
+    }
+
+    /// @dev Convenience overload — resolves market manager from cToken.
     function _isMintPaused(address cToken) internal view returns (bool mp) {
-        (mp,,) = IBorrowableCToken(cToken).marketManager().actionsPaused(cToken);
+        mp = _isMintPaused(cToken, _marketManager(cToken));
     }
 
     /// @dev Chunked greedy allocation: computes the ideal per-market asset
@@ -1376,8 +1350,7 @@ contract ProtocolReader {
                 // Redeem-paused: can't withdraw, lock floor at current level.
                 simAssetsHeld[i] += current;
                 lockedAssets += current;
-                (bool mp,,) = mm.actionsPaused(markets[i]);
-                if (mp) {
+                if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
                     // Both paused: frozen at current level.
                     maxAllocation[i] = current;
                 } else if (maxAllocation[i] < current) {
@@ -1387,8 +1360,7 @@ contract ProtocolReader {
             } else {
                 // Not redeem-paused: reset idealAssets (not locked).
                 idealAssets[i] = 0;
-                (bool mp,,) = mm.actionsPaused(markets[i]);
-                if (mp) {
+                if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
                     // Mint-paused only: can withdraw but not deposit.
                     maxAllocation[i] = 0;
                 }
@@ -1622,7 +1594,7 @@ contract ProtocolReader {
 
         umt._address = tokenAddress;
         umt.userAssetBalance = cToken.convertToAssets(shares);
-        umt.userShareBalance = cToken.balanceOf(account);
+        umt.userShareBalance = shares;
         umt.userUnderlyingBalance = underlying.balanceOf(account);
         umt.userDebt = cToken.isBorrowable() ? _debtBalance(IBorrowableCToken(address(cToken)), account) : 0;
         umt.userCollateral = _collateralPosted(address(cToken), account);
