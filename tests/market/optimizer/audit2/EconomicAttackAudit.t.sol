@@ -187,16 +187,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         console2.log("  _totalAssets:", indexedBefore);
 
         // Single rebalance: move 100k from market 0 to market 1.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-        actions[0] = LendingOptimizer.RebalanceAction({
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: 100_000e6,
-            isDeposit: false
+            assets: -int256(100_000e6)
         });
-        actions[1] = LendingOptimizer.RebalanceAction({
+        actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: 100_000e6,
-            isDeposit: true
+            assets: int256(100_000e6)
         });
 
         vm.prank(maliciousHarvester);
@@ -802,16 +800,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         bool badDebtTriggered = false;
 
         for (uint256 i = 0; i < 30; i++) {
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-            actions[0] = LendingOptimizer.RebalanceAction({
+            LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+            actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: rebalanceAmt,
-                isDeposit: false
+                assets: -int256(rebalanceAmt)
             });
-            actions[1] = LendingOptimizer.RebalanceAction({
+            actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: rebalanceAmt,
-                isDeposit: true
+                assets: int256(rebalanceAmt)
             });
 
             vm.prank(maliciousHarvester);
@@ -820,16 +816,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
                 break;
             }
 
-            LendingOptimizer.RebalanceAction[] memory rev = new LendingOptimizer.RebalanceAction[](2);
-            rev[0] = LendingOptimizer.RebalanceAction({
+            LendingOptimizer.ReallocationAction[] memory rev = new LendingOptimizer.ReallocationAction[](2);
+            rev[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: rebalanceAmt,
-                isDeposit: true
+                assets: int256(rebalanceAmt)
             });
-            rev[1] = LendingOptimizer.RebalanceAction({
+            rev[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: rebalanceAmt,
-                isDeposit: false
+                assets: -int256(rebalanceAmt)
             });
 
             vm.prank(maliciousHarvester);
@@ -952,16 +946,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         _setUpHarnessTwoMarketsNoFee();
 
         // Random user tries rebalance.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-        actions[0] = LendingOptimizer.RebalanceAction({
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: 0,
-            isDeposit: false
+            assets: int256(0)
         });
-        actions[1] = LendingOptimizer.RebalanceAction({
+        actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: 0,
-            isDeposit: true
+            assets: int256(0)
         });
 
         vm.prank(attacker);

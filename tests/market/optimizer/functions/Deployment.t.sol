@@ -45,7 +45,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify constants
         assertEq(optimizer.MAX_FEE_BPS(), 5000);
-        assertEq(optimizer.MAX_MARKETS(), 6);
+        assertEq(optimizer.MAX_MARKETS(), 8);
 
         // Verify storage state - fee is stored in BPS format
         assertEq(optimizer.fee(), feeBps);
@@ -194,13 +194,13 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizer_deployment_fail_whenTooManyMarkets() public {
-        address[] memory approvedCTokens = new address[](7);
-        for (uint256 i = 0; i < 7; i++) {
+        address[] memory approvedCTokens = new address[](9);
+        for (uint256 i = 0; i < 9; i++) {
             approvedCTokens[i] = cUSDC_WMON_MARKET;
         }
 
-        uint256[] memory allocationCapsBps = new uint256[](7);
-        for (uint256 i = 0; i < 7; i++) {
+        uint256[] memory allocationCapsBps = new uint256[](9);
+        for (uint256 i = 0; i < 9; i++) {
             allocationCapsBps[i] = 2_000;
         }
 

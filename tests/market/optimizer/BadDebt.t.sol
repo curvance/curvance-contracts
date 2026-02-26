@@ -915,21 +915,18 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         optimizer.updateCap(address(borrowableCUSDC), 8000); // 80% cap
 
         // Rebalance: move assets from market 3 (damaged) to market 1 (healthy)
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction({
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC)),
-            assets: market3Assets,
-            isDeposit: true
+            assets: int256(market3Assets)
         });
-        actions[1] = LendingOptimizer.RebalanceAction({
+        actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC2)),
-            assets: 0,
-            isDeposit: false
+            assets: int256(0)
         });
-        actions[2] = LendingOptimizer.RebalanceAction({
+        actions[2] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC3)),
-            assets: market3Assets,
-            isDeposit: false
+            assets: -int256(market3Assets)
         });
 
         // Rebalance should succeed

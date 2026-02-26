@@ -103,14 +103,14 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 half = m2Assets / 2;
         uint256 remainder = m2Assets - half;
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](2);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](2);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            half
+            int256(half)
         );
-        removeActions[1] = LendingOptimizer.RemoveAction(
+        removeActions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            remainder
+            int256(remainder)
         );
 
         harness.removeApprovedAsset(2, removeActions);
@@ -156,10 +156,10 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         console2.log("Market 2 assets:", market2Assets);
 
         // Remove market 2 and reallocate to market 0.
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            market2Assets
+            int256(market2Assets)
         );
         harness.removeApprovedAsset(2, removeActions);
 
@@ -223,12 +223,12 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             uint256 toM0 = m2Assets / 2;
             uint256 toM1 = m2Assets - toM0;
 
-            LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](2);
-            removeActions[0] = LendingOptimizer.RemoveAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET), toM0
+            LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](2);
+            removeActions[0] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET), int256(toM0)
             );
-            removeActions[1] = LendingOptimizer.RemoveAction(
-                IBorrowableCToken(cUSDC_WBTC_MARKET), toM1
+            removeActions[1] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WBTC_MARKET), int256(toM1)
             );
             harness.removeApprovedAsset(2, removeActions);
 
@@ -291,15 +291,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Do 10 rebalances and extrapolate.
         uint256 smallBatch = 10;
         for (uint256 i = 0; i < smallBatch; i++) {
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-            actions[0] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET), 500e6, false
+            LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+            actions[0] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET), -int256(500e6)
             );
-            actions[1] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WBTC_MARKET), 500e6, true
+            actions[1] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WBTC_MARKET), int256(500e6)
             );
-            actions[2] = LendingOptimizer.RebalanceAction(
-                IBorrowableCToken(cUSDC_WETH_MARKET), 0, true
+            actions[2] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
             );
             harness.rebalance(actions);
         }
@@ -405,10 +405,10 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Balance);
 
         // Remove market 2, reallocate to market 0.
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            m2Assets
+            int256(m2Assets)
         );
         harness.removeApprovedAsset(2, removeActions);
 
@@ -480,9 +480,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
             uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
 
-            LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-            removeActions[0] = LendingOptimizer.RemoveAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET), m2Assets
+            LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+            removeActions[0] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET), int256(m2Assets)
             );
             harness.removeApprovedAsset(2, removeActions);
 
@@ -559,9 +559,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(cTokenBalanceBefore);
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), m2Assets
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(m2Assets)
         );
         harness.removeApprovedAsset(2, removeActions);
 
@@ -598,10 +598,10 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         );
 
         // All-zero rebalance.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true);
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+        actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         harness.rebalance(actions);
 
@@ -639,8 +639,8 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(IBorrowableCToken(cUSDC_WBTC_MARKET), m0Assets);
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(m0Assets));
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
         harness.removeApprovedAsset(0, removeActions);
@@ -730,9 +730,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
         uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
-            IBorrowableCToken(cUSDC_WETH_MARKET), m2Assets
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET), int256(m2Assets)
         );
 
         // allocationCaps deleted before reallocation loop — should revert.
@@ -781,9 +781,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Market 0 (WMON): ~5K / ~11K = ~45%, cap 60% - OK
         // Market 2 (WETH): ~6K / ~11K = ~55%, cap 50% - need to check
         // Actually send to WMON which has more headroom.
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), m1Assets
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(m1Assets)
         );
         harness.removeApprovedAsset(1, removeActions);
 
@@ -793,9 +793,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         assertEq(harness.approvedCTokensList(1), cUSDC_WETH_MARKET, "Index 1 should be WETH (swapped)");
 
         // Verify rebalance works with the new ordering.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, true);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, true);
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         harness.rebalance(actions);
         console2.log("CONFIRMED: Swap-and-pop correctly maintains array ordering");

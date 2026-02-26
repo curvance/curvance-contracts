@@ -12,6 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 
@@ -54,27 +55,16 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
 
     /// TYPES ///
 
-    /// @notice Represents a single rebalance operation for moving assets between markets.
-    /// @dev Used in the rebalance() function to specify deposit/withdrawal actions.
-    ///      Actions are processed in two passes: withdrawals first, then deposits.
-    struct RebalanceAction {
+    /// @notice Represents a single reallocation operation for moving assets between markets.
+    /// @dev Used in rebalance() and removeApprovedAsset(). In rebalance(),
+    ///      positive values indicate deposits and negative values indicate
+    ///      withdrawals. In removeApprovedAsset(), values must be positive
+    ///      (deposits into target markets only).
+    struct ReallocationAction {
         /// @notice The cToken market to interact with.
         IBorrowableCToken cToken;
-        /// @notice The amount of underlying assets to deposit or withdraw.
-        uint256 assets;
-        /// @notice True for deposit, false for withdrawal.
-        bool isDeposit;
-    }
-
-    /// @notice Represents a reallocation target when removing a market.
-    /// @dev Used in removeApprovedAsset() to specify where to move assets
-    ///      from the removed market. The sum of all reallocationAmounts must
-    ///      equal the total assets redeemed from the removed market.
-    struct RemoveAction {
-        /// @notice The target cToken market to receive reallocated assets.
-        IBorrowableCToken cToken;
-        /// @notice The amount of assets to deposit into this market.
-        uint256 reallocationAmount;
+        /// @notice The amount of underlying assets to deposit (positive) or withdraw (negative).
+        int256 assets;
     }
 
     /// CONSTANTS ///
@@ -82,7 +72,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     /// @dev Maximum fee in BPS (50% = 5000 BPS).
     uint256 public constant MAX_FEE_BPS = 5000;
     /// @dev Maximum number of supported markets.
-    uint256 public constant MAX_MARKETS = 6;
+    uint256 public constant MAX_MARKETS = 8;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
@@ -485,11 +475,14 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     ///         (use assets=0 for no-op).
     ///      4. Have total withdrawal amounts equal to total deposit amounts.
     ///
+    ///      Positive `assets` values indicate deposits, negative values indicate
+    ///      withdrawals.
+    ///
     ///      After rebalancing, each market's allocation must not exceed its cap.
     ///      NOTE: cToken deposit/withdraw rounding incurs a small asset loss
     ///      (~1-2 wei per action). This is absorbed on the next accrual.
-    /// @param actions Array of rebalance actions, one per approved market.
-    function rebalance(RebalanceAction[] calldata actions) external nonReentrant {
+    /// @param actions Array of reallocation actions, one per approved market.
+    function rebalance(ReallocationAction[] calldata actions) external nonReentrant {
         // Revert if the caller does not have harvester permissions.
         _hasHarvesterPermissions();
 
@@ -502,19 +495,21 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         if (actions.length != l) revert LendingOptimizer__ArrayLengthMismatch();
 
         uint256 sumDeclaredWithdrawals;
-        // First pass: process withdrawals.
+        // First pass: process withdrawals (negative assets).
         for (uint256 i; i < l; ++i) {
             // Revert if action cToken does not match expected market at index.
             if (address(actions[i].cToken) != approvedCTokensList[i]) revert LendingOptimizer__InvalidParameter();
 
-            // Process withdrawal if this action is a withdrawal with assets > 0.
-            if (actions[i].assets > 0 && !actions[i].isDeposit) {
+            // Process withdrawal if assets is negative.
+            if (actions[i].assets < 0) {
+                if (actions[i].assets == type(int256).min) revert LendingOptimizer__InvalidParameter();
                 if (_isMarketPausedForAction(address(actions[i].cToken), false)) {
                     revert LendingOptimizer__MarketPaused();
                 }
-                sumDeclaredWithdrawals += actions[i].assets;
+                uint256 withdrawAmount = uint256(-actions[i].assets);
+                sumDeclaredWithdrawals += withdrawAmount;
                 actions[i].cToken.withdraw(
-                    actions[i].assets,
+                    withdrawAmount,
                     address(this),
                     address(this)
                 );
@@ -523,15 +518,16 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
 
         // Track the intended deposited assets.
         uint256 sumDeclaredReallocated;
-        // Second pass: process deposits.
+        // Second pass: process deposits (positive assets).
         for (uint256 i; i < l; ++i) {
-            // Process deposit if this action is a deposit with assets > 0.
-            if (actions[i].assets > 0 && actions[i].isDeposit) {
+            // Process deposit if assets is positive.
+            if (actions[i].assets > 0) {
                 if (_isMarketPausedForAction(address(actions[i].cToken), true)) {
                     revert LendingOptimizer__MarketPaused();
                 }
-                _depositToMarket(address(actions[i].cToken), actions[i].assets);
-                sumDeclaredReallocated += actions[i].assets;
+                uint256 depositAmount = uint256(actions[i].assets);
+                _depositToMarket(address(actions[i].cToken), depositAmount);
+                sumDeclaredReallocated += depositAmount;
             }
         }
 
@@ -548,11 +544,12 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     ///      The caller specifies reallocation amounts that must not exceed the
     ///      redeemed total. Any residual dust from cToken rounding is automatically
     ///      deposited into the first reallocation target.
+    ///      All `assets` values in removeActions must be positive (deposits only).
     /// @param indexRemove Index of the market to remove.
-    /// @param removeActions Actions specifying how to reallocate assets.
+    /// @param removeActions Actions specifying how to reallocate assets (must be positive).
     function removeApprovedAsset(
         uint256 indexRemove,
-        RemoveAction[] calldata removeActions
+        ReallocationAction[] calldata removeActions
     ) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
@@ -588,6 +585,9 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // Track the caller intent amount to reallocate.
         uint256 sumDeclaredReallocated;
         for (uint256 i; i < removeActions.length; ++i) {
+            // Revert if assets is not positive (only deposits allowed).
+            if (removeActions[i].assets <= 0) revert LendingOptimizer__InvalidParameter();
+
             // Instantiate cToken address for readability.
             address cTokenAddress = address(removeActions[i].cToken);
 
@@ -595,7 +595,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
             if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
 
             // Deposit reallocation amount to the target market.
-            uint256 reallocationAmount = removeActions[i].reallocationAmount;
+            uint256 reallocationAmount = uint256(removeActions[i].assets);
             _depositToMarket(cTokenAddress, reallocationAmount);
             sumDeclaredReallocated += reallocationAmount;
         }
@@ -696,13 +696,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // If enabling fees from 0, update watermark to current rate
         // so fees only apply to future yield.
         if (fee == 0 && newFeeBps > 0) {
-            uint256 supply = totalSupply();
-            if (supply > 0) {
-                uint256 exchangeRateCurrent = FixedPointMathLib.mulDiv(
-                    WAD,
-                    totalAssets(),
-                    supply
-                );
+            if (totalSupply() > 0) {
+                uint256 exchangeRateCurrent = _exchangeRate();
                 // Never lower the watermark.
                 if (exchangeRateCurrent > exchangeRateHighWatermark) {
                     exchangeRateHighWatermark = exchangeRateCurrent;
@@ -740,7 +735,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // totalSupply() after accrual, not a cached value.
         _accrueIfNeeded();
 
-        return FixedPointMathLib.mulDiv(WAD, totalAssets(), totalSupply());
+        return _exchangeRate();
     }
 
     /// @notice Accrues yield from underlying markets and absorbs it.
@@ -798,15 +793,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     ///      accrued recently.
     /// @return The current exchange rate in WAD (1e18 = 1:1 ratio).
     function exchangeRate() public view nonReadReentrant returns (uint256) {
-        // Cache the total supply of optimizer shares.
-        uint256 supply = totalSupply();
-
-        // If no shares exist, return 1:1 exchange rate (WAD).
-        if (supply == 0) return WAD;
-
-        // Calculate and return the exchange rate.
-        // exchangeRate = (WAD * totalAssets) / totalSupply
-        return FixedPointMathLib.mulDiv(WAD, totalAssets(), supply);
+        return _exchangeRate();
     }
 
     /// @notice Returns the number of approved markets.
@@ -911,7 +898,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         address cToken,
         bool isDeposit
     ) internal view returns (bool) {
-        IMarketManager mm = IBorrowableCToken(cToken).marketManager();
+        MarketManagerIsolated mm = 
+            MarketManagerIsolated(address(IBorrowableCToken(cToken).marketManager()));
         if (isDeposit) {
             (bool mintPaused_,,) = mm.actionsPaused(cToken);
             return mintPaused_;
@@ -1037,6 +1025,13 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         return allocationCaps[market] != 0;
     }
 
+    /// @dev Returns the current exchange rate in WAD. Returns WAD if no supply.
+    function _exchangeRate() internal view returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) return WAD;
+        return FixedPointMathLib.fullMulDiv(WAD, totalAssets(), supply);
+    }
+
     /// @dev Verifies that every market's current allocation does not exceed its cap
     ///      and emits the post-rebalance state with per-market allocations.
     function _verifyAllocationCaps() internal {
@@ -1077,12 +1072,12 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         if (fee > 0) {
             uint256 supply = totalSupply();
             if (supply > 0) {
-                uint256 currentRate = FixedPointMathLib.mulDiv(WAD, rawTa, supply);
+                uint256 currentRate = FixedPointMathLib.fullMulDiv(WAD, rawTa, supply);
                 uint256 highRate = exchangeRateHighWatermark;
 
                 if (currentRate > highRate) {
-                    uint256 profit = rawTa - FixedPointMathLib.mulDiv(highRate, supply, WAD);
-                    uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, _bpsToWad(fee), WAD);
+                    uint256 profit = rawTa - FixedPointMathLib.fullMulDiv(highRate, supply, WAD);
+                    uint256 feeAssets = FixedPointMathLib.fullMulDivUp(profit, _bpsToWad(fee), WAD);
 
                     if (feeAssets > 0) {
                         uint256 feeShares = FixedPointMathLib.fullMulDivUp(
@@ -1090,7 +1085,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
                         );
                         address dao = centralRegistry.daoAddress();
                         _mint(dao, feeShares);
-                        exchangeRateHighWatermark = FixedPointMathLib.mulDiv(
+                        exchangeRateHighWatermark = FixedPointMathLib.fullMulDiv(
                             WAD, rawTa, supply + feeShares
                         );
                         emit PerformanceFeeAccrued(feeShares, dao);

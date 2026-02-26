@@ -32,11 +32,11 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
             abi.encode(false)
         );
 
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, false);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, false);
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, false);
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+        actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         vm.prank(caller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
@@ -83,7 +83,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
             abi.encode(false)
         );
 
-        LendingOptimizer.RemoveAction[] memory actions = new LendingOptimizer.RemoveAction[](0);
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](0);
 
         vm.prank(caller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
@@ -283,11 +283,11 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         uint256 totalAssetsBefore = optimizer.totalAssets();
         uint256 exchangeRateBefore = optimizer.exchangeRate();
 
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WMON_MARKET), 0, false);
-        actions[1] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WBTC_MARKET), 0, false);
-        actions[2] = LendingOptimizer.RebalanceAction(IBorrowableCToken(cUSDC_WETH_MARKET), 0, false);
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+        actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         optimizer.rebalance(actions);
 

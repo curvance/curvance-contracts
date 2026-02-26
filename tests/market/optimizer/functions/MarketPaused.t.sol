@@ -6,6 +6,7 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -44,7 +45,7 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
     function _mockRedeemPaused(address mm, bool paused) internal {
         vm.mockCall(
             mm,
-            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
             abi.encode(paused ? uint8(2) : uint8(1))
         );
     }
@@ -237,21 +238,18 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         _mockHarvestPermissions();
         _mockRedeemPaused(marketManagerWETH, true);
 
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            1_000e6,
-            true  // deposit
+            int256(1_000e6) // deposit
         );
-        actions[1] = LendingOptimizer.RebalanceAction(
+        actions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            0,
-            true
+            int256(0)
         );
-        actions[2] = LendingOptimizer.RebalanceAction(
+        actions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
-            1_000e6,
-            false // withdraw from paused market
+            -int256(1_000e6) // withdraw from paused market
         );
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
@@ -262,21 +260,18 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         _mockHarvestPermissions();
         _mockMintPaused(cUSDC_WMON_MARKET, true);
 
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            1_000e6,
-            true  // deposit to paused market
+            int256(1_000e6) // deposit to paused market
         );
-        actions[1] = LendingOptimizer.RebalanceAction(
+        actions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            0,
-            true
+            int256(0)
         );
-        actions[2] = LendingOptimizer.RebalanceAction(
+        actions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
-            1_000e6,
-            false // withdraw
+            -int256(1_000e6) // withdraw
         );
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
@@ -297,15 +292,15 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         uint256 wethTarget = (totalAssets * 15) / 100;
         uint256 excessWeth = wethAssets - wethTarget;
 
-        LendingOptimizer.RebalanceAction[] memory setupActions = new LendingOptimizer.RebalanceAction[](3);
-        setupActions[0] = LendingOptimizer.RebalanceAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), excessWeth, true
+        LendingOptimizer.ReallocationAction[] memory setupActions = new LendingOptimizer.ReallocationAction[](3);
+        setupActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(excessWeth)
         );
-        setupActions[1] = LendingOptimizer.RebalanceAction(
-            IBorrowableCToken(cUSDC_WBTC_MARKET), 0, true
+        setupActions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0)
         );
-        setupActions[2] = LendingOptimizer.RebalanceAction(
-            IBorrowableCToken(cUSDC_WETH_MARKET), excessWeth, false
+        setupActions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET), -int256(excessWeth)
         );
         optimizer.rebalance(setupActions);
 
@@ -313,21 +308,18 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         _mockMintPaused(cUSDC_WETH_MARKET, true);
 
         // Rebalance between the two non-paused markets with 0 for the paused one.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            1_000e6,
-            true  // deposit
+            int256(1_000e6) // deposit
         );
-        actions[1] = LendingOptimizer.RebalanceAction(
+        actions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            1_000e6,
-            false // withdraw
+            -int256(1_000e6) // withdraw
         );
-        actions[2] = LendingOptimizer.RebalanceAction(
+        actions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
-            0,
-            true  // no-op on paused market
+            int256(0) // no-op on paused market
         );
 
         // Should succeed — paused market is not touched.
@@ -399,21 +391,18 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         _mockMintPaused(cUSDC_WMON_MARKET, true);
 
         // Try to withdraw from paused-redeem market → should revert.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            0,
-            true
+            int256(0)
         );
-        actions[1] = LendingOptimizer.RebalanceAction(
+        actions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            1_000e6,
-            true  // deposit
+            int256(1_000e6) // deposit
         );
-        actions[2] = LendingOptimizer.RebalanceAction(
+        actions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
-            1_000e6,
-            false // withdraw from redeem-paused market
+            -int256(1_000e6) // withdraw from redeem-paused market
         );
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);

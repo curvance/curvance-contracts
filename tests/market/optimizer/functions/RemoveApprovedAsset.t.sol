@@ -48,10 +48,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // Reallocate removed assets to market 0 (which has cap headroom).
         // After removal: total ~21K, market 0 ~11K (52%), cap 60% — within bounds.
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            market2Assets
+            int256(market2Assets)
         );
 
         // Mock market permissions.
@@ -95,7 +95,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Try to remove the only market with empty reallocation (no other market to reallocate to).
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](0);
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
 
         // Mock market permissions.
         vm.mockCall(
@@ -138,10 +138,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Create remove actions.
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            market1Assets
+            int256(market1Assets)
         );
 
         // First, demonstrate that removal would fail without updating cap.
@@ -191,10 +191,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
         );
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            market2Assets
+            int256(market2Assets)
         );
 
         // Mock market permissions.
@@ -237,10 +237,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
         );
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            market0Assets
+            int256(market0Assets)
         );
 
         // Should revert because remaining cap (50%) < 100%.
@@ -252,9 +252,9 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer))
         );
 
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            market1Assets
+            int256(market1Assets)
         );
 
         // Should also revert because remaining cap (60%) < 100%.

@@ -253,22 +253,18 @@ contract LendingOptimizerHandler is Test {
 
         amount = bound(amount, 1, maxAmount);
 
-        // Build RebalanceAction array matching approvedCTokensList order.
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](numMarkets);
+        // Build ReallocationAction array matching approvedCTokensList order.
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](numMarkets);
 
         for (uint256 i; i < numMarkets; ++i) {
             actions[i].cToken = IBorrowableCToken(markets[i]);
             if (i == withdrawMarketIndex) {
-                actions[i].assets = amount;
-                actions[i].isDeposit = false;
+                actions[i].assets = -int256(amount);
             } else if (i == depositMarketIndex) {
-                actions[i].assets = amount;
-                actions[i].isDeposit = true;
-            } else {
-                actions[i].assets = 0;
-                actions[i].isDeposit = false;
+                actions[i].assets = int256(amount);
             }
+            // else: assets defaults to 0 (no-op)
         }
 
         _mockHarvestPermissions(address(this));
@@ -362,7 +358,7 @@ contract LendingOptimizerHandler is Test {
     // Market add/remove (addApprovedAsset / removeApprovedAsset) is excluded
     // from the handler because:
     // 1. Both require admin-level market permissions (not user actions).
-    // 2. removeApprovedAsset requires constructing valid RemoveAction arrays
+    // 2. removeApprovedAsset requires constructing valid ReallocationAction arrays
     //    with exact reallocation amounts matching redeemed totals, which is
     //    difficult to fuzz meaningfully without hitting constant reverts.
     // 3. addApprovedAsset requires deploying or referencing a valid cToken

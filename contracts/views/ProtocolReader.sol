@@ -1248,7 +1248,7 @@ contract ProtocolReader {
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
 
             // Skip markets where redemptions are paused.
-            if (ct.marketManager().redeemPaused() == 2) continue;
+            if (MarketManagerIsolated(address(ct.marketManager())).redeemPaused() == 2) continue;
 
             // Must have enough optimizer balance and idle liquidity.
             if (ct.convertToAssets(ct.balanceOf(optimizer)) < assets || ct.assetsHeld() < assets) continue;
@@ -1268,7 +1268,7 @@ contract ProtocolReader {
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
     ///      allocation across markets, respecting allocation caps. The bot
-    ///      can use the returned arrays to construct RebalanceAction[] for
+    ///      can use the returned arrays to construct ReallocationAction[] for
     ///      LendingOptimizer.rebalance().
     /// @param optimizer The LendingOptimizer address.
     /// @return markets The approved cToken market addresses.
@@ -1365,7 +1365,7 @@ contract ProtocolReader {
         uint256 lockedAssets;
         for (uint256 i; i < markets.length; ++i) {
             uint256 current = idealAssets[i];
-            IMarketManager mm = IBorrowableCToken(markets[i]).marketManager();
+            MarketManagerIsolated mm = MarketManagerIsolated(address(IBorrowableCToken(markets[i]).marketManager()));
 
             if (mm.redeemPaused() == 2) {
                 // Redeem-paused: can't withdraw, lock floor at current level.

@@ -192,21 +192,18 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
 
         // Execute rebalance: move from market 0 to market 1.
         if (safeRebalance > 0) {
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-            actions[0] = LendingOptimizer.RebalanceAction({
+            LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+            actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: safeRebalance,
-                isDeposit: false
+                assets: -int256(safeRebalance)
             });
-            actions[1] = LendingOptimizer.RebalanceAction({
+            actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: safeRebalance,
-                isDeposit: true
+                assets: int256(safeRebalance)
             });
-            actions[2] = LendingOptimizer.RebalanceAction({
+            actions[2] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WETH_MARKET),
-                assets: 0,
-                isDeposit: false
+                assets: int256(0)
             });
 
             try harness.rebalance(actions) {} catch {
@@ -300,28 +297,24 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
 
             if (safeAmount == 0) break;
 
-            LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](2);
+            LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
             if (i % 2 == 0) {
-                actions[0] = LendingOptimizer.RebalanceAction({
+                actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: safeAmount,
-                    isDeposit: false
+                    assets: -int256(safeAmount)
                 });
-                actions[1] = LendingOptimizer.RebalanceAction({
+                actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: safeAmount,
-                    isDeposit: true
+                    assets: int256(safeAmount)
                 });
             } else {
-                actions[0] = LendingOptimizer.RebalanceAction({
+                actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: safeAmount,
-                    isDeposit: true
+                    assets: int256(safeAmount)
                 });
-                actions[1] = LendingOptimizer.RebalanceAction({
+                actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: safeAmount,
-                    isDeposit: false
+                    assets: -int256(safeAmount)
                 });
             }
 

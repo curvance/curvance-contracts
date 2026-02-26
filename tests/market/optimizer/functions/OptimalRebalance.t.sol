@@ -8,6 +8,7 @@ import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -199,28 +200,25 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             uint256[] memory withdrawAmounts
         ) = reader.optimalRebalance(address(optimizer));
 
-        // Build RebalanceAction[] from the returned arrays.
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](markets.length);
+        // Build ReallocationAction[] from the returned arrays.
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](markets.length);
 
         for (uint256 i; i < markets.length; ++i) {
             if (depositAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    depositAmounts[i],
-                    true
+                    int256(depositAmounts[i])
                 );
             } else if (withdrawAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    withdrawAmounts[i],
-                    false
+                    -int256(withdrawAmounts[i])
                 );
             } else {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    0,
-                    true
+                    int256(0)
                 );
             }
         }
@@ -264,27 +262,24 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         ) = reader.optimalRebalance(address(optimizer));
 
         // Build and execute rebalance.
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](markets.length);
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](markets.length);
 
         for (uint256 i; i < markets.length; ++i) {
             if (depositAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    depositAmounts[i],
-                    true
+                    int256(depositAmounts[i])
                 );
             } else if (withdrawAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    withdrawAmounts[i],
-                    false
+                    -int256(withdrawAmounts[i])
                 );
             } else {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    0,
-                    true
+                    int256(0)
                 );
             }
         }
@@ -489,27 +484,24 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             uint256[] memory withdrawAmounts
         ) = reader.optimalRebalance(address(optimizer));
 
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](markets.length);
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](markets.length);
 
         for (uint256 i; i < markets.length; ++i) {
             if (depositAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    depositAmounts[i],
-                    true
+                    int256(depositAmounts[i])
                 );
             } else if (withdrawAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    withdrawAmounts[i],
-                    false
+                    -int256(withdrawAmounts[i])
                 );
             } else {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    0,
-                    true
+                    int256(0)
                 );
             }
         }
@@ -1166,7 +1158,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         address mmWMON = address(IBorrowableCToken(cUSDC_WMON_MARKET).marketManager());
         vm.mockCall(
             mmWMON,
-            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
             abi.encode(uint8(2))
         );
 
@@ -1272,7 +1264,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
         vm.mockCall(
             mmWBTC,
-            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
             abi.encode(uint8(2))
         );
         vm.mockCall(
@@ -1329,12 +1321,12 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
         vm.mockCall(
             mmWMON,
-            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
             abi.encode(uint8(2))
         );
         vm.mockCall(
             mmWBTC,
-            abi.encodeWithSelector(IMarketManager.redeemPaused.selector),
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
             abi.encode(uint8(2))
         );
 
@@ -1427,27 +1419,24 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             uint256[] memory withdrawAmounts
         ) = reader.optimalRebalance(address(optimizer));
 
-        LendingOptimizer.RebalanceAction[] memory actions =
-            new LendingOptimizer.RebalanceAction[](markets.length);
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](markets.length);
 
         for (uint256 i; i < markets.length; ++i) {
             if (depositAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    depositAmounts[i],
-                    true
+                    int256(depositAmounts[i])
                 );
             } else if (withdrawAmounts[i] > 0) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    withdrawAmounts[i],
-                    false
+                    -int256(withdrawAmounts[i])
                 );
             } else {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    0,
-                    true
+                    int256(0)
                 );
             }
         }

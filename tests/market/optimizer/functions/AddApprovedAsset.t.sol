@@ -132,7 +132,7 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizer_addApprovedAsset_fail_whenTooManyMarkets() public {
-        // Setup with three markets (already at 3, MAX_MARKETS = 6).
+        // Setup with three markets (already at 3, MAX_MARKETS = 8).
         _setUpThreeMarkets();
 
         // Mock market permissions.
@@ -142,30 +142,36 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        // We need to add 3 more markets to reach the limit, then try to add one more.
+        // We need to add 5 more markets to reach the limit, then try to add one more.
         // For this test, we'll mock additional markets.
         // Since we only have 3 real markets, let's create mock addresses.
         address mockMarket4 = makeAddr("mockMarket4");
         address mockMarket5 = makeAddr("mockMarket5");
         address mockMarket6 = makeAddr("mockMarket6");
         address mockMarket7 = makeAddr("mockMarket7");
+        address mockMarket8 = makeAddr("mockMarket8");
+        address mockMarket9 = makeAddr("mockMarket9");
 
         // Mock the cToken interface for each mock market.
         _mockValidCToken(mockMarket4);
         _mockValidCToken(mockMarket5);
         _mockValidCToken(mockMarket6);
         _mockValidCToken(mockMarket7);
+        _mockValidCToken(mockMarket8);
+        _mockValidCToken(mockMarket9);
 
-        // Add markets 4, 5, 6 to reach MAX_MARKETS.
+        // Add markets 4-8 to reach MAX_MARKETS.
         optimizer.addApprovedAsset(mockMarket4, 1_000);
         optimizer.addApprovedAsset(mockMarket5, 1_000);
         optimizer.addApprovedAsset(mockMarket6, 1_000);
+        optimizer.addApprovedAsset(mockMarket7, 1_000);
+        optimizer.addApprovedAsset(mockMarket8, 1_000);
 
-        assertEq(optimizer.numApprovedMarkets(), 6, "Should have 6 markets (MAX_MARKETS)");
+        assertEq(optimizer.numApprovedMarkets(), 8, "Should have 8 markets (MAX_MARKETS)");
 
         // Now try to add one more - should fail.
         vm.expectRevert(LendingOptimizer.LendingOptimizer__TooManyMarkets.selector);
-        optimizer.addApprovedAsset(mockMarket7, 1_000);
+        optimizer.addApprovedAsset(mockMarket9, 1_000);
     }
 
     function test_lendingOptimizer_addApprovedAsset_fail_whenInvalidUnderlying() public {

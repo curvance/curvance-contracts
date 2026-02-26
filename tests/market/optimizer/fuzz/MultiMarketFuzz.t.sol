@@ -370,10 +370,10 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
             cTokenToRemove.balanceOf(address(harness))
         );
 
-        LendingOptimizer.RemoveAction[] memory removeActions = new LendingOptimizer.RemoveAction[](1);
-        removeActions[0] = LendingOptimizer.RemoveAction(
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(firstRemaining),
-            estimatedRedeem
+            int256(estimatedRedeem)
         );
 
         // Try removal - may fail if redeem output != estimate.
@@ -524,21 +524,18 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
             withdrawAmount = excessAmount;
         }
 
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
-        actions[0] = LendingOptimizer.RebalanceAction(
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            withdrawAmount,
-            false // withdraw
+            -int256(withdrawAmount) // withdraw
         );
-        actions[1] = LendingOptimizer.RebalanceAction(
+        actions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            withdrawAmount,
-            true // deposit
+            int256(withdrawAmount) // deposit
         );
-        actions[2] = LendingOptimizer.RebalanceAction(
+        actions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET),
-            0,
-            true // no-op
+            int256(0) // no-op
         );
 
         // Rebalance may revert if depositing excess into market 1 pushes it over its cap.
@@ -593,25 +590,22 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 totalAssetsBefore = harness.totalAssets();
 
         // Build rebalance actions.
-        LendingOptimizer.RebalanceAction[] memory actions = new LendingOptimizer.RebalanceAction[](3);
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
         for (uint256 i = 0; i < 3; i++) {
             if (i == withdrawIdx) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    amount,
-                    false // withdraw
+                    -int256(amount) // withdraw
                 );
             } else if (i == depositIdx) {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    amount,
-                    true // deposit
+                    int256(amount) // deposit
                 );
             } else {
-                actions[i] = LendingOptimizer.RebalanceAction(
+                actions[i] = LendingOptimizer.ReallocationAction(
                     IBorrowableCToken(markets[i]),
-                    0,
-                    true // no-op
+                    int256(0) // no-op
                 );
             }
         }
