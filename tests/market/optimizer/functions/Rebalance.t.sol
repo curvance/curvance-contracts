@@ -402,4 +402,29 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
         optimizer.rebalance(actions);
     }
+
+    function test_lendingOptimizer_rebalance_revert_withdrawalBelowMinReallocation() public {
+        _depositToAllMarkets(10_000e6);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Build actions with a withdrawal amount below MIN_REALLOCATION_AMOUNT.
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(0)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET), optimizer.MIN_REALLOCATION_AMOUNT() - 1
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.rebalance(actions);
+    }
 }

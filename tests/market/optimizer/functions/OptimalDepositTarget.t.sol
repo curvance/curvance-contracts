@@ -181,14 +181,13 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         assertLt(target, 2);
     }
 
-    function test_lendingOptimizer_optimalDepositTarget_success_maxUint256Deposit() public {
+    function test_lendingOptimizer_optimalDepositTarget_success_maxUint128Deposit() public {
         _setUpThreeMarkets();
 
-        // Extremely large deposit - with real rates, this overwhelms all
-        // market utilization to near-zero, causing all projected rates to be 0.
-        // The optimizer reverts with MarketPaused when no viable market is found.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(type(uint128).max);
+        // Extremely large deposit — overwhelms all market utilization to
+        // near-zero, but should still pick the first viable market.
+        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(type(uint128).max);
+        assertLt(target, 3, "Should return a valid market index even for huge deposits");
     }
 
     function test_lendingOptimizer_optimalDepositTarget_success_sequentialDepositsDistribute() public {

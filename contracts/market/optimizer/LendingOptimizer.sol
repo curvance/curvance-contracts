@@ -73,9 +73,9 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     uint256 public constant MAX_FEE_BPS = 5000;
     /// @dev Maximum number of supported markets.
     uint256 public constant MAX_MARKETS = 8;
-    /// @dev Maximum absolute value for ReallocationAction.assets.
-    ///      Caps at int128 range to prevent negation overflow on int256.
-    int256 public constant MAX_REALLOCATION_AMOUNT = type(int128).max;
+    /// @dev Minimum allowed value for ReallocationAction.assets (withdrawals).
+    ///      Caps at negative int128 range to prevent negation overflow on int256.
+    int256 public constant MIN_REALLOCATION_AMOUNT = -type(int128).max;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
@@ -447,7 +447,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
 
             // Process withdrawal if assets is negative.
             if (actions[i].assets < 0) {
-                if (actions[i].assets < -MAX_REALLOCATION_AMOUNT) revert LendingOptimizer__InvalidParameter();
+                if (actions[i].assets < MIN_REALLOCATION_AMOUNT) revert LendingOptimizer__InvalidParameter();
                 if (_isMarketPausedForAction(address(actions[i].cToken), false)) {
                     revert LendingOptimizer__MarketPaused();
                 }
