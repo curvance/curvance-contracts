@@ -20,6 +20,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
+import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 
 contract ProtocolReader {
     /// TYPES ///
@@ -1251,30 +1252,22 @@ contract ProtocolReader {
 
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
-    ///      allocation across markets, respecting allocation caps. The bot
-    ///      can use the returned arrays to construct ReallocationAction[] for
+    ///      allocation across markets, respecting allocation caps. Returns
+    ///      ReallocationAction[] that can be passed directly to
     ///      LendingOptimizer.rebalance().
     /// @param optimizer The LendingOptimizer address.
-    /// @return markets The approved cToken market addresses.
-    /// @return depositAmounts Per-market assets to deposit (0 if none).
-    /// @return withdrawAmounts Per-market assets to withdraw (0 if none).
+    /// @return actions The rebalance actions array matching approvedCTokensList order.
     function optimalRebalance(
         address optimizer
     ) external view returns (
-        address[] memory markets,
-        uint256[] memory depositAmounts,
-        uint256[] memory withdrawAmounts
+        LendingOptimizer.ReallocationAction[] memory actions
     ) {
-        {
-            ILendingOptimizer opt = ILendingOptimizer(optimizer);
-            markets = opt.getApprovedMarkets();
-        }
-
+        address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = markets.length;
-        depositAmounts = new uint256[](numMarkets);
-        withdrawAmounts = new uint256[](numMarkets);
 
-        if (numMarkets == 0) return (markets, depositAmounts, withdrawAmounts);
+        actions = new LendingOptimizer.ReallocationAction[](numMarkets);
+
+        if (numMarkets == 0) return actions;
 
         (uint256[] memory idealAssets, uint256[] memory currentAssets) =
             _computeIdealAllocation(optimizer, markets);
@@ -1282,9 +1275,20 @@ contract ProtocolReader {
         // Diff ideal vs current to produce deposit/withdraw actions.
         for (uint256 i; i < numMarkets; ++i) {
             if (idealAssets[i] > currentAssets[i]) {
-                depositAmounts[i] = idealAssets[i] - currentAssets[i];
+                actions[i] = LendingOptimizer.ReallocationAction(
+                    IBorrowableCToken(markets[i]),
+                    int256(idealAssets[i] - currentAssets[i])
+                );
             } else if (currentAssets[i] > idealAssets[i]) {
-                withdrawAmounts[i] = currentAssets[i] - idealAssets[i];
+                actions[i] = LendingOptimizer.ReallocationAction(
+                    IBorrowableCToken(markets[i]),
+                    -int256(currentAssets[i] - idealAssets[i])
+                );
+            } else {
+                actions[i] = LendingOptimizer.ReallocationAction(
+                    IBorrowableCToken(markets[i]),
+                    int256(0)
+                );
             }
         }
     }
