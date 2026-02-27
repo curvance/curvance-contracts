@@ -187,6 +187,16 @@ contract ProtocolReader {
         uint256 redeemable;
     }
 
+    /// @dev Internal struct to pack per-market allocation state into a single
+    ///      array, avoiding stack-too-deep in _computeIdealAllocation.
+    struct MarketAlloc {
+        uint256 simAssetsHeld;
+        uint256 debt;
+        uint256 fees;
+        uint256 maxAllocation;
+        IDynamicIRM irm;
+    }
+
     /// CONSTANTS ///
 
     /// @notice Minimum loan size allowed inside Curvance that can be created
@@ -223,7 +233,7 @@ contract ProtocolReader {
     /// @return data The market data for each optimizer.
     function getOptimizerMarketData(
         address[] calldata optimizers
-    ) public view returns (OptimizerMarketData[] memory data) {
+    ) external view returns (OptimizerMarketData[] memory data) {
         uint256 len = optimizers.length;
         data = new OptimizerMarketData[](len);
 
@@ -243,7 +253,7 @@ contract ProtocolReader {
             for (uint256 j; j < l; ++j) {
                 IBorrowableCToken cToken = IBorrowableCToken(cTokens[j]);
                 uint256 allocated = cToken.convertToAssets(
-                    cToken.balanceOf(optimizers[i])
+                    _balanceOf(address(cToken), optimizers[i])
                 );
                 uint256 liquidity = _assetsHeld(cToken);
 
@@ -264,13 +274,13 @@ contract ProtocolReader {
     function getOptimizerUserData(
         address[] calldata optimizers,
         address account
-    ) public view returns (OptimizerUserData[] memory data) {
+    ) external view returns (OptimizerUserData[] memory data) {
         uint256 len = optimizers.length;
         data = new OptimizerUserData[](len);
 
         for (uint256 i; i < len; ++i) {
             ILendingOptimizer opt = ILendingOptimizer(optimizers[i]);
-            uint256 shares = opt.balanceOf(account);
+            uint256 shares = _balanceOf(optimizers[i], account);
 
             data[i]._address = optimizers[i];
             data[i].shareBalance = shares;
@@ -278,7 +288,7 @@ contract ProtocolReader {
         }
     }
 
-    function getAllDynamicState(address account) public view returns (
+    function getAllDynamicState(address account) external view returns (
         DynamicMarketData[] memory market,
         UserData memory user
     ) {
@@ -286,7 +296,7 @@ contract ProtocolReader {
     }
 
     function getStaticMarketData()
-        public
+        external
         view
         returns (StaticMarketData[] memory data)
     {
@@ -407,7 +417,7 @@ contract ProtocolReader {
 
         if (mm.isListed(cToken) && collateralAssets != 0) {
             tempValue = _collateralValue(cToken, collateralAssets);
-            (, uint256 collReqSoft , ) = mm.collConfig(cToken);
+            (, uint256 collReqSoft,) = _collConfig(mm, cToken);
             if (collReqSoft != 0) {
                 tempValue = _mulDiv(tempValue, BPS, collReqSoft);
                 if (tempValue > soft && !isDeposit) {
@@ -461,7 +471,7 @@ contract ProtocolReader {
 
         // Divergent: offset source and amount source.
         if (long) {
-            (, offset,) = mm.collConfig(cToken);
+            (, offset,) = _collConfig(mm, cToken);
             amount = _collateralPosted(cToken, account);
         } else {
             offset = BPS;
@@ -540,7 +550,7 @@ contract ProtocolReader {
         address account,
         address cTokenRedeemed,
         uint256 bufferTime
-    ) public view returns (
+    ) external view returns (
         uint256 collateralizedSharesRedeemable,
         uint256 uncollateralizedShares,
         bool oracleError
@@ -559,9 +569,10 @@ contract ProtocolReader {
         oracleError = r.oracleError;
         collateralizedSharesRedeemable =
             _collateralPosted(cTokenRedeemed, account);
-        uncollateralizedShares = ICToken(cTokenRedeemed).balanceOf(account) -
+        uncollateralizedShares = _balanceOf(cTokenRedeemed, account) -
             collateralizedSharesRedeemable;
         if (collateralizedSharesRedeemable > 0) {
+            (uint256 collRatio,,) = _collConfig(mm, cTokenRedeemed);
             uint256 redemptionDebt = _mulDiv(
                 _assetValue(
                     collateralizedSharesRedeemable,
@@ -569,7 +580,7 @@ contract ProtocolReader {
                     10 ** _decimals(cTokenRedeemed),
                     true
                 ),
-                _collateralizationRatio(mm, cTokenRedeemed),
+                collRatio,
                 BPS
             );
 
@@ -609,7 +620,7 @@ contract ProtocolReader {
         address cTokenModified,
         uint256 redemptionShares,
         uint256 bufferTime
-    ) public view returns (uint256, uint256, bool, bool) {
+    ) external view returns (uint256, uint256, bool, bool) {
         IMarketManager mm = _marketManager(cTokenModified);
 
         // Make sure they are not trying to hypothetically redeem
@@ -656,7 +667,7 @@ contract ProtocolReader {
         address borrowableCTokenModified,
         uint256 borrowAssets,
         uint256 bufferTime
-    ) public view returns (uint256, uint256, bool, bool, bool) {
+    ) external view returns (uint256, uint256, bool, bool, bool) {
         IMarketManager mm = _marketManager(borrowableCTokenModified);
 
         // Make sure they are not trying to hypothetically redeem
@@ -717,7 +728,7 @@ contract ProtocolReader {
         address borrowableCToken,
         uint256 assets,
         uint256 bufferTime
-    ) public view returns (
+    ) external view returns (
         uint256 currentLeverage,
         uint256 adjustedMaxLeverage,
         uint256 maxLeverage,
@@ -750,7 +761,7 @@ contract ProtocolReader {
         }
 
         {
-            uint256 collRatio = _collateralizationRatio(mm, address(cToken));
+            (uint256 collRatio,,) = _collConfig(mm, address(cToken));
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
@@ -787,10 +798,14 @@ contract ProtocolReader {
         );
 
         // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
+        address debtUnderlying = _asset(borrowableCToken);
+        uint256 debtDecimals = _decimals(borrowableCToken);
+        uint256 debtPrice = getPriceSafely(debtUnderlying, true, false, 1);
+
         maxDebtBorrowable = _mulDiv(
             maxDebtBorrowable,
-            10 ** _decimals(borrowableCToken),
-            getPriceSafely(_asset(borrowableCToken), true, false, 1)
+            10 ** debtDecimals,
+            debtPrice
         );
 
         // Calculate the maximum debt borrowable currently.
@@ -799,7 +814,9 @@ contract ProtocolReader {
             cToken,
             ICToken(cToken).previewDeposit(assets),
             borrowableCToken,
-            maxDebtBorrowable
+            maxDebtBorrowable,
+            debtPrice,
+            debtDecimals
         );
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
@@ -878,7 +895,7 @@ contract ProtocolReader {
             uint256 assetsHeld = _assetsHeld(bcToken);
             uint256 outstandingDebt = _outstandingDebt(bcToken);
             // Calculate the new interest rate for borrowers, in seconds.
-            rate = bcToken.IRM().predictedBorrowRate(assetsHeld, outstandingDebt);
+            rate = _IRM(bcToken).predictedBorrowRate(assetsHeld, outstandingDebt);
             debtBalance = debtBalance + newDebt;
 
             newDebt = _mulDiv(
@@ -898,7 +915,7 @@ contract ProtocolReader {
     function marketMultiCooldown(
         address[] calldata markets,
         address user
-    ) public view returns (uint256[] memory) {
+    ) external view returns (uint256[] memory) {
         uint256 numMarkets = markets.length;
         uint256[] memory cooldowns = new uint256[](numMarkets);
         for (uint256 i; i < numMarkets; ++i) {
@@ -928,7 +945,7 @@ contract ProtocolReader {
         address debtBorrowableCToken,
         uint256 newCollateralAssets,
         uint256 newDebtAssets
-    ) public view returns (uint256 supply, uint256 borrow) {
+    ) external view returns (uint256 supply, uint256 borrow) {
         ICToken cToken = ICToken(collateralCToken);
         IBorrowableCToken bcToken;
         uint256 outstandingDebt;
@@ -938,7 +955,7 @@ contract ProtocolReader {
             bcToken = IBorrowableCToken(address(collateralCToken));
             outstandingDebt = _outstandingDebt(bcToken);
             assetsHeld = _assetsHeld(bcToken) + newCollateralAssets;
-            supply = bcToken.IRM()
+            supply = _IRM(bcToken)
                 .supplyRate(assetsHeld, outstandingDebt, _interestFee(bcToken));
         }
 
@@ -949,7 +966,7 @@ contract ProtocolReader {
             assetsHeld = assetsHeld > newDebtAssets
                 ? assetsHeld - newDebtAssets
                 : 0;
-            borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
+            borrow = _IRM(bcToken).borrowRate(assetsHeld, outstandingDebt);
         }
     }
 
@@ -1003,7 +1020,7 @@ contract ProtocolReader {
             snap = snapshots[i];
 
             if (snap.isCollateral) {
-                (collRatio, ,) = mm.collConfig(snap.asset);
+                (collRatio,,) = _collConfig(mm, snap.asset);
                 uint256 collateralValue = _assetValue(
                     snap.collateralPosted,
                     prices[i],
@@ -1038,7 +1055,7 @@ contract ProtocolReader {
                 // a debt position as collateral until its fully opened
                 // because debtBalance still equals 0 at getSnapshot level.
                 if (snap.isCollateral && borrowAssets == 0) {
-                    (collRatio, ,) = mm.collConfig(snap.asset);
+                    (collRatio,,) = _collConfig(mm, snap.asset);
                     // Hypothetical redemption action, decreasing collateral
                     // or more simply adding new debt.
                     newDebt += _mulDiv(
@@ -1127,6 +1144,7 @@ contract ProtocolReader {
             if (snap.isCollateral) {
                 (cSoft, cHard) = _addLiquidationValues(
                     snap,
+                    mm,
                     account,
                     prices[i],
                     cSoft,
@@ -1176,7 +1194,7 @@ contract ProtocolReader {
     function optimalDeposit(
         address optimizer,
         uint256 assets
-    ) public view returns (address market) {
+    ) external view returns (address market) {
         address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = cTokens.length;
 
@@ -1192,7 +1210,7 @@ contract ProtocolReader {
             if (_isMintPaused(cTokens[i])) continue;
 
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
-            uint256 rate = ct.IRM().supplyRate(
+            uint256 rate = _IRM(ct).supplyRate(
                 _assetsHeld(ct) + assets,
                 _outstandingDebt(ct),
                 _interestFee(ct)
@@ -1212,7 +1230,7 @@ contract ProtocolReader {
     function optimalWithdrawal(
         address optimizer,
         uint256 assets
-    ) public view returns (address market) {
+    ) external view returns (address market) {
         address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = cTokens.length;
 
@@ -1223,13 +1241,13 @@ contract ProtocolReader {
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
 
             // Skip markets where redemptions are paused.
-            if (MarketManagerIsolated(address(ct.marketManager())).redeemPaused() == 2) continue;
+            if (MarketManagerIsolated(address(_marketManager(address(ct)))).redeemPaused() == 2) continue;
 
             // Must have enough optimizer balance and idle liquidity.
             uint256 held = _assetsHeld(ct);
-            if (ct.convertToAssets(ct.balanceOf(optimizer)) < assets || held < assets) continue;
+            if (ct.convertToAssets(_balanceOf(address(ct), optimizer)) < assets || held < assets) continue;
 
-            uint256 rate = ct.IRM().supplyRate(
+            uint256 rate = _IRM(ct).supplyRate(
                 held - assets,
                 _outstandingDebt(ct),
                 _interestFee(ct)
@@ -1252,7 +1270,7 @@ contract ProtocolReader {
     /// @return withdrawAmounts Per-market assets to withdraw (0 if none).
     function optimalRebalance(
         address optimizer
-    ) public view returns (
+    ) external view returns (
         address[] memory markets,
         uint256[] memory depositAmounts,
         uint256[] memory withdrawAmounts
@@ -1273,7 +1291,7 @@ contract ProtocolReader {
         uint256 ta;
         for (uint256 i; i < numMarkets; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-            currentAssets[i] = ct.convertToAssets(ct.balanceOf(optimizer));
+            currentAssets[i] = ct.convertToAssets(_balanceOf(address(ct), optimizer));
             ta += currentAssets[i];
         }
 
@@ -1317,11 +1335,7 @@ contract ProtocolReader {
     ) internal view returns (uint256[] memory idealAssets) {
         uint256 numMarkets = markets.length;
         idealAssets = new uint256[](numMarkets);
-        uint256[] memory simAssetsHeld = new uint256[](numMarkets);
-        uint256[] memory debt = new uint256[](numMarkets);
-        uint256[] memory fees = new uint256[](numMarkets);
-        uint256[] memory maxAllocation = new uint256[](numMarkets);
-        IDynamicIRM[] memory irms = new IDynamicIRM[](numMarkets);
+        MarketAlloc[] memory m = new MarketAlloc[](numMarkets);
 
         // First pass: snapshot per-market state.
         // Temporarily stores currentAssets in idealAssets[i] for the
@@ -1331,18 +1345,18 @@ contract ProtocolReader {
             for (uint256 i; i < numMarkets; ++i) {
                 IBorrowableCToken ct = IBorrowableCToken(markets[i]);
                 uint256 currentAssets = ct.convertToAssets(
-                    ct.balanceOf(optimizer)
+                    _balanceOf(address(ct), optimizer)
                 );
                 uint256 assetsHeld = _assetsHeld(ct);
                 // Base idle liquidity without the optimizer's deposits.
-                simAssetsHeld[i] = assetsHeld > currentAssets
+                m[i].simAssetsHeld = assetsHeld > currentAssets
                     ? assetsHeld - currentAssets
                     : 0;
-                debt[i] = _outstandingDebt(ct);
-                fees[i] = _interestFee(ct);
-                irms[i] = ct.IRM();
+                m[i].debt = _outstandingDebt(ct);
+                m[i].fees = _interestFee(ct);
+                m[i].irm = _IRM(ct);
                 idealAssets[i] = currentAssets;
-                maxAllocation[i] = FixedPointMathLib.mulDiv(
+                m[i].maxAllocation = FixedPointMathLib.mulDiv(
                     ta, opt.allocationCaps(markets[i]), WAD
                 );
             }
@@ -1353,25 +1367,25 @@ contract ProtocolReader {
         uint256 lockedAssets;
         for (uint256 i; i < numMarkets; ++i) {
             uint256 current = idealAssets[i];
-            MarketManagerIsolated mm = MarketManagerIsolated(address(IBorrowableCToken(markets[i]).marketManager()));
+            MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
 
             if (mm.redeemPaused() == 2) {
                 // Redeem-paused: can't withdraw, lock floor at current level.
-                simAssetsHeld[i] += current;
+                m[i].simAssetsHeld += current;
                 lockedAssets += current;
                 if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
                     // Both paused: frozen at current level.
-                    maxAllocation[i] = current;
-                } else if (maxAllocation[i] < current) {
+                    m[i].maxAllocation = current;
+                } else if (m[i].maxAllocation < current) {
                     // Cap below current allocation; ensure floor.
-                    maxAllocation[i] = current;
+                    m[i].maxAllocation = current;
                 }
             } else {
                 // Not redeem-paused: reset idealAssets (not locked).
                 idealAssets[i] = 0;
                 if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
                     // Mint-paused only: can withdraw but not deposit.
-                    maxAllocation[i] = 0;
+                    m[i].maxAllocation = 0;
                 }
             }
         }
@@ -1395,12 +1409,12 @@ contract ProtocolReader {
 
             for (uint256 i; i < numMarkets; ++i) {
                 // Skip if this chunk would exceed the market's cap.
-                if (idealAssets[i] + chunk > maxAllocation[i]) continue;
+                if (idealAssets[i] + chunk > m[i].maxAllocation) continue;
 
-                uint256 rate = irms[i].supplyRate(
-                    simAssetsHeld[i] + chunk,
-                    debt[i],
-                    fees[i]
+                uint256 rate = m[i].irm.supplyRate(
+                    m[i].simAssetsHeld + chunk,
+                    m[i].debt,
+                    m[i].fees
                 );
 
                 if (!found || rate > bestRate) {
@@ -1412,7 +1426,7 @@ contract ProtocolReader {
 
             if (found) {
                 idealAssets[bestIdx] += chunk;
-                simAssetsHeld[bestIdx] += chunk;
+                m[bestIdx].simAssetsHeld += chunk;
             }
         }
     }
@@ -1429,6 +1443,7 @@ contract ProtocolReader {
     /// @return hardSum The updated sum of hard collateral values.
     function _addLiquidationValues(
         AccountSnapshot memory snap,
+        IMarketManager mm,
         address account,
         uint256 price,
         uint256 softSumPrior,
@@ -1436,7 +1451,7 @@ contract ProtocolReader {
     ) internal view returns (uint256 softSum, uint256 hardSum) {
         address asset = snap.asset;
         (, uint256 collReqSoft, uint256 collReqHard) =
-            _marketManager(asset).collConfig(asset);
+            _collConfig(mm, asset);
         uint256 assetValue = _assetValue(
             _collateralPosted(asset, account),
             price,
@@ -1449,11 +1464,11 @@ contract ProtocolReader {
     }
 
     function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
-        IERC20 asset = IERC20(cToken.asset());
+        IERC20 asset = IERC20(_asset(address(cToken)));
         a._address = address(asset);
         a.name =  asset.name();
         a.symbol = asset.symbol();
-        a.decimals = asset.decimals();
+        a.decimals = _decimals(address(asset));
         a.totalSupply = asset.totalSupply();
     }
 
@@ -1470,7 +1485,7 @@ contract ProtocolReader {
         t._address = address(cToken);
         t.name = cToken.name();
         t.symbol = cToken.symbol();
-        t.decimals = cToken.decimals();
+        t.decimals = _decimals(address(cToken));
         t.asset = _getStaticTokenAsset(cToken);
 
         t.collateralCap = mm.collateralCaps(address(cToken));
@@ -1480,7 +1495,7 @@ contract ProtocolReader {
         (t.mintPaused, t.collateralizationPaused, t.borrowPaused) =
             mm.actionsPaused(address(cToken));
         t.isBorrowable = cToken.isBorrowable();
-        (t.collRatio, t.collReqSoft, t.collReqHard) = mm.collConfig(address(cToken));
+        (t.collRatio, t.collReqSoft, t.collReqHard) = _collConfig(mm, address(cToken));
         t.maxLeverage = _mulDiv(BPS, BPS, BPS - t.collRatio);
         (
             t.liqIncBase,
@@ -1507,7 +1522,7 @@ contract ProtocolReader {
         StaticMarketToken memory t
     ) internal view {
         IBorrowableCToken bcToken = IBorrowableCToken(address(cToken));
-        DynamicIRM irm = DynamicIRM(address(bcToken.IRM()));
+        DynamicIRM irm = DynamicIRM(address(_IRM(bcToken)));
 
         (
             uint64 baseRate,
@@ -1599,13 +1614,13 @@ contract ProtocolReader {
         address account
     ) internal view returns (UserMarketToken memory umt) {
         ICToken cToken = ICToken(tokenAddress);
-        IERC20 underlying = IERC20(cToken.asset());
-        uint256 shares = cToken.balanceOf(account);
+        IERC20 underlying = IERC20(_asset(tokenAddress));
+        uint256 shares = _balanceOf(tokenAddress, account);
 
         umt._address = tokenAddress;
         umt.userAssetBalance = cToken.convertToAssets(shares);
         umt.userShareBalance = shares;
-        umt.userUnderlyingBalance = underlying.balanceOf(account);
+        umt.userUnderlyingBalance = _balanceOf(address(underlying), account);
         umt.userDebt = cToken.isBorrowable() ? _debtBalance(IBorrowableCToken(address(cToken)), account) : 0;
         umt.userCollateral = _collateralPosted(address(cToken), account);
         (umt.liquidationPrice, ) = getLiquidationPrice(
@@ -1645,7 +1660,7 @@ contract ProtocolReader {
     function _buildDynamicMarketToken(
         ICToken ctoken
     ) internal view returns (DynamicMarketToken memory dmt) {
-        address asset = ctoken.asset();
+        address asset = _asset(address(ctoken));
 
         dmt._address = address(ctoken);
         dmt.assetPrice = getPriceSafely(address(asset), true, false, 3);
@@ -1660,7 +1675,7 @@ contract ProtocolReader {
         if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
             uint256 assetsHeld = _assetsHeld(bcToken);
-            IDynamicIRM irm = bcToken.IRM();
+            IDynamicIRM irm = _IRM(bcToken);
 
             dmt.debt = _outstandingDebt(bcToken);
             dmt.liquidity = assetsHeld;
@@ -1708,17 +1723,18 @@ contract ProtocolReader {
         address collateralCToken,
         uint256 collateralShares,
         address debtCToken,
-        uint256 debtAssets
+        uint256 debtAssets,
+        uint256 debtTokenPrice,
+        uint256 debtDecimals
     ) internal view returns (uint256) {
         uint256 collateralCap = mm.collateralCaps(collateralCToken);
         uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
         uint256 debtCap = mm.debtCaps(debtCToken);
         uint256 marketDebt = _outstandingDebt(IBorrowableCToken(debtCToken));
         uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
-        uint256 debtTokenPrice = getPriceSafely(_asset(debtCToken), true, false, 1);
         uint256 debtAssetsInCollateral =
             ((debtAssets * debtTokenPrice * (10 ** _decimals(collateralCToken))) /
-                (cTokenPrice * (10 ** _decimals(debtCToken))));
+                (cTokenPrice * (10 ** debtDecimals)));
 
         // If theres insufficient collateral room left we will need to adjust collateral
         // and debt down proportionally.
@@ -1808,11 +1824,11 @@ contract ProtocolReader {
         shares = ICToken(cToken).collateralPosted(account);
     }
 
-    function _collateralizationRatio(
+    function _collConfig(
         IMarketManager mm,
         address cToken
-    ) internal view returns (uint256 collRatio) {
-        (collRatio, ,) = mm.collConfig(cToken);
+    ) internal view returns (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) {
+        (collRatio, collReqSoft, collReqHard) = mm.collConfig(cToken);
     }
 
     function _asset(address token) internal view returns (address result) {
@@ -1846,6 +1862,19 @@ contract ProtocolReader {
         IBorrowableCToken token
     ) internal view returns (uint256 result) {
         result = token.interestFee();
+    }
+
+    function _IRM(
+        IBorrowableCToken token
+    ) internal view returns (IDynamicIRM result) {
+        result = token.IRM();
+    }
+
+    function _balanceOf(
+        address token,
+        address account
+    ) internal view returns (uint256 result) {
+        result = ICToken(token).balanceOf(account);
     }
 
     /// @notice Calculates collateral value based on `cToken` `assets`,
