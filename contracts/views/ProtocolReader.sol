@@ -797,27 +797,21 @@ contract ProtocolReader {
             r.collateral - r.debt
         );
 
-        // Convert maxDebtBorrowable, currently in WAD, to assets denomination,
-        // then adjust for market limitations. Scoped to free stack slots.
-        {
-            uint256 debtDecimals = _decimals(borrowableCToken);
-            uint256 debtPrice = getPriceSafely(_asset(borrowableCToken), true, false, 1);
+        // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
+        maxDebtBorrowable = _mulDiv(
+            maxDebtBorrowable,
+            10 ** _decimals(borrowableCToken),
+            getPriceSafely(_asset(borrowableCToken), true, false, 1)
+        );
 
-            maxDebtBorrowable = _mulDiv(
-                maxDebtBorrowable,
-                10 ** debtDecimals,
-                debtPrice
-            );
-
-            maxDebtBorrowable = _adjustForLimitations(
-                mm,
-                cToken,
-                ICToken(cToken).previewDeposit(assets),
-                borrowableCToken,
-                maxDebtBorrowable,
-                debtPrice
-            );
-        }
+        // Adjust for market limitations (caps, liquidity).
+        maxDebtBorrowable = _adjustForLimitations(
+            mm,
+            cToken,
+            ICToken(cToken).previewDeposit(assets),
+            borrowableCToken,
+            maxDebtBorrowable
+        );
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
         // Also convert adjusted maxDebtBorrowable back to WAD from assets denomination.
@@ -1706,14 +1700,14 @@ contract ProtocolReader {
         address collateralCToken,
         uint256 collateralShares,
         address debtCToken,
-        uint256 debtAssets,
-        uint256 debtTokenPrice
+        uint256 debtAssets
     ) internal view returns (uint256) {
         uint256 collateralCap = mm.collateralCaps(collateralCToken);
         uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
         uint256 debtCap = mm.debtCaps(debtCToken);
         uint256 marketDebt = _outstandingDebt(IBorrowableCToken(debtCToken));
         uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
+        uint256 debtTokenPrice = getPriceSafely(_asset(debtCToken), true, false, 1);
         uint256 debtAssetsInCollateral =
             ((debtAssets * debtTokenPrice * (10 ** _decimals(collateralCToken))) /
                 (cTokenPrice * (10 ** _decimals(debtCToken))));
