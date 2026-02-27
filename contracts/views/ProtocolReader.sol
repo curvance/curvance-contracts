@@ -1195,31 +1195,7 @@ contract ProtocolReader {
         address optimizer,
         uint256 assets
     ) external view returns (address market) {
-        address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
-        uint256 numMarkets = cTokens.length;
-
-        if (numMarkets == 0) return address(0);
-        if (numMarkets == 1) {
-            // Single market: return address(0) if mint-paused.
-            return _isMintPaused(cTokens[0]) ? address(0) : cTokens[0];
-        }
-
-        uint256 bestRate;
-        for (uint256 i; i < numMarkets; ++i) {
-            // Skip markets where minting is paused.
-            if (_isMintPaused(cTokens[i])) continue;
-
-            IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
-            uint256 rate = _IRM(ct).supplyRate(
-                _assetsHeld(ct) + assets,
-                _outstandingDebt(ct),
-                _interestFee(ct)
-            );
-            if (rate > bestRate) {
-                bestRate = rate;
-                market = cTokens[i];
-            }
-        }
+        return _optimalMarket(optimizer, assets, true);
     }
 
     /// @notice Returns the single best market to withdraw from, based on lowest projected supply rate.
@@ -1231,28 +1207,46 @@ contract ProtocolReader {
         address optimizer,
         uint256 assets
     ) external view returns (address market) {
+        return _optimalMarket(optimizer, assets, false);
+    }
+
+    /// @dev Shared implementation for optimalDeposit and optimalWithdrawal.
+    ///      When `isDeposit` is true, finds the highest supply rate after adding
+    ///      `assets`; when false, finds the lowest supply rate after removing `assets`.
+    function _optimalMarket(
+        address optimizer,
+        uint256 assets,
+        bool isDeposit
+    ) internal view returns (address market) {
         address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = cTokens.length;
 
         if (numMarkets == 0) return address(0);
+        if (isDeposit && numMarkets == 1) {
+            return _isMintPaused(cTokens[0]) ? address(0) : cTokens[0];
+        }
 
-        uint256 bestRate = type(uint256).max;
+        uint256 bestRate = isDeposit ? 0 : type(uint256).max;
         for (uint256 i; i < numMarkets; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
-
-            // Skip markets where redemptions are paused.
-            if (MarketManagerIsolated(address(_marketManager(address(ct)))).redeemPaused() == 2) continue;
-
-            // Must have enough optimizer balance and idle liquidity.
             uint256 held = _assetsHeld(ct);
-            if (ct.convertToAssets(_balanceOf(address(ct), optimizer)) < assets || held < assets) continue;
+
+            if (isDeposit) {
+                if (_isMintPaused(cTokens[i])) continue;
+                held += assets;
+            } else {
+                if (MarketManagerIsolated(address(_marketManager(cTokens[i]))).redeemPaused() == 2) continue;
+                if (ct.convertToAssets(_balanceOf(address(ct), optimizer)) < assets || held < assets) continue;
+                held -= assets;
+            }
 
             uint256 rate = _IRM(ct).supplyRate(
-                held - assets,
+                held,
                 _outstandingDebt(ct),
                 _interestFee(ct)
             );
-            if (rate < bestRate) {
+
+            if (isDeposit ? rate > bestRate : rate < bestRate) {
                 bestRate = rate;
                 market = cTokens[i];
             }
@@ -1280,26 +1274,14 @@ contract ProtocolReader {
             markets = opt.getApprovedMarkets();
         }
 
-        depositAmounts = new uint256[](markets.length);
-        withdrawAmounts = new uint256[](markets.length);
-
-        // Use the actual on-chain position sum as `ta` (not opt.totalAssets())
-        // so that sum(idealAssets) == sum(currentAssets) == ta, ensuring the
-        // returned deposit/withdraw amounts balance exactly for rebalance().
         uint256 numMarkets = markets.length;
-        uint256[] memory currentAssets = new uint256[](numMarkets);
-        uint256 ta;
-        for (uint256 i; i < numMarkets; ++i) {
-            IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-            currentAssets[i] = ct.convertToAssets(_balanceOf(address(ct), optimizer));
-            ta += currentAssets[i];
-        }
+        depositAmounts = new uint256[](numMarkets);
+        withdrawAmounts = new uint256[](numMarkets);
 
-        if (numMarkets == 0 || ta == 0) return (markets, depositAmounts, withdrawAmounts);
+        if (numMarkets == 0) return (markets, depositAmounts, withdrawAmounts);
 
-        uint256[] memory idealAssets = _computeIdealAllocation(
-            optimizer, markets, ta
-        );
+        (uint256[] memory idealAssets, uint256[] memory currentAssets) =
+            _computeIdealAllocation(optimizer, markets);
 
         // Diff ideal vs current to produce deposit/withdraw actions.
         for (uint256 i; i < numMarkets; ++i) {
@@ -1330,76 +1312,76 @@ contract ProtocolReader {
     ///      Separated from optimalRebalance to avoid stack-too-deep.
     function _computeIdealAllocation(
         address optimizer,
-        address[] memory markets,
-        uint256 ta
-    ) internal view returns (uint256[] memory idealAssets) {
+        address[] memory markets
+    ) internal view returns (
+        uint256[] memory idealAssets,
+        uint256[] memory currentAssets
+    ) {
         uint256 numMarkets = markets.length;
         idealAssets = new uint256[](numMarkets);
+        currentAssets = new uint256[](numMarkets);
         MarketAlloc[] memory m = new MarketAlloc[](numMarkets);
 
-        // First pass: snapshot per-market state.
-        // Temporarily stores currentAssets in idealAssets[i] for the
-        // pause-adjustment pass below.
+        // First pass: snapshot per-market state and compute total assets.
+        uint256 ta;
         {
-            ILendingOptimizer opt = ILendingOptimizer(optimizer);
             for (uint256 i; i < numMarkets; ++i) {
                 IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-                uint256 currentAssets = ct.convertToAssets(
+                uint256 ca = ct.convertToAssets(
                     _balanceOf(address(ct), optimizer)
                 );
+                currentAssets[i] = ca;
+                ta += ca;
+
                 uint256 assetsHeld = _assetsHeld(ct);
-                // Base idle liquidity without the optimizer's deposits.
-                m[i].simAssetsHeld = assetsHeld > currentAssets
-                    ? assetsHeld - currentAssets
+                m[i].simAssetsHeld = assetsHeld > ca
+                    ? assetsHeld - ca
                     : 0;
                 m[i].debt = _outstandingDebt(ct);
                 m[i].fees = _interestFee(ct);
                 m[i].irm = _IRM(ct);
-                idealAssets[i] = currentAssets;
-                m[i].maxAllocation = FixedPointMathLib.mulDiv(
-                    ta, opt.allocationCaps(markets[i]), WAD
-                );
             }
         }
 
-        // Second pass: adjust for market pause states.
-        // Reads currentAssets from idealAssets[i] stored in the first pass.
-        uint256 lockedAssets;
-        for (uint256 i; i < numMarkets; ++i) {
-            uint256 current = idealAssets[i];
-            MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
+        if (ta == 0) return (idealAssets, currentAssets);
 
-            if (mm.redeemPaused() == 2) {
-                // Redeem-paused: can't withdraw, lock floor at current level.
-                m[i].simAssetsHeld += current;
-                lockedAssets += current;
-                if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
-                    // Both paused: frozen at current level.
-                    m[i].maxAllocation = current;
-                } else if (m[i].maxAllocation < current) {
-                    // Cap below current allocation; ensure floor.
-                    m[i].maxAllocation = current;
-                }
-            } else {
-                // Not redeem-paused: reset idealAssets (not locked).
-                idealAssets[i] = 0;
-                if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
-                    // Mint-paused only: can withdraw but not deposit.
-                    m[i].maxAllocation = 0;
+        // Second pass: compute maxAllocation (requires final ta) and adjust
+        // for market pause states.
+        uint256 lockedAssets;
+        {
+            ILendingOptimizer opt = ILendingOptimizer(optimizer);
+            for (uint256 i; i < numMarkets; ++i) {
+                uint256 current = currentAssets[i];
+                m[i].maxAllocation = FixedPointMathLib.mulDiv(
+                    ta, opt.allocationCaps(markets[i]), WAD
+                );
+
+                MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
+
+                if (mm.redeemPaused() == 2) {
+                    m[i].simAssetsHeld += current;
+                    lockedAssets += current;
+                    idealAssets[i] = current;
+                    if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
+                        m[i].maxAllocation = current;
+                    } else if (m[i].maxAllocation < current) {
+                        m[i].maxAllocation = current;
+                    }
+                } else {
+                    if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
+                        m[i].maxAllocation = 0;
+                    }
                 }
             }
         }
 
         // Subtract locked assets from the distributable total.
-        // maxAllocation was already computed with the original ta,
-        // so it's safe to reuse ta here for the chunk loop.
         ta -= lockedAssets;
 
         // Chunked greedy allocation: split distributable total into 20 chunks.
         uint256 chunkSize = ta / 20;
 
         for (uint256 c; c < 20; ++c) {
-            // Last chunk absorbs the remainder.
             uint256 chunk = (c == 19) ? ta - (chunkSize * 19) : chunkSize;
             if (chunk == 0) continue;
 
@@ -1408,7 +1390,6 @@ contract ProtocolReader {
             bool found;
 
             for (uint256 i; i < numMarkets; ++i) {
-                // Skip if this chunk would exceed the market's cap.
                 if (idealAssets[i] + chunk > m[i].maxAllocation) continue;
 
                 uint256 rate = m[i].irm.supplyRate(
@@ -1468,7 +1449,7 @@ contract ProtocolReader {
         a._address = address(asset);
         a.name =  asset.name();
         a.symbol = asset.symbol();
-        a.decimals = _decimals(address(asset));
+        a.decimals = uint8(_decimals(address(asset)));
         a.totalSupply = asset.totalSupply();
     }
 
@@ -1485,7 +1466,7 @@ contract ProtocolReader {
         t._address = address(cToken);
         t.name = cToken.name();
         t.symbol = cToken.symbol();
-        t.decimals = _decimals(address(cToken));
+        t.decimals = uint8(_decimals(address(cToken)));
         t.asset = _getStaticTokenAsset(cToken);
 
         t.collateralCap = mm.collateralCaps(address(cToken));
