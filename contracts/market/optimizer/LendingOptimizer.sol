@@ -155,7 +155,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     ///      must be called to mint dead shares and enable deposits.
     /// @param asset_ The underlying ERC20 asset (e.g. USDC).
     /// @param _centralRegistry Protocol registry for permissions and market manager lookups.
-    /// @param _approvedCTokens Initial set of Curvance cToken markets (max 6).
+    /// @param _approvedCTokens Initial set of Curvance cToken markets (max 8).
     /// @param _allocationCapsBps Per-market allocation caps in BPS (1-10000). Must sum >= 10000.
     /// @param _feeBps Performance fee in BPS charged on yield above the high watermark (max 5000).
     constructor(
