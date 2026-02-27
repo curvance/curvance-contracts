@@ -22,8 +22,7 @@ contract DeployProtocolManager_PauseOnly is DeployScript {
     function run(
         address registry,
         address managerAddress,
-        address[] memory managedAddresses,
-        address[] memory marketAddresses
+        address[] memory managedAddresses
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
 
@@ -43,31 +42,15 @@ contract DeployProtocolManager_PauseOnly is DeployScript {
             canModifyPositionManagers: false
         });
 
-        // Combine managed addresses and market addresses for constructor.
-        // Market addresses (cTokens) need hasAuthority so that per-token
-        // pause actions (mint, collateralization, borrow) pass the
-        // `_checkAuthorityAndAsset` check in ProtocolManager.
-        uint256 numManaged = managedAddresses.length;
-        uint256 numMarkets = marketAddresses.length;
-        uint256 totalAddresses = numManaged + numMarkets;
-
-        address[] memory allAddresses = new address[](totalAddresses);
         ProtocolManager.PeriodLimits[] memory limits =
-            new ProtocolManager.PeriodLimits[](totalAddresses);
-
-        for (uint256 i; i < numManaged; ++i) {
-            allAddresses[i] = managedAddresses[i];
-        }
-        for (uint256 i; i < numMarkets; ++i) {
-            allAddresses[numManaged + i] = marketAddresses[i];
-        }
+            new ProtocolManager.PeriodLimits[](managedAddresses.length);
 
         // Deploy ProtocolManager
         ProtocolManager protocolManager = new ProtocolManager(
             icr,
             managerAddress,
             permsConfig,
-            allAddresses,
+            managedAddresses,
             limits
         );
 
