@@ -800,9 +800,8 @@ contract ProtocolReader {
         // Convert maxDebtBorrowable, currently in WAD, to assets denomination,
         // then adjust for market limitations. Scoped to free stack slots.
         {
-            address debtUnderlying = _asset(borrowableCToken);
             uint256 debtDecimals = _decimals(borrowableCToken);
-            uint256 debtPrice = getPriceSafely(debtUnderlying, true, false, 1);
+            uint256 debtPrice = getPriceSafely(_asset(borrowableCToken), true, false, 1);
 
             maxDebtBorrowable = _mulDiv(
                 maxDebtBorrowable,
@@ -816,8 +815,7 @@ contract ProtocolReader {
                 ICToken(cToken).previewDeposit(assets),
                 borrowableCToken,
                 maxDebtBorrowable,
-                debtPrice,
-                debtDecimals
+                debtPrice
             );
         }
 
@@ -1709,8 +1707,7 @@ contract ProtocolReader {
         uint256 collateralShares,
         address debtCToken,
         uint256 debtAssets,
-        uint256 debtTokenPrice,
-        uint256 debtDecimals
+        uint256 debtTokenPrice
     ) internal view returns (uint256) {
         uint256 collateralCap = mm.collateralCaps(collateralCToken);
         uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
@@ -1719,7 +1716,7 @@ contract ProtocolReader {
         uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
         uint256 debtAssetsInCollateral =
             ((debtAssets * debtTokenPrice * (10 ** _decimals(collateralCToken))) /
-                (cTokenPrice * (10 ** debtDecimals)));
+                (cTokenPrice * (10 ** _decimals(debtCToken))));
 
         // If theres insufficient collateral room left we will need to adjust collateral
         // and debt down proportionally.
