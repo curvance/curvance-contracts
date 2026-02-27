@@ -797,27 +797,29 @@ contract ProtocolReader {
             r.collateral - r.debt
         );
 
-        // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
-        address debtUnderlying = _asset(borrowableCToken);
-        uint256 debtDecimals = _decimals(borrowableCToken);
-        uint256 debtPrice = getPriceSafely(debtUnderlying, true, false, 1);
+        // Convert maxDebtBorrowable, currently in WAD, to assets denomination,
+        // then adjust for market limitations. Scoped to free stack slots.
+        {
+            address debtUnderlying = _asset(borrowableCToken);
+            uint256 debtDecimals = _decimals(borrowableCToken);
+            uint256 debtPrice = getPriceSafely(debtUnderlying, true, false, 1);
 
-        maxDebtBorrowable = _mulDiv(
-            maxDebtBorrowable,
-            10 ** debtDecimals,
-            debtPrice
-        );
+            maxDebtBorrowable = _mulDiv(
+                maxDebtBorrowable,
+                10 ** debtDecimals,
+                debtPrice
+            );
 
-        // Calculate the maximum debt borrowable currently.
-        maxDebtBorrowable = _adjustForLimitations(
-            mm,
-            cToken,
-            ICToken(cToken).previewDeposit(assets),
-            borrowableCToken,
-            maxDebtBorrowable,
-            debtPrice,
-            debtDecimals
-        );
+            maxDebtBorrowable = _adjustForLimitations(
+                mm,
+                cToken,
+                ICToken(cToken).previewDeposit(assets),
+                borrowableCToken,
+                maxDebtBorrowable,
+                debtPrice,
+                debtDecimals
+            );
+        }
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
         // Also convert adjusted maxDebtBorrowable back to WAD from assets denomination.
@@ -1227,6 +1229,7 @@ contract ProtocolReader {
         }
 
         uint256 bestRate = isDeposit ? 0 : type(uint256).max;
+        bool found;
         for (uint256 i; i < numMarkets; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
             uint256 held = _assetsHeld(ct);
@@ -1246,9 +1249,10 @@ contract ProtocolReader {
                 _interestFee(ct)
             );
 
-            if (isDeposit ? rate > bestRate : rate < bestRate) {
+            if (isDeposit ? (!found || rate > bestRate) : rate < bestRate) {
                 bestRate = rate;
                 market = cTokens[i];
+                found = true;
             }
         }
     }
