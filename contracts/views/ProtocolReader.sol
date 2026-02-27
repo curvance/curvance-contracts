@@ -245,7 +245,7 @@ contract ProtocolReader {
                 uint256 allocated = cToken.convertToAssets(
                     cToken.balanceOf(optimizers[i])
                 );
-                uint256 liquidity = cToken.assetsHeld();
+                uint256 liquidity = _assetsHeld(cToken);
 
                 data[i].markets[j] = OptimizerCTokenData({
                     _address: cTokens[j],
@@ -294,16 +294,18 @@ contract ProtocolReader {
         IOracleManager om = _getOracleManager();
 
         data = new StaticMarketData[](markets.length);
-        for (uint256 i; i < markets.length; i++) {
+        uint256 numMarkets = markets.length;
+        for (uint256 i; i < numMarkets; ++i) {
             IMarketManager mm = IMarketManager(markets[i]);
 
             address[] memory tokenAddresses = mm.queryTokensListed();
+            uint256 numTokens = tokenAddresses.length;
             StaticMarketToken[] memory tokens = new StaticMarketToken[](
-                tokenAddresses.length
+                numTokens
             );
 
             uint256[] memory uniqueAdapters;
-            for (uint256 j; j < tokenAddresses.length; j++) {
+            for (uint256 j; j < numTokens; ++j) {
                 ICToken cToken = ICToken(tokenAddresses[j]);
                 (uint256 oracleA, uint256 oracleB) = _getAdaptorTypes(
                     address(cToken),
@@ -359,8 +361,9 @@ contract ProtocolReader {
         returns (DynamicMarketData[] memory data)
     {
         address[] memory markets = centralRegistry.marketManagers();
-        data = new DynamicMarketData[](markets.length);
-        for (uint256 i; i < markets.length; ++i) {
+        uint256 numMarkets = markets.length;
+        data = new DynamicMarketData[](numMarkets);
+        for (uint256 i; i < numMarkets; ++i) {
             data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
         }
     }
@@ -516,7 +519,7 @@ contract ProtocolReader {
         address[] memory markets = centralRegistry.marketManagers();
         uint256 numMarkets = markets.length;
         data.markets = new UserMarket[](numMarkets);
-        for (uint256 i = 0; i < numMarkets; ++i) {
+        for (uint256 i; i < numMarkets; ++i) {
             data.markets[i] =
                 _buildUserMarket(MarketManagerIsolated(markets[i]), account);
         }
@@ -896,8 +899,9 @@ contract ProtocolReader {
         address[] calldata markets,
         address user
     ) public view returns (uint256[] memory) {
-        uint256[] memory cooldowns = new uint256[](markets.length);
-        for (uint256 i; i < markets.length; ++i) {
+        uint256 numMarkets = markets.length;
+        uint256[] memory cooldowns = new uint256[](numMarkets);
+        for (uint256 i; i < numMarkets; ++i) {
             MarketManagerIsolated mm = MarketManagerIsolated(markets[i]);
             uint256 cooldownTimestamp = mm.accountAssets(user);
 
@@ -935,7 +939,7 @@ contract ProtocolReader {
             outstandingDebt = _outstandingDebt(bcToken);
             assetsHeld = _assetsHeld(bcToken) + newCollateralAssets;
             supply = bcToken.IRM()
-                .supplyRate(assetsHeld, outstandingDebt, bcToken.interestFee());
+                .supplyRate(assetsHeld, outstandingDebt, _interestFee(bcToken));
         }
 
         bcToken = IBorrowableCToken(debtBorrowableCToken);
@@ -1189,9 +1193,9 @@ contract ProtocolReader {
 
             IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
             uint256 rate = ct.IRM().supplyRate(
-                ct.assetsHeld() + assets,
-                ct.marketOutstandingDebt(),
-                ct.interestFee()
+                _assetsHeld(ct) + assets,
+                _outstandingDebt(ct),
+                _interestFee(ct)
             );
             if (rate > bestRate) {
                 bestRate = rate;
@@ -1222,12 +1226,13 @@ contract ProtocolReader {
             if (MarketManagerIsolated(address(ct.marketManager())).redeemPaused() == 2) continue;
 
             // Must have enough optimizer balance and idle liquidity.
-            if (ct.convertToAssets(ct.balanceOf(optimizer)) < assets || ct.assetsHeld() < assets) continue;
+            uint256 held = _assetsHeld(ct);
+            if (ct.convertToAssets(ct.balanceOf(optimizer)) < assets || held < assets) continue;
 
             uint256 rate = ct.IRM().supplyRate(
-                ct.assetsHeld() - assets,
-                ct.marketOutstandingDebt(),
-                ct.interestFee()
+                held - assets,
+                _outstandingDebt(ct),
+                _interestFee(ct)
             );
             if (rate < bestRate) {
                 bestRate = rate;
@@ -1263,22 +1268,23 @@ contract ProtocolReader {
         // Use the actual on-chain position sum as `ta` (not opt.totalAssets())
         // so that sum(idealAssets) == sum(currentAssets) == ta, ensuring the
         // returned deposit/withdraw amounts balance exactly for rebalance().
-        uint256[] memory currentAssets = new uint256[](markets.length);
+        uint256 numMarkets = markets.length;
+        uint256[] memory currentAssets = new uint256[](numMarkets);
         uint256 ta;
-        for (uint256 i; i < markets.length; ++i) {
+        for (uint256 i; i < numMarkets; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(markets[i]);
             currentAssets[i] = ct.convertToAssets(ct.balanceOf(optimizer));
             ta += currentAssets[i];
         }
 
-        if (markets.length == 0 || ta == 0) return (markets, depositAmounts, withdrawAmounts);
+        if (numMarkets == 0 || ta == 0) return (markets, depositAmounts, withdrawAmounts);
 
         uint256[] memory idealAssets = _computeIdealAllocation(
             optimizer, markets, ta
         );
 
         // Diff ideal vs current to produce deposit/withdraw actions.
-        for (uint256 i; i < markets.length; ++i) {
+        for (uint256 i; i < numMarkets; ++i) {
             if (idealAssets[i] > currentAssets[i]) {
                 depositAmounts[i] = idealAssets[i] - currentAssets[i];
             } else if (currentAssets[i] > idealAssets[i]) {
@@ -1309,29 +1315,32 @@ contract ProtocolReader {
         address[] memory markets,
         uint256 ta
     ) internal view returns (uint256[] memory idealAssets) {
-        idealAssets = new uint256[](markets.length);
-        uint256[] memory simAssetsHeld = new uint256[](markets.length);
-        uint256[] memory debt = new uint256[](markets.length);
-        uint256[] memory fees = new uint256[](markets.length);
-        uint256[] memory maxAllocation = new uint256[](markets.length);
+        uint256 numMarkets = markets.length;
+        idealAssets = new uint256[](numMarkets);
+        uint256[] memory simAssetsHeld = new uint256[](numMarkets);
+        uint256[] memory debt = new uint256[](numMarkets);
+        uint256[] memory fees = new uint256[](numMarkets);
+        uint256[] memory maxAllocation = new uint256[](numMarkets);
+        IDynamicIRM[] memory irms = new IDynamicIRM[](numMarkets);
 
         // First pass: snapshot per-market state.
         // Temporarily stores currentAssets in idealAssets[i] for the
         // pause-adjustment pass below.
         {
             ILendingOptimizer opt = ILendingOptimizer(optimizer);
-            for (uint256 i; i < markets.length; ++i) {
+            for (uint256 i; i < numMarkets; ++i) {
                 IBorrowableCToken ct = IBorrowableCToken(markets[i]);
                 uint256 currentAssets = ct.convertToAssets(
                     ct.balanceOf(optimizer)
                 );
-                uint256 assetsHeld = ct.assetsHeld();
+                uint256 assetsHeld = _assetsHeld(ct);
                 // Base idle liquidity without the optimizer's deposits.
                 simAssetsHeld[i] = assetsHeld > currentAssets
                     ? assetsHeld - currentAssets
                     : 0;
-                debt[i] = ct.marketOutstandingDebt();
-                fees[i] = ct.interestFee();
+                debt[i] = _outstandingDebt(ct);
+                fees[i] = _interestFee(ct);
+                irms[i] = ct.IRM();
                 idealAssets[i] = currentAssets;
                 maxAllocation[i] = FixedPointMathLib.mulDiv(
                     ta, opt.allocationCaps(markets[i]), WAD
@@ -1342,7 +1351,7 @@ contract ProtocolReader {
         // Second pass: adjust for market pause states.
         // Reads currentAssets from idealAssets[i] stored in the first pass.
         uint256 lockedAssets;
-        for (uint256 i; i < markets.length; ++i) {
+        for (uint256 i; i < numMarkets; ++i) {
             uint256 current = idealAssets[i];
             MarketManagerIsolated mm = MarketManagerIsolated(address(IBorrowableCToken(markets[i]).marketManager()));
 
@@ -1384,11 +1393,11 @@ contract ProtocolReader {
             uint256 bestIdx;
             bool found;
 
-            for (uint256 i; i < markets.length; ++i) {
+            for (uint256 i; i < numMarkets; ++i) {
                 // Skip if this chunk would exceed the market's cap.
                 if (idealAssets[i] + chunk > maxAllocation[i]) continue;
 
-                uint256 rate = IBorrowableCToken(markets[i]).IRM().supplyRate(
+                uint256 rate = irms[i].supplyRate(
                     simAssetsHeld[i] + chunk,
                     debt[i],
                     fees[i]
@@ -1484,7 +1493,7 @@ contract ProtocolReader {
             t.closeFactorMax
         ) = mm.liquidationConfig(address(cToken));
 
-        if (cToken.isBorrowable()) {
+        if (t.isBorrowable) {
             _getIRMConfig(cToken, t);
         }
     }
@@ -1512,7 +1521,7 @@ contract ProtocolReader {
         t.irmBaseRate = uint256(baseRate) * SECONDS_PER_YEAR;
         t.irmVertexRate = uint256(vertexRate) * SECONDS_PER_YEAR;
         t.irmVertexStart = uint256(vertexStart);
-        t.interestFee = bcToken.interestFee();
+        t.interestFee = _interestFee(bcToken);
     }
 
     /// @notice Adds an newAdapter to the existingAdapters if it doesn't already exist
@@ -1523,8 +1532,9 @@ contract ProtocolReader {
         uint256[] memory existingAdapters,
         uint256 newAdapter
     ) internal pure returns (uint256[] memory allAdapters) {
-        allAdapters = new uint256[](existingAdapters.length + 1);
-        for (uint256 i = 0; i < existingAdapters.length; i++) {
+        uint256 len = existingAdapters.length;
+        allAdapters = new uint256[](len + 1);
+        for (uint256 i; i < len; ++i) {
             if (existingAdapters[i] == newAdapter) {
                 return existingAdapters; // Already exists, return original
             }
@@ -1532,7 +1542,7 @@ contract ProtocolReader {
         }
 
         // Doesn't exist, so we add it to the end
-        allAdapters[existingAdapters.length] = newAdapter;
+        allAdapters[len] = newAdapter;
     }
 
     /// @notice Returns the types of adaptors pricing `asset` uses.
@@ -1601,7 +1611,7 @@ contract ProtocolReader {
         (umt.liquidationPrice, ) = getLiquidationPrice(
             account,
             tokenAddress,
-            umt.userCollateral > 0 ? true : false
+            umt.userCollateral > 0
         );
     }
 
@@ -1661,7 +1671,7 @@ contract ProtocolReader {
             dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt);
             dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt);
             dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt);
-            dmt.supplyRate = irm.supplyRate(assetsHeld, dmt.debt, bcToken.interestFee());
+            dmt.supplyRate = irm.supplyRate(assetsHeld, dmt.debt, _interestFee(bcToken));
         }
     }
 
@@ -1669,9 +1679,10 @@ contract ProtocolReader {
         IMarketManager mm
     ) internal view returns (DynamicMarketData memory dmd) {
         address[] memory tokenAddresses = mm.queryTokensListed();
-        DynamicMarketToken[] memory tokens = new DynamicMarketToken[](tokenAddresses.length);
+        uint256 numTokens = tokenAddresses.length;
+        DynamicMarketToken[] memory tokens = new DynamicMarketToken[](numTokens);
 
-        for (uint256 i; i < tokenAddresses.length; ++i) {
+        for (uint256 i; i < numTokens; ++i) {
             ICToken ctoken = ICToken(tokenAddresses[i]);
             DynamicMarketToken memory dmToken = _buildDynamicMarketToken(ctoken);
             tokens[i] = dmToken;
@@ -1829,6 +1840,12 @@ contract ProtocolReader {
         address account
     ) internal view returns (uint256 result) {
         result = token.debtBalance(account);
+    }
+
+    function _interestFee(
+        IBorrowableCToken token
+    ) internal view returns (uint256 result) {
+        result = token.interestFee();
     }
 
     /// @notice Calculates collateral value based on `cToken` `assets`,
