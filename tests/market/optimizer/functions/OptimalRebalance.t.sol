@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
-import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
+import { OptimizerReader } from "contracts/views/OptimizerReader.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -15,11 +15,11 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
-    ProtocolReader reader;
+    OptimizerReader reader;
 
     function setUp() public override {
         super.setUp();
-        reader = new ProtocolReader(liveCentralRegistry);
+        reader = new OptimizerReader();
     }
 
     // ============ Basic Return Shape ============
