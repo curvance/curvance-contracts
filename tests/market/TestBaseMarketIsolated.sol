@@ -123,6 +123,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         _deployBorrowableCUSDC();
         _deployBorrowableCDAI();
+        _deployBorrowableCWETH();
         _deploySimpleCUSDC();
         _deployStrategyCBALRETH();
         _deployStrategyCBALRETHWithExitFee();
@@ -144,6 +145,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
         oracleManagers[chainId].addCTokenSupport(address(borrowableCDAI));
+        oracleManagers[chainId].addCTokenSupport(address(borrowableCWETH));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETH));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETHWithExitFee));
         oracleManagers[chainId].addCTokenSupport(address(pendleStrategyCTokenSTETH));
@@ -555,6 +557,11 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployBorrowableCDAI() internal initMainVariables returns (BorrowableCToken) {
         borrowableCDAI = borrowableCDAIs[block.chainid] = _deployBorrowableCToken(_DAI_ADDRESS);
         return borrowableCDAI;
+    }
+
+    function _deployBorrowableCWETH() internal initMainVariables returns (BorrowableCToken) {
+        borrowableCWETH = borrowableCWETHs[block.chainid] = _deployBorrowableCToken(_WETH_ADDRESS);
+        return borrowableCWETH;
     }
 
     function _deployBorrowableCToken(

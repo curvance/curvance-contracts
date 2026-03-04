@@ -54,8 +54,9 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         );
 
         // List borrowableCUSDC so market manager accepts deposits.
+        // Pair with borrowableCWETH as collateral (deployed by _init()).
         marketManagerIsolated.listTokens(
-            address(simpleCUSDC),
+            address(borrowableCWETH),
             address(borrowableCUSDC)
         );
         _setCTokenConfigBasic(
@@ -63,7 +64,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             100_000e18,
             100_000e18
         );
-        _setCTokenConfigHighValues(address(simpleCUSDC), 100_000e18, 0);
+        _setCTokenConfigHighValues(address(borrowableCWETH), 100_000e18, 0);
 
         // Initialize the optimizer (mint dead shares).
         _prepareUSDC(address(this), 100e6);

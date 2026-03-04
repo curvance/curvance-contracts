@@ -7,10 +7,7 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-import { IWETH } from "contracts/interfaces/IWETH.sol";
-
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -20,12 +17,16 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
     LendingOptimizer public optimizer;
 
     // Monad addresses.
-    address public constant SHMON_ADDRESS = 0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
-    address public constant _CHAINLINK_ETH_USD_MONAD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
+    address public constant WBTC_ADDRESS_MONAD = 0x0555E30da8f98308EdB960aa94C0Db47230d2B9c;
+    address public constant USDC_ADDRESS_MONAD = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
 
-    BorrowableCToken public borrowableCWMON;
-    SimpleCToken public simpleCSHMON;
+    // Monad oracle feeds.
+    address public constant WBTC_USD_FEED_MONAD = 0x2D1Df1bD061AAc38C22407AD69d69bCC3C62edBD;
+    address public constant USDC_USD_FEED_MONAD = 0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
+
+    BorrowableCToken public borrowableCWBTC;
+    BorrowableCToken public borrowableCUSDCMonad;
 
     function setUp() public override {
         _fork("MON_NODE_URI_MONAD_MAINNET");
@@ -38,21 +39,21 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        // Deploy OptimizerZapper.
+        // Deploy OptimizerZapper (WMON is native wrapper on Monad).
         optimizerZapper = new OptimizerZapper(
             ICentralRegistry(address(centralRegistry)),
             WMON_ADDRESS
         );
 
-        // Oracle setup for WMON.
+        // Oracle setup — single adaptor for both assets.
         ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
         oracleManager.addApprovedAdaptor(address(adaptor));
 
-        adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        adaptor.addAsset(WBTC_ADDRESS_MONAD, true, WBTC_USD_FEED_MONAD, 0);
         oracleManager.addAssetPricingAdaptor(
-            WMON_ADDRESS,
+            WBTC_ADDRESS_MONAD,
             address(adaptor),
             100,
             50,
@@ -60,10 +61,9 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             50
         );
 
-        // Oracle setup for SHMON (using same price feed for simplicity).
-        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        adaptor.addAsset(USDC_ADDRESS_MONAD, true, USDC_USD_FEED_MONAD, 0);
         oracleManager.addAssetPricingAdaptor(
-            SHMON_ADDRESS,
+            USDC_ADDRESS_MONAD,
             address(adaptor),
             100,
             50,
@@ -71,81 +71,82 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             50
         );
 
-        // Deploy collateral cToken for SHMON (needed for market listing pair).
-        simpleCSHMON = new SimpleCToken(
-            ICentralRegistry(address(centralRegistry)),
-            IERC20(SHMON_ADDRESS),
-            address(marketManagerIsolated)
-        );
-        oracleManager.addCTokenSupport(address(simpleCSHMON));
+        // Deploy cTokens — WBTC as collateral, USDC as borrowable.
+        borrowableCWBTC = _deployBorrowableCToken(WBTC_ADDRESS_MONAD);
+        oracleManager.addCTokenSupport(address(borrowableCWBTC));
 
-        // Deploy borrowable cToken for WMON.
-        borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
-        oracleManager.addCTokenSupport(address(borrowableCWMON));
+        borrowableCUSDCMonad = _deployBorrowableCToken(USDC_ADDRESS_MONAD);
+        oracleManager.addCTokenSupport(address(borrowableCUSDCMonad));
 
         // List the market pair and configure.
         marketManagerIsolated.listTokens(
-            address(simpleCSHMON),
-            address(borrowableCWMON)
+            address(borrowableCWBTC),
+            address(borrowableCUSDCMonad)
         );
-        _setCTokenConfigBasic(address(simpleCSHMON), 1_000_000e18, 0);
         _setCTokenConfigBasic(
-            address(borrowableCWMON),
+            address(borrowableCWBTC),
+            1_000_000e18,
+            0
+        );
+        _setCTokenConfigBasic(
+            address(borrowableCUSDCMonad),
             1_000_000e18,
             1_000_000e18
         );
 
-        // Deploy LendingOptimizer targeting WMON with borrowableCWMON.
+        // Deploy LendingOptimizer targeting USDC with borrowableCUSDCMonad.
         address[] memory cTokens = new address[](1);
-        cTokens[0] = address(borrowableCWMON);
+        cTokens[0] = address(borrowableCUSDCMonad);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 10000; // 100%
 
         optimizer = new LendingOptimizer(
-            IERC20(WMON_ADDRESS),
+            IERC20(USDC_ADDRESS_MONAD),
             ICentralRegistry(address(centralRegistry)),
             cTokens,
             caps,
             0
         );
 
-        // Initialize the optimizer — wrap native MON to get real WMON.
-        // (deal(WMON_ADDRESS, ...) sets storage but may not survive
-        // safeTransferFrom on Monad's non-standard WMON layout.)
-        vm.deal(address(this), 1 ether);
-        IWETH(WMON_ADDRESS).deposit{ value: 1 ether }();
-        IERC20(WMON_ADDRESS).approve(address(optimizer), type(uint256).max);
+        // Initialize the optimizer — deal USDC (standard ERC20, no
+        // transferFrom issues unlike WMON).
+        deal(USDC_ADDRESS_MONAD, address(this), 100e6);
+        IERC20(USDC_ADDRESS_MONAD).approve(address(optimizer), 100e6);
         optimizer.initializeDeposits(0);
+
+        // Seed liquidity into borrowableCUSDCMonad.
+        address liquidityProvider = makeAddr("liquidityProvider");
+        deal(USDC_ADDRESS_MONAD, liquidityProvider, 10_000e6);
+        vm.startPrank(liquidityProvider);
+        IERC20(USDC_ADDRESS_MONAD).approve(address(borrowableCUSDCMonad), 10_000e6);
+        borrowableCUSDCMonad.deposit(10_000e6, liquidityProvider);
+        vm.stopPrank();
     }
 
-    function test_OptimizerZapper_success_swapAndDeposit_NoSwap_NativeWrap()
+    function test_OptimizerZapper_success_swapAndDeposit_NoSwap_USDC()
         public
     {
-        uint256 amount = 100 ether;
-        vm.deal(user1, amount);
-
-        uint256 initialEthBalance = user1.balance;
+        uint256 amount = 1000e6;
+        deal(USDC_ADDRESS_MONAD, user1, amount);
 
         SwapperLib.Swap memory swapAction;
-        swapAction.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.inputToken = USDC_ADDRESS_MONAD;
         swapAction.inputAmount = amount;
+        swapAction.outputToken = USDC_ADDRESS_MONAD;
 
-        vm.prank(user1);
-        uint256 shares = optimizerZapper.swapAndDeposit{ value: amount }(
+        vm.startPrank(user1);
+        IERC20(USDC_ADDRESS_MONAD).approve(address(optimizerZapper), amount);
+
+        uint256 shares = optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCWMON),
-            true, // depositAsWrappedNative
+            address(borrowableCUSDCMonad),
+            false,
             swapAction,
             0,
             user1
         );
+        vm.stopPrank();
 
-        assertEq(
-            user1.balance,
-            initialEthBalance - amount,
-            "User MON balance should decrease by input amount"
-        );
         assertGt(shares, 0, "Should receive optimizer shares");
         assertEq(
             optimizer.balanceOf(user1),
@@ -153,14 +154,14 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             "Returned shares should match user balance"
         );
         assertEq(
-            IERC20(WMON_ADDRESS).balanceOf(address(optimizerZapper)),
+            IERC20(USDC_ADDRESS_MONAD).balanceOf(address(optimizerZapper)),
             0,
-            "Zapper should not hold WMON"
+            "Zapper should not hold USDC"
         );
         assertEq(
-            address(optimizerZapper).balance,
+            IERC20(USDC_ADDRESS_MONAD).balanceOf(user1),
             0,
-            "Zapper should not hold native"
+            "User should have deposited all USDC"
         );
     }
 }
