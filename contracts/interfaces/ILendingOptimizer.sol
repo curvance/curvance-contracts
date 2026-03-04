@@ -11,4 +11,9 @@ interface ILendingOptimizer {
     function balanceOf(address account) external view returns (uint256);
     function allocationCaps(address cToken) external view returns (uint256);
     function numApprovedMarkets() external view returns (uint256);
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address targetMarket
+    ) external returns (uint256 shares);
 }
