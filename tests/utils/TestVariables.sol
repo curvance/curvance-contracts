@@ -112,6 +112,7 @@ contract TestVariables {
     DAOTimelock public daoTimelock;
     BorrowableCToken public borrowableCUSDC;
     BorrowableCToken public borrowableCDAI;
+    BorrowableCToken public borrowableCWETH;
 
     SimpleCToken public simpleCUSDC;
     AuraCToken public strategyCBALRETH;
@@ -161,6 +162,7 @@ contract TestVariables {
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
     mapping(uint256 => BorrowableCToken) public borrowableCDAIs;
+    mapping(uint256 => BorrowableCToken) public borrowableCWETHs;
 
     mapping(uint256 => AuraCToken) public strategyCBALRETHs;
     mapping(uint256 => MockAuraCTokenWithExitFee) public strategyCBALRETHWithExitFees;
@@ -365,7 +367,7 @@ contract TestVariables {
         uint256 chainId = 143;
 
         _USDC_ADDRESSES[chainId] = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
-
+        _WBTC_ADDRESSES[chainId] = 0x0555E30da8f98308EdB960aa94C0Db47230d2B9c;
     }
 
     function _initMainConstantVariables() internal {
@@ -425,6 +427,7 @@ contract TestVariables {
         protocolReader = protocolReaders[chainId];
         borrowableCUSDC = borrowableCUSDCs[chainId];
         borrowableCDAI = borrowableCDAIs[chainId];
+        borrowableCWETH = borrowableCWETHs[chainId];
 
         strategyCBALRETH = strategyCBALRETHs[chainId];
         strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[chainId];

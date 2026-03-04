@@ -17,6 +17,8 @@
 **/out
 **/output
 /coverage_report
+.vigiles/
+.claude/
 
 # files
 **/.DS_Store

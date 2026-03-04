@@ -12,12 +12,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { console2 } from "forge-std/console2.sol";
 import { IKuruFlowRouter } from "contracts/interfaces/external/kuru/IKuruRouter.sol";
 
-// simpleZapper address: 0x15cF58144EF33af1e14b5208015d11F9143E27b9;
-
 contract TestKuruCalldataChecker is TestBaseMarketIsolated {
+    uint256 constant FORK_BLOCK = 59224721;
+
     address public kuruRouter = 0xb3e6778480b2E488385E8205eA05E20060B813cb;
     address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
@@ -38,7 +37,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-		_fork("MON_NODE_URI_MONAD_MAINNET");
+        _fork("MON_NODE_URI_MONAD_MAINNET", FORK_BLOCK);
 
         _initMainConstantVariables();
 
@@ -54,8 +53,6 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
 
         simpleZapper = new SimpleZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
-
-        console2.log("simpleZapper address", address(simpleZapper));
 
         borrowableCUSDC_MONAD = _deployBorrowableCToken(_USDC_ADDRESS);
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
@@ -79,7 +76,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
             address(chainlinkWMON),
             0
         );
-        
+
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
@@ -139,12 +136,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
-			_USDC_ADDRESS,
-			WMON_ADDRESS,
-			5e6
-		);
+        swapAction.call = _buildKuruCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputTokenError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -156,12 +148,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 0;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
-			_USDC_ADDRESS,
-			WMON_ADDRESS,
-			5e6
-		);
+        swapAction.call = _buildKuruCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputAmountError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -173,12 +160,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = address(0);
         swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(
-			recipient,
-			_USDC_ADDRESS,
-			WMON_ADDRESS,
-			5e6
-		);
+        swapAction.call = _buildKuruCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__OutputTokenError.selector);
         checker.checkCalldata(swapAction, recipient);
@@ -190,10 +172,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-		swapAction.call = _getKuruCalldata(address(this), _USDC_ADDRESS, WMON_ADDRESS, 5e6);
-
-        console2.log("dao address", centralRegistry.daoAddress());
-        console2.log("this address", address(this));
+        swapAction.call = _buildKuruCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         deal(_USDC_ADDRESS, address(this), 5e6);
         IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
@@ -201,19 +180,15 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
+    // Hardcoded calldata from Kuru API at block 59224721.
+    // Swap: 5 USDC -> WMON via simpleZapper (0x15cF58144EF33af1e14b5208015d11F9143E27b9).
     function testSwapWithSimpleZapper() public {
         recipient = address(simpleZapper);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        bytes memory ffiCalldata = _getKuruCalldata(
-            recipient,
-            _USDC_ADDRESS,
-            WMON_ADDRESS,
-            5e6
-        );
-        swapAction.call = ffiCalldata;
+        swapAction.call = hex"ce1e70300000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a00000000000000000000000000000000000000000000000c21ca5e12c2e66902000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000062ee1b8d1efdf8f73c78db87b888406b194e266a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001fe02754704bc059f8c67012fed69bc8a327a5aafb603071092003fe12728ea1b89e4bac6e59a9130b61a27d032f801000bb83ce00185717a98d195c9306bbf7c9523ba71f044fea0f7006f6d018f889ba499c0a176fb8f233d9d35b1c132eb868c00000907f4443d36ecb9f3ef06eae9b26706aaf591ade5ce0032f608188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030027100000c800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000608188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb603009c4000032000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000101b08188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030001f400000aa5eb30d50b9fbb521c391bbd4c1ba8e6ee4a5040000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000001ffff02010000";
 
         deal(_USDC_ADDRESS, address(this), 5e6);
         IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
@@ -225,5 +200,30 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
         assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
+    }
+
+    /// @dev Builds Kuru executeSwap calldata for validation tests.
+    function _buildKuruCalldata(
+        address tokenIn,
+        address tokenOut,
+        uint256 amount
+    ) internal view returns (bytes memory) {
+        return abi.encodeWithSelector(
+            IKuruFlowRouter.executeSwap.selector,
+            IKuruFlowRouter.SwapIntent({
+                tokenUserBuys: tokenOut,
+                minAmountUserBuys: 1,
+                tokenUserSells: tokenIn,
+                amountUserSells: amount
+            }),
+            IKuruFlowRouter.FeeCollection({
+                feeCollectorAddress: feeCollectorAddress,
+                feeBps: 0,
+                referrerAddress: centralRegistry.daoAddress(),
+                referrerFeeBps: 10,
+                isInTokenFee: false
+            }),
+            hex"01"
+        );
     }
 }

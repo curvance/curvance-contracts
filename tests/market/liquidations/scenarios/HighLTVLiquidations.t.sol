@@ -17,13 +17,10 @@ import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
     
 contract HighLTVLiquidations is TestBaseLiquidations {
 
-    BorrowableCToken borrowableCWETH;
     SimplePositionManager simplePositionManager;
 
     function setUp() public override {
         super.setUp();
-
-        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         simplePositionManager = new SimplePositionManager(
             ICentralRegistry(address(centralRegistry)),
@@ -32,8 +29,6 @@ contract HighLTVLiquidations is TestBaseLiquidations {
         );
 
         marketManagerIsolated.addPositionManager(address(simplePositionManager));
-
-        oracleManager.addCTokenSupport(address(borrowableCWETH));
 
         _prepareUSDC(address(this), 77777);
         _prepareWETH(address(this), 77777);
@@ -243,11 +238,5 @@ contract HighLTVLiquidations is TestBaseLiquidations {
 
         assertGe(calculatedInc, incBase, "incentive below base");
         assertLe(calculatedInc, incHard, "incentive above hard");
-    }
-
-
-
-
-
-    
+    }   
 }
