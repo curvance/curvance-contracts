@@ -4,9 +4,10 @@ pragma solidity 0.8.28;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { OptimizerZapper } from "contracts/plugins/market/OptimizerZapper.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
@@ -108,8 +109,11 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             0
         );
 
-        // Initialize the optimizer.
-        deal(WMON_ADDRESS, address(this), 77777 ether);
+        // Initialize the optimizer — wrap native MON to get real WMON.
+        // (deal(WMON_ADDRESS, ...) sets storage but may not survive
+        // safeTransferFrom on Monad's non-standard WMON layout.)
+        vm.deal(address(this), 1 ether);
+        IWETH(WMON_ADDRESS).deposit{ value: 1 ether }();
         IERC20(WMON_ADDRESS).approve(address(optimizer), type(uint256).max);
         optimizer.initializeDeposits(0);
     }
