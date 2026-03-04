@@ -53,6 +53,13 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             0 // No performance fee for test simplicity.
         );
 
+        // Prepare underlying tokens for listTokens — each cToken pulls
+        // 77777 of its underlying via initializeDeposits(msg.sender).
+        _prepareWETH(address(this), 77777);
+        _prepareUSDC(address(this), 77777);
+        weth.approve(address(borrowableCWETH), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
+
         // List borrowableCUSDC so market manager accepts deposits.
         // Pair with borrowableCWETH as collateral (deployed by _init()).
         marketManagerIsolated.listTokens(
@@ -66,9 +73,9 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         );
         _setCTokenConfigHighValues(address(borrowableCWETH), 100_000e18, 0);
 
-        // Initialize the optimizer (mint dead shares).
-        _prepareUSDC(address(this), 100e6);
-        usdc.approve(address(optimizer), 100e6);
+        // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
+        _prepareUSDC(address(this), 77777);
+        usdc.approve(address(optimizer), 77777);
         optimizer.initializeDeposits(0);
 
         // Seed liquidity into borrowableCUSDC so deposits have somewhere to go.

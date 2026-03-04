@@ -78,6 +78,13 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
         borrowableCUSDCMonad = _deployBorrowableCToken(USDC_ADDRESS_MONAD);
         oracleManager.addCTokenSupport(address(borrowableCUSDCMonad));
 
+        // Prepare underlying tokens for listTokens — each cToken pulls
+        // 77777 of its underlying via initializeDeposits(msg.sender).
+        deal(WBTC_ADDRESS_MONAD, address(this), 77777);
+        deal(USDC_ADDRESS_MONAD, address(this), 77777);
+        IERC20(WBTC_ADDRESS_MONAD).approve(address(borrowableCWBTC), 77777);
+        IERC20(USDC_ADDRESS_MONAD).approve(address(borrowableCUSDCMonad), 77777);
+
         // List the market pair and configure.
         marketManagerIsolated.listTokens(
             address(borrowableCWBTC),
@@ -108,10 +115,9 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             0
         );
 
-        // Initialize the optimizer — deal USDC (standard ERC20, no
-        // transferFrom issues unlike WMON).
-        deal(USDC_ADDRESS_MONAD, address(this), 100e6);
-        IERC20(USDC_ADDRESS_MONAD).approve(address(optimizer), 100e6);
+        // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
+        deal(USDC_ADDRESS_MONAD, address(this), 77777);
+        IERC20(USDC_ADDRESS_MONAD).approve(address(optimizer), 77777);
         optimizer.initializeDeposits(0);
 
         // Seed liquidity into borrowableCUSDCMonad.
