@@ -2,8 +2,9 @@
 pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { OptimizerZapper } from "contracts/plugins/OptimizerZapper.sol";
-import { LendingOptimizer } from "contracts/lending-optimizer/LendingOptimizer.sol";
+import { OptimizerZapper } from "contracts/plugins/market/OptimizerZapper.sol";
+import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
