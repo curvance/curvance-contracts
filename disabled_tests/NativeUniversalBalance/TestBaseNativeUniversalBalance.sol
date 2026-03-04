@@ -8,12 +8,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TestBaseNativeUniversalBalance is TestBaseMarketIsolated {
     NativeUniversalBalance public nativeUniversalBalance;
-    BorrowableCToken public borrowableCWETH;
 
     function setUp() public virtual override {
         super.setUp();
-
-        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -28,7 +25,6 @@ contract TestBaseNativeUniversalBalance is TestBaseMarketIsolated {
         weth.approve(address(borrowableCWETH), 10e18);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
         marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCWETH));
-        oracleManager.addCTokenSupport(address(borrowableCWETH));
         // oracleManager.addCTokenSupport(address(pendleStrategyCTokenSTETH));
 
         borrowableCWETH.deposit(_ONE + 1, address(this));

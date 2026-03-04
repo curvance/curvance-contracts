@@ -19,7 +19,6 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
     SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
-    BorrowableCToken public borrowableCWETH;
 
     address[] public owners;
     address[] public recipients;
@@ -32,8 +31,6 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         super.setUp();
 
         owner = address(this);
-
-        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -49,10 +46,6 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         _prepareWETH(owner, 200000 ether);
         weth.approve(address(borrowableCWETH), 200000e18);
-
-        oracleManager.addCTokenSupport(address(borrowableCWETH));
-        address[] memory markets = new address[](1);
-        markets[0] = address(borrowableCWETH);
 
         cWBTC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),

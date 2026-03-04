@@ -36,7 +36,6 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
-    BorrowableCToken public borrowableCWETH;
     SimplePositionManager public positionManager;
 
     receive() external payable {}
@@ -47,8 +46,6 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         super.setUp();
 
         owner = address(this);
-
-        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -105,12 +102,10 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
-        // Setup borrowableCWETH.
+        // Setup borrowableCWETH (deployed by _init(), oracle already registered).
         {
             _prepareWETH(owner, 200000 ether);
             weth.approve(address(borrowableCWETH), 200000e6);
-            // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(borrowableCWETH));
             address[] memory markets = new address[](1);
             markets[0] = address(borrowableCWETH);
         }

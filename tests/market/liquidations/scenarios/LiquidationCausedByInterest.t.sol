@@ -19,16 +19,10 @@ import { console2 } from "forge-std/console2.sol";
 
 contract TestLiquidationCausedByInterest is TestBaseLiquidations {
 
-    IBorrowableCToken borrowableCWETH;
-
     address liquidityProvider = makeAddr("lp");
 
     function setUp() public override {
         super.setUp();
-
-        borrowableCWETH = IBorrowableCToken(address(_deployBorrowableCToken(_WETH_ADDRESS)));
-
-        oracleManager.addCTokenSupport(address(borrowableCWETH));
 
         _prepareWETH(address(this), 77777);
         _prepareUSDC(address(this), 77777);
@@ -76,10 +70,4 @@ contract TestLiquidationCausedByInterest is TestBaseLiquidations {
         console2.log("lFactor", lFactor);
         console2.log("time", ((block.timestamp - timeBefore) / 1 days));
     }
-
-
-
-
-
-
 }
