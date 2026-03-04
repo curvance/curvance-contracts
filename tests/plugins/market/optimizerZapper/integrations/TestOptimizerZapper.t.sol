@@ -8,6 +8,8 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -288,9 +290,56 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
     // ─── Multi-Market / Allocation Cap ───────────────────────────────
 
     function testSwapAndDeposit_TwoMarkets_ExceedsCap() public {
-        // Deploy a second borrowable USDC cToken.
-        BorrowableCToken borrowableCUSDC2 = _deployBorrowableCToken(_USDC_ADDRESS);
+        // Deploy a second isolated market for borrowableCUSDC2.
+        MarketManagerIsolated mm2 = new MarketManagerIsolated(
+            ICentralRegistry(address(centralRegistry)),
+            10e18,
+            false
+        );
+        centralRegistry.addMarketManager(address(mm2));
+
+        // Deploy borrowableCUSDC2 and a WETH collateral token in mm2.
+        DynamicIRM irm2 = new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000, 1000, 5000, 1000, 100, 100000
+        );
+        BorrowableCToken borrowableCUSDC2 = new BorrowableCToken(
+            ICentralRegistry(address(centralRegistry)),
+            usdc,
+            address(mm2),
+            address(irm2)
+        );
+        irm2.setLinkedToken(address(borrowableCUSDC2));
+
+        DynamicIRM irmWeth2 = new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000, 1000, 5000, 1000, 100, 100000
+        );
+        BorrowableCToken collateralWETH2 = new BorrowableCToken(
+            ICentralRegistry(address(centralRegistry)),
+            weth,
+            address(mm2),
+            address(irmWeth2)
+        );
+        irmWeth2.setLinkedToken(address(collateralWETH2));
+
         oracleManager.addCTokenSupport(address(borrowableCUSDC2));
+        oracleManager.addCTokenSupport(address(collateralWETH2));
+
+        // List and initialize deposits in mm2.
+        _prepareWETH(address(this), 77777);
+        _prepareUSDC(address(this), 77777);
+        weth.approve(address(collateralWETH2), 77777);
+        usdc.approve(address(borrowableCUSDC2), 77777);
+        mm2.listTokens(address(collateralWETH2), address(borrowableCUSDC2));
+
+        // Seed liquidity into borrowableCUSDC2.
+        address lp2 = makeAddr("lp2");
+        _prepareUSDC(lp2, 10_000e6);
+        vm.startPrank(lp2);
+        usdc.approve(address(borrowableCUSDC2), 10_000e6);
+        borrowableCUSDC2.deposit(10_000e6, lp2);
+        vm.stopPrank();
 
         // Deploy a fresh optimizer with two markets at 50% cap each.
         address[] memory cTokens = new address[](2);
@@ -309,8 +358,8 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         );
 
         // Initialize the optimizer.
-        _prepareUSDC(address(this), 1e6);
-        usdc.approve(address(optimizer2), 1e6);
+        _prepareUSDC(address(this), 77777);
+        usdc.approve(address(optimizer2), 77777);
         optimizer2.initializeDeposits(0);
 
         // Deposit 1000 USDC entirely into market 0 — this pushes market 0
