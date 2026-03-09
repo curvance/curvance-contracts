@@ -790,7 +790,8 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override returns (bool result) {
-        result = interfaceId == type(ERC4626).interfaceId ||
+        result = interfaceId == type(IERC20).interfaceId ||
+            interfaceId == type(ERC4626).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 

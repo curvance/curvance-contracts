@@ -70,6 +70,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify ERC165 interface support
         assertTrue(optimizer.supportsInterface(type(IERC165).interfaceId));
+        assertTrue(optimizer.supportsInterface(type(IERC20).interfaceId));
         assertTrue(optimizer.supportsInterface(type(ERC4626).interfaceId));
     }
 
