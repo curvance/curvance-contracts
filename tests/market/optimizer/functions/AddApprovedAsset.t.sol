@@ -9,6 +9,7 @@ import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
@@ -238,6 +239,41 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         optimizer.addApprovedAsset(mockMarket, 5_000);
     }
 
+    function test_lendingOptimizer_addApprovedAsset_fail_whenNotListedInMarketManager() public {
+        _setUpOneMarket();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Create a mock cToken with correct underlying and a valid (registered)
+        // market manager, but the cToken is NOT listed in that manager.
+        address mockMarket = makeAddr("unlistedMarket");
+        address validManager = address(IBorrowableCToken(cUSDC_WMON_MARKET).marketManager());
+
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.asset.selector),
+            abi.encode(USDC_MONAD)
+        );
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
+            abi.encode(validManager)
+        );
+        // isListed returns false — cToken not actually listed in the manager.
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(IMarketManager.isListed.selector, mockMarket),
+            abi.encode(false)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidMarketManager.selector);
+        optimizer.addApprovedAsset(mockMarket, 5_000);
+    }
+
     /// @dev Helper to mock a valid cToken for testing TooManyMarkets.
     function _mockValidCToken(address mockMarket) internal {
         address validManager = address(IBorrowableCToken(cUSDC_WMON_MARKET).marketManager());
@@ -254,6 +290,13 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
             mockMarket,
             abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
             abi.encode(validManager)
+        );
+
+        // Mock isListed(mockMarket) on the market manager.
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(IMarketManager.isListed.selector, mockMarket),
+            abi.encode(true)
         );
     }
 }

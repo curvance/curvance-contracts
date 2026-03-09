@@ -15,7 +15,6 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-
 /// @title Curvance Lending Optimizer.
 /// @notice Optimizes yield across multiple Curvance lending markets
 ///         for a single underlying asset.
@@ -1021,12 +1020,14 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         return ct.convertToAssets(ct.balanceOf(address(this)));
     }
 
-    /// @dev Validates cToken has correct underlying and registered market manager.
+    /// @dev Validates cToken has correct underlying, a registered market manager,
+    ///      and is actually listed in that market manager.
     function _validateCToken(address cToken) internal view {
         if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
-        if (!centralRegistry.isMarketManager(address(IBorrowableCToken(cToken).marketManager()))) {
-            revert LendingOptimizer__InvalidMarketManager();
-        }
+
+        address marketManager = address(IBorrowableCToken(cToken).marketManager());
+        if (!centralRegistry.isMarketManager(marketManager)) revert LendingOptimizer__InvalidMarketManager();
+        if (!IMarketManager(marketManager).isListed(cToken)) revert LendingOptimizer__InvalidMarketManager();
     }
 
     /// @dev Returns whether a market is approved for allocation.

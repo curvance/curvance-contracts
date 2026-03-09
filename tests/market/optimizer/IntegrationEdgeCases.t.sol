@@ -59,6 +59,11 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
             abi.encode(validManager)
         );
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(IMarketManager.isListed.selector, mockMarket),
+            abi.encode(true)
+        );
     }
 
     /// @dev Mocks a cToken with full operational support (for _accrueMarkets,
