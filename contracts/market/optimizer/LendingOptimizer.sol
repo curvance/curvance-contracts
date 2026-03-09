@@ -5,6 +5,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -14,6 +15,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 /// @title Curvance Lending Optimizer.
 /// @notice Optimizes yield across multiple Curvance lending markets
@@ -50,7 +52,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      Dead shares minted to address(0) on initialization prevent
 ///      inflation attacks. All state-changing functions have reentrancy
 ///      protection.
-contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
+contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165 {
 
     /// TYPES ///
 
@@ -712,7 +714,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     ///      The returned value may be slightly stale if markets haven't been
     ///      accrued recently.
     /// @return The total assets held by the optimizer across all markets.
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() public view override(ERC4626, ILendingOptimizer) returns (uint256) {
         return _totalAssets;
     }
 
@@ -779,8 +781,18 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     }
 
     /// @notice Returns the underlying asset address.
-    function asset() public view override returns (address) {
+    function asset() public view override(ERC4626, ILendingOptimizer) returns (address) {
         return address(_asset);
+    }
+
+    /// @inheritdoc ERC4626
+    function convertToAssets(uint256 shares) public view override(ERC4626, ILendingOptimizer) returns (uint256 assets) {
+        return super.convertToAssets(shares);
+    }
+
+    /// @inheritdoc ERC20
+    function balanceOf(address owner) public view override(ERC20, ILendingOptimizer) returns (uint256 result) {
+        return super.balanceOf(owner);
     }
 
     /// @notice Returns true if this contract implements the interface.
