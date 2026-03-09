@@ -430,7 +430,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
         console2.log("Initial rate:", rateBeforeCrash);
-        console2.log("Initial total assets:", totalAssetsBefore);
+        console2.log("Initial total assetsOrBps:", totalAssetsBefore);
 
         // Crash all collateral prices simultaneously
         mockDaiFeed.setMockAnswer(0.1e8);  // DAI to $0.10
@@ -918,15 +918,15 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
         actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC)),
-            assets: int256(market3Assets)
+            assetsOrBps: int256(market3Assets)
         });
         actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC2)),
-            assets: int256(0)
+            assetsOrBps: int256(0)
         });
         actions[2] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(address(borrowableCUSDC3)),
-            assets: -int256(market3Assets)
+            assetsOrBps: -int256(market3Assets)
         });
 
         // Rebalance should succeed

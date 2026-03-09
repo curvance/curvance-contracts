@@ -58,13 +58,15 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     /// @notice Represents a single reallocation operation for moving assets between markets.
     /// @dev Used in rebalance() and removeApprovedAsset(). In rebalance(),
     ///      positive values indicate deposits and negative values indicate
-    ///      withdrawals. In removeApprovedAsset(), values must be positive
-    ///      (deposits into target markets only).
+    ///      withdrawals. In removeApprovedAsset(), values represent BPS
+    ///      percentages (1-10000) that must sum to exactly 10000.
     struct ReallocationAction {
         /// @notice The cToken market to interact with.
         IBorrowableCToken cToken;
-        /// @notice The amount of underlying assets to deposit (positive) or withdraw (negative).
-        int256 assets;
+        /// @notice In rebalance(): the amount of underlying assets to deposit
+        ///         (positive) or withdraw (negative).
+        ///         In removeApprovedAsset(): the BPS percentage of redeemed assets.
+        int256 assetsOrBps;
     }
 
     /// CONSTANTS ///
@@ -73,7 +75,7 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     uint256 public constant MAX_FEE_BPS = 5000;
     /// @dev Maximum number of supported markets.
     uint256 public constant MAX_MARKETS = 8;
-    /// @dev Minimum allowed value for ReallocationAction.assets (withdrawals).
+    /// @dev Minimum allowed value for ReallocationAction.assetsOrBps (withdrawals).
     ///      Caps at negative int128 range to prevent negation overflow on int256.
     int256 public constant MIN_REALLOCATION_AMOUNT = -type(int128).max;
     /// @dev The base underlying asset requirement held in order to minimize
@@ -446,12 +448,12 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
             if (address(actions[i].cToken) != approvedCTokensList[i]) revert LendingOptimizer__InvalidParameter();
 
             // Process withdrawal if assets is negative.
-            if (actions[i].assets < 0) {
-                if (actions[i].assets < MIN_REALLOCATION_AMOUNT) revert LendingOptimizer__InvalidParameter();
+            if (actions[i].assetsOrBps < 0) {
+                if (actions[i].assetsOrBps < MIN_REALLOCATION_AMOUNT) revert LendingOptimizer__InvalidParameter();
                 if (_isMarketPausedForAction(address(actions[i].cToken), false)) {
                     revert LendingOptimizer__MarketPaused();
                 }
-                uint256 withdrawAmount = uint256(-actions[i].assets);
+                uint256 withdrawAmount = uint256(-actions[i].assetsOrBps);
                 sumDeclaredWithdrawals += withdrawAmount;
                 actions[i].cToken.withdraw(
                     withdrawAmount,
@@ -466,11 +468,11 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
         // Second pass: process deposits (positive assets).
         for (uint256 i; i < l; ++i) {
             // Process deposit if assets is positive.
-            if (actions[i].assets > 0) {
+            if (actions[i].assetsOrBps > 0) {
                 if (_isMarketPausedForAction(address(actions[i].cToken), true)) {
                     revert LendingOptimizer__MarketPaused();
                 }
-                uint256 depositAmount = uint256(actions[i].assets);
+                uint256 depositAmount = uint256(actions[i].assetsOrBps);
                 _depositToMarket(address(actions[i].cToken), depositAmount);
                 sumDeclaredReallocated += depositAmount;
             }
@@ -486,85 +488,101 @@ contract LendingOptimizer is ERC4626, ReentrancyGuard, ERC165 {
     /// @notice Removes an approved market and reallocates its assets.
     /// @dev After removal, remaining market caps must sum to >= 100%. If not,
     ///      call `updateCap()` to increase a remaining market's cap before removal.
-    ///      The caller specifies reallocation amounts that must not exceed the
-    ///      redeemed total. Any residual dust from cToken rounding is automatically
-    ///      deposited into the first reallocation target.
-    ///      All `assets` values in removeActions must be positive (deposits only).
-    /// @param indexRemove Index of the market to remove.
-    /// @param removeActions Actions specifying how to reallocate assets (must be positive).
+    ///      The caller specifies BPS-based percentages for redistribution
+    ///      via the `assets` field of each ReallocationAction. BPS values
+    ///      must be positive and sum to exactly 10000 (100%).
+    ///      The last target receives the remainder to avoid dust.
+    /// @param cTokenToRemove Address of the market to remove.
+    /// @param removeActions Reallocation targets. `assets` field is BPS (1-10000).
     function removeApprovedAsset(
-        uint256 indexRemove,
+        address cTokenToRemove,
         ReallocationAction[] calldata removeActions
     ) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
-        uint256 l = approvedCTokensList.length;
-        // Revert if there is only one market.
-        if (l == 1) revert LendingOptimizer__InvalidParameter();
-        // Revert if the index is out of bounds.
-        if (indexRemove >= l) revert LendingOptimizer__InvalidParameter();
         // Revert if no reallocation targets are provided.
         if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
 
-        // Cache the cToken to remove.
-        address cTokenAddr = approvedCTokensList[indexRemove];
-        IBorrowableCToken cTokenToRemove = IBorrowableCToken(cTokenAddr);
+        // Revert if there is only one market.
+        uint256 l = approvedCTokensList.length;
+        if (l == 1) revert LendingOptimizer__InvalidParameter();
+
+        // Revert if the market to remove is not approved.
+        if (!_isApprovedMarket(cTokenToRemove)) revert LendingOptimizer__MarketNotApproved();
 
         // Validate remaining allocation caps sum to >= 100%.
-        _validateAllocationCaps(cTokenAddr, 0);
+        _validateAllocationCaps(cTokenToRemove, 0);
 
         // Accrue yield and charge protocol's performance fee.
         _accrueIfNeeded();
 
+        IBorrowableCToken cToken = IBorrowableCToken(cTokenToRemove);
+
         // Redeem all shares from the market being removed.
-        uint256 assetsRedeemed = cTokenToRemove.redeem(
-            cTokenToRemove.balanceOf(address(this)),
+        uint256 assetsRedeemed = cToken.redeem(
+            cToken.balanceOf(address(this)),
             address(this),
             address(this)
         );
 
         // Delete the allocation cap for the removed market.
-        delete allocationCaps[cTokenAddr];
+        delete allocationCaps[cTokenToRemove];
 
-        // Track the caller intent amount to reallocate.
-        uint256 sumDeclaredReallocated;
-        for (uint256 i; i < removeActions.length; ++i) {
-            // Revert if assets is not positive (only deposits allowed).
-            if (removeActions[i].assets <= 0) revert LendingOptimizer__InvalidParameter();
+        // Distribute redeemed assets proportionally via BPS.
+        uint256 totalBps;
+        uint256 totalDeposited;
+        uint256 lastAction = removeActions.length - 1;
 
-            // Instantiate cToken address for readability.
+        for (uint256 i; i <= lastAction; ++i) {
             address cTokenAddress = address(removeActions[i].cToken);
+            int256 bps = removeActions[i].assetsOrBps;
 
+            // Revert if BPS is not positive.
+            if (bps <= 0) revert LendingOptimizer__InvalidParameter();
+            // Revert if target is the market being removed.
+            if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
             // Revert if the reallocation target is not an approved market.
             if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
 
-            // Deposit reallocation amount to the target market.
-            uint256 reallocationAmount = uint256(removeActions[i].assets);
-            _depositToMarket(cTokenAddress, reallocationAmount);
-            sumDeclaredReallocated += reallocationAmount;
+            totalBps += uint256(bps);
+
+            // Last target receives the remainder to avoid dust.
+            // Else deposit normally.
+            uint256 depositAmount;
+            if (i == lastAction) {
+                depositAmount = assetsRedeemed - totalDeposited;
+            } else {
+                depositAmount = FixedPointMathLib.mulDiv(assetsRedeemed, uint256(bps), BPS);
+                totalDeposited += depositAmount;
+            }
+
+            _depositToMarket(cTokenAddress, depositAmount);
         }
 
-        // Revert if caller tried to reallocate more than was redeemed.
-        if (sumDeclaredReallocated > assetsRedeemed) revert LendingOptimizer__AssetMismatch();
+        // Revert if BPS values do not sum to exactly 100%.
+        if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
 
-        // Deposit any residual dust (from cToken rounding) into the first reallocation target.
-        uint256 residual = assetsRedeemed - sumDeclaredReallocated;
-        if (residual > 0) {
-            _depositToMarket(address(removeActions[0].cToken), residual);
+        // Find the index of the cToken to remove.
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (approvedCTokensList[i] == cTokenToRemove) {
+                removeIndex = i;
+                break;
+            }
         }
 
         // Update approved markets list using swap and pop.
-        uint256 lastIndex = approvedCTokensList.length - 1;
-        if (indexRemove != lastIndex) {
-            approvedCTokensList[indexRemove] = approvedCTokensList[lastIndex];
+        uint256 swapIndex = l - 1;
+        if (removeIndex != swapIndex) {
+            approvedCTokensList[removeIndex] = approvedCTokensList[swapIndex];
         }
         approvedCTokensList.pop();
 
         // Verify allocation caps are respected after reallocation.
         _verifyAllocationCaps();
 
-        emit MarketRemoved(cTokenAddr);
+        emit MarketRemoved(cTokenToRemove);
     }
 
     /// @notice Adds a new approved market for allocation.

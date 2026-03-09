@@ -195,15 +195,15 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
             actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: -int256(safeRebalance)
+                assetsOrBps: -int256(safeRebalance)
             });
             actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: int256(safeRebalance)
+                assetsOrBps: int256(safeRebalance)
             });
             actions[2] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WETH_MARKET),
-                assets: int256(0)
+                assetsOrBps: int256(0)
             });
 
             try harness.rebalance(actions) {} catch {
@@ -301,20 +301,20 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             if (i % 2 == 0) {
                 actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: -int256(safeAmount)
+                    assetsOrBps: -int256(safeAmount)
                 });
                 actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: int256(safeAmount)
+                    assetsOrBps: int256(safeAmount)
                 });
             } else {
                 actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: int256(safeAmount)
+                    assetsOrBps: int256(safeAmount)
                 });
                 actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: -int256(safeAmount)
+                    assetsOrBps: -int256(safeAmount)
                 });
             }
 

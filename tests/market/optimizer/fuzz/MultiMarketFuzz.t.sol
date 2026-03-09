@@ -364,20 +364,17 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         // Increase first remaining market cap to 100% so remaining caps >= 100%.
         harness.updateCap(firstRemaining, 10_000);
 
-        // Estimate redeem output and build reallocation action.
+        // Build reallocation action with BPS (single target gets 100%).
         IBorrowableCToken cTokenToRemove = IBorrowableCToken(markets[marketToRemoveIdx]);
-        uint256 estimatedRedeem = cTokenToRemove.convertToAssets(
-            cTokenToRemove.balanceOf(address(harness))
-        );
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(firstRemaining),
-            int256(estimatedRedeem)
+            int256(10_000)
         );
 
-        // Try removal - may fail if redeem output != estimate.
-        try harness.removeApprovedAsset(marketToRemoveIdx, removeActions) {
+        // Try removal.
+        try harness.removeApprovedAsset(markets[marketToRemoveIdx], removeActions) {
             assertApproxEqAbs(
                 harness.totalAssets(), totalAssetsBefore, 10,
                 "Total assets should be preserved after market removal"

@@ -70,7 +70,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // a single int256 assets field cannot be both positive and negative.
         for (uint256 i; i < actions.length; ++i) {
             assertTrue(
-                actions[i].assets >= 0 || actions[i].assets < 0,
+                actions[i].assetsOrBps >= 0 || actions[i].assetsOrBps < 0,
                 "Market should not have both deposit and withdraw"
             );
         }
@@ -87,10 +87,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         uint256 totalDeposits;
         uint256 totalWithdrawals;
         for (uint256 i; i < actions.length; ++i) {
-            if (actions[i].assets > 0) {
-                totalDeposits += uint256(actions[i].assets);
-            } else if (actions[i].assets < 0) {
-                totalWithdrawals += uint256(-actions[i].assets);
+            if (actions[i].assetsOrBps > 0) {
+                totalDeposits += uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                totalWithdrawals += uint256(-actions[i].assetsOrBps);
             }
         }
 
@@ -120,10 +120,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
             // Compute ideal allocation for this market.
             uint256 ideal;
-            if (actions[i].assets > 0) {
-                ideal = current + uint256(actions[i].assets);
-            } else if (actions[i].assets < 0) {
-                ideal = current - uint256(-actions[i].assets);
+            if (actions[i].assetsOrBps > 0) {
+                ideal = current + uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                ideal = current - uint256(-actions[i].assetsOrBps);
             } else {
                 ideal = current;
             }
@@ -152,7 +152,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
 
         // With one market, ideal == current, so no actions needed.
-        assertEq(actions[0].assets, 0, "No action needed for single market");
+        assertEq(actions[0].assetsOrBps, 0, "No action needed for single market");
     }
 
     // ============ Integration: Actions Can Execute Rebalance ============
@@ -240,7 +240,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         for (uint256 i; i < actions1.length; ++i) {
             assertEq(address(actions1[i].cToken), address(actions2[i].cToken), "Markets should be deterministic");
-            assertEq(actions1[i].assets, actions2[i].assets, "Assets should be deterministic");
+            assertEq(actions1[i].assetsOrBps, actions2[i].assetsOrBps, "Assets should be deterministic");
         }
     }
 
@@ -258,7 +258,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // Mutual exclusivity is inherent with the single int256 assets field.
         for (uint256 i; i < actions.length; ++i) {
             assertTrue(
-                actions[i].assets >= 0 || actions[i].assets < 0,
+                actions[i].assetsOrBps >= 0 || actions[i].assetsOrBps < 0,
                 "Mutual exclusivity violated"
             );
         }
@@ -295,7 +295,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // At least one other market should receive a deposit.
         bool hasRedistribution;
         for (uint256 i = 1; i < actions.length; ++i) {
-            if (actions[i].assets > 0) {
+            if (actions[i].assetsOrBps > 0) {
                 hasRedistribution = true;
                 break;
             }
@@ -348,7 +348,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // Mutual exclusivity is inherent with the single int256 assets field.
         for (uint256 i; i < actions.length; ++i) {
             assertTrue(
-                actions[i].assets >= 0 || actions[i].assets < 0,
+                actions[i].assetsOrBps >= 0 || actions[i].assetsOrBps < 0,
                 "Mutual exclusivity violated"
             );
         }
@@ -417,10 +417,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         uint256 totalMovement;
         for (uint256 i; i < actions.length; ++i) {
-            if (actions[i].assets > 0) {
-                totalMovement += uint256(actions[i].assets);
-            } else if (actions[i].assets < 0) {
-                totalMovement += uint256(-actions[i].assets);
+            if (actions[i].assetsOrBps > 0) {
+                totalMovement += uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                totalMovement += uint256(-actions[i].assetsOrBps);
             }
         }
 
@@ -453,7 +453,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // Mutual exclusivity is inherent with the single int256 assets field.
         for (uint256 i; i < actions.length; ++i) {
             assertTrue(
-                actions[i].assets >= 0 || actions[i].assets < 0,
+                actions[i].assetsOrBps >= 0 || actions[i].assetsOrBps < 0,
                 "Mutual exclusivity violated"
             );
         }
@@ -490,10 +490,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             IBorrowableCToken ct = actions[i].cToken;
             uint256 current = ct.convertToAssets(ct.balanceOf(address(optimizer)));
             uint256 ideal;
-            if (actions[i].assets > 0) {
-                ideal = current + uint256(actions[i].assets);
-            } else if (actions[i].assets < 0) {
-                ideal = current - uint256(-actions[i].assets);
+            if (actions[i].assetsOrBps > 0) {
+                ideal = current + uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                ideal = current - uint256(-actions[i].assetsOrBps);
             } else {
                 ideal = current;
             }
@@ -1028,7 +1028,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // optimalRebalance should NOT suggest withdrawing from the paused market.
         LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
 
-        assertTrue(actions[0].assets >= 0, "Should not withdraw from redeem-paused market");
+        assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused market");
 
         // Execute and let yield accrue.
         optimizer.accrueIfNeeded();
@@ -1079,7 +1079,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
 
         // Market 2 (index 2) should not receive deposits and should have a withdrawal (drain it).
-        assertLt(actions[2].assets, 0, "Should withdraw from mint-paused market");
+        assertLt(actions[2].assetsOrBps, 0, "Should withdraw from mint-paused market");
 
         // Execute and let yield accrue.
         optimizer.accrueIfNeeded();
@@ -1129,7 +1129,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
 
         // Market 1 should be completely frozen.
-        assertEq(actions[1].assets, 0, "Should not move assets for both-paused market");
+        assertEq(actions[1].assetsOrBps, 0, "Should not move assets for both-paused market");
     }
 
     /// @notice Rebalance with 2 of 3 markets redeem-paused should still
@@ -1181,8 +1181,8 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
 
         // Neither paused market should have withdrawals.
-        assertTrue(actions[0].assets >= 0, "Should not withdraw from redeem-paused WMON");
-        assertTrue(actions[1].assets >= 0, "Should not withdraw from redeem-paused WBTC");
+        assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused WMON");
+        assertTrue(actions[1].assetsOrBps >= 0, "Should not withdraw from redeem-paused WBTC");
 
         // Execute and let yield accrue.
         optimizer.accrueIfNeeded();

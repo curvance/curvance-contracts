@@ -260,9 +260,9 @@ contract LendingOptimizerHandler is Test {
         for (uint256 i; i < numMarkets; ++i) {
             actions[i].cToken = IBorrowableCToken(markets[i]);
             if (i == withdrawMarketIndex) {
-                actions[i].assets = -int256(amount);
+                actions[i].assetsOrBps = -int256(amount);
             } else if (i == depositMarketIndex) {
-                actions[i].assets = int256(amount);
+                actions[i].assetsOrBps = int256(amount);
             }
             // else: assets defaults to 0 (no-op)
         }

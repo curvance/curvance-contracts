@@ -190,11 +190,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
         actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: -int256(100_000e6)
+            assetsOrBps: -int256(100_000e6)
         });
         actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: int256(100_000e6)
+            assetsOrBps: int256(100_000e6)
         });
 
         vm.prank(maliciousHarvester);
@@ -803,11 +803,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
             actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: -int256(rebalanceAmt)
+                assetsOrBps: -int256(rebalanceAmt)
             });
             actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: int256(rebalanceAmt)
+                assetsOrBps: int256(rebalanceAmt)
             });
 
             vm.prank(maliciousHarvester);
@@ -819,11 +819,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory rev = new LendingOptimizer.ReallocationAction[](2);
             rev[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: int256(rebalanceAmt)
+                assetsOrBps: int256(rebalanceAmt)
             });
             rev[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: -int256(rebalanceAmt)
+                assetsOrBps: -int256(rebalanceAmt)
             });
 
             vm.prank(maliciousHarvester);
@@ -949,11 +949,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
         actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: int256(0)
+            assetsOrBps: int256(0)
         });
         actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: int256(0)
+            assetsOrBps: int256(0)
         });
 
         vm.prank(attacker);
