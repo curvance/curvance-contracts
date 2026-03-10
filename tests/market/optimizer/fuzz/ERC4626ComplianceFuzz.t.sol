@@ -64,7 +64,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         // Seed some initial liquidity so exchange rate is established.
         deal(USDC_MONAD, address(this), 500_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 500_000e6);
-        harness.deposit(500_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.deposit(500_000e6, address(this));
     }
 
     // =========================================================================
@@ -81,7 +81,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, assets);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), assets);
-        uint256 actual = harness.deposit(assets, depositor, cUSDC_WMON_MARKET);
+        uint256 actual = harness.deposit(assets, depositor);
         vm.stopPrank();
 
         // Actual shares should be close to previewed.
@@ -181,7 +181,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, depositAmount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         uint256 maxW = harness.maxWithdraw(depositor);
@@ -211,7 +211,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, depositAmount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         uint256 maxR = harness.maxRedeem(depositor);
@@ -241,7 +241,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, assets);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), assets);
-        uint256 shares = harness.deposit(assets, depositor, cUSDC_WMON_MARKET);
+        uint256 shares = harness.deposit(assets, depositor);
         vm.stopPrank();
 
         assertGt(shares, 0, "No shares minted");
@@ -381,7 +381,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, depositAmount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         uint256 maxW = harness.maxWithdraw(depositor);
@@ -424,7 +424,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, depositAmount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         uint256 maxR = harness.maxRedeem(depositor);
@@ -467,14 +467,14 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, deposit1);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), deposit1);
-        uint256 shares1 = harness.deposit(deposit1, depositor, cUSDC_WMON_MARKET);
+        uint256 shares1 = harness.deposit(deposit1, depositor);
         vm.stopPrank();
 
         // User2 deposits.
         deal(USDC_MONAD, depositor2, deposit2);
         vm.startPrank(depositor2);
         IERC20(USDC_MONAD).approve(address(harness), deposit2);
-        uint256 shares2 = harness.deposit(deposit2, depositor2, cUSDC_WBTC_MARKET);
+        uint256 shares2 = harness.deposit(deposit2, depositor2);
         vm.stopPrank();
 
         // Skip time for yield to accrue.
@@ -583,7 +583,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, assets);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), assets);
-        harness.deposit(assets, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(assets, depositor);
         vm.stopPrank();
 
         uint256 rateAfter = harness.exchangeRate();
@@ -604,7 +604,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, depositAmount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), depositAmount);
-        harness.deposit(depositAmount, depositor, cUSDC_WMON_MARKET);
+        harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         uint256 rateBefore = harness.exchangeRate();

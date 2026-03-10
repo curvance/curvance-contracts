@@ -414,7 +414,7 @@ contract TestLendingOptimizerUpdateCap is TestBaseLendingOptimizer {
         // Deposit some assets.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         // Record state before update.
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -444,7 +444,7 @@ contract TestLendingOptimizerUpdateCap is TestBaseLendingOptimizer {
         // Deposit some assets.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         // Skip forward to simulate yield accrual.
         skip(30 days);

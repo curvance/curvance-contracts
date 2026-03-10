@@ -334,7 +334,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < markets.length; i++) {
             deal(USDC_MONAD, address(this), depositPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), depositPerMarket);
-            optimizer.deposit(depositPerMarket, address(this), markets[i]);
+            optimizer.deposit(depositPerMarket, address(this));
         }
 
         uint256 totalDeposited = depositPerMarket * 3 + BASE_RESERVE;

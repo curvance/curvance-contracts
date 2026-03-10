@@ -48,4 +48,17 @@ contract LendingOptimizerHarness is LendingOptimizer {
     function optimalDepositTarget(uint256 assets) external view returns (uint256) {
         return _optimalDepositTarget(assets);
     }
+
+    /// @notice Test-only: deposits into a specific market for setup purposes.
+    /// @dev Bypasses optimal routing to allow tests to create specific
+    ///      allocation distributions across markets.
+    function depositToMarket(
+        uint256 assets,
+        address receiver,
+        address targetMarket
+    ) external nonReentrant returns (uint256 shares) {
+        _checkMintPaused();
+        _accrueIfNeeded();
+        shares = _deposit(assets, receiver, targetMarket);
+    }
 }

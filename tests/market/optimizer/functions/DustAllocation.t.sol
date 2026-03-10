@@ -64,16 +64,16 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Deposit 1M USDC to market 0 (majority).
         deal(USDC_MONAD, address(this), 1_000_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000_000e6);
-        optimizer.deposit(1_000_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000_000e6, address(this), cUSDC_WMON_MARKET);
 
         // Deposit dust amounts to markets 1 and 2.
         deal(USDC_MONAD, address(this), 100); // 100 wei = 0.0001 USDC
         IERC20(USDC_MONAD).approve(address(optimizer), 100);
-        optimizer.deposit(100, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(100, address(this), cUSDC_WBTC_MARKET);
 
         deal(USDC_MONAD, address(this), 50); // 50 wei
         IERC20(USDC_MONAD).approve(address(optimizer), 50);
-        optimizer.deposit(50, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(50, address(this), cUSDC_WETH_MARKET);
     }
 
     /// @dev Creates imbalance with minimal dust markets.
@@ -86,18 +86,18 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Deposit 100k USDC to market 0.
         deal(USDC_MONAD, address(this), 100_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
-        optimizer.deposit(100_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(100_000e6, address(this), cUSDC_WMON_MARKET);
 
         // Deposit minimal viable dust to markets 1 and 2.
         // 1000 wei = 0.001 USDC, small enough to be "dust" but large enough
         // to not round to zero shares in the cToken.
         deal(USDC_MONAD, address(this), 1000);
         IERC20(USDC_MONAD).approve(address(optimizer), 1000);
-        optimizer.deposit(1000, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1000, address(this), cUSDC_WBTC_MARKET);
 
         deal(USDC_MONAD, address(this), 1000);
         IERC20(USDC_MONAD).approve(address(optimizer), 1000);
-        optimizer.deposit(1000, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1000, address(this), cUSDC_WETH_MARKET);
     }
 
     // ==================== WITHDRAWAL BEHAVIOR ====================
@@ -138,7 +138,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Deposit more to main market.
         deal(USDC_MONAD, address(this), 50_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        uint256 shares = optimizer.deposit(50_000e6, address(this), cUSDC_WMON_MARKET);
+        uint256 shares = LendingOptimizerHarness(address(optimizer)).depositToMarket(50_000e6, address(this), cUSDC_WMON_MARKET);
 
         assertGt(shares, 0, "Should receive shares");
 
@@ -160,7 +160,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Deposit more to dust market.
         deal(USDC_MONAD, address(this), 1000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1000e6);
-        optimizer.deposit(1000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1000e6, address(this), cUSDC_WBTC_MARKET);
 
         uint256 dustBalanceAfter = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
         assertGt(dustBalanceAfter, dustBalanceBefore, "Dust market balance should increase");
@@ -406,7 +406,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, 50_000e6);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        uint256 user2Shares = optimizer.deposit(50_000e6, user2, cUSDC_WMON_MARKET);
+        uint256 user2Shares = optimizer.deposit(50_000e6, user2);
         vm.stopPrank();
 
         // Both users withdraw.
@@ -441,7 +441,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 1_000_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000_000e6);
-        optimizer.deposit(1_000_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(1_000_000e6, address(this));
 
         gasStart = gasleft();
         optimizer.totalAssets();
@@ -462,7 +462,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Deposit only to market 0.
         deal(USDC_MONAD, address(this), 100_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
-        optimizer.deposit(100_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(100_000e6, address(this), cUSDC_WMON_MARKET);
 
         // Markets 1 and 2 have zero balance (only init shares).
         uint256 market1Balance = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));

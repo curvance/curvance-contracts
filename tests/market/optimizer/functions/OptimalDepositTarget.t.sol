@@ -69,7 +69,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
 
         // Get optimal target and deposit there
         uint256 firstTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(largeDeposit);
-        optimizer.deposit(largeDeposit, address(this), optimizer.approvedCTokensList(firstTarget));
+        optimizer.deposit(largeDeposit, address(this));
 
         // Now check optimal target for another deposit
         uint256 secondTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(50_000e6);
@@ -87,7 +87,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), hugeDeposit);
 
         // Deposit directly to market 0, lowering its utilization/rate
-        optimizer.deposit(hugeDeposit, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(hugeDeposit, address(this));
 
         // Next deposit should pick the market with the highest projected rate
         uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(500_000e6);
@@ -115,7 +115,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         uint256 seedDeposit = 100_000e6;
         deal(USDC_MONAD, address(this), seedDeposit);
         IERC20(USDC_MONAD).approve(address(optimizer), seedDeposit);
-        optimizer.deposit(seedDeposit, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(seedDeposit, address(this));
 
         // Different deposit sizes may route to different markets based on
         // projected rates (larger deposits dilute utilization more).
@@ -174,7 +174,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
         uint256 deposit1 = 50_000e6;
         deal(USDC_MONAD, address(this), deposit1);
         IERC20(USDC_MONAD).approve(address(optimizer), deposit1);
-        optimizer.deposit(deposit1, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(deposit1, address(this));
 
         // Check optimal for next deposit
         uint256 target = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(50_000e6);
@@ -215,7 +215,7 @@ contract TestLendingOptimizerOptimalDepositTarget is TestBaseLendingOptimizer {
             );
 
             // Make the deposit
-            optimizer.deposit(depositAmount, address(this), optimizer.approvedCTokensList(actualTarget));
+            optimizer.deposit(depositAmount, address(this));
         }
     }
 

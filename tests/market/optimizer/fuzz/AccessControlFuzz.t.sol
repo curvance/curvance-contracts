@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -275,11 +276,19 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         // Deposit into all three markets so allocations are within caps.
         // Without this, all assets sit in market 0 (100% allocation > 60% cap)
         // and _verifyAllocationCaps() would revert on rebalance.
-        deal(USDC_MONAD, address(this), 300_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 300_000e6);
-        optimizer.deposit(150_000e6, address(this), cUSDC_WMON_MARKET);
-        optimizer.deposit(100_000e6, address(this), cUSDC_WBTC_MARKET);
-        optimizer.deposit(50_000e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness harness = LendingOptimizerHarness(address(optimizer));
+
+        deal(USDC_MONAD, address(this), 150_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 150_000e6);
+        harness.depositToMarket(150_000e6, address(this), cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 100_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
+        harness.depositToMarket(100_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        harness.depositToMarket(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
         uint256 exchangeRateBefore = optimizer.exchangeRate();

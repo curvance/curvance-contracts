@@ -352,7 +352,9 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), amountPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), amountPerMarket);
-            optimizer.deposit(amountPerMarket, address(this), markets[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                amountPerMarket, address(this), markets[i]
+            );
         }
     }
 

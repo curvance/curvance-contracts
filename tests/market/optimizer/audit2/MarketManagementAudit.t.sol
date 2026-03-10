@@ -139,9 +139,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // After removal to market 0: market0 ~10.5K / ~20.5K = ~51% < 60% cap.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Skip time so vesting finishes and _totalAssets syncs.
         skip(2 days);
@@ -203,9 +203,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Use small amounts for market 2 to stay within caps.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
@@ -235,7 +235,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             // Deposit a small amount to market 2 to give it assets.
             deal(USDC_MONAD, address(this), 1_000e6);
             IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-            harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+            harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
             // Let vesting finish between cycles.
             skip(2 days);
@@ -274,9 +274,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 600_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 600_000e6);
-        harness.deposit(300_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(200_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(100_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(300_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(200_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(100_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Start vesting.
         skip(3 days);
@@ -329,9 +329,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit with allocations under cap.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let yield accrue and start vesting.
         skip(3 days);
@@ -382,9 +382,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Use small amounts for market 2 to stay within caps after reallocation.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
@@ -431,7 +431,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit to the re-added market.
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Exchange rate should not have decreased.
         uint256 exchangeRateAfter = harness.exchangeRate();
@@ -458,9 +458,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
@@ -489,7 +489,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
             deal(USDC_MONAD, address(this), 1_000e6);
             IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-            harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+            harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
             skip(2 days);
             harness.exchangeRateUpdated();
@@ -535,9 +535,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit with small amount for market 2.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let time pass for interest accrual.
         skip(5 days);
@@ -579,9 +579,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 300_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 300_000e6);
-        harness.deposit(150_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(100_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(50_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(150_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(100_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         skip(2 days);
         harness.exchangeRateUpdated();
@@ -628,9 +628,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Removing 60% cap market: remaining 50% + 20% = 70% < 100%. Should revert.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 m0Assets = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
@@ -675,7 +675,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit works.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 10_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.deposit(10_000e6, address(this));
         console2.log("CONFIRMED: Minimum cap (1 BPS) market addition works");
     }
 
@@ -720,9 +720,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
         uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
@@ -752,9 +752,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Market 0 (60% cap): 5K, Market 1 (50% cap): 1K, Market 2 (20% cap): 5K
         deal(USDC_MONAD, address(this), 11_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 11_000e6);
-        harness.deposit(5_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(5_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(5_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);

@@ -35,7 +35,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 50_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(50_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(50_000e6, user1);
         vm.stopPrank();
 
         // Advance time to shift the cToken exchange rate via interest.
@@ -74,7 +74,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 100_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
-        optimizer.deposit(100_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(100_000e6, user1);
         vm.stopPrank();
 
         // Let interest accrue to create a non-trivial exchange rate.
@@ -91,7 +91,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         console2.log("--- Old vs New previewDeposit ---");
@@ -131,7 +131,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 50_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(50_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(50_000e6, user1);
         vm.stopPrank();
 
         skip(14 days);
@@ -145,7 +145,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         // ERC4626 invariant MUST hold — check before subtraction to avoid underflow.
@@ -175,7 +175,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 50_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(50_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(50_000e6, user1);
         vm.stopPrank();
 
         skip(14 days);
@@ -214,7 +214,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         console2.log("actualShares:    ", actualShares);
@@ -244,7 +244,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 50_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(50_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(50_000e6, user1);
         vm.stopPrank();
 
         skip(14 days);
@@ -259,7 +259,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         // The patched preview MUST always hold — assert before subtraction.
@@ -284,7 +284,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 200_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 200_000e6);
-        optimizer.deposit(200_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(200_000e6, user1);
         vm.stopPrank();
 
         skip(60 days);
@@ -300,7 +300,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         console2.log("--- Integrator scenario ---");
@@ -331,7 +331,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 100_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
-        optimizer.deposit(100_000e6, user1, cUSDC_WMON_MARKET);
+        optimizer.deposit(100_000e6, user1);
         vm.stopPrank();
 
         skip(30 days);
@@ -345,7 +345,7 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, depositAmount);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-        uint256 actualShares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
+        uint256 actualShares = optimizer.deposit(depositAmount, user2);
         vm.stopPrank();
 
         uint256 surplus = actualShares - newPreview;

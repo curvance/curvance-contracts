@@ -142,7 +142,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, victim, victimDeposit);
         vm.startPrank(victim);
         IERC20(USDC_MONAD).approve(address(fresh), victimDeposit);
-        uint256 victimShares = fresh.deposit(victimDeposit, victim, cUSDC_WMON_MARKET);
+        uint256 victimShares = fresh.deposit(victimDeposit, victim);
         vm.stopPrank();
 
         uint256 victimValue = fresh.convertToAssets(victimShares);
@@ -171,21 +171,21 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 2_000_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(harness), 2_000_000e6);
-        harness.deposit(2_000_000e6, user1, cUSDC_WMON_MARKET);
+        harness.deposit(2_000_000e6, user1);
         vm.stopPrank();
 
         // User2 deposits into market 1.
         deal(USDC_MONAD, user2, 1_000_000e6);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(harness), 1_000_000e6);
-        harness.deposit(1_000_000e6, user2, cUSDC_WBTC_MARKET);
+        harness.deposit(1_000_000e6, user2);
         vm.stopPrank();
 
         // Attacker deposits before rebalance.
         deal(USDC_MONAD, attacker, depositSize);
         vm.startPrank(attacker);
         IERC20(USDC_MONAD).approve(address(harness), depositSize);
-        uint256 attackerShares = harness.deposit(depositSize, attacker, cUSDC_WMON_MARKET);
+        uint256 attackerShares = harness.deposit(depositSize, attacker);
         vm.stopPrank();
 
         uint256 attackerValueBefore = harness.convertToAssets(attackerShares);
@@ -277,7 +277,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 depositAmount = 5_000_000e6;
         deal(USDC_MONAD, address(this), depositAmount);
         IERC20(USDC_MONAD).approve(address(roundingHarness), depositAmount);
-        roundingHarness.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
+        roundingHarness.deposit(depositAmount, address(this));
 
         uint256 exchangeRateBefore = roundingHarness.exchangeRate();
 
@@ -388,7 +388,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, depositAmount);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(feeHarness), depositAmount);
-        feeHarness.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+        feeHarness.deposit(depositAmount, user1);
         vm.stopPrank();
 
         // Cycle 1: fee1 active, let yield accrue and charge fees.

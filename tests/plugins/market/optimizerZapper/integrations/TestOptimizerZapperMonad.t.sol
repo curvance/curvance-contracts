@@ -145,7 +145,6 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
 
         uint256 shares = optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDCMonad),
             false,
             swapAction,
             0,

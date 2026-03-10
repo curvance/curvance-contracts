@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
@@ -215,7 +216,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         allocationCapsBps[0] = 10_000; // 100%
         allocationCapsBps[1] = 10_000; // 100%
 
-        LendingOptimizer testOptimizer = new LendingOptimizer(
+        LendingOptimizerHarness testOptimizer = new LendingOptimizerHarness(
             IERC20(USDC_MONAD),
             liveCentralRegistry,
             approvedCTokens,
@@ -234,11 +235,14 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
         testOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
-        // Deposit to both markets.
-        deal(USDC_MONAD, address(this), 20_000e6);
-        IERC20(USDC_MONAD).approve(address(testOptimizer), 20_000e6);
-        testOptimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        testOptimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        // Deposit 10k to each market via harness.
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), 10_000e6);
+        testOptimizer.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), 10_000e6);
+        testOptimizer.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         uint256 totalAssetsBefore = testOptimizer.totalAssets();
         uint256 totalSupplyBefore = testOptimizer.totalSupply();
@@ -453,7 +457,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         caps[0] = 10_000; // 100%
         caps[1] = 10_000; // 100%
 
-        LendingOptimizer testOpt = new LendingOptimizer(
+        LendingOptimizerHarness testOpt = new LendingOptimizerHarness(
             IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 0
         );
 
@@ -470,8 +474,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 40_000e6);
         IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
-        testOpt.deposit(20_000e6, address(this), cUSDC_WMON_MARKET);
-        testOpt.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WBTC_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -494,7 +498,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         deal(USDC_MONAD, frontrunner, 40_000e6);
         vm.startPrank(frontrunner);
         IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
-        testOpt.deposit(40_000e6, frontrunner, cUSDC_WMON_MARKET);
+        testOpt.depositToMarket(40_000e6, frontrunner, cUSDC_WMON_MARKET);
         vm.stopPrank();
 
         // Rebalance reverts — the deposit shifted allocations outside bounds.
@@ -514,7 +518,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         caps[0] = 10_000;
         caps[1] = 10_000;
 
-        LendingOptimizer testOpt = new LendingOptimizer(
+        LendingOptimizerHarness testOpt = new LendingOptimizerHarness(
             IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 0
         );
 
@@ -530,8 +534,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 40_000e6);
         IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
-        testOpt.deposit(20_000e6, address(this), cUSDC_WMON_MARKET);
-        testOpt.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WBTC_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -564,9 +568,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         // Deposit respecting caps: 50% / 40% / 10%.
         deal(USDC_MONAD, address(this), 50_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(25_000e6, address(this), cUSDC_WMON_MARKET);
-        optimizer.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
-        optimizer.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(25_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(5_000e6, address(this), cUSDC_WETH_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -623,9 +627,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         // Deposit respecting caps: 50% / 40% / 10%.
         deal(USDC_MONAD, address(this), 50_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
-        optimizer.deposit(25_000e6, address(this), cUSDC_WMON_MARKET);
-        optimizer.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
-        optimizer.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(25_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(5_000e6, address(this), cUSDC_WETH_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),

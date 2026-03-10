@@ -40,7 +40,7 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user, amount, true);
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(optimizer), amount);
-        optimizer.deposit(amount, user, market);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(amount, user, market);
         vm.stopPrank();
     }
 
@@ -360,53 +360,6 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
             balanceBefore + assets,
             "Balance should match"
         );
-
-        vm.stopPrank();
-    }
-
-    // ============ Targeted Withdraw Unchanged ============
-
-    /// @notice `withdraw(assets, receiver, owner, targetMarket)` still uses single market.
-    function test_multiMarketWithdraw_targetedWithdrawUnchanged() public {
-        _depositToMarket(user1, 20_000e6, cUSDC_WMON_MARKET);
-        _depositToMarket(user1, 20_000e6, cUSDC_WBTC_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 wmonBalBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        uint256 wbtcBalBefore = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
-
-        // Targeted withdraw from WMON only.
-        optimizer.withdraw(5_000e6, user1, user1, cUSDC_WMON_MARKET);
-
-        uint256 wmonBalAfter = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        uint256 wbtcBalAfter = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
-
-        // WMON should decrease, WBTC untouched.
-        assertLt(wmonBalAfter, wmonBalBefore, "Target market should decrease");
-        assertEq(wbtcBalAfter, wbtcBalBefore, "Non-target market should be untouched");
-
-        vm.stopPrank();
-    }
-
-    /// @notice `redeem(shares, receiver, owner, targetMarket)` still uses single market.
-    function test_multiMarketWithdraw_targetedRedeemUnchanged() public {
-        _depositToMarket(user1, 20_000e6, cUSDC_WMON_MARKET);
-        _depositToMarket(user1, 20_000e6, cUSDC_WBTC_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 wmonBalBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        uint256 wbtcBalBefore = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
-
-        // Targeted redeem from WMON only.
-        optimizer.redeem(5_000e6, user1, user1, cUSDC_WMON_MARKET);
-
-        uint256 wmonBalAfter = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        uint256 wbtcBalAfter = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
-
-        assertLt(wmonBalAfter, wmonBalBefore, "Target market should decrease");
-        assertEq(wbtcBalAfter, wbtcBalBefore, "Non-target market should be untouched");
 
         vm.stopPrank();
     }

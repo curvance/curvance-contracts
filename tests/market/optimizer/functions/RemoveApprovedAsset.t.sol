@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
@@ -25,17 +26,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // Deposit to markets 0 and 1, with a smaller deposit to market 2
         // so the reallocation after removal fits within remaining caps.
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        deal(USDC_MONAD, address(this), 21_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Record state before removal.
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -110,11 +105,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // Deposit to both markets.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         // Mock market permissions for all calls.
         vm.mockCall(
@@ -160,17 +155,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Deposit to markets so there are assets to reallocate.
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        deal(USDC_MONAD, address(this), 21_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
@@ -209,18 +198,13 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Deposit an odd amount to the market being removed to make rounding visible.
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        deal(USDC_MONAD, address(this), 21_001e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_001e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         // Use 1_001e6 (odd amount) for the removed market.
-        deal(USDC_MONAD, address(this), 1_001e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_001e6);
-        optimizer.deposit(1_001e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_001e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
         uint256 exchangeRateBefore = optimizer.exchangeRate();
@@ -287,18 +271,13 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        deal(USDC_MONAD, address(this), 20_001e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_001e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         // Tiny deposit (minimum meaningful USDC amount) in market to remove.
-        deal(USDC_MONAD, address(this), 1e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1e6);
-        optimizer.deposit(1e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
@@ -336,17 +315,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        deal(USDC_MONAD, address(this), 21_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let interest accrue to make redeemed amount non-round.
         skip(30 days);
@@ -400,13 +373,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        deal(USDC_MONAD, address(this), 20_000e6 + 999_999_999);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_000e6 + 999_999_999);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         // Deposit an amount designed to produce rounding in mulDiv with 3333 BPS.
         // 999_999_999 wei USDC (≈999.999999 USDC): mulDiv(999999999, 3333, 10000) = 333,299,666
@@ -414,9 +384,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // Strict mulDiv(999999999, 6667, 10000) = 666,700,333  (happens to match here)
         // But with cToken rounding on redeem, the actual redeemed amount will be slightly
         // different, producing a genuine remainder scenario.
-        deal(USDC_MONAD, address(this), 999_999_999);
-        IERC20(USDC_MONAD).approve(address(optimizer), 999_999_999);
-        optimizer.deposit(999_999_999, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(999_999_999, address(this), cUSDC_WETH_MARKET);
 
         // Let time pass so cToken exchange rate makes redeemed amount non-round.
         skip(7 days);
@@ -506,17 +474,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        deal(USDC_MONAD, address(this), 21_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         skip(14 days);
         IBorrowableCToken(cUSDC_WETH_MARKET).accrueIfNeeded();
@@ -547,13 +509,10 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Deposit only to markets 0 and 1, leaving market 2 empty.
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        deal(USDC_MONAD, address(this), 20_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         // Confirm market 2 has zero balance.
         assertEq(
@@ -590,11 +549,11 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // Deposit to both markets.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(10_000e6, address(this));
 
         // Mock market permissions.
         vm.mockCall(

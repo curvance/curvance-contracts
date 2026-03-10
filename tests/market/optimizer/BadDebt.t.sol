@@ -244,12 +244,12 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
     // ==================== SINGLE MARKET BAD DEBT ====================
 
     function test_lendingOptimizer_badDebt_singleMarketBadDebt() public {
-        // Deposit into optimizer
+        // Deposit into optimizer (target market 1 where the borrower will be)
         uint256 depositAmount = 100_000e6;
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Setup market 1 borrower config (tokens already listed in setUp)
@@ -389,9 +389,9 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositPerMarket * 3);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositPerMarket * 3);
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC2));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC3));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC2));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC3));
         vm.stopPrank();
 
         // Setup market 1 config (tokens already listed in setUp)
@@ -481,9 +481,9 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositPerMarket * 3);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositPerMarket * 3);
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC2));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC3));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC2));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC3));
         vm.stopPrank();
 
         // Only create borrower in market 3 (WETH collateral)
@@ -568,12 +568,12 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
 
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), deposit1);
-        optimizer.deposit(deposit1, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(deposit1, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         vm.startPrank(depositor2);
         usdc.approve(address(optimizer), deposit2);
-        optimizer.deposit(deposit2, depositor2, address(borrowableCUSDC));
+        optimizer.depositToMarket(deposit2, depositor2, address(borrowableCUSDC));
         vm.stopPrank();
 
         uint256 depositor1Shares = optimizer.balanceOf(depositor1);
@@ -680,7 +680,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, initialDeposit);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), initialDeposit);
-        optimizer.deposit(initialDeposit, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(initialDeposit, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         uint256 depositor1SharesBefore = optimizer.balanceOf(depositor1);
@@ -720,7 +720,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor2, newDeposit);
         vm.startPrank(depositor2);
         usdc.approve(address(optimizer), newDeposit);
-        uint256 depositor2Shares = optimizer.deposit(newDeposit, depositor2, address(borrowableCUSDC));
+        uint256 depositor2Shares = optimizer.deposit(newDeposit, depositor2);
         vm.stopPrank();
 
         console2.log("Rate after bad debt:", rateAfterBadDebt);
@@ -743,7 +743,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Let some yield accrue
@@ -805,7 +805,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Setup config with higher caps (tokens already listed in setUp)
@@ -861,7 +861,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor2, 10_000e6);
         vm.startPrank(depositor2);
         usdc.approve(address(optimizer), 10_000e6);
-        uint256 newShares = optimizer.deposit(10_000e6, depositor2, address(borrowableCUSDC));
+        uint256 newShares = optimizer.deposit(10_000e6, depositor2);
         vm.stopPrank();
 
         assertGt(newShares, 0, "New deposits should still work");
@@ -875,9 +875,9 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositPerMarket * 3);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositPerMarket * 3);
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC2));
-        optimizer.deposit(depositPerMarket, depositor1, address(borrowableCUSDC3));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC2));
+        optimizer.depositToMarket(depositPerMarket, depositor1, address(borrowableCUSDC3));
         vm.stopPrank();
 
         // Create bad debt in market 3
@@ -956,7 +956,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(depositor1, depositAmount);
         vm.startPrank(depositor1);
         usdc.approve(address(optimizer), depositAmount);
-        optimizer.deposit(depositAmount, depositor1, address(borrowableCUSDC));
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
         vm.stopPrank();
 
         // Calculate safe borrow amount (50% of deposit to stay under 70% LTV)

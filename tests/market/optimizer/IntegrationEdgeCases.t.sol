@@ -196,7 +196,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), depositAmount);
             IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-            optimizer.deposit(depositAmount, address(this), cTokens[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                depositAmount, address(this), cTokens[i]
+            );
         }
 
         // Verify total assets track all deposits (+ dead shares).
@@ -211,7 +213,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Withdraw a portion from market 0.
         uint256 withdrawAmount = 1_000e6;
         uint256 sharesBurned = optimizer.withdraw(
-            withdrawAmount, address(this), address(this), cUSDC_WMON_MARKET
+            withdrawAmount, address(this), address(this)
         );
         assertGt(sharesBurned, 0, "Should have burned shares on withdraw");
 
@@ -269,7 +271,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), 10_000e6);
             IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-            optimizer.deposit(10_000e6, address(this), cTokens[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                10_000e6, address(this), cTokens[i]
+            );
         }
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -352,7 +356,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Deposit.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        uint256 shares = optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        uint256 shares = optimizer.deposit(10_000e6, address(this));
         assertGt(shares, 0, "Should receive shares with 6 markets");
 
         // Exchange rate should be valid.
@@ -396,11 +400,15 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Deposit 10K to each market => ~50/50 allocation.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Verify current allocation is ~50% each.
         uint256 totalAssets = optimizer.totalAssets();
@@ -536,8 +544,12 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(optimizer), totalDeposit);
-        uint256 shares1 = optimizer.deposit(depositPerMarket, user, cUSDC_WMON_MARKET);
-        uint256 shares2 = optimizer.deposit(depositPerMarket, user, cUSDC_WBTC_MARKET);
+        uint256 shares1 = LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositPerMarket, user, cUSDC_WMON_MARKET
+        );
+        uint256 shares2 = LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositPerMarket, user, cUSDC_WBTC_MARKET
+        );
         vm.stopPrank();
 
         assertGt(shares1 + shares2, 0, "Step 2: shares should be minted");
@@ -634,15 +646,21 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // so the reallocation stays within caps after removal.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            1_000e6, address(this), cUSDC_WETH_MARKET
+        );
 
         // Record assets in WETH market before removal.
         uint256 wethAssets = _getMarketAssets(cUSDC_WETH_MARKET);
@@ -699,11 +717,15 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Deposit only to markets 0 and 1, NOT market 2 (WETH).
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Verify WETH market has zero optimizer balance.
         uint256 wethCTokenBalance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
@@ -729,16 +751,22 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Deposit to markets 0 and 1.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Deposit a minimal amount to WETH (just enough to have non-zero shares).
         deal(USDC_MONAD, address(this), 100e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 100e6);
-        optimizer.deposit(100e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            100e6, address(this), cUSDC_WETH_MARKET
+        );
 
         // Verify WETH market has a non-zero balance.
         uint256 wethCTokenBalance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));

@@ -25,10 +25,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
 ///
-///      Deposits can target specific markets or be automatically routed
-///      to the optimal market based on projected yield.
-///      Withdrawals similarly select the lowest-yielding market to
-///      preserve capital in higher-performing markets.
+///      Deposits are automatically routed to the optimal market based
+///      on projected yield. Withdrawals select the lowest-yielding
+///      market to preserve capital in higher-performing markets.
 ///
 ///      Yield from underlying cToken markets is absorbed immediately
 ///      into `_totalAssets` on every accrual (cToken-style). Since
@@ -287,31 +286,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     function deposit(
         uint256 assets,
         address receiver
-    ) public override nonReentrant returns (uint256 shares) {
+    ) public override(ERC4626, ILendingOptimizer) nonReentrant returns (uint256 shares) {
         _checkMintPaused();
         _accrueIfNeeded();
         shares = _deposit(assets, receiver, approvedCTokensList[_optimalDepositTarget(assets)]);
     }
 
-    /// @notice Deposits assets into a specific market and mints shares to receiver.
-    /// @dev Shares are derived from the actual recoverable value (trackedAssets)
-    ///      via convertToShares, which rounds down -- favoring the vault.
-    /// @param assets The amount of underlying assets to deposit.
-    /// @param receiver The address to receive the minted shares.
-    /// @param targetMarket The address of the target cToken market to deposit into.
-    /// @return shares The amount of shares minted.
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address targetMarket
-    ) external nonReentrant returns (uint256 shares) {
-        _checkMintPaused();
-        _validateTargetMarket(targetMarket, true);
-        _accrueIfNeeded();
-        shares = _deposit(assets, receiver, targetMarket);
-    }
-
-    /// @notice Standard ERC4626 mint - mints exact shares by depositing
+/// @notice Standard ERC4626 mint - mints exact shares by depositing
     ///         into the optimal market.
     /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
@@ -325,27 +306,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         assets = _mintShares(shares, receiver, approvedCTokensList[_optimalDepositTarget(previewMint(shares))]);
     }
 
-    /// @notice Mints exact shares by depositing into a specific market.
-    /// @dev Uses previewMint (rounds up) to compute the asset cost, ensuring
-    ///      the vault never under-charges. Mints exactly `shares` shares
-    ///      regardless of cToken rounding; any rounding dust is absorbed
-    ///      by the vault as a tiny surplus.
-    /// @param shares The exact amount of shares to mint.
-    /// @param receiver The address to receive the minted shares.
-    /// @param targetMarket The address of the target cToken market to deposit into.
-    /// @return assets The amount of assets deposited.
-    function mint(
-        uint256 shares,
-        address receiver,
-        address targetMarket
-    ) external nonReentrant returns (uint256 assets) {
-        _checkMintPaused();
-        _validateTargetMarket(targetMarket, true);
-        _accrueIfNeeded();
-        assets = _mintShares(shares, receiver, targetMarket);
-    }
-
-    /// @notice Standard ERC4626 withdraw - withdraws across multiple markets
+/// @notice Standard ERC4626 withdraw - withdraws across multiple markets
     ///         (worst-yield first) to ensure ERC4626 compliance.
     /// @param assets The amount of underlying assets to withdraw.
     /// @param receiver The address to receive the withdrawn assets.
@@ -359,29 +320,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _withdrawMultiMarket(assets, shares, receiver, owner);
+        _withdraw(assets, shares, receiver, owner);
     }
 
-    /// @notice Withdraws assets from a specific market.
-    /// @param assets The amount of underlying assets to withdraw.
-    /// @param receiver The address to receive the withdrawn assets.
-    /// @param owner The address that owns the shares being burned.
-    /// @param targetMarket The address of the target cToken market to withdraw from.
-    /// @return shares The amount of shares burned.
-    function withdraw(
-        uint256 assets,
-        address receiver,
-        address owner,
-        address targetMarket
-    ) external nonReentrant returns (uint256 shares) {
-        _validateTargetMarket(targetMarket, false);
-        _accrueIfNeeded();
-
-        shares = previewWithdraw(assets);
-        _withdraw(assets, shares, receiver, owner, targetMarket);
-    }
-
-    /// @notice Standard ERC4626 redeem - redeems across multiple markets
+/// @notice Standard ERC4626 redeem - redeems across multiple markets
     ///         (worst-yield first) to ensure ERC4626 compliance.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
@@ -395,29 +337,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _withdrawMultiMarket(assets, shares, receiver, owner);
+        _withdraw(assets, shares, receiver, owner);
     }
 
-    /// @notice Redeems shares from a specific market.
-    /// @param shares The amount of shares to redeem.
-    /// @param receiver The address to receive the underlying assets.
-    /// @param owner The address that owns the shares being burned.
-    /// @param targetMarket The address of the target cToken market to withdraw from.
-    /// @return assets The amount of assets withdrawn.
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner,
-        address targetMarket
-    ) external nonReentrant returns (uint256 assets) {
-        _validateTargetMarket(targetMarket, false);
-        _accrueIfNeeded();
-
-        assets = previewRedeem(shares);
-        _withdraw(assets, shares, receiver, owner, targetMarket);
-    }
-
-    /// @notice Rebalances assets across approved markets.
+/// @notice Rebalances assets across approved markets.
     /// @dev Requires harvester permissions. Actions are processed in two passes:
     ///      withdrawals first, then deposits. This ensures sufficient liquidity
     ///      for deposits without requiring external capital.
@@ -897,14 +820,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         if (!foundViable) revert LendingOptimizer__MarketPaused();
     }
 
-    /// @dev Validates that `market` is approved and not paused for the given action.
-    ///      Reverts if market is not approved or is paused.
-    function _validateTargetMarket(address market, bool isDeposit) internal view {
-        if (!_isApprovedMarket(market)) revert LendingOptimizer__MarketNotApproved();
-        if (_isMarketPausedForAction(market, isDeposit)) revert LendingOptimizer__MarketPaused();
-    }
-
-    /// @dev Returns true if the market is paused for the given action.
+/// @dev Returns true if the market is paused for the given action.
     ///      Deposits check per-cToken `mintPaused` via the market manager;
     ///      withdrawals check market-wide `redeemPaused`.
     function _isMarketPausedForAction(
@@ -1015,9 +931,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @dev Shared pre-withdraw accounting: checks allowance, burns shares,
-    ///      and decrements `_totalAssets`. Used by both `_withdraw` (single
-    ///      market) and `_withdrawMultiMarket` (ERC4626 standard).
+    /// @dev Pre-withdraw accounting: checks allowance, burns shares,
+    ///      and decrements `_totalAssets`. Used by `_withdrawMultiMarket`.
     function _prepareWithdraw(
         uint256 assets,
         uint256 shares,
@@ -1029,27 +944,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _totalAssets -= assets;
     }
 
-    /// @dev Core withdraw logic shared by withdraw() and redeem() variants.
-    /// @param assets The amount of assets to withdraw.
-    /// @param shares The amount of shares to burn.
-    /// @param receiver The address to receive the withdrawn assets.
-    /// @param owner The address that owns the shares being burned.
-    /// @param targetMarket The target cToken market to withdraw from.
-    function _withdraw(
-        uint256 assets,
-        uint256 shares,
-        address receiver,
-        address owner,
-        address targetMarket
-    ) internal {
-        _prepareWithdraw(assets, shares, owner);
-        IBorrowableCToken(targetMarket).withdraw(assets, address(this), address(this));
-        SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
-
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /// @dev Withdraws `assets` across multiple markets, draining worst-yield first.
+/// @dev Withdraws `assets` across multiple markets, draining worst-yield first.
     ///
     ///      Why multi-market? Standard ERC4626 requires that
     ///      `withdraw(maxWithdraw(owner))` never reverts. If a user's assets
@@ -1073,7 +968,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @param shares Total shares to burn (already computed by caller).
     /// @param receiver Address to receive withdrawn assets.
     /// @param owner Address whose shares are burned.
-    function _withdrawMultiMarket(
+    function _withdraw(
         uint256 assets,
         uint256 shares,
         address receiver,

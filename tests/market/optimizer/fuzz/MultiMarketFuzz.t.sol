@@ -131,7 +131,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, amount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), amount);
-        harness.deposit(amount, depositor, market);
+        harness.deposit(amount, depositor);
         vm.stopPrank();
     }
 
@@ -259,7 +259,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, 1_000e6);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-        uint256 shares = harness.deposit(1_000e6, user2, cUSDC_WETH_MARKET);
+        uint256 shares = harness.deposit(1_000e6, user2);
         vm.stopPrank();
         assertGt(shares, 0, "Should be able to deposit to newly added market");
     }

@@ -691,7 +691,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         // Targeted deposit should fail before initialization
         vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        optimizer.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(depositAmount, address(this));
     }
 
     function test_lendingOptimizer_targetedMint_fail_whenNotInitialized() public {
@@ -720,7 +720,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         // Targeted mint should fail before initialization
         vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        optimizer.mint(1000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.mint(1000e6, address(this));
     }
 
 }

@@ -68,10 +68,6 @@ contract LendingOptimizerHandler is Test {
         return actors[seed % actors.length];
     }
 
-    function _selectMarket(uint256 seed) internal view returns (address) {
-        return markets[seed % markets.length];
-    }
-
     /// @dev Returns unconstrained allocation bounds for the optimizer.
     function _unconstrainedBounds()
         internal
@@ -114,17 +110,17 @@ contract LendingOptimizerHandler is Test {
     // ========================================================================
 
     /// @notice Deposit assets into the optimizer for a random actor.
-    function deposit(uint256 actorSeed, uint256 assets, uint256 marketIndex) external {
+    function deposit(uint256 actorSeed, uint256 assets, uint256 marketSeed) external {
         address actor = _selectActor(actorSeed);
         assets = bound(assets, 1e6, 10_000_000e6);
-        address market = _selectMarket(marketIndex);
+        address market = markets[marketSeed % markets.length];
 
         deal(address(usdc), actor, assets);
 
         vm.startPrank(actor);
         usdc.approve(address(optimizer), assets);
 
-        try optimizer.deposit(assets, actor, market) returns (uint256 shares) {
+        try optimizer.depositToMarket(assets, actor, market) returns (uint256 shares) {
             ghost_totalDeposited += assets;
             ghost_userDeposited[actor] += assets;
             ghost_totalSharesMinted += shares;
@@ -138,17 +134,16 @@ contract LendingOptimizerHandler is Test {
     }
 
     /// @notice Withdraw assets for a random actor who has shares.
-    function withdraw(uint256 actorSeed, uint256 assets, uint256 marketIndex) external {
+    function withdraw(uint256 actorSeed, uint256 assets, uint256) external {
         address actor = _selectActor(actorSeed);
         uint256 maxW = optimizer.maxWithdraw(actor);
         if (maxW == 0) return;
 
         assets = bound(assets, 1, maxW);
-        address market = _selectMarket(marketIndex);
 
         vm.startPrank(actor);
 
-        try optimizer.withdraw(assets, actor, actor, market) returns (uint256 shares) {
+        try optimizer.withdraw(assets, actor, actor) returns (uint256 shares) {
             ghost_totalWithdrawn += assets;
             ghost_userWithdrawn[actor] += assets;
             ghost_totalSharesBurned += shares;
@@ -162,17 +157,16 @@ contract LendingOptimizerHandler is Test {
     }
 
     /// @notice Redeem shares for a random actor who has shares.
-    function redeem(uint256 actorSeed, uint256 shares, uint256 marketIndex) external {
+    function redeem(uint256 actorSeed, uint256 shares, uint256) external {
         address actor = _selectActor(actorSeed);
         uint256 maxR = optimizer.maxRedeem(actor);
         if (maxR == 0) return;
 
         shares = bound(shares, 1, maxR);
-        address market = _selectMarket(marketIndex);
 
         vm.startPrank(actor);
 
-        try optimizer.redeem(shares, actor, actor, market) returns (uint256 assets) {
+        try optimizer.redeem(shares, actor, actor) returns (uint256 assets) {
             ghost_totalWithdrawn += assets;
             ghost_userWithdrawn[actor] += assets;
             ghost_totalSharesBurned += shares;
@@ -295,6 +289,8 @@ contract LendingOptimizerHandler is Test {
     function warpTime(uint256 duration) external {
         duration = bound(duration, 1, 7 days);
         vm.warp(block.timestamp + duration);
+        // Accrue interest so _totalAssets reflects the new cToken values.
+        try optimizer.exchangeRateUpdated() {} catch {}
         _updateExchangeRate();
     }
 

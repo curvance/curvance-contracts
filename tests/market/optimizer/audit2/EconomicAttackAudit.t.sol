@@ -165,7 +165,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user, amount);
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(harness), amount);
-        harness.deposit(amount, user, market);
+        harness.deposit(amount, user);
         vm.stopPrank();
     }
 
@@ -281,24 +281,15 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
                 vm.stopPrank();
 
                 if (reverted) {
-                    // Show that targeted withdrawal to a specific market
-                    // with enough balance could work.
-                    uint256 optimizerBal0 = IBorrowableCToken(cUSDC_WMON_MARKET)
-                        .convertToAssets(
-                            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
-                        );
-                    console2.log("Optimizer balance in market 0:", optimizerBal0);
-
-                    // Try targeted withdrawal from market with most idle.
-                    address targetMarket = idle0 >= idle1 ? cUSDC_WMON_MARKET : cUSDC_WBTC_MARKET;
+                    // Show that a smaller withdrawal within available liquidity works.
                     uint256 targetIdle = idle0 >= idle1 ? idle0 : idle1;
 
                     if (targetIdle > 100e6) {
                         uint256 safeAmount = targetIdle / 2;
                         vm.startPrank(victim);
-                        harness.withdraw(safeAmount, victim, victim, targetMarket);
+                        harness.withdraw(safeAmount, victim, victim);
                         vm.stopPrank();
-                        console2.log("Targeted withdrawal of", safeAmount, "from specific market succeeded");
+                        console2.log("Smaller withdrawal of", safeAmount, "succeeded");
                     }
                 }
             }
@@ -594,7 +585,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
                     if (safeAmount > 0) {
                         vm.startPrank(victim);
-                        harness.withdraw(safeAmount, victim, victim, bestMarket);
+                        harness.withdraw(safeAmount, victim, victim);
                         vm.stopPrank();
                         console2.log("  Targeted withdrawal of", safeAmount, "succeeded");
                     }
