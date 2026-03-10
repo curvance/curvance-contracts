@@ -70,6 +70,16 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         int256 assetsOrBps;
     }
 
+    /// @dev Snapshot of a single market used during multi-market withdrawals.
+    struct MarketSnapshot {
+        /// @dev The cToken market address.
+        address market;
+        /// @dev Current supply rate (used to sort worst-yield first).
+        uint256 rate;
+        /// @dev Max assets withdrawable: min(optimizer balance, market idle cash).
+        uint256 liquidity;
+    }
+
     /// CONSTANTS ///
 
     /// @dev Maximum fee in BPS (50% = 5000 BPS).
@@ -108,7 +118,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     uint8 public mintPaused;
     /// @notice Central registry for permissions and market manager lookups.
     ICentralRegistry public immutable centralRegistry;
-    
+
     /// EVENTS ///
 
     event MarketAdded(address indexed cToken, uint256 allocationCap);
@@ -138,8 +148,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     error LendingOptimizer__AlreadyInitialized();
     error LendingOptimizer__MintPaused();
     error LendingOptimizer__MarketPaused();
-
-    /// CONSTRUCTOR ///
 
     /// @notice Deploys a new LendingOptimizer for a single underlying asset.
     /// @dev Performs four categories of setup:
@@ -271,8 +279,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override nonReentrant returns (uint256 shares) {
         _checkMintPaused();
         _accrueIfNeeded();
-        // _optimalTarget(assets, true) true == deposit.
-        shares = _deposit(assets, receiver, approvedCTokensList[_optimalTarget(assets, true)]);
+        shares = _deposit(assets, receiver, approvedCTokensList[_optimalDepositTarget(assets)]);
     }
 
     /// @notice Deposits assets into a specific market and mints shares to receiver.
@@ -304,8 +311,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override nonReentrant returns (uint256 assets) {
         _checkMintPaused();
         _accrueIfNeeded();
-        // _optimalTarget(previewMint(shares), true) true == deposit.
-        assets = _mintShares(shares, receiver, approvedCTokensList[_optimalTarget(previewMint(shares), true)]);
+        assets = _mintShares(shares, receiver, approvedCTokensList[_optimalDepositTarget(previewMint(shares))]);
     }
 
     /// @notice Mints exact shares by depositing into a specific market.
@@ -328,7 +334,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         assets = _mintShares(shares, receiver, targetMarket);
     }
 
-    /// @notice Standard ERC4626 withdraw - withdraws from optimal market.
+    /// @notice Standard ERC4626 withdraw - withdraws across multiple markets
+    ///         (worst-yield first) to ensure ERC4626 compliance.
     /// @param assets The amount of underlying assets to withdraw.
     /// @param receiver The address to receive the withdrawn assets.
     /// @param owner The address that owns the shares being burned.
@@ -341,13 +348,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _accrueIfNeeded();
 
         shares = previewWithdraw(assets);
-        _withdraw(
-            assets,
-            shares,
-            receiver,
-            owner,
-            approvedCTokensList[_optimalTarget(assets, false)]
-        );
+        _withdrawMultiMarket(assets, shares, receiver, owner);
     }
 
     /// @notice Withdraws assets from a specific market.
@@ -369,7 +370,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _withdraw(assets, shares, receiver, owner, targetMarket);
     }
 
-    /// @notice Standard ERC4626 redeem - redeems from optimal market.
+    /// @notice Standard ERC4626 redeem - redeems across multiple markets
+    ///         (worst-yield first) to ensure ERC4626 compliance.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
     /// @param owner The address that owns the shares being burned.
@@ -382,13 +384,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _accrueIfNeeded();
 
         assets = previewRedeem(shares);
-        _withdraw(
-            assets,
-            shares,
-            receiver,
-            owner,
-            approvedCTokensList[_optimalTarget(assets, false)]
-        );
+        _withdrawMultiMarket(assets, shares, receiver, owner);
     }
 
     /// @notice Redeems shares from a specific market.
@@ -742,13 +738,34 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice Returns the maximum amount of assets that can be withdrawn from `owner`.
+    /// @dev Caps by actual available liquidity across all markets to ensure
+    ///      `withdraw(maxWithdraw(owner))` never reverts.
+    ///
+    ///      NOTE: This is a view function and does not accrue interest or mint
+    ///      fee shares. If pending fees exist, `withdraw()` will mint fee
+    ///      shares during its internal `_accrueIfNeeded()`, slightly lowering
+    ///      the exchange rate and requiring more shares per asset. In rare
+    ///      cases this can cause `withdraw(maxWithdraw(owner))` to revert due
+    ///      to insufficient shares. Callers can avoid this by calling
+    ///      `accrueIfNeeded()` in the same transaction before reading
+    ///      `maxWithdraw()`, ensuring the exchange rate is fresh.
     function maxWithdraw(address owner) public view override returns (uint256) {
-        return convertToAssets(balanceOf(owner));
+        uint256 ownerAssets = convertToAssets(balanceOf(owner));
+        uint256 liquidity = _availableLiquidity();
+        return ownerAssets < liquidity ? ownerAssets : liquidity;
     }
 
     /// @notice Returns the maximum amount of shares that can be redeemed from `owner`.
+    /// @dev Caps by actual available liquidity (converted to shares) to ensure
+    ///      `redeem(maxRedeem(owner))` never reverts.
+    ///
+    ///      NOTE: Same staleness caveat as `maxWithdraw()` — call
+    ///      `accrueIfNeeded()` first for exact values.
     function maxRedeem(address owner) public view override returns (uint256) {
-        return balanceOf(owner);
+        uint256 ownerShares = balanceOf(owner);
+        uint256 liquidity = _availableLiquidity();
+        uint256 liquidityShares = convertToShares(liquidity);
+        return ownerShares < liquidityShares ? ownerShares : liquidityShares;
     }
 
     /// @notice Returns current exchange rate (view function).
@@ -808,62 +825,42 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Selects the best market index for a deposit or withdrawal
-    ///      by projecting each market's supply rate after the action.
-    ///
-    ///      DEPOSITS  – Every market is a candidate. The market whose IRM
-    ///                   projects the **highest** supply rate after the
-    ///                   deposit wins (routes capital where yield is best).
-    ///
-    ///      WITHDRAWALS – A market is viable when (a) this optimizer holds
-    ///                    enough cToken shares AND (b) the market has enough
-    ///                    idle liquidity. Among viable markets the one that
-    ///                    projects the **lowest** supply rate wins, draining
-    ///                    the weakest performer first.
-    ///                    Reverts if no market qualifies.
-    ///
-    /// @param assets  Amount of underlying assets to deposit or withdraw.
-    /// @param isDeposit  `true` for a deposit, `false` for a withdrawal.
+    /// @dev Selects the best market index for a deposit by projecting each
+    ///      market's supply rate after adding `assets`. The market whose IRM
+    ///      projects the highest supply rate wins (routes capital where yield
+    ///      is best). Reverts if no unpaused market exists.
+    /// @param assets  Amount of underlying assets to deposit.
     /// @return targetIndex  Index into `approvedCTokensList` of the chosen market.
-    function _optimalTarget(uint256 assets, bool isDeposit) internal view returns (uint256 targetIndex) {
+    function _optimalDepositTarget(uint256 assets) internal view returns (uint256 targetIndex) {
         uint256 l = approvedCTokensList.length;
 
         if (l == 0) revert LendingOptimizer__MarketNotApproved();
 
-        uint256 optimalRate = isDeposit ? 0 : type(uint256).max;
+        uint256 optimalRate;
         bool foundViable;
 
         for (uint256 i; i < l; ++i) {
             address cTokenAddr = approvedCTokensList[i];
 
-            // Skip markets paused for this action type.
-            if (_isMarketPausedForAction(cTokenAddr, isDeposit)) continue;
+            // Skip markets paused for deposits.
+            if (_isMarketPausedForAction(cTokenAddr, true)) continue;
 
             IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
-            uint256 assetsHeld = cToken.assetsHeld();
-
-            // Withdrawals require sufficient balance and idle liquidity.
-            if (!isDeposit) {
-                if (_getMarketAssets(cTokenAddr) < assets || assetsHeld < assets) continue;
-            }
 
             uint256 projectedRate = cToken.IRM().supplyRate(
-                isDeposit ? assetsHeld + assets : assetsHeld - assets,
+                cToken.assetsHeld() + assets,
                 cToken.marketOutstandingDebt(),
                 cToken.interestFee()
             );
 
-            if (isDeposit ? (!foundViable || projectedRate > optimalRate) : projectedRate < optimalRate) {
+            if (!foundViable || projectedRate > optimalRate) {
                 foundViable = true;
                 optimalRate = projectedRate;
                 targetIndex = i;
             }
         }
 
-        if (!foundViable) {
-            if (isDeposit) revert LendingOptimizer__MarketPaused();
-            revert LendingOptimizer__InsufficientLiquidity();
-        }
+        if (!foundViable) revert LendingOptimizer__MarketPaused();
     }
 
     /// @dev Validates that `market` is approved and not paused for the given action.
@@ -974,6 +971,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver,
         address targetMarket
     ) internal returns (uint256 assets) {
+        if (shares == 0) revert LendingOptimizer__InvalidParameter();
         // Round up: user pays ceiling amount of assets for the requested shares.
         assets = previewMint(shares);
         _totalAssets += _pullAndDeposit(assets, targetMarket);
@@ -981,6 +979,20 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /// @dev Shared pre-withdraw accounting: checks allowance, burns shares,
+    ///      and decrements `_totalAssets`. Used by both `_withdraw` (single
+    ///      market) and `_withdrawMultiMarket` (ERC4626 standard).
+    function _prepareWithdraw(
+        uint256 assets,
+        uint256 shares,
+        address owner
+    ) internal {
+        if (assets == 0) revert LendingOptimizer__InvalidParameter();
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+        _totalAssets -= assets;
     }
 
     /// @dev Core withdraw logic shared by withdraw() and redeem() variants.
@@ -996,13 +1008,149 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address owner,
         address targetMarket
     ) internal {
-        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-        _burn(owner, shares);
-        _totalAssets -= assets;
+        _prepareWithdraw(assets, shares, owner);
         IBorrowableCToken(targetMarket).withdraw(assets, address(this), address(this));
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /// @dev Withdraws `assets` across multiple markets, draining worst-yield first.
+    ///
+    ///      Why multi-market? Standard ERC4626 requires that
+    ///      `withdraw(maxWithdraw(owner))` never reverts. If a user's assets
+    ///      are spread across N markets and no single market has enough idle
+    ///      liquidity, a single-market withdraw would revert. This function
+    ///      solves that by pulling from as many markets as needed.
+    ///
+    ///      Algorithm (3 phases):
+    ///        1. SNAPSHOT — For each market, record its address, current
+    ///           supply rate, and how much the optimizer can actually withdraw
+    ///           from it (capped by both the optimizer's cToken balance and
+    ///           the market's idle cash).
+    ///        2. SORT — Selection-sort the snapshots ascending by supply rate
+    ///           so the lowest-yielding (worst) markets come first.
+    ///           Max 8 markets ⇒ O(n²) is ~28 comparisons worst case.
+    ///        3. DRAIN — Walk the sorted list, pulling
+    ///           min(remaining, available) from each market until the full
+    ///           `assets` amount is satisfied.
+    ///
+    /// @param assets Total underlying assets to withdraw.
+    /// @param shares Total shares to burn (already computed by caller).
+    /// @param receiver Address to receive withdrawn assets.
+    /// @param owner Address whose shares are burned.
+    function _withdrawMultiMarket(
+        uint256 assets,
+        uint256 shares,
+        address receiver,
+        address owner
+    ) internal {
+        // Burn shares, spend allowance if needed, decrement _totalAssets.
+        _prepareWithdraw(assets, shares, owner);
+
+        uint256 l = approvedCTokensList.length;
+
+        // Build one snapshot per market: its address, supply rate,
+        // and how much the optimizer can actually pull from it.
+        MarketSnapshot[] memory markets = new MarketSnapshot[](l);
+
+        for (uint256 i; i < l; ++i) {
+            address cTokenAddr = approvedCTokensList[i];
+
+            // Paused markets contribute 0 liquidity; fields stay 0.
+            if (_isMarketPausedForAction(cTokenAddr, false)) continue;
+
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
+
+            // How much the optimizer owns in this market (in underlying).
+            uint256 optimizerAssets = cToken.convertToAssets(
+                cToken.balanceOf(address(this))
+            );
+            // How much idle cash the market actually has for withdrawals.
+            uint256 marketLiquidity = cToken.assetsHeld();
+
+            // Snapshot the market address, liquidity, current supply rate.
+            markets[i].market = cTokenAddr;
+
+            // Withdrawable = lesser of what we own vs. what the market can pay.
+            markets[i].liquidity = optimizerAssets < marketLiquidity
+                ? optimizerAssets
+                : marketLiquidity;
+
+            markets[i].rate = cToken.IRM().supplyRate(
+                cToken.assetsHeld(),
+                cToken.marketOutstandingDebt(),
+                cToken.interestFee()
+            );
+        }
+
+        // Use selection sort to order markets by ascending supply rate (worst yield first).
+        for (uint256 i; i < l; ++i) {
+            uint256 minPos = i;
+
+            // Scan the unsorted tail for a lower rate.
+            for (uint256 j = i + 1; j < l; ++j) {
+                if (markets[j].rate < markets[minPos].rate) {
+                    minPos = j;
+                }
+            }
+
+            // If a lower rate was found, swap the positions.
+            if (minPos != i) {
+                (markets[i], markets[minPos]) = (markets[minPos], markets[i]);
+            }
+        }
+
+        // Walk the sorted array from index 0 (lowest rate) upward.
+        uint256 remaining = assets;
+        for (uint256 i; i < l && remaining > 0; ++i) {
+            // Nothing to pull from this market (paused or fully borrowed).
+            if (markets[i].liquidity == 0) continue;
+
+            // Pull as much as we need, capped by what this market can give.
+            uint256 withdrawAmount = remaining < markets[i].liquidity
+                ? remaining
+                : markets[i].liquidity;
+
+            IBorrowableCToken(markets[i].market).withdraw(
+                withdrawAmount, address(this), address(this)
+            );
+            remaining -= withdrawAmount;
+        }
+
+        // Safety check, should never trigger.
+        if (remaining > 0) revert LendingOptimizer__InsufficientLiquidity();
+
+        // Transfer the full amount to the receiver in one shot.
+        SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+
+    /// @dev Returns total withdrawable liquidity across all non-paused markets.
+    ///      For each market, withdrawable = min(optimizer's balance, market's idle cash).
+    ///      Used by maxWithdraw/maxRedeem to cap reported values so that
+    ///      `withdraw(maxWithdraw(owner))` never reverts due to illiquidity.
+    ///
+    ///      NOTE: This is a view function and does NOT accrue interest first.
+    ///      `convertToAssets` may slightly underestimate (interest not yet
+    ///      credited), making the returned value conservative — which is safe.
+    function _availableLiquidity() internal view returns (uint256 total) {
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            address cTokenAddr = approvedCTokensList[i];
+            // Paused markets cannot be withdrawn from; skip entirely.
+            if (_isMarketPausedForAction(cTokenAddr, false)) continue;
+
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
+            
+            // What the optimizer owns in this market (underlying terms).
+            uint256 optimizerAssets = cToken.convertToAssets(cToken.balanceOf(address(this)));
+            // What the market can actually pay out (idle cash on hand).
+            uint256 marketLiquidity = cToken.assetsHeld();
+            // Withdrawable from this market = lesser of the two.
+            total += optimizerAssets < marketLiquidity ? optimizerAssets : marketLiquidity;
+        }
     }
 
     /// @dev Validates that total allocation caps sum to at least 100%.

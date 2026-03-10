@@ -67,7 +67,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
     }
 
     /// @dev Mocks a cToken with full operational support (for _accrueMarkets,
-    ///      _optimalTarget, _depositToMarket, etc.). Returns 0 balance/assets
+    ///      _optimalDepositTarget, _depositToMarket, etc.). Returns 0 balance/assets
     ///      by default so the market behaves as empty.
     function _mockOperationalCToken(address mockMarket) internal {
         _mockValidCToken(mockMarket);

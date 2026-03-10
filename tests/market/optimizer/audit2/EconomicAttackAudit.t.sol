@@ -217,7 +217,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
     /// @notice Tests whether a harvester can prevent standard withdrawals
     ///         by moving all assets into markets with no idle liquidity.
-    /// @dev If all markets' assetsHeld() is 0, optimalWithdrawalTarget reverts.
+    /// @dev If all markets' assetsHeld() is 0, _withdrawMultiMarket reverts.
     ///      Users must use targeted withdrawals to specific markets.
     function test_attack_B_strategicRebalanceForWithdrawalDoS() public {
         _setUpHarnessTwoMarketsNoFee();
@@ -246,7 +246,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         }
 
         // Now show the concept: if both markets have 0 idle liquidity,
-        // optimalWithdrawalTarget would revert.
+        // _withdrawMultiMarket would revert.
         // We test by trying to withdraw more than available idle liquidity.
         uint256 totalIdle = idle0 + idle1;
         if (totalIdle > 0) {
@@ -255,7 +255,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             if (largeWithdraw <= victimAssets) {
                 // This should revert because no single market has enough idle.
-                // optimalWithdrawalTarget checks per-market, not aggregate.
+                // _withdrawMultiMarket drains worst-yield markets first.
                 bool reverted = false;
                 vm.startPrank(victim);
                 try harness.withdraw(largeWithdraw, victim, victim) {
@@ -523,7 +523,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    // F. optimalWithdrawalTarget GRIEFING
+    // F. MULTI-MARKET WITHDRAWAL GRIEFING
     // =====================================================================
 
     /// @notice Tests that when all markets have insufficient idle liquidity
@@ -553,7 +553,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             // Only test if victim has enough shares for this withdrawal.
             if (oversizedWithdraw <= victimAssets) {
-                // Standard withdraw uses optimalWithdrawalTarget.
+                // Standard withdraw uses _withdrawMultiMarket.
                 // It checks EACH market individually:
                 //   marketAssets >= assets && cToken.assetsHeld() >= assets
                 // If no single market passes both checks, it reverts.

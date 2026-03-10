@@ -302,32 +302,6 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
-    function test_lendingOptimizer_redeem_success_optimalMarketSelectsCorrectly() public {
-        // Deposit to multiple markets
-        _depositToMarket(user1, 50_000e6, cUSDC_WMON_MARKET);
-        _depositToMarket(user1, 30_000e6, cUSDC_WBTC_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 sharesToRedeem = 10_000e6;
-        uint256 expectedAssets = optimizer.previewRedeem(sharesToRedeem);
-
-        // Get the expected optimal target before redeem
-        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(expectedAssets);
-        address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
-
-        // Get market balance before
-        uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-
-        optimizer.redeem(sharesToRedeem, user1, user1);
-
-        // Verify redeem came from the expected market
-        uint256 marketBalanceAfter = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-        assertLt(marketBalanceAfter, marketBalanceBefore, "Expected market should have reduced balance");
-
-        vm.stopPrank();
-    }
-
     function test_lendingOptimizer_redeem_success_optimalMarketMultipleRedeems() public {
         uint256 depositAmount = 100_000e6;
         _depositForUser(user1, depositAmount);

@@ -44,13 +44,8 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return convertToShares(assets);
     }
 
-    /// @notice Exposes _optimalTarget for deposit target selection.
+    /// @notice Exposes _optimalDepositTarget for deposit target selection.
     function optimalDepositTarget(uint256 assets) external view returns (uint256) {
-        return _optimalTarget(assets, true);
-    }
-
-    /// @notice Exposes _optimalTarget for withdrawal target selection.
-    function optimalWithdrawalTarget(uint256 assets) external view returns (uint256) {
-        return _optimalTarget(assets, false);
+        return _optimalDepositTarget(assets);
     }
 }

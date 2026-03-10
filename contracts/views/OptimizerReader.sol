@@ -126,65 +126,33 @@ contract OptimizerReader {
     /// @param optimizer The LendingOptimizer address.
     /// @param assets The amount of underlying assets to deposit.
     /// @return market The cToken market address to deposit into.
+    ///         Returns address(0) if no viable market exists.
     function optimalDeposit(
         address optimizer,
         uint256 assets
     ) external view returns (address market) {
-        return _optimalMarket(optimizer, assets, true);
-    }
-
-    /// @notice Returns the single best market to withdraw from, based on lowest projected supply rate.
-    /// @param optimizer The LendingOptimizer address.
-    /// @param assets The amount of underlying assets to withdraw.
-    /// @return market The cToken market address to withdraw from.
-    ///         Returns address(0) if no market has sufficient balance and liquidity.
-    function optimalWithdrawal(
-        address optimizer,
-        uint256 assets
-    ) external view returns (address market) {
-        return _optimalMarket(optimizer, assets, false);
-    }
-
-    /// INTERNAL FUNCTIONS ///
-
-    /// @dev Shared implementation for optimalDeposit and optimalWithdrawal.
-    ///      When `isDeposit` is true, finds the highest supply rate after adding
-    ///      `assets`; when false, finds the lowest supply rate after removing `assets`.
-    function _optimalMarket(
-        address optimizer,
-        uint256 assets,
-        bool isDeposit
-    ) internal view returns (address market) {
         address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = cTokens.length;
 
         if (numMarkets == 0) return address(0);
-        if (isDeposit && numMarkets == 1) {
+        if (numMarkets == 1) {
             return _isMintPaused(cTokens[0]) ? address(0) : cTokens[0];
         }
 
-        uint256 bestRate = isDeposit ? 0 : type(uint256).max;
+        uint256 bestRate;
         bool found;
         for (uint256 i; i < numMarkets; ++i) {
-            IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
-            uint256 held = _assetsHeld(ct);
+            if (_isMintPaused(cTokens[i])) continue;
 
-            if (isDeposit) {
-                if (_isMintPaused(cTokens[i])) continue;
-                held += assets;
-            } else {
-                if (MarketManagerIsolated(address(_marketManager(cTokens[i]))).redeemPaused() == 2) continue;
-                if (ct.convertToAssets(_balanceOf(address(ct), optimizer)) < assets || held < assets) continue;
-                held -= assets;
-            }
+            IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
 
             uint256 rate = _IRM(ct).supplyRate(
-                held,
+                _assetsHeld(ct) + assets,
                 _outstandingDebt(ct),
                 _interestFee(ct)
             );
 
-            if (isDeposit ? (!found || rate > bestRate) : rate < bestRate) {
+            if (!found || rate > bestRate) {
                 bestRate = rate;
                 market = cTokens[i];
                 found = true;

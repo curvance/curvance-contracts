@@ -100,19 +100,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         optimizer.deposit(1000, address(this), cUSDC_WETH_MARKET);
     }
 
-    // ==================== WITHDRAWAL TARGET SELECTION ====================
-
-    /// @notice Verifies optimal withdrawal target skips dust markets when
-    ///         withdrawal amount exceeds their balance.
-    function test_dustAllocation_optimalWithdrawalTarget_skipsDustMarkets() public {
-        _createExtremeImbalance();
-
-        // Try to withdraw 1000 USDC - dust markets can't fulfill this.
-        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(1000e6);
-
-        // Should select market 0 (the only one with sufficient balance).
-        assertEq(target, 0, "Should skip dust markets and select market 0");
-    }
+    // ==================== WITHDRAWAL BEHAVIOR ====================
 
     /// @notice Verifies withdrawal works when dust markets exist but main market
     ///         handles the withdrawal.
@@ -136,24 +124,6 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         uint256 dustMarket2Balance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
         assertGt(dustMarket1Balance, 0, "Dust market 1 should be untouched");
         assertGt(dustMarket2Balance, 0, "Dust market 2 should be untouched");
-    }
-
-    /// @notice Verifies withdrawal of exact dust amount works.
-    function test_dustAllocation_withdraw_success_exactDustAmount() public {
-        _createExtremeImbalance();
-
-        // Get dust market balance.
-        uint256 dustMarketAssets = IBorrowableCToken(cUSDC_WBTC_MARKET).convertToAssets(
-            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer))
-        );
-
-        // This is a tricky case - can we withdraw exactly the dust amount?
-        // The optimal target might not select this market due to liquidity checks.
-        uint256 target = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(dustMarketAssets);
-
-        // Log for debugging.
-        emit log_named_uint("Dust market assets", dustMarketAssets);
-        emit log_named_uint("Selected target", target);
     }
 
     // ==================== DEPOSIT BEHAVIOR ====================

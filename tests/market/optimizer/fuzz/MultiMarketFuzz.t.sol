@@ -160,39 +160,6 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
     }
 
     /// @dev Helper to verify withdrawal target has the lowest projected rate among viable markets.
-    function _verifyWithdrawalOptimal(
-        uint256 targetIndex,
-        uint256 withdrawAmount
-    ) internal view {
-        address chosenMarket = harness.approvedCTokensList(targetIndex);
-        IBorrowableCToken chosenCt = IBorrowableCToken(chosenMarket);
-        uint256 chosenRate = chosenCt.IRM().supplyRate(
-            chosenCt.assetsHeld() - withdrawAmount,
-            chosenCt.marketOutstandingDebt(),
-            chosenCt.interestFee()
-        );
-
-        for (uint256 i = 0; i < 3; i++) {
-            if (i == targetIndex) continue;
-            address otherMarket = harness.approvedCTokensList(i);
-            uint256 otherAssets = _getMarketAssets(otherMarket);
-            uint256 otherLiquidity = IBorrowableCToken(otherMarket).assetsHeld();
-
-            if (otherAssets >= withdrawAmount && otherLiquidity >= withdrawAmount) {
-                IBorrowableCToken otherCt = IBorrowableCToken(otherMarket);
-                uint256 otherRate = otherCt.IRM().supplyRate(
-                    otherCt.assetsHeld() - withdrawAmount,
-                    otherCt.marketOutstandingDebt(),
-                    otherCt.interestFee()
-                );
-                assertLe(
-                    chosenRate,
-                    otherRate,
-                    "Chosen market must have lowest projected rate among viable markets"
-                );
-            }
-        }
-    }
 
     // ==================== Tests ====================
 
@@ -231,62 +198,6 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 shares = harness.deposit(depositAmount, user1);
         vm.stopPrank();
         assertGt(shares, 0, "Deposit must mint shares");
-    }
-
-    function testFuzz_optimalWithdrawalTarget_varied(
-        uint256 withdrawAmount,
-        uint256 market0Deposit,
-        uint256 market1Deposit
-    ) public {
-        _deployThreeMarketHarness();
-
-        // Pre-load different amounts into markets.
-        market0Deposit = bound(market0Deposit, 100e6, 5_000_000e6);
-        market1Deposit = bound(market1Deposit, 100e6, 5_000_000e6);
-
-        _depositToHarnessMarket(user1, market0Deposit, cUSDC_WMON_MARKET);
-        _depositToHarnessMarket(user1, market1Deposit, cUSDC_WBTC_MARKET);
-
-        // Bound withdraw to what is actually withdrawable.
-        uint256 maxW = harness.maxWithdraw(user1);
-        vm.assume(maxW >= 1e6);
-
-        // Further bound withdrawal to the maximum liquidity available in any
-        // single market. The optimizer's optimalWithdrawalTarget selects a
-        // single market, so the withdrawal amount must fit within one market's
-        // available liquidity.
-        uint256 maxSingleMarketLiquidity;
-        for (uint256 i = 0; i < harness.numApprovedMarkets(); i++) {
-            address m = harness.approvedCTokensList(i);
-            uint256 mAssets = _getMarketAssets(m);
-            uint256 mLiquidity = IBorrowableCToken(m).assetsHeld();
-            uint256 available = mAssets < mLiquidity ? mAssets : mLiquidity;
-            if (available > maxSingleMarketLiquidity) {
-                maxSingleMarketLiquidity = available;
-            }
-        }
-        vm.assume(maxSingleMarketLiquidity >= 1e6);
-
-        uint256 effectiveMax = maxW < maxSingleMarketLiquidity ? maxW : maxSingleMarketLiquidity;
-        vm.assume(effectiveMax >= 1e6);
-        withdrawAmount = bound(withdrawAmount, 1e6, effectiveMax);
-
-        // Call optimalWithdrawalTarget.
-        uint256 targetIndex = harness.optimalWithdrawalTarget(withdrawAmount);
-        assertLt(targetIndex, 3, "Target index must be within bounds");
-
-        {
-            address chosenMarket = harness.approvedCTokensList(targetIndex);
-            uint256 chosenAssets = _getMarketAssets(chosenMarket);
-            uint256 chosenLiquidity = IBorrowableCToken(chosenMarket).assetsHeld();
-
-            // Verify the chosen market has sufficient balance and liquidity.
-            assertGe(chosenAssets, withdrawAmount, "Chosen market must have enough balance");
-            assertGe(chosenLiquidity, withdrawAmount, "Chosen market must have enough liquidity");
-        }
-
-        // Verify no other viable market has a lower projected rate.
-        _verifyWithdrawalOptimal(targetIndex, withdrawAmount);
     }
 
     function testFuzz_marketAdditionMidOperation(
