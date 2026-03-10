@@ -498,9 +498,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
-        // Revert if no reallocation targets are provided.
-        if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
-
         // Revert if there is only one market.
         uint256 l = approvedCTokensList.length;
         if (l == 1) revert LendingOptimizer__InvalidParameter();
@@ -516,49 +513,64 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         IBorrowableCToken cToken = IBorrowableCToken(cTokenToRemove);
 
-        // Redeem all shares from the market being removed.
-        uint256 assetsRedeemed = cToken.redeem(
-            cToken.balanceOf(address(this)),
-            address(this),
-            address(this)
-        );
-
         // Delete the allocation cap for the removed market.
         delete allocationCaps[cTokenToRemove];
 
-        // Distribute redeemed assets proportionally via BPS.
-        uint256 totalBps;
-        uint256 totalDeposited;
-        uint256 lastAction = removeActions.length - 1;
+        // Check if there are actual assets to redeem.
+        // Both zero shares and non-zero shares that round down to
+        // zero assets are handled.
+        uint256 sharesToRedeem = cToken.balanceOf(address(this));
+        uint256 previewedAssets = sharesToRedeem > 0
+            ? cToken.convertToAssets(sharesToRedeem)
+            : 0;
 
-        for (uint256 i; i <= lastAction; ++i) {
-            address cTokenAddress = address(removeActions[i].cToken);
-            int256 bps = removeActions[i].assetsOrBps;
+        // Only redeem and reallocate if there are previewed assets.
+        // Else we can skip straight to removing the market from the approved list.
+        if (previewedAssets > 0) {
+            // Revert if no reallocation targets are provided.
+            if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
 
-            // Revert if BPS is not positive.
-            if (bps <= 0) revert LendingOptimizer__InvalidParameter();
-            // Revert if target is the market being removed.
-            if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
-            // Revert if the reallocation target is not an approved market.
-            if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
+            // Redeem all shares from the market being removed.
+            uint256 assetsRedeemed = cToken.redeem(
+                sharesToRedeem,
+                address(this),
+                address(this)
+            );
 
-            totalBps += uint256(bps);
+            // Distribute redeemed assets proportionally via BPS.
+            uint256 totalBps;
+            uint256 totalDeposited;
+            uint256 lastAction = removeActions.length - 1;
 
-            // Last target receives the remainder to avoid dust.
-            // Else deposit normally.
-            uint256 depositAmount;
-            if (i == lastAction) {
-                depositAmount = assetsRedeemed - totalDeposited;
-            } else {
-                depositAmount = FixedPointMathLib.mulDiv(assetsRedeemed, uint256(bps), BPS);
-                totalDeposited += depositAmount;
+            for (uint256 i; i <= lastAction; ++i) {
+                address cTokenAddress = address(removeActions[i].cToken);
+                int256 bps = removeActions[i].assetsOrBps;
+
+                // Revert if BPS is not positive.
+                if (bps <= 0) revert LendingOptimizer__InvalidParameter();
+                // Revert if target is the market being removed.
+                if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
+                // Revert if the reallocation target is not an approved market.
+                if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
+
+                totalBps += uint256(bps);
+
+                // Last target receives the remainder to avoid dust.
+                // Else deposit normally.
+                uint256 depositAmount;
+                if (i == lastAction) {
+                    depositAmount = assetsRedeemed - totalDeposited;
+                } else {
+                    depositAmount = FixedPointMathLib.mulDiv(assetsRedeemed, uint256(bps), BPS);
+                    totalDeposited += depositAmount;
+                }
+
+                _depositToMarket(cTokenAddress, depositAmount);
             }
 
-            _depositToMarket(cTokenAddress, depositAmount);
+            // Revert if BPS values do not sum to exactly 100%.
+            if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
         }
-
-        // Revert if BPS values do not sum to exactly 100%.
-        if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
 
         // Find the index of the cToken to remove.
         uint256 removeIndex;

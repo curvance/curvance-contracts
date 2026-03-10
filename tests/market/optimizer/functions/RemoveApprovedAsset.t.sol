@@ -535,6 +535,53 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertEq(usdcAfter, usdcBefore, "No USDC dust should remain in optimizer");
     }
 
+    /// @notice Removing an approved asset that has zero deposits should succeed
+    ///         with empty removeActions (no assets to reallocate).
+    function test_lendingOptimizer_removeApprovedAsset_success_zeroDeposits() public {
+        _setUpThreeMarkets();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Deposit only to markets 0 and 1, leaving market 2 empty.
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
+        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 10_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
+        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        // Confirm market 2 has zero balance.
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer)),
+            0,
+            "Market 2 should have zero shares before removal"
+        );
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 numMarketsBefore = optimizer.numApprovedMarkets();
+        assertEq(numMarketsBefore, 3, "Should have 3 markets before removal");
+
+        // Remove market 2 with empty removeActions — no assets to reallocate.
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+
+        // Verify market was removed.
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
+        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 0, "Removed market cap should be 0");
+
+        // Verify total assets unchanged.
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
+
+        // Verify remaining markets are correct.
+        assertEq(optimizer.approvedCTokensList(0), cUSDC_WMON_MARKET, "Market 0 should be WMON");
+        assertEq(optimizer.approvedCTokensList(1), cUSDC_WBTC_MARKET, "Market 1 should be WBTC");
+    }
+
     function test_lendingOptimizer_removeApprovedAsset_fail_whenRemainingCapsUnder100() public {
         // Setup with two markets (60% + 50% = 110%).
         // Removing either one leaves remaining cap < 100%.
