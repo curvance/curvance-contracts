@@ -200,7 +200,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         _prepareUSDC(address(this), BASE_RESERVE);
         usdc.approve(address(optimizer), BASE_RESERVE);
 
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(address(borrowableCUSDC));
     }
 
     /// @dev Provides liquidity to all markets for borrowing

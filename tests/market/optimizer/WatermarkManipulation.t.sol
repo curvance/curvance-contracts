@@ -61,7 +61,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         // Initialize optimizer with dead shares.
         _prepareUSDC(address(this), BASE_RESERVE);
         usdc.approve(address(optimizer), BASE_RESERVE);
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(address(borrowableCUSDC));
     }
 
     /// @dev Creates a borrower with DAI collateral and USDC debt.

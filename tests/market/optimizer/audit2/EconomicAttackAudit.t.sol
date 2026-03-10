@@ -113,7 +113,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Mock harvester permissions for a given address.

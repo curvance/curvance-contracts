@@ -118,7 +118,7 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
         // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
         deal(USDC_ADDRESS_MONAD, address(this), 77777);
         IERC20(USDC_ADDRESS_MONAD).approve(address(optimizer), 77777);
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(address(borrowableCUSDCMonad));
 
         // Seed liquidity into borrowableCUSDCMonad.
         address liquidityProvider = makeAddr("liquidityProvider");

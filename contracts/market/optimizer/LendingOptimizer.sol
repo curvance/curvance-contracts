@@ -233,9 +233,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @notice Initializes the optimizer with dead shares to prevent inflation attacks.
     /// @dev This initial mint is a failsafe against rounding exploits.
     ///      Must be called before any deposits can be made.
-    /// @param targetMarket The index of the market to deposit initial assets into.
+    /// @param targetMarket The address of the market to deposit initial assets into.
     function initializeDeposits(
-        uint256 targetMarket
+        address targetMarket
     ) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
@@ -243,14 +243,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Revert if the market has already been initialized.
         if (mintPaused != 0) revert LendingOptimizer__AlreadyInitialized();
         // Array length sanity check.
-        if (targetMarket >= approvedCTokensList.length) revert LendingOptimizer__MarketNotApproved();
+        if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
 
         // Transfer _BASE_UNDERLYING_RESERVE assets.
         uint256 assets = _BASE_UNDERLYING_RESERVE;
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
 
         // Deposit into target market.
-        uint256 trackedAssets = _depositToMarket(approvedCTokensList[targetMarket], assets);
+        uint256 trackedAssets = _depositToMarket(targetMarket, assets);
 
         // Update _totalAssets with the actual recoverable value.
         _totalAssets += trackedAssets;

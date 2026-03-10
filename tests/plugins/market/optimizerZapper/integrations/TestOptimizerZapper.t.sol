@@ -78,7 +78,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
         _prepareUSDC(address(this), 77777);
         usdc.approve(address(optimizer), 77777);
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(address(borrowableCUSDC));
 
         // Seed liquidity into borrowableCUSDC so deposits have somewhere to go.
         address liquidityProvider = makeAddr("liquidityProvider");
@@ -360,7 +360,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         // Initialize the optimizer.
         _prepareUSDC(address(this), 77777);
         usdc.approve(address(optimizer2), 77777);
-        optimizer2.initializeDeposits(0);
+        optimizer2.initializeDeposits(address(borrowableCUSDC));
 
         // Deposit 1000 USDC entirely into market 0 — this pushes market 0
         // to ~100% of total assets, well above its 50% cap.

@@ -60,7 +60,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Like _setUpHarnessThreeMarkets but with unconstrained caps (100% each).
@@ -87,7 +87,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Helper: remove market 2 (WETH) and reallocate to both remaining markets
@@ -650,7 +650,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Add with minimum cap (1 BPS = 0.01%).
         harness.addApprovedAsset(cUSDC_WETH_MARKET, 1);

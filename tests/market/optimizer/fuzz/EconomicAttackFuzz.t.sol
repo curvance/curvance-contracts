@@ -61,7 +61,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     // =========================================================================
@@ -99,7 +99,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(fresh), initAssets);
-        fresh.initializeDeposits(0);
+        fresh.initializeDeposits(cUSDC_WMON_MARKET);
 
         uint256 exchangeRateBefore = fresh.exchangeRate();
         uint256 totalAssetsBefore = fresh.totalAssets();
@@ -258,7 +258,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(roundingHarness), initAssets);
-        roundingHarness.initializeDeposits(0);
+        roundingHarness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit a substantial amount into market 0.
         uint256 depositAmount = 5_000_000e6;
@@ -368,7 +368,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(feeHarness), initAssets);
-        feeHarness.initializeDeposits(0);
+        feeHarness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit.
         uint256 depositAmount = 5_000_000e6;

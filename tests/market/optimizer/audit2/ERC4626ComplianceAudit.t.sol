@@ -61,7 +61,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         daoAddr = liveCentralRegistry.daoAddress();
     }
@@ -88,7 +88,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         daoAddr = liveCentralRegistry.daoAddress();
     }
@@ -115,7 +115,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Deposit USDC for a specific user into the harness.

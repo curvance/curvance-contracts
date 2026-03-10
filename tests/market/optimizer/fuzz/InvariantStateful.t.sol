@@ -55,7 +55,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Seed initial deposits so the vault has meaningful state.
         deal(USDC_MONAD, address(this), 300_000e6);

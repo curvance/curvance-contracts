@@ -51,7 +51,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Sets up a zero-fee harness for testing accrual without fee interference.
@@ -79,7 +79,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Calculates expected exchange rate: WAD * totalAssets / totalSupply

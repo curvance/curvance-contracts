@@ -283,7 +283,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _setUpTwoMarkets() internal {
@@ -312,7 +312,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _setUpThreeMarkets() internal {
@@ -343,7 +343,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositToAllMarkets(uint256 amountPerMarket) internal {

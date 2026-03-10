@@ -58,7 +58,7 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     // ============ deposit(assets, receiver, targetMarket) Tests ============

@@ -54,7 +54,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _deployTwoMarketHarness() internal {
@@ -77,7 +77,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _deployTightCapHarness() internal {
@@ -103,7 +103,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositToHarness(address depositor, uint256 amount) internal {

@@ -50,7 +50,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositForUser(address user, uint256 amount) internal {

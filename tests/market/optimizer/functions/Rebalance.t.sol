@@ -228,7 +228,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        testOptimizer.initializeDeposits(0);
+        testOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit to both markets.
         deal(USDC_MONAD, address(this), 20_000e6);

@@ -54,7 +54,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Creates extreme imbalance: 1M in market 0, dust in markets 1 and 2.

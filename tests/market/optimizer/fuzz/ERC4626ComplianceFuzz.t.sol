@@ -59,7 +59,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Seed some initial liquidity so exchange rate is established.
         deal(USDC_MONAD, address(this), 500_000e6);

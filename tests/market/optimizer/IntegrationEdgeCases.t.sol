@@ -187,7 +187,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 4, "Should have 4 approved markets");
 
@@ -261,7 +261,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 5, "Should have 5 approved markets");
 
@@ -345,7 +345,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 6, "Should have MAX_MARKETS");
 
@@ -391,7 +391,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit 10K to each market => ~50/50 allocation.
         deal(USDC_MONAD, address(this), 10_000e6);
@@ -810,7 +810,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Auto-routed deposit should select one of the real markets
         // (mock market has 0 supply rate from IRM so real markets should win).

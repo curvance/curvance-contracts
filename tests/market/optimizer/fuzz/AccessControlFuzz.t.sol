@@ -146,7 +146,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
 
         vm.prank(caller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        freshOptimizer.initializeDeposits(0);
+        freshOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     // ========================================================================
@@ -219,7 +219,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 77777);
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AlreadyInitialized.selector);
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @notice Zero amount deposit should revert (cToken rejects zero deposits).

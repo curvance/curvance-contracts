@@ -333,7 +333,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             ),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit into both markets.
         deal(USDC_MONAD, address(this), 100_000e6);
@@ -1228,7 +1228,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),
