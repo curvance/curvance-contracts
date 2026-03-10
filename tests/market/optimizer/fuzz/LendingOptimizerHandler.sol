@@ -72,6 +72,19 @@ contract LendingOptimizerHandler is Test {
         return markets[seed % markets.length];
     }
 
+    /// @dev Returns unconstrained allocation bounds for the optimizer.
+    function _unconstrainedBounds()
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
     function _updateExchangeRate() internal {
         uint256 supply = optimizer.totalSupply();
         if (supply > 0) {
@@ -269,7 +282,7 @@ contract LendingOptimizerHandler is Test {
 
         _mockHarvestPermissions(address(this));
 
-        try optimizer.rebalance(actions) {
+        try optimizer.rebalance(actions, _unconstrainedBounds()) {
             ghost_rebalanceCount++;
         } catch {
             // Expected revert (e.g., allocation cap exceeded).

@@ -163,26 +163,37 @@ contract OptimizerReader {
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
     ///      allocation across markets, respecting allocation caps. Returns
-    ///      ReallocationAction[] that can be passed directly to
-    ///      LendingOptimizer.rebalance().
+    ///      ReallocationAction[] and AllocationBound[] that can be passed
+    ///      directly to LendingOptimizer.rebalance().
+    ///      Bounds are set to [idealBps - slippageBps, idealBps + slippageBps],
+    ///      clamped to [0, 10000].
     /// @param optimizer The LendingOptimizer address.
+    /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
+    ///                    e.g., 100 = +/- 1%.
     /// @return actions The rebalance actions array matching approvedCTokensList order.
+    /// @return bounds The allocation bounds array matching approvedCTokensList order.
     function optimalRebalance(
-        address optimizer
+        address optimizer,
+        uint256 slippageBps
     ) external view returns (
-        LendingOptimizer.ReallocationAction[] memory actions
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
     ) {
         address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = markets.length;
 
         actions = new LendingOptimizer.ReallocationAction[](numMarkets);
+        bounds = new LendingOptimizer.AllocationBound[](numMarkets);
 
-        if (numMarkets == 0) return actions;
+        if (numMarkets == 0) return (actions, bounds);
 
         (uint256[] memory idealAssets, uint256[] memory currentAssets) =
             _computeIdealAllocation(optimizer, markets);
 
-        // Diff ideal vs current to produce deposit/withdraw actions.
+        uint256 ta = ILendingOptimizer(optimizer).totalAssets();
+
+        // Diff ideal vs current to produce deposit/withdraw actions,
+        // and compute bounds around the ideal allocation percentage.
         for (uint256 i; i < numMarkets; ++i) {
             if (idealAssets[i] > currentAssets[i]) {
                 actions[i] = LendingOptimizer.ReallocationAction(
@@ -199,6 +210,16 @@ contract OptimizerReader {
                     IBorrowableCToken(markets[i]),
                     int256(0)
                 );
+            }
+
+            // Compute bounds around ideal allocation.
+            if (ta > 0) {
+                uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
+                uint256 minBps = idealBps > slippageBps ? idealBps - slippageBps : 0;
+                uint256 maxBps = idealBps + slippageBps > 10000 ? 10000 : idealBps + slippageBps;
+                bounds[i] = LendingOptimizer.AllocationBound(minBps, maxBps);
+            } else {
+                bounds[i] = LendingOptimizer.AllocationBound(0, 10000);
             }
         }
     }

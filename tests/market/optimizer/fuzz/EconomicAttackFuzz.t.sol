@@ -64,6 +64,19 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
+    /// @dev Returns unconstrained allocation bounds for the given optimizer.
+    function _unconstrainedBoundsFor(LendingOptimizer lo)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
     // =========================================================================
     // TEST 1: Yield Frontrunning (REMOVED)
     // Vesting was removed; yield is now absorbed immediately in _accrueIfNeeded().
@@ -206,7 +219,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
                 assetsOrBps: int256(0)
             });
 
-            try harness.rebalance(actions) {} catch {
+            try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {} catch {
                 // Rebalance might fail due to allocation caps; that's OK.
                 return;
             }
@@ -318,7 +331,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
                 });
             }
 
-            try roundingHarness.rebalance(actions) {} catch {
+            try roundingHarness.rebalance(actions, _unconstrainedBoundsFor(roundingHarness)) {} catch {
                 break; // Allocation cap or liquidity issue; stop.
             }
         }

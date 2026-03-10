@@ -930,7 +930,11 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         });
 
         // Rebalance should succeed
-        optimizer.rebalance(actions);
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        optimizer.rebalance(actions, bounds);
 
         // Verify funds moved
         uint256 market3AssetsAfter = borrowableCUSDC3.convertToAssets(

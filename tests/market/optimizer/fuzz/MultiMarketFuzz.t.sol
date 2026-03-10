@@ -32,6 +32,19 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
 
     // ==================== Helpers ====================
 
+    /// @dev Returns unconstrained allocation bounds for the given optimizer.
+    function _unconstrainedBoundsFor(LendingOptimizer lo)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
     function _deployThreeMarketHarness() internal {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -447,7 +460,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         );
 
         // Rebalance may revert if depositing excess into market 1 pushes it over its cap.
-        try harness.rebalance(actions) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             // Verify market 0 is now within cap.
             uint256 taAfter = harness.totalAssets();
             uint256 market0After = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -519,7 +532,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         }
 
         // Try the rebalance. May revert if deposit pushes a market over cap.
-        try harness.rebalance(actions) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             uint256 totalAssetsAfter = harness.totalAssets();
 
             // Total assets should be preserved within rounding.

@@ -294,7 +294,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // Total assets should be preserved.
         assertApproxEqAbs(
@@ -428,8 +428,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
 
         // A corrective rebalance that moves assets from WMON to WBTC should pass.
         uint256 wmonTarget = (totalAssets * 25) / 100; // 25% < 30% cap
@@ -442,7 +443,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(moveAmount)
         );
 
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // Verify WMON is now within its cap.
         uint256 wmonAssetsAfter = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -591,7 +592,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         assertApproxEqAbs(
             optimizer.totalAssets(), totalAssetsBefore, 10,
@@ -692,7 +693,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
     ///         The underlying cToken.redeem(0,...) reverts with ZeroAmount,
     ///         so this verifies the revert behavior. Then deposits a minimal
     ///         amount and verifies that removal succeeds with a near-zero balance.
-    function test_removeApprovedAsset_zeroBalanceMarket_revertsOnRedeem() public {
+    function test_removeApprovedAsset_zeroBalanceMarket_succeeds() public {
         _setUpThreeMarkets();
 
         // Deposit only to markets 0 and 1, NOT market 2 (WETH).
@@ -708,18 +709,16 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         uint256 wethCTokenBalance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
         assertEq(wethCTokenBalance, 0, "WETH market should have 0 cToken balance");
 
-        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
-        removeActions[0] = LendingOptimizer.ReallocationAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(0)
-        );
+        uint256 totalAssetsBefore = optimizer.totalAssets();
 
         _mockMarketPermissions();
 
-        // Attempting to remove a zero-balance market reverts because
-        // the underlying cToken.redeem(0,...) does not allow zero amounts.
-        vm.expectRevert();
+        // Removing a zero-balance market succeeds with empty removeActions.
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
         optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
     }
 
     /// @notice Deposits a minimal amount to a market, then removes it.

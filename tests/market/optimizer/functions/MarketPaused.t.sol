@@ -252,8 +252,9 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw from paused market
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_revert_depositToPausedMarket() public {
@@ -274,8 +275,9 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_success_zeroAmountOnPausedMarket() public {
@@ -302,7 +304,7 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         setupActions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET), -int256(excessWeth)
         );
-        optimizer.rebalance(setupActions);
+        optimizer.rebalance(setupActions, _unconstrainedBounds());
 
         // Now pause mint on WETH market.
         _mockMintPaused(cUSDC_WETH_MARKET, true);
@@ -323,7 +325,7 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         );
 
         // Should succeed — paused market is not touched.
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
     }
 
     // ============ Pause and Unpause Lifecycle ============
@@ -405,7 +407,8 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw from redeem-paused market
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 }

@@ -70,6 +70,16 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         int256 assetsOrBps;
     }
 
+    /// @notice Bounds for post-rebalance allocation validation per market.
+    /// @dev Used to protect against race conditions where market state
+    ///      changes between off-chain computation and on-chain execution.
+    struct AllocationBound {
+        /// @notice Minimum allocation in BPS for this market.
+        uint256 minBps;
+        /// @notice Maximum allocation in BPS for this market.
+        uint256 maxBps;
+    }
+
     /// @dev Snapshot of a single market used during multi-market withdrawals.
     struct MarketSnapshot {
         /// @dev The cToken market address.
@@ -148,6 +158,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     error LendingOptimizer__AlreadyInitialized();
     error LendingOptimizer__MintPaused();
     error LendingOptimizer__MarketPaused();
+    error LendingOptimizer__AllocationOutOfBounds();
 
     /// @notice Deploys a new LendingOptimizer for a single underlying asset.
     /// @dev Performs four categories of setup:
@@ -422,11 +433,18 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      Positive `assets` values indicate deposits, negative values indicate
     ///      withdrawals.
     ///
-    ///      After rebalancing, each market's allocation must not exceed its cap.
+    ///      After rebalancing, each market's allocation must not exceed its cap
+    ///      and must fall within the caller-specified allocation bounds.
     ///      NOTE: cToken deposit/withdraw rounding incurs a small asset loss
     ///      (~1-2 wei per action). This is absorbed on the next accrual.
     /// @param actions Array of reallocation actions, one per approved market.
-    function rebalance(ReallocationAction[] calldata actions) external nonReentrant {
+    /// @param bounds Array of allocation bounds, one per approved market.
+    ///               Each market's post-rebalance allocation (in BPS) must be
+    ///               within [minBps, maxBps]. Use [0, 10000] for unconstrained.
+    function rebalance(
+        ReallocationAction[] calldata actions,
+        AllocationBound[] calldata bounds
+    ) external nonReentrant {
         // Revert if the caller does not have harvester permissions.
         _hasHarvesterPermissions();
 
@@ -435,8 +453,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Cache approved markets length.
         uint256 l = approvedCTokensList.length;
-        // Revert if the actions array length does not match approved markets.
+        // Revert if the actions or bounds array length does not match approved markets.
         if (actions.length != l) revert LendingOptimizer__ArrayLengthMismatch();
+        if (bounds.length != l) revert LendingOptimizer__ArrayLengthMismatch();
 
         uint256 sumDeclaredWithdrawals;
         // First pass: process withdrawals (negative assets).
@@ -480,6 +499,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Verify allocation caps and emit post-rebalance state.
         _verifyAllocationCaps();
+
+        // Verify post-rebalance allocations fall within caller-specified bounds.
+        _verifyAllocationBounds(bounds);
     }
 
     /// @notice Removes an approved market and reallocates its assets.
@@ -1231,6 +1253,33 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
 
         emit Rebalanced(ta, approvedCTokensList, allocations);
+    }
+
+    /// @dev Verifies that every market's post-rebalance allocation (in BPS)
+    ///      falls within the caller-specified [minBps, maxBps] range.
+    ///      Protects against race conditions where state changes between
+    ///      off-chain computation and on-chain execution.
+    ///
+    ///      Example: Harvester targets 70% for market A, 30% for market B.
+    ///      bounds[0] = {minBps: 6500, maxBps: 7500}  // 65%-75%
+    ///      bounds[1] = {minBps: 2500, maxBps: 3500}  // 25%-35%
+    ///      If a deposit shifts allocations to 60%/40% before execution,
+    ///      the rebalance reverts instead of producing unintended allocations.
+    /// @param bounds Array of allocation bounds, one per approved market.
+    function _verifyAllocationBounds(AllocationBound[] calldata bounds) internal view {
+        uint256 ta = totalAssets();
+        uint256 l = approvedCTokensList.length;
+
+        if (ta > 0) {
+            for (uint256 i; i < l; ++i) {
+                uint256 marketAssets = _getMarketAssets(approvedCTokensList[i]);
+                uint256 allocationBps = FixedPointMathLib.mulDiv(marketAssets, BPS, ta);
+
+                if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
+                    revert LendingOptimizer__AllocationOutOfBounds();
+                }
+            }
+        }
     }
 
     /// @dev Synchronizes optimizer state: absorbs yield from underlying

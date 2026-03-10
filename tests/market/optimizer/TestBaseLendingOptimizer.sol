@@ -356,4 +356,14 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         }
     }
 
+    /// @dev Returns unconstrained allocation bounds ([0, 10000]) for all
+    ///      approved markets. Useful for tests that don't care about bounds.
+    function _unconstrainedBounds() internal view returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
 }

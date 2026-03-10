@@ -27,7 +27,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function test_optimalRebalance_success_returnsCorrectArrayLengths_oneMarket() public {
         _setUpOneMarket();
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 1, "Should have 1 market");
     }
@@ -35,7 +35,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function test_optimalRebalance_success_returnsCorrectArrayLengths_twoMarkets() public {
         _setUpTwoMarkets();
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 2, "Should have 2 markets");
     }
@@ -43,7 +43,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function test_optimalRebalance_success_returnsCorrectArrayLengths_threeMarkets() public {
         _setUpThreeMarkets();
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 3, "Should have 3 markets");
     }
@@ -51,7 +51,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function test_optimalRebalance_success_marketsMatchApprovedList() public {
         _setUpThreeMarkets();
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(address(actions[0].cToken), cUSDC_WMON_MARKET, "Market 0 mismatch");
         assertEq(address(actions[1].cToken), cUSDC_WBTC_MARKET, "Market 1 mismatch");
@@ -64,7 +64,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
         _depositToAllMarkets(50_000e6);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // With the ReallocationAction struct, mutual exclusivity is inherent:
         // a single int256 assets field cannot be both positive and negative.
@@ -82,7 +82,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
         _depositToAllMarkets(50_000e6);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         uint256 totalDeposits;
         uint256 totalWithdrawals;
@@ -110,7 +110,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
         _depositToAllMarkets(50_000e6);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         uint256 ta = optimizer.totalAssets();
 
@@ -149,7 +149,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
         optimizer.deposit(10_000e6, address(this));
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // With one market, ideal == current, so no actions needed.
         assertEq(actions[0].assetsOrBps, 0, "No action needed for single market");
@@ -166,7 +166,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         optimizer.deposit(100_000e6, address(this), cUSDC_WMON_MARKET);
 
         // Get the rebalance plan.
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Mock harvest permissions.
         vm.mockCall(
@@ -181,7 +181,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
         // Execute: should not revert.
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // Total assets preserved (small rounding tolerance).
         uint256 totalAssetsAfter = optimizer.totalAssets();
@@ -200,7 +200,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _depositToAllMarkets(10_000e6);
 
         // Get the rebalance plan.
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -211,7 +211,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // Verify all allocations are within caps after rebalance.
         uint256 ta = optimizer.totalAssets();
@@ -235,8 +235,8 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
         _depositToAllMarkets(50_000e6);
 
-        LendingOptimizer.ReallocationAction[] memory actions1 = reader.optimalRebalance(address(optimizer));
-        LendingOptimizer.ReallocationAction[] memory actions2 = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions1, ) = reader.optimalRebalance(address(optimizer), 500);
+        (LendingOptimizer.ReallocationAction[] memory actions2, ) = reader.optimalRebalance(address(optimizer), 500);
 
         for (uint256 i; i < actions1.length; ++i) {
             assertEq(address(actions1[i].cToken), address(actions2[i].cToken), "Markets should be deterministic");
@@ -250,7 +250,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Only dead shares exist (77777 wei from initialization).
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 3, "Should still return 3 markets");
 
@@ -268,12 +268,12 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
         _depositToAllMarkets(50_000e6);
 
-        LendingOptimizer.ReallocationAction[] memory actionsBefore = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actionsBefore, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Advance time so interest accrues and rates change.
         skip(7 days);
 
-        LendingOptimizer.ReallocationAction[] memory actionsAfter = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actionsAfter, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Both should produce valid results; arrays may differ.
         assertEq(actionsBefore.length, actionsAfter.length, "Array length mismatch");
@@ -289,7 +289,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 500_000e6);
         optimizer.deposit(500_000e6, address(this), cUSDC_WMON_MARKET);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Market 0 has 60% cap, so some assets should move out if it's over-allocated.
         // At least one other market should receive a deposit.
@@ -341,7 +341,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         optimizer.deposit(50_000e6, address(this), cUSDC_WMON_MARKET);
         optimizer.deposit(50_000e6, address(this), cUSDC_WBTC_MARKET);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 2, "Should have 2 markets");
 
@@ -367,7 +367,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         uint256 sharesBefore = optimizer.balanceOf(address(this));
 
         // 2. Rebalance using optimalRebalance output.
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -378,7 +378,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // 3. Shares unchanged (rebalance doesn't mint/burn).
         assertEq(
@@ -413,7 +413,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _executeOptimalRebalance();
 
         // Second call: after rebalance, ideal ~= current, so actions should be small.
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         uint256 totalMovement;
         for (uint256 i; i < actions.length; ++i) {
@@ -446,7 +446,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
         optimizer.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 3, "Should have 3 markets");
 
@@ -482,7 +482,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), m2Deposit);
         optimizer.deposit(m2Deposit, address(this), cUSDC_WETH_MARKET);
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         uint256 ta = optimizer.totalAssets();
 
@@ -1026,7 +1026,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         );
 
         // optimalRebalance should NOT suggest withdrawing from the paused market.
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused market");
 
@@ -1076,7 +1076,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encode(true, false, false)
         );
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Market 2 (index 2) should not receive deposits and should have a withdrawal (drain it).
         assertLt(actions[2].assetsOrBps, 0, "Should withdraw from mint-paused market");
@@ -1126,7 +1126,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encode(true, false, false)
         );
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Market 1 should be completely frozen.
         assertEq(actions[1].assetsOrBps, 0, "Should not move assets for both-paused market");
@@ -1178,7 +1178,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
             abi.encode(uint8(2))
         );
 
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
+        (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         // Neither paused market should have withdrawals.
         assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused WMON");
@@ -1257,7 +1257,171 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     /// @dev Calls optimalRebalance and executes the result.
     function _executeOptimalRebalance() internal {
-        LendingOptimizer.ReallocationAction[] memory actions = reader.optimalRebalance(address(optimizer));
-        optimizer.rebalance(actions);
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+        optimizer.rebalance(actions, bounds);
+    }
+
+    // ============ Allocation Bounds from OptimizerReader ============
+
+    /// @notice Bounds array has the same length as actions array.
+    function test_optimalRebalance_success_boundsArrayMatchesActionsLength() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(bounds.length, actions.length, "Bounds and actions length mismatch");
+        assertEq(bounds.length, optimizer.numApprovedMarkets(), "Bounds length != numApprovedMarkets");
+    }
+
+    /// @notice Each bound's minBps <= maxBps, and maxBps <= 10000.
+    function test_optimalRebalance_success_boundsAreWellFormed() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (, LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 200);
+
+        for (uint256 i; i < bounds.length; ++i) {
+            assertLe(bounds[i].minBps, bounds[i].maxBps, "minBps > maxBps");
+            assertLe(bounds[i].maxBps, 10000, "maxBps exceeds 100%");
+        }
+    }
+
+    /// @notice The ideal allocation BPS falls within the returned bounds.
+    function test_optimalRebalance_success_idealAllocationWithinBounds() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 300);
+
+        // Compute what the ideal post-rebalance allocation would be.
+        uint256 ta = optimizer.totalAssets();
+        address[] memory markets = optimizer.getApprovedMarkets();
+
+        for (uint256 i; i < markets.length; ++i) {
+            uint256 currentAssets = IBorrowableCToken(markets[i]).convertToAssets(
+                IBorrowableCToken(markets[i]).balanceOf(address(optimizer))
+            );
+
+            uint256 idealAssets;
+            if (actions[i].assetsOrBps > 0) {
+                idealAssets = currentAssets + uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                idealAssets = currentAssets - uint256(-actions[i].assetsOrBps);
+            } else {
+                idealAssets = currentAssets;
+            }
+
+            uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets, 10000, ta);
+            assertGe(idealBps, bounds[i].minBps, "Ideal allocation below minBps");
+            assertLe(idealBps, bounds[i].maxBps, "Ideal allocation above maxBps");
+        }
+    }
+
+    /// @notice Wider slippage produces wider bounds.
+    function test_optimalRebalance_success_widerSlippageWidensRange() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (, LendingOptimizer.AllocationBound[] memory narrow) = reader.optimalRebalance(address(optimizer), 100);
+        (, LendingOptimizer.AllocationBound[] memory wide) = reader.optimalRebalance(address(optimizer), 500);
+
+        for (uint256 i; i < narrow.length; ++i) {
+            uint256 narrowRange = narrow[i].maxBps - narrow[i].minBps;
+            uint256 wideRange = wide[i].maxBps - wide[i].minBps;
+            assertGe(wideRange, narrowRange, "Wider slippage should produce wider range");
+        }
+    }
+
+    /// @notice Zero slippage produces exact bounds (minBps == maxBps).
+    function test_optimalRebalance_success_zeroSlippageExactBounds() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (, LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 0);
+
+        for (uint256 i; i < bounds.length; ++i) {
+            assertEq(bounds[i].minBps, bounds[i].maxBps, "Zero slippage should give exact bounds");
+        }
+    }
+
+    /// @notice Returned bounds are executable: rebalance(actions, bounds) succeeds.
+    function test_optimalRebalance_success_boundsPassRebalance() public {
+        _setUpThreeMarkets();
+
+        // Deposit unevenly to force a meaningful rebalance.
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        optimizer.deposit(40_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(5_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+
+        // Should succeed — reader-computed bounds match the actions.
+        optimizer.rebalance(actions, bounds);
+    }
+
+    /// @notice Tight bounds from the reader revert when state is frontrun.
+    function test_optimalRebalance_revert_boundsViolatedByFrontrun() public {
+        // 2-market setup with 100% caps so caps don't interfere.
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 10_000;
+        caps[1] = 10_000;
+
+        LendingOptimizer testOpt = new LendingOptimizer(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 0
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(testOpt), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        testOpt.initializeDeposits(cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 40_000e6);
+        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Harvester reads optimal actions + tight bounds (1% slippage).
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(testOpt), 100);
+
+        // Frontrunner deposits 40k into market 0, skewing allocations.
+        address frontrunner = address(0xBEEF);
+        deal(USDC_MONAD, frontrunner, 40_000e6);
+        vm.startPrank(frontrunner);
+        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
+        testOpt.deposit(40_000e6, frontrunner, cUSDC_WMON_MARKET);
+        vm.stopPrank();
+
+        // Rebalance reverts — tight bounds catch the frontrun.
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
+        testOpt.rebalance(actions, bounds);
     }
 }

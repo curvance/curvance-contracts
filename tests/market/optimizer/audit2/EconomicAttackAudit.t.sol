@@ -36,6 +36,19 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     // HELPERS
     // =====================================================================
 
+    /// @dev Returns unconstrained allocation bounds for the given harness.
+    function _unconstrainedBoundsFor(LendingOptimizerHarness h)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = h.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
     /// @dev Sets up a harness with two markets, no fee, 1-day vesting.
     ///      Uses high caps (100% each) to avoid AllocationExceedsCap during rebalance tests.
     function _setUpHarnessTwoMarketsNoFee() internal {
@@ -197,8 +210,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             assetsOrBps: int256(100_000e6)
         });
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
         vm.prank(maliciousHarvester);
-        harness.rebalance(actions);
+        harness.rebalance(actions, bounds);
 
         uint256 rawAfter = harness.exposed_accrueMarkets();
         console2.log("After one rebalance:");
@@ -810,8 +824,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
                 assetsOrBps: int256(rebalanceAmt)
             });
 
+            LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(actions) {} catch {
+            try harness.rebalance(actions, bounds) {} catch {
                 console2.log("Rebalance failed at iteration", i);
                 break;
             }
@@ -826,8 +841,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
                 assetsOrBps: -int256(rebalanceAmt)
             });
 
+            bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(rev) {} catch {
+            try harness.rebalance(rev, bounds) {} catch {
                 console2.log("Reverse rebalance failed at iteration", i);
                 break;
             }
@@ -956,9 +972,10 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             assetsOrBps: int256(0)
         });
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
         vm.prank(attacker);
         vm.expectRevert();
-        harness.rebalance(actions);
+        harness.rebalance(actions, bounds);
 
         console2.log("DEFENSE CONFIRMED: Harvester-only functions properly restricted");
     }

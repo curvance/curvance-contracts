@@ -69,7 +69,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         // Execute rebalance.
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
 
         // Verify total assets are preserved (allowing for minor rounding).
         uint256 totalAssetsAfter = optimizer.totalAssets();
@@ -138,8 +138,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         // Expect revert with AllocationExceedsCap error.
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenUnauthorized() public {
@@ -157,8 +158,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             abi.encode(false)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenArrayLengthMismatch() public {
@@ -175,8 +177,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenInvalidMarketOrder() public {
@@ -194,8 +197,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     /// @notice Verifies that rebalance adjusts _totalAssets for rounding loss,
@@ -262,7 +266,10 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
                 -int256(transferAmount)  // withdraw
             );
 
-            testOptimizer.rebalance(actions);
+            LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+            bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            testOptimizer.rebalance(actions, bounds);
         }
 
         // Key test: Call exchangeRateUpdated which internally calls _accrueIfNeeded.
@@ -321,8 +328,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         // sumDeclaredWithdrawals (2000) != sumDeclaredReallocated (1000)
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_success_emitsRebalancedEvent() public {
@@ -365,7 +373,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.expectEmit(false, false, false, false, address(optimizer));
         emit LendingOptimizer.Rebalanced(0, new address[](0), new uint256[](0));
 
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, _unconstrainedBounds());
     }
 
     /// @notice Tests that rebalance reverts when final allocation exceeds market caps.
@@ -399,8 +407,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         // Reverts because market 2's allocation (~30%) exceeds its 20% cap.
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_revert_withdrawalBelowMinReallocation() public {
@@ -424,7 +433,219 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
+    }
+
+    // ============ Allocation Bounds Tests ============
+
+    /// @notice A deposit between off-chain computation and on-chain execution
+    ///         shifts allocations outside the bounds, causing revert.
+    function test_lendingOptimizer_rebalance_revert_boundsViolatedByDeposit() public {
+        // Use a 2-market setup with 100% caps so _verifyAllocationCaps never
+        // fires and bounds become the sole protection layer.
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 10_000; // 100%
+        caps[1] = 10_000; // 100%
+
+        LendingOptimizer testOpt = new LendingOptimizer(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 0
+        );
+
+        // Initialize and deposit 50/50.
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(testOpt), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        testOpt.initializeDeposits(cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 40_000e6);
+        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Harvester computes a no-op rebalance expecting ~50/50.
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+
+        // Tight bounds: 48%-52% each.
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+
+        // Frontrunner deposits 40k into market 0, skewing to ~75/25.
+        address frontrunner = address(0xBEEF);
+        deal(USDC_MONAD, frontrunner, 40_000e6);
+        vm.startPrank(frontrunner);
+        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
+        testOpt.deposit(40_000e6, frontrunner, cUSDC_WMON_MARKET);
+        vm.stopPrank();
+
+        // Rebalance reverts — the deposit shifted allocations outside bounds.
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
+        testOpt.rebalance(actions, bounds);
+    }
+
+    /// @notice A withdrawal between off-chain computation and on-chain execution
+    ///         shifts allocations outside the bounds, causing revert.
+    function test_lendingOptimizer_rebalance_revert_boundsViolatedByWithdrawal() public {
+        // Use a 2-market setup with 100% caps.
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 10_000;
+        caps[1] = 10_000;
+
+        LendingOptimizer testOpt = new LendingOptimizer(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 0
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(testOpt), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        testOpt.initializeDeposits(cUSDC_WMON_MARKET);
+
+        deal(USDC_MONAD, address(this), 40_000e6);
+        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // Harvester targets no-op, expecting ~50/50.
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+
+        // Tight bounds: 48%-52% each.
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+
+        // User withdraws 80% — multi-market drains worst-yield first,
+        // skewing per-market allocations away from 50/50.
+        uint256 shares = testOpt.balanceOf(address(this));
+        testOpt.redeem(shares * 80 / 100, address(this), address(this));
+
+        // Rebalance reverts — allocations shifted outside tight bounds.
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
+        testOpt.rebalance(actions, bounds);
+    }
+
+    /// @notice Bounds that match the post-rebalance state succeed.
+    function test_lendingOptimizer_rebalance_success_exactBoundsPass() public {
+        // Deposit respecting caps: 50% / 40% / 10%.
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        optimizer.deposit(25_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // No-op rebalance.
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(0)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0)
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
+        );
+
+        // Wide bounds that comfortably fit ~50/40/10.
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4500, maxBps: 5500 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 3500, maxBps: 4500 });
+        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 500, maxBps: 1500 });
+
+        // Should succeed — no state change, allocations within bounds.
+        optimizer.rebalance(actions, bounds);
+    }
+
+    /// @notice Bounds array length mismatch reverts.
+    function test_lendingOptimizer_rebalance_revert_boundsLengthMismatch() public {
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+        actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
+
+        // Only 2 bounds for 3 markets.
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
+        optimizer.rebalance(actions, bounds);
+    }
+
+    /// @notice Bounds set to zero tolerance revert on any non-exact allocation.
+    function test_lendingOptimizer_rebalance_revert_zeroToleranceBounds() public {
+        // Deposit respecting caps: 50% / 40% / 10%.
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        optimizer.deposit(25_000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        optimizer.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+        actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
+
+        // Impossibly tight: require exactly 5000/4000/1000 BPS.
+        // BPS truncation means markets won't hit these exact values.
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
+        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 5000, maxBps: 5000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4000, maxBps: 4000 });
+        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 1000, maxBps: 1000 });
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
+        optimizer.rebalance(actions, bounds);
     }
 }

@@ -37,6 +37,19 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         );
     }
 
+    /// @dev Returns unconstrained allocation bounds for the given harness.
+    function _unconstrainedBoundsFor(LendingOptimizerHarness h)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = h.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        }
+    }
+
     /// @dev Sets up harness with 3 markets for tests needing internal state.
     function _setUpHarnessThreeMarkets() internal {
         address[] memory approvedCTokens = new address[](3);
@@ -285,7 +298,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             actions[2] = LendingOptimizer.ReallocationAction(
                 IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
             );
-            harness.rebalance(actions);
+            harness.rebalance(actions, _unconstrainedBoundsFor(harness));
         }
 
         uint256 rawAfter = _getActualMarketValue(address(harness));
@@ -587,7 +600,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        harness.rebalance(actions);
+        harness.rebalance(actions, _unconstrainedBoundsFor(harness));
 
         uint256 totalAssetsAfter = harness.totalAssets();
         uint256 exchangeRateAfter = harness.exchangeRate();
@@ -782,7 +795,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        harness.rebalance(actions);
+        harness.rebalance(actions, _unconstrainedBoundsFor(harness));
         console2.log("CONFIRMED: Swap-and-pop correctly maintains array ordering");
     }
 
