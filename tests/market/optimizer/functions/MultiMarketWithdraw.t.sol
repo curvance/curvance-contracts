@@ -381,7 +381,10 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
             optimizer.withdraw(assetsToWithdraw, user1, user1);
 
             uint256 rateAfter = optimizer.exchangeRate();
-            assertGe(rateAfter, rateBefore, "Exchange rate should not decrease from withdrawal");
+            // Live exchangeRate() reads cToken convertToAssets which rounds
+            // down, causing a negligible rate decrease after withdrawals.
+            assertGe(rateAfter + rateBefore / 1e10, rateBefore,
+                "Exchange rate should not decrease from withdrawal beyond cToken rounding tolerance");
 
             skip(1 days);
         }

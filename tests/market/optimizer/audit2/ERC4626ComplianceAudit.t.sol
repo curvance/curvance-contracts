@@ -1186,7 +1186,10 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         vm.prank(user1Addr);
         harness.withdraw(50_000e6, user1Addr, user1Addr);
         uint256 rateAfterWithdraw = harness.exchangeRate();
-        assertGe(rateAfterWithdraw, lastRate, "Rate decreased after withdrawal");
+        // Live exchangeRate() reads cToken convertToAssets which rounds
+        // down, causing a negligible rate decrease after withdrawals.
+        assertGe(rateAfterWithdraw + lastRate / 1e10, lastRate,
+            "Rate decreased after withdrawal beyond cToken rounding tolerance");
         console2.log("Rate after withdrawal:", rateAfterWithdraw);
     }
 
@@ -1286,5 +1289,185 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             previewAfterYield, convertAfterYield, 1,
             "previewDeposit should equal convertToShares with immediate yield"
         );
+    }
+
+    // =====================================================================
+    //  _accruedState() ACCURACY
+    // =====================================================================
+    //
+    //  These tests verify that _accruedState() correctly projects the
+    //  optimizer's fee shares and total assets — including cross-period
+    //  cToken interest — without any prior accrual. Each test:
+    //    1. Skips time to let yield accrue (crossing vesting boundaries).
+    //    2. Snapshots a preview function (which uses _accruedState).
+    //    3. Calls optimizer.accrueIfNeeded() to sync all cached state.
+    //    4. Asserts the snapshot matches the post-accrual result.
+
+    /// @notice previewDeposit before any accrual matches after full accrual.
+    function test_accruedState_previewDeposit_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 amount = 100_000e6;
+        uint256 previewBefore = harness.previewDeposit(amount);
+
+        harness.accrueIfNeeded();
+        uint256 previewAfter = harness.previewDeposit(amount);
+
+        assertEq(previewBefore, previewAfter,
+            "previewDeposit should match before and after accrual");
+    }
+
+    /// @notice previewMint before any accrual matches after full accrual.
+    function test_accruedState_previewMint_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 shares = 50_000e6;
+        uint256 previewBefore = harness.previewMint(shares);
+
+        harness.accrueIfNeeded();
+        uint256 previewAfter = harness.previewMint(shares);
+
+        assertEq(previewBefore, previewAfter,
+            "previewMint should match before and after accrual");
+    }
+
+    /// @notice previewWithdraw before any accrual matches after full accrual.
+    function test_accruedState_previewWithdraw_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 amount = 100_000e6;
+        uint256 previewBefore = harness.previewWithdraw(amount);
+
+        harness.accrueIfNeeded();
+        uint256 previewAfter = harness.previewWithdraw(amount);
+
+        assertEq(previewBefore, previewAfter,
+            "previewWithdraw should match before and after accrual");
+    }
+
+    /// @notice previewRedeem before any accrual matches after full accrual.
+    function test_accruedState_previewRedeem_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 shares = 50_000e6;
+        uint256 previewBefore = harness.previewRedeem(shares);
+
+        harness.accrueIfNeeded();
+        uint256 previewAfter = harness.previewRedeem(shares);
+
+        assertEq(previewBefore, previewAfter,
+            "previewRedeem should match before and after accrual");
+    }
+
+    /// @notice maxWithdraw before any accrual matches after full accrual.
+    function test_accruedState_maxWithdraw_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 maxBefore = harness.maxWithdraw(user1Addr);
+
+        harness.accrueIfNeeded();
+        uint256 maxAfter = harness.maxWithdraw(user1Addr);
+
+        assertEq(maxBefore, maxAfter,
+            "maxWithdraw should match before and after accrual");
+    }
+
+    /// @notice maxRedeem before any accrual matches after full accrual.
+    function test_accruedState_maxRedeem_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 maxBefore = harness.maxRedeem(user1Addr);
+
+        harness.accrueIfNeeded();
+        uint256 maxAfter = harness.maxRedeem(user1Addr);
+
+        assertEq(maxBefore, maxAfter,
+            "maxRedeem should match before and after accrual");
+    }
+
+    /// @notice exchangeRate before any accrual matches after full accrual.
+    function test_accruedState_exchangeRate_matchesPostAccrual() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 rateBefore = harness.exchangeRate();
+
+        harness.accrueIfNeeded();
+        uint256 rateAfter = harness.exchangeRate();
+
+        assertEq(rateBefore, rateAfter,
+            "exchangeRate should match before and after accrual");
+    }
+
+    /// @notice All preview functions remain accurate across multiple cycles
+    ///         without any intermediate accrual.
+    function test_accruedState_accuracy_acrossMultipleCycles() public {
+        _setUpHarnessWithFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        uint256 amount = 100_000e6;
+        uint256 shares = 50_000e6;
+
+        for (uint256 i; i < 5; ++i) {
+            skip(1 days);
+
+            uint256 previewDep = harness.previewDeposit(amount);
+            uint256 previewMnt = harness.previewMint(shares);
+            uint256 previewWd  = harness.previewWithdraw(amount);
+            uint256 previewRdm = harness.previewRedeem(shares);
+            uint256 rate       = harness.exchangeRate();
+
+            harness.accrueIfNeeded();
+
+            assertEq(previewDep, harness.previewDeposit(amount),
+                "previewDeposit mismatch in cycle");
+            assertEq(previewMnt, harness.previewMint(shares),
+                "previewMint mismatch in cycle");
+            assertEq(previewWd, harness.previewWithdraw(amount),
+                "previewWithdraw mismatch in cycle");
+            assertEq(previewRdm, harness.previewRedeem(shares),
+                "previewRedeem mismatch in cycle");
+            assertEq(rate, harness.exchangeRate(),
+                "exchangeRate mismatch in cycle");
+        }
+    }
+
+    /// @notice With no fee, _accruedState still projects correctly.
+    function test_accruedState_accuracy_noFee() public {
+        _setUpHarnessNoFee();
+        _depositAs(user1Addr, 500_000e6);
+
+        skip(3 days);
+
+        uint256 amount = 100_000e6;
+        uint256 previewBefore = harness.previewDeposit(amount);
+        uint256 rateBefore = harness.exchangeRate();
+
+        harness.accrueIfNeeded();
+
+        assertEq(previewBefore, harness.previewDeposit(amount),
+            "previewDeposit should match without fee");
+        assertEq(rateBefore, harness.exchangeRate(),
+            "exchangeRate should match without fee");
     }
 }

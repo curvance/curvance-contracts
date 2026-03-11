@@ -16,6 +16,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
+import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 
 /// @title Curvance Lending Optimizer.
 /// @notice Optimizes yield across multiple Curvance lending markets
@@ -662,26 +663,59 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// VIEW FUNCTIONS ///
 
-    /// @notice Returns total assets held across all approved markets.
-    /// @dev Unlike totalAssetsUpdated(), this does not trigger interest accrual.
-    ///      The returned value may be slightly stale if markets haven't been
-    ///      accrued recently.
-    /// @return The total assets held by the optimizer across all markets.
+    /// @notice Returns the cached total assets held across all approved markets.
+    /// @dev Returns the internally tracked `_totalAssets`, which is updated
+    ///      on every state-changing operation (deposit, withdraw, rebalance).
+    ///      This value may be slightly stale between accruals as market
+    ///      interest accrues continuously.
+    ///
+    ///      NOTE: `totalAssets()` intentionally returns the cached value
+    ///      because `_deposit()` calls `convertToShares()` — which reads
+    ///      `totalAssets()` — AFTER depositing into a cToken. An accrued read
+    ///      would include the just-deposited amount, inflating the denominator
+    ///      and minting fewer shares than intended. All preview functions
+    ///      use `_accruedState()` instead for ERC4626-compliant accuracy.
+    /// @return The cached total assets held by the optimizer.
     function totalAssets() public view override(ERC4626, ILendingOptimizer) returns (uint256) {
         return _totalAssets;
     }
 
     /// @notice Returns a conservative share estimate for a given deposit.
-    /// @dev Rounds down by 1 share to account for the cToken deposit
+    /// @dev Uses accrued market values and accounts for pending fee shares to
+    ///      satisfy ERC4626: "deposit should return the same or more shares
+    ///      as previewDeposit if called in the same transaction."
+    ///      Rounds down by 1 share to account for the cToken deposit
     ///      round-trip (assets → cTokenShares → trackedAssets) losing
-    ///      up to 1 wei of recoverable value. This ensures
-    ///      `deposit() >= previewDeposit()` per ERC4626 when the caller
-    ///      accrues state beforehand. Integrators should call
-    ///      `accrueIfNeeded()` before `previewDeposit()` in the same
-    ///      transaction for maximum accuracy.
+    ///      up to 1 wei of recoverable value.
     function previewDeposit(uint256 assets) public view override returns (uint256 shares) {
-        shares = convertToShares(assets);
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        if (accruedSupply == 0 || accruedTa == 0) return assets;
+        shares = FixedPointMathLib.fullMulDiv(assets, accruedSupply, accruedTa);
         shares = shares == 0 ? 0 : shares - 1;
+    }
+
+    /// @notice Returns the asset cost for minting `shares`, using accrued state.
+    /// @dev Rounds up so the vault never under-charges.
+    function previewMint(uint256 shares) public view override returns (uint256 assets) {
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        if (accruedSupply == 0) return shares;
+        assets = FixedPointMathLib.fullMulDivUp(shares, accruedTa, accruedSupply);
+    }
+
+    /// @notice Returns shares needed to withdraw `assets`, using accrued state.
+    /// @dev Rounds up so the vault never under-burns.
+    function previewWithdraw(uint256 assets) public view override returns (uint256 shares) {
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        if (accruedSupply == 0 || accruedTa == 0) return 0;
+        shares = FixedPointMathLib.fullMulDivUp(assets, accruedSupply, accruedTa);
+    }
+
+    /// @notice Returns assets received for redeeming `shares`, using accrued state.
+    /// @dev Rounds down so the vault never over-pays.
+    function previewRedeem(uint256 shares) public view override returns (uint256 assets) {
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        if (accruedSupply == 0) return 0;
+        assets = FixedPointMathLib.fullMulDiv(shares, accruedTa, accruedSupply);
     }
 
     /// @notice Returns 0 when deposits are paused or uninitialized.
@@ -695,43 +729,35 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice Returns the maximum amount of assets that can be withdrawn from `owner`.
-    /// @dev Caps by actual available liquidity across all markets to ensure
-    ///      `withdraw(maxWithdraw(owner))` never reverts.
-    ///
-    ///      NOTE: This is a view function and does not accrue interest or mint
-    ///      fee shares. If pending fees exist, `withdraw()` will mint fee
-    ///      shares during its internal `_accrueIfNeeded()`, slightly lowering
-    ///      the exchange rate and requiring more shares per asset. In rare
-    ///      cases this can cause `withdraw(maxWithdraw(owner))` to revert due
-    ///      to insufficient shares. Callers can avoid this by calling
-    ///      `accrueIfNeeded()` in the same transaction before reading
-    ///      `maxWithdraw()`, ensuring the exchange rate is fresh.
+    /// @dev Uses accrued market values for ERC4626 compliance. Caps by actual
+    ///      available liquidity across all markets.
     function maxWithdraw(address owner) public view override returns (uint256) {
-        uint256 ownerAssets = convertToAssets(balanceOf(owner));
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        uint256 ownerAssets = accruedSupply == 0
+            ? 0
+            : FixedPointMathLib.fullMulDiv(balanceOf(owner), accruedTa, accruedSupply);
         uint256 liquidity = _availableLiquidity();
         return ownerAssets < liquidity ? ownerAssets : liquidity;
     }
 
     /// @notice Returns the maximum amount of shares that can be redeemed from `owner`.
-    /// @dev Caps by actual available liquidity (converted to shares) to ensure
-    ///      `redeem(maxRedeem(owner))` never reverts.
-    ///
-    ///      NOTE: Same staleness caveat as `maxWithdraw()` — call
-    ///      `accrueIfNeeded()` first for exact values.
+    /// @dev Uses accrued market values for ERC4626 compliance. Caps by actual
+    ///      available liquidity (converted to shares).
     function maxRedeem(address owner) public view override returns (uint256) {
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
         uint256 ownerShares = balanceOf(owner);
-        uint256 liquidity = _availableLiquidity();
-        uint256 liquidityShares = convertToShares(liquidity);
+        uint256 liquidityShares = accruedTa == 0
+            ? 0
+            : FixedPointMathLib.fullMulDivUp(_availableLiquidity(), accruedSupply, accruedTa);
         return ownerShares < liquidityShares ? ownerShares : liquidityShares;
     }
 
-    /// @notice Returns current exchange rate (view function).
-    /// @dev Unlike exchangeRateUpdated(), this does not trigger interest accrual.
-    ///      The returned rate may be slightly stale if markets haven't been
-    ///      accrued recently.
+    /// @notice Returns current exchange rate using accrued market values.
     /// @return The current exchange rate in WAD (1e18 = 1:1 ratio).
     function exchangeRate() public view nonReadReentrant returns (uint256) {
-        return _exchangeRate();
+        (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
+        if (accruedSupply == 0) return WAD;
+        return FixedPointMathLib.fullMulDiv(WAD, accruedTa, accruedSupply);
     }
 
     /// @notice Returns the number of approved markets.
@@ -1057,13 +1083,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
 
     /// @dev Returns total withdrawable liquidity across all non-paused markets.
-    ///      For each market, withdrawable = min(optimizer's balance, market's idle cash).
+    ///      For each market, withdrawable = min(optimizer's projected balance,
+    ///      market's idle cash). Uses `_projectedMarketAssets()` for accuracy.
     ///      Used by maxWithdraw/maxRedeem to cap reported values so that
     ///      `withdraw(maxWithdraw(owner))` never reverts due to illiquidity.
-    ///
-    ///      NOTE: This is a view function and does NOT accrue interest first.
-    ///      `convertToAssets` may slightly underestimate (interest not yet
-    ///      credited), making the returned value conservative — which is safe.
     function _availableLiquidity() internal view returns (uint256 total) {
         uint256 l = approvedCTokensList.length;
         for (uint256 i; i < l; ++i) {
@@ -1071,15 +1094,129 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             // Paused markets cannot be withdrawn from; skip entirely.
             if (_isMarketPausedForAction(cTokenAddr, false)) continue;
 
-            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
-            
-            // What the optimizer owns in this market (underlying terms).
-            uint256 optimizerAssets = cToken.convertToAssets(cToken.balanceOf(address(this)));
+            // What the optimizer owns in this market (projected, underlying terms).
+            uint256 optimizerAssets = _projectedMarketAssets(cTokenAddr);
             // What the market can actually pay out (idle cash on hand).
-            uint256 marketLiquidity = cToken.assetsHeld();
+            uint256 marketLiquidity = IBorrowableCToken(cTokenAddr).assetsHeld();
             // Withdrawable from this market = lesser of the two.
             total += optimizerAssets < marketLiquidity ? optimizerAssets : marketLiquidity;
         }
+    }
+
+    /// @dev Computes accrued total assets and projected total supply (including
+    ///      pending fee shares) without updating state. Used by all ERC4626
+    ///      view functions so they reflect current on-chain conditions.
+    ///
+    ///      For each market, projects the cToken exchange rate by:
+    ///      1. Computing intra-period vesting from `getYieldInformation()`.
+    ///      2. If `block.timestamp >= vestingEnd`, projecting cross-period
+    ///         interest via `IRM.predictedBorrowRate()` (same pattern as
+    ///         `ProtocolReader.debtBalanceAtTimestamp`).
+    ///      3. Accounting for cToken protocol fee shares that would be minted.
+    ///
+    ///      Then projects the optimizer's own fee shares using the same
+    ///      high-watermark logic as `_accrueIfNeeded()`.
+    function _accruedState() internal view returns (uint256 accruedTa, uint256 accruedSupply) {
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            accruedTa += _projectedMarketAssets(approvedCTokensList[i]);
+        }
+
+        accruedSupply = totalSupply();
+
+        if (fee > 0 && accruedSupply > 0) {
+            uint256 currentRate = FixedPointMathLib.fullMulDiv(WAD, accruedTa, accruedSupply);
+            uint256 highRate = exchangeRateHighWatermark;
+
+            if (currentRate > highRate) {
+                uint256 profit = accruedTa - FixedPointMathLib.fullMulDiv(highRate, accruedSupply, WAD);
+                uint256 feeAssets = FixedPointMathLib.fullMulDivUp(profit, _bpsToWad(fee), WAD);
+
+                if (feeAssets > 0) {
+                    uint256 feeShares = FixedPointMathLib.fullMulDivUp(
+                        feeAssets, accruedSupply, accruedTa - feeAssets
+                    );
+                    accruedSupply += feeShares;
+                }
+            }
+        }
+    }
+
+    /// @dev Projects the optimizer's asset value in a single cToken market,
+    ///      accounting for pending intra-period vesting and cross-period
+    ///      interest that hasn't been accrued yet.
+    function _projectedMarketAssets(address cTokenAddr) internal view returns (uint256) {
+        IBorrowableCToken bcToken = IBorrowableCToken(cTokenAddr);
+        uint256 optimizerShares = bcToken.balanceOf(address(this));
+        if (optimizerShares == 0) return 0;
+
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim, ) =
+            bcToken.getYieldInformation();
+
+        // If no time has passed since last claim, cToken view is already current.
+        if (block.timestamp == lastVestingClaim) {
+            return bcToken.convertToAssets(optimizerShares);
+        }
+
+        uint256 outstandingDebt = bcToken.marketOutstandingDebt();
+
+        // Compute pending assets to vest (mirrors BorrowableCToken._assetsToVest).
+        uint256 assetsToVest;
+        if (rate > 0 && lastVestingClaim < vestingEnd) {
+            assetsToVest = FixedPointMathLib.mulDiv(
+                (block.timestamp < vestingEnd)
+                    ? rate * (block.timestamp - lastVestingClaim)
+                    : rate * (vestingEnd - lastVestingClaim),
+                outstandingDebt,
+                WAD
+            );
+        }
+
+        // Derive the cToken's raw cached _totalAssets by subtracting the
+        // pending vesting that totalAssets() already includes.
+        uint256 cachedCTokenTa = bcToken.totalAssets() - assetsToVest;
+
+        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
+        // vesting period has ended.
+        lastVestingClaim = block.timestamp > vestingEnd
+            ? vestingEnd
+            : block.timestamp;
+
+        // Check if it is time to start a new vesting period.
+        if (block.timestamp >= vestingEnd) {
+            rate = bcToken.IRM().predictedBorrowRate(
+                bcToken.assetsHeld(), outstandingDebt + assetsToVest
+            );
+            assetsToVest += FixedPointMathLib.mulDiv(
+                rate * (block.timestamp - lastVestingClaim),
+                outstandingDebt + assetsToVest,
+                WAD
+            );
+        }
+
+        // Project cToken fee shares from total vesting.
+        uint256 cTokenSupply = bcToken.totalSupply();
+        uint256 cTokenInterestFee = bcToken.interestFee();
+        uint256 projectedCTokenTa = cachedCTokenTa + assetsToVest;
+        uint256 projectedCTokenSupply = cTokenSupply;
+
+        if (cTokenInterestFee > 0 && assetsToVest > 0) {
+            uint256 protocolFee = FixedPointMathLib.fullMulDivUp(
+                assetsToVest, cTokenInterestFee, BPS
+            );
+            if (protocolFee > 0) {
+                uint256 cTokenFeeShares = FixedPointMathLib.fullMulDivUp(
+                    protocolFee, cTokenSupply,
+                    cachedCTokenTa + assetsToVest - protocolFee
+                );
+                projectedCTokenSupply += cTokenFeeShares;
+            }
+        }
+
+        // Optimizer's assets = our cToken shares valued at the projected rate.
+        return FixedPointMathLib.mulDiv(
+            optimizerShares, projectedCTokenTa, projectedCTokenSupply
+        );
     }
 
     /// @dev Validates that total allocation caps sum to at least 100%.

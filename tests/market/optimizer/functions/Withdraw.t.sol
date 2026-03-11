@@ -478,8 +478,10 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             uint256 rateAfter = optimizer.exchangeRate();
 
             // Exchange rate should not decrease from a withdraw operation itself.
-            // The ratio of assets-to-shares should remain constant or increase.
-            assertGe(rateAfter, rateBefore, "Exchange rate should not decrease from withdrawal");
+            // Live exchangeRate() reads cToken convertToAssets which rounds
+            // down, causing a negligible rate decrease after withdrawals.
+            assertGe(rateAfter + rateBefore / 1e10, rateBefore,
+                "Exchange rate should not decrease from withdrawal beyond cToken rounding tolerance");
 
             // Skip time to generate yield for next iteration
             skip(1 days);
