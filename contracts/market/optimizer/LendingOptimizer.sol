@@ -1130,10 +1130,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
             if (currentRate > highRate) {
                 uint256 profit = accruedTa - FixedPointMathLib.fullMulDiv(highRate, accruedSupply, WAD);
-                uint256 feeAssets = FixedPointMathLib.fullMulDivUp(profit, _bpsToWad(fee), WAD);
+                uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, _bpsToWad(fee), WAD);
 
                 if (feeAssets > 0) {
-                    uint256 feeShares = FixedPointMathLib.fullMulDivUp(
+                    uint256 feeShares = FixedPointMathLib.fullMulDiv(
                         feeAssets, accruedSupply, accruedTa - feeAssets
                     );
                     accruedSupply += feeShares;
@@ -1340,10 +1340,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
                 if (currentRate > highRate) {
                     uint256 profit = rawTa - FixedPointMathLib.fullMulDiv(highRate, supply, WAD);
-                    uint256 feeAssets = FixedPointMathLib.fullMulDivUp(profit, _bpsToWad(fee), WAD);
+                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, _bpsToWad(fee), WAD);
 
                     if (feeAssets > 0) {
-                        uint256 feeShares = FixedPointMathLib.fullMulDivUp(
+                        uint256 feeShares = FixedPointMathLib.fullMulDiv(
                             feeAssets, supply, rawTa - feeAssets
                         );
                         address dao = centralRegistry.daoAddress();
