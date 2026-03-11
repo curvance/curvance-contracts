@@ -97,8 +97,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Maximum number of supported markets.
     uint256 public constant MAX_MARKETS = 8;
     /// @dev Minimum allowed value for ReallocationAction.assetsOrBps (withdrawals).
-    ///      Caps at negative int128 range to prevent negation overflow on int256.
-    int256 public constant MIN_REALLOCATION_AMOUNT = -type(int128).max;
+    ///      type(int256).min is the only int256 value whose negation overflows,
+    ///      so we set the floor to type(int256).min + 1.
+    int256 public constant MIN_REALLOCATION_AMOUNT = type(int256).min + 1;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
@@ -138,10 +139,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     event Rebalanced(uint256 totalAssets, address[] markets, uint256[] allocations);
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
+    event ExcessRecovered(uint256 amount, address indexed recipient);
 
     /// ERRORS ///
 
     error LendingOptimizer__Unauthorized();
+    error LendingOptimizer__ZeroAmount();
     error LendingOptimizer__InvalidParameter();
     error LendingOptimizer__TooManyMarkets();
     error LendingOptimizer__ArrayLengthMismatch();
@@ -542,7 +545,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// @notice Adds a new approved market for allocation.
     /// @dev Requires market permissions. The cToken must have matching
-    ///      underlying asset and a registered market manager. Max 6 markets.
+    ///      underlying asset and a registered market manager. Max 8 markets.
     /// @param newAsset Address of the cToken market to add.
     /// @param capBps Allocation cap in BPS. Stored as WAD internally.
     function addApprovedAsset(address newAsset, uint256 capBps) external nonReentrant {
@@ -566,7 +569,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         approvedCTokensList.push(newAsset);
         allocationCaps[newAsset] = capWad;
 
-        emit MarketAdded(newAsset, capWad);
+        emit MarketAdded(newAsset, capBps);
     }
 
     /// @notice Updates the allocation cap for an approved market.
@@ -593,7 +596,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Update the allocation cap.
         allocationCaps[cToken] = newCapWad;
 
-        emit AllocationCapUpdated(cToken, newCapWad);
+        emit AllocationCapUpdated(cToken, newCapBps);
     }
 
     /// @notice Updates the performance fee charged on yield above watermark.
@@ -646,8 +649,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      yield, and charges performance fees if rate exceeds watermark.
     /// @return Current exchange rate in WAD (1e18 = 1:1). Returns WAD if no supply.
     function exchangeRateUpdated() public nonReentrant returns (uint256) {
-        if (totalSupply() == 0) return WAD;
-
         // Accrue yield from underlying markets and vest new yield.
         // Note: _accrueIfNeeded() may mint fee shares, so we must use
         // totalSupply() after accrual, not a cached value.
@@ -659,6 +660,28 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @notice Accrues yield from underlying markets and absorbs it.
     function accrueIfNeeded() external nonReentrant {
         _accrueIfNeeded();
+    }
+
+    /// @notice Recovers underlying assets incorrectly sent to the optimizer.
+    /// @dev All assets should be deployed in cToken markets, so any idle
+    ///      underlying balance is excess. Does not modify `_totalAssets`.
+    ///      Requires DAO permissions.
+    function skim() external nonReentrant {
+        _hasDaoPermissions();
+        uint256 excess = skimAvailable();
+
+        address daoAddress = centralRegistry.daoAddress();
+        SafeTransferLib.safeTransfer(address(_asset), daoAddress, excess);
+
+        emit ExcessRecovered(excess, daoAddress);
+    }
+
+    /// @notice Returns the amount of excess underlying that can be recovered.
+    /// @dev The optimizer should hold no idle underlying — any balance is excess.
+    /// @return excess The recoverable excess underlying amount.
+    function skimAvailable() public view returns (uint256 excess) {
+        excess = _asset.balanceOf(address(this));
+        if (excess == 0) revert LendingOptimizer__ZeroAmount();
     }
 
     /// VIEW FUNCTIONS ///
@@ -1271,16 +1294,29 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Verifies that every market's current allocation does not exceed its cap
     ///      and emits the post-rebalance state with per-market allocations.
     function _verifyAllocationCaps() internal {
-        uint256 ta = totalAssets();
         uint256 l = approvedCTokensList.length;
         uint256[] memory allocations = new uint256[](l);
+        uint256 ta;
+
+        // Compute fresh total from actual post-rebalance market balances
+        // instead of using the cached _totalAssets, which may be stale
+        // due to rounding losses from cToken withdraw/deposit round-trips.
+        for (uint256 i; i < l; ++i) {
+            allocations[i] = _getMarketAssets(approvedCTokensList[i]);
+            ta += allocations[i];
+        }
+
+        // Sync cached total assets to the post-rebalance state.
+        // We recompute directly rather than calling _accrueIfNeeded()
+        // to avoid charging a performance fee on the rounding difference.
+        _totalAssets = ta;
 
         if (ta > 0) {
             for (uint256 i; i < l; ++i) {
-                address cToken = approvedCTokensList[i];
-                allocations[i] = _getMarketAssets(cToken);
-                uint256 currentAllocation = FixedPointMathLib.mulDiv(allocations[i], WAD, ta);
-                if (currentAllocation > allocationCaps[cToken]) revert LendingOptimizer__AllocationExceedsCap();
+                uint256 currentAllocation = FixedPointMathLib.fullMulDiv(allocations[i], WAD, ta);
+                if (currentAllocation > allocationCaps[approvedCTokensList[i]]) {
+                    revert LendingOptimizer__AllocationExceedsCap();
+                }
             }
         }
 
@@ -1394,5 +1430,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Checks if caller has market permissions.
     function _hasMarketPermissions() internal view {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
+    }
+
+    /// @dev Checks if caller has DAO permissions.
+    function _hasDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
     }
 }

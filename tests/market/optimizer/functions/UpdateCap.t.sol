@@ -142,7 +142,7 @@ contract TestLendingOptimizerUpdateCap is TestBaseLendingOptimizer {
 
         // Expect event to be emitted.
         vm.expectEmit(true, false, false, true);
-        emit AllocationCapUpdated(cUSDC_WMON_MARKET, 8_000 * 1e14);
+        emit AllocationCapUpdated(cUSDC_WMON_MARKET, 8_000);
 
         // Now update the first market's cap.
         optimizer.updateCap(cUSDC_WMON_MARKET, 8_000);
