@@ -40,9 +40,10 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.prank(caller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     /// @notice Random callers without market permissions cannot setFee.
@@ -299,7 +300,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         uint256 totalAssetsAfter = optimizer.totalAssets();
         uint256 exchangeRateAfter = optimizer.exchangeRate();

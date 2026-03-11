@@ -122,106 +122,83 @@ contract OptimizerReader {
         }
     }
 
-    /// @notice Returns the single best market to deposit into, based on highest projected supply rate.
-    /// @param optimizer The LendingOptimizer address.
-    /// @param assets The amount of underlying assets to deposit.
-    /// @return market The cToken market address to deposit into.
-    ///         Returns address(0) if no viable market exists.
-    function optimalDeposit(
-        address optimizer,
-        uint256 assets
-    ) external view returns (address market) {
-        address[] memory cTokens = ILendingOptimizer(optimizer).getApprovedMarkets();
-        uint256 numMarkets = cTokens.length;
-
-        if (numMarkets == 0) return address(0);
-        if (numMarkets == 1) {
-            return _isMintPaused(cTokens[0]) ? address(0) : cTokens[0];
-        }
-
-        uint256 bestRate;
-        bool found;
-        for (uint256 i; i < numMarkets; ++i) {
-            if (_isMintPaused(cTokens[i])) continue;
-
-            IBorrowableCToken ct = IBorrowableCToken(cTokens[i]);
-
-            uint256 rate = _IRM(ct).supplyRate(
-                _assetsHeld(ct) + assets,
-                _outstandingDebt(ct),
-                _interestFee(ct)
-            );
-
-            if (!found || rate > bestRate) {
-                bestRate = rate;
-                market = cTokens[i];
-                found = true;
-            }
-        }
-    }
-
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
     ///      allocation across markets, respecting allocation caps. Returns
-    ///      ReallocationAction[] and AllocationBound[] that can be passed
-    ///      directly to LendingOptimizer.rebalance().
+    ///      ReallocationAction[], AllocationBound[], and queue arrays that
+    ///      can be passed directly to LendingOptimizer.rebalance().
     ///      Bounds are set to [idealBps - slippageBps, idealBps + slippageBps],
     ///      clamped to [0, 10000].
+    ///      Queues are sorted by projected supply rate at the ideal allocation:
+    ///      supplyQueue descending (best yield first), withdrawQueue ascending
+    ///      (worst yield first). Paused markets are excluded from the
+    ///      relevant queue.
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
     /// @return actions The rebalance actions array matching approvedCTokensList order.
     /// @return bounds The allocation bounds array matching approvedCTokensList order.
+    /// @return supplyQueue Markets sorted by descending projected supply rate.
+    /// @return withdrawQueue Markets sorted by ascending projected supply rate.
     function optimalRebalance(
         address optimizer,
         uint256 slippageBps
     ) external view returns (
         LendingOptimizer.ReallocationAction[] memory actions,
-        LendingOptimizer.AllocationBound[] memory bounds
+        LendingOptimizer.AllocationBound[] memory bounds,
+        address[] memory supplyQueue,
+        address[] memory withdrawQueue
     ) {
         address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
-        uint256 numMarkets = markets.length;
 
-        actions = new LendingOptimizer.ReallocationAction[](numMarkets);
-        bounds = new LendingOptimizer.AllocationBound[](numMarkets);
+        actions = new LendingOptimizer.ReallocationAction[](markets.length);
+        bounds = new LendingOptimizer.AllocationBound[](markets.length);
 
-        if (numMarkets == 0) return (actions, bounds);
+        if (markets.length == 0) return (actions, bounds, supplyQueue, withdrawQueue);
 
-        (uint256[] memory idealAssets, uint256[] memory currentAssets) =
-            _computeIdealAllocation(optimizer, markets);
+        MarketAlloc[] memory m;
+        {
+            uint256[] memory idealAssets;
+            uint256[] memory currentAssets;
+            (idealAssets, currentAssets, m) =
+                _computeIdealAllocation(optimizer, markets);
 
-        uint256 ta = ILendingOptimizer(optimizer).totalAssets();
+            uint256 ta = ILendingOptimizer(optimizer).totalAssets();
 
-        // Diff ideal vs current to produce deposit/withdraw actions,
-        // and compute bounds around the ideal allocation percentage.
-        for (uint256 i; i < numMarkets; ++i) {
-            if (idealAssets[i] > currentAssets[i]) {
-                actions[i] = LendingOptimizer.ReallocationAction(
-                    IBorrowableCToken(markets[i]),
-                    int256(idealAssets[i] - currentAssets[i])
-                );
-            } else if (currentAssets[i] > idealAssets[i]) {
-                actions[i] = LendingOptimizer.ReallocationAction(
-                    IBorrowableCToken(markets[i]),
-                    -int256(currentAssets[i] - idealAssets[i])
-                );
-            } else {
-                actions[i] = LendingOptimizer.ReallocationAction(
-                    IBorrowableCToken(markets[i]),
-                    int256(0)
-                );
-            }
+            // Diff ideal vs current to produce deposit/withdraw actions,
+            // and compute bounds around the ideal allocation percentage.
+            for (uint256 i; i < markets.length; ++i) {
+                if (idealAssets[i] > currentAssets[i]) {
+                    actions[i] = LendingOptimizer.ReallocationAction(
+                        IBorrowableCToken(markets[i]),
+                        int256(idealAssets[i] - currentAssets[i])
+                    );
+                } else if (currentAssets[i] > idealAssets[i]) {
+                    actions[i] = LendingOptimizer.ReallocationAction(
+                        IBorrowableCToken(markets[i]),
+                        -int256(currentAssets[i] - idealAssets[i])
+                    );
+                } else {
+                    actions[i] = LendingOptimizer.ReallocationAction(
+                        IBorrowableCToken(markets[i]),
+                        int256(0)
+                    );
+                }
 
-            // Compute bounds around ideal allocation.
-            if (ta > 0) {
-                uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
-                uint256 minBps = idealBps > slippageBps ? idealBps - slippageBps : 0;
-                uint256 maxBps = idealBps + slippageBps > 10000 ? 10000 : idealBps + slippageBps;
-                bounds[i] = LendingOptimizer.AllocationBound(minBps, maxBps);
-            } else {
-                bounds[i] = LendingOptimizer.AllocationBound(0, 10000);
+                // Compute bounds around ideal allocation.
+                if (ta > 0) {
+                    uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
+                    bounds[i] = LendingOptimizer.AllocationBound(
+                        idealBps > slippageBps ? idealBps - slippageBps : 0,
+                        idealBps + slippageBps > 10000 ? 10000 : idealBps + slippageBps
+                    );
+                } else {
+                    bounds[i] = LendingOptimizer.AllocationBound(0, 10000);
+                }
             }
         }
+
+        (supplyQueue, withdrawQueue) = _computeQueues(markets, m);
     }
 
     /// @dev Chunked greedy allocation: computes the ideal per-market asset
@@ -233,12 +210,13 @@ contract OptimizerReader {
         address[] memory markets
     ) internal view returns (
         uint256[] memory idealAssets,
-        uint256[] memory currentAssets
+        uint256[] memory currentAssets,
+        MarketAlloc[] memory m
     ) {
         uint256 numMarkets = markets.length;
         idealAssets = new uint256[](numMarkets);
         currentAssets = new uint256[](numMarkets);
-        MarketAlloc[] memory m = new MarketAlloc[](numMarkets);
+        m = new MarketAlloc[](numMarkets);
 
         // First pass: snapshot per-market state and compute total assets.
         uint256 ta;
@@ -261,7 +239,7 @@ contract OptimizerReader {
             }
         }
 
-        if (ta == 0) return (idealAssets, currentAssets);
+        if (ta == 0) return (idealAssets, currentAssets, m);
 
         // Second pass: compute maxAllocation (requires final ta) and adjust
         // for market pause states.
@@ -330,6 +308,72 @@ contract OptimizerReader {
         }
     }
 
+    /// @dev Computes supply and withdraw queues by sorting markets based on
+    ///      projected supply rates at the ideal allocation.
+    function _computeQueues(
+        address[] memory markets,
+        MarketAlloc[] memory m
+    ) internal view returns (
+        address[] memory supplyQueue,
+        address[] memory withdrawQueue
+    ) {
+        uint256 n = markets.length;
+        uint256[] memory rates = new uint256[](n);
+
+        for (uint256 i; i < n; ++i) {
+            rates[i] = m[i].irm.supplyRate(
+                m[i].simAssetsHeld, m[i].debt, m[i].fees
+            );
+        }
+
+        supplyQueue = _buildQueue(markets, rates, true);
+        withdrawQueue = _buildQueue(markets, rates, false);
+    }
+
+    /// @dev Selection-sorts markets into a queue.
+    /// @param isSupply If true, descending rate (best yield first), excluding
+    ///                 mint-paused markets. If false, ascending rate (worst
+    ///                 yield first), excluding redeem-paused markets.
+    function _buildQueue(
+        address[] memory markets,
+        uint256[] memory rates,
+        bool isSupply
+    ) internal view returns (address[] memory queue) {
+        uint256 n = markets.length;
+
+        uint256 count;
+        for (uint256 i; i < n; ++i) {
+            if (isSupply ? !_isMintPaused(markets[i]) : !_isRedeemPaused(markets[i])) {
+                ++count;
+            }
+        }
+
+        queue = new address[](count);
+        bool[] memory used = new bool[](n);
+
+        for (uint256 s; s < count; ++s) {
+            uint256 bestIdx;
+            uint256 bestRate = isSupply ? 0 : type(uint256).max;
+            bool found;
+
+            for (uint256 i; i < n; ++i) {
+                if (used[i]) continue;
+                if (isSupply ? _isMintPaused(markets[i]) : _isRedeemPaused(markets[i])) {
+                    continue;
+                }
+
+                if (!found || (isSupply ? rates[i] > bestRate : rates[i] < bestRate)) {
+                    bestRate = rates[i];
+                    bestIdx = i;
+                    found = true;
+                }
+            }
+
+            queue[s] = markets[bestIdx];
+            used[bestIdx] = true;
+        }
+    }
+
     function _balanceOf(
         address token,
         address account
@@ -354,6 +398,13 @@ contract OptimizerReader {
     /// @dev Convenience overload — resolves market manager from cToken.
     function _isMintPaused(address cToken) internal view returns (bool mp) {
         mp = _isMintPaused(cToken, _marketManager(cToken));
+    }
+
+    /// @dev Returns true if redeeming is paused for `cToken`.
+    function _isRedeemPaused(address cToken) internal view returns (bool) {
+        return MarketManagerIsolated(
+            address(_marketManager(cToken))
+        ).redeemPaused() == 2;
     }
 
     function _marketManager(

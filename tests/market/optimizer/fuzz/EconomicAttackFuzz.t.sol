@@ -219,7 +219,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
                 assetsOrBps: int256(0)
             });
 
-            try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {} catch {
+            try harness.rebalance(actions, _unconstrainedBoundsFor(harness), harness.getSupplyQueue(), harness.getWithdrawQueue()) {} catch {
                 // Rebalance might fail due to allocation caps; that's OK.
                 return;
             }
@@ -331,7 +331,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
                 });
             }
 
-            try roundingHarness.rebalance(actions, _unconstrainedBoundsFor(roundingHarness)) {} catch {
+            try roundingHarness.rebalance(actions, _unconstrainedBoundsFor(roundingHarness), roundingHarness.getSupplyQueue(), roundingHarness.getWithdrawQueue()) {} catch {
                 break; // Allocation cap or liquidity issue; stop.
             }
         }

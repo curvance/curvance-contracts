@@ -276,7 +276,7 @@ contract LendingOptimizerHandler is Test {
 
         _mockHarvestPermissions(address(this));
 
-        try optimizer.rebalance(actions, _unconstrainedBounds()) {
+        try optimizer.rebalance(actions, _unconstrainedBounds(), optimizer.getSupplyQueue(), optimizer.getWithdrawQueue()) {
             ghost_rebalanceCount++;
         } catch {
             // Expected revert (e.g., allocation cap exceeded).

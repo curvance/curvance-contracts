@@ -298,7 +298,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         // Total assets should be preserved.
         assertApproxEqAbs(
@@ -437,8 +437,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
 
         // A corrective rebalance that moves assets from WMON to WBTC should pass.
         uint256 wmonTarget = (totalAssets * 25) / 100; // 25% < 30% cap
@@ -451,7 +452,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(moveAmount)
         );
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         // Verify WMON is now within its cap.
         uint256 wmonAssetsAfter = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -604,7 +605,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         assertApproxEqAbs(
             optimizer.totalAssets(), totalAssetsBefore, 10,

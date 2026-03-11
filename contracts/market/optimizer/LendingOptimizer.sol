@@ -26,9 +26,9 @@ import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
 ///
-///      Deposits are automatically routed to the optimal market based
-///      on projected yield. Withdrawals select the lowest-yielding
-///      market to preserve capital in higher-performing markets.
+///      Deposits are routed according to a harvester-set supply queue.
+///      Withdrawals drain markets in the order of a harvester-set
+///      withdraw queue.
 ///
 ///      Yield from underlying cToken markets is absorbed immediately
 ///      into `_totalAssets` on every accrual (cToken-style). Since
@@ -80,16 +80,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 maxBps;
     }
 
-    /// @dev Snapshot of a single market used during multi-market withdrawals.
-    struct MarketSnapshot {
-        /// @dev The cToken market address.
-        address market;
-        /// @dev Current supply rate (used to sort worst-yield first).
-        uint256 rate;
-        /// @dev Max assets withdrawable: min(optimizer balance, market idle cash).
-        uint256 liquidity;
-    }
-
     /// CONSTANTS ///
 
     /// @dev Maximum fee in BPS (50% = 5000 BPS).
@@ -129,6 +119,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     uint8 public mintPaused;
     /// @notice Central registry for permissions and market manager lookups.
     ICentralRegistry public immutable centralRegistry;
+    /// @notice Ordered list of markets for deposit routing.
+    /// @dev Deposits go to the first non-paused market in this queue.
+    ///      Set by the harvester via rebalance() or setSupplyQueue().
+    address[] public supplyQueue;
+    /// @notice Ordered list of markets for withdrawal routing.
+    /// @dev Withdrawals drain markets in this queue order.
+    ///      Set by the harvester via rebalance() or setWithdrawQueue().
+    address[] public withdrawQueue;
 
     /// EVENTS ///
 
@@ -140,6 +138,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     event PerformanceFeeAccrued(uint256 feeShares, address indexed recipient);
     event ActionPaused(string action, bool state);
     event ExcessRecovered(uint256 amount, address indexed recipient);
+    event SupplyQueueUpdated(address[] newQueue);
+    event WithdrawQueueUpdated(address[] newQueue);
 
     /// ERRORS ///
 
@@ -162,6 +162,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     error LendingOptimizer__MintPaused();
     error LendingOptimizer__MarketPaused();
     error LendingOptimizer__AllocationOutOfBounds();
+    error LendingOptimizer__DuplicateInQueue();
+    error LendingOptimizer__InvalidQueueEntry();
 
     /// @notice Deploys a new LendingOptimizer for a single underlying asset.
     /// @dev Performs four categories of setup:
@@ -238,6 +240,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Store the provided cToken list.
         approvedCTokensList = _approvedCTokens;
+        // Initialize supply and withdraw queues to the full approved list.
+        supplyQueue = _approvedCTokens;
+        withdrawQueue = _approvedCTokens;
         // Store the high watermark exchange rate as 100% (WAD).
         exchangeRateHighWatermark = WAD;
     }
@@ -281,7 +286,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Deposit(msg.sender, address(0), assets, trackedAssets);
     }
 
-    /// @notice Standard ERC4626 deposit - deposits into optimal market.
+    /// @notice Standard ERC4626 deposit - deposits into the first viable
+    ///         market in the supply queue.
     /// @dev Shares are derived from the actual recoverable value (trackedAssets)
     ///      via convertToShares, which rounds down -- favoring the vault.
     /// @param assets The amount of underlying assets to deposit.
@@ -293,11 +299,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override(ERC4626, ILendingOptimizer) nonReentrant returns (uint256 shares) {
         _checkMintPaused();
         _accrueIfNeeded();
-        shares = _deposit(assets, receiver, approvedCTokensList[_optimalDepositTarget(assets)]);
+        shares = _deposit(assets, receiver, _supplyQueueTarget());
     }
 
-/// @notice Standard ERC4626 mint - mints exact shares by depositing
-    ///         into the optimal market.
+    /// @notice Standard ERC4626 mint - mints exact shares by depositing
+    ///         into the first viable market in the supply queue.
     /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
     /// @return assets The amount of assets deposited.
@@ -307,11 +313,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override nonReentrant returns (uint256 assets) {
         _checkMintPaused();
         _accrueIfNeeded();
-        assets = _mintShares(shares, receiver, approvedCTokensList[_optimalDepositTarget(previewMint(shares))]);
+        assets = _mintShares(shares, receiver, _supplyQueueTarget());
     }
 
 /// @notice Standard ERC4626 withdraw - withdraws across multiple markets
-    ///         (worst-yield first) to ensure ERC4626 compliance.
+    ///         in withdraw queue order to ensure ERC4626 compliance.
     /// @param assets The amount of underlying assets to withdraw.
     /// @param receiver The address to receive the withdrawn assets.
     /// @param owner The address that owns the shares being burned.
@@ -328,7 +334,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
 /// @notice Standard ERC4626 redeem - redeems across multiple markets
-    ///         (worst-yield first) to ensure ERC4626 compliance.
+    ///         in withdraw queue order to ensure ERC4626 compliance.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
     /// @param owner The address that owns the shares being burned.
@@ -344,7 +350,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _withdraw(assets, shares, receiver, owner);
     }
 
-/// @notice Rebalances assets across approved markets.
+/// @notice Rebalances assets across approved markets and updates
+    ///         the supply and withdraw queues atomically.
     /// @dev Requires harvester permissions. Actions are processed in two passes:
     ///      withdrawals first, then deposits. This ensures sufficient liquidity
     ///      for deposits without requiring external capital.
@@ -368,9 +375,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @param bounds Array of allocation bounds, one per approved market.
     ///               Each market's post-rebalance allocation (in BPS) must be
     ///               within [minBps, maxBps]. Use [0, 10000] for unconstrained.
+    /// @param newSupplyQueue New supply queue ordering. Each entry must be an
+    ///                       approved market with no duplicates.
+    /// @param newWithdrawQueue New withdraw queue ordering. Each entry must be
+    ///                         an approved market with no duplicates.
     function rebalance(
         ReallocationAction[] calldata actions,
-        AllocationBound[] calldata bounds
+        AllocationBound[] calldata bounds,
+        address[] calldata newSupplyQueue,
+        address[] calldata newWithdrawQueue
     ) external nonReentrant {
         // Revert if the caller does not have harvester permissions.
         _hasHarvesterPermissions();
@@ -429,6 +442,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Verify post-rebalance allocations fall within caller-specified bounds.
         _verifyAllocationBounds(bounds);
+
+        // Update supply and withdraw queues with the rebalance.
+        _setSupplyQueue(newSupplyQueue);
+        _setWithdrawQueue(newWithdrawQueue);
     }
 
     /// @notice Removes an approved market and reallocates its assets.
@@ -537,6 +554,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
         approvedCTokensList.pop();
 
+        // Remove from both queues (preserves ordering via shift-left).
+        _removeFromQueue(supplyQueue, cTokenToRemove);
+        _removeFromQueue(withdrawQueue, cTokenToRemove);
+
         // Verify allocation caps are respected after reallocation.
         _verifyAllocationCaps();
 
@@ -568,6 +589,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 capWad = _bpsToWad(capBps);
         approvedCTokensList.push(newAsset);
         allocationCaps[newAsset] = capWad;
+
+        // Auto-append to withdraw queue so funds are not trapped.
+        // Not added to supply queue, harvester opts in via
+        // rebalance() or setSupplyQueue().
+        withdrawQueue.push(newAsset);
 
         emit MarketAdded(newAsset, capBps);
     }
@@ -642,6 +668,34 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         mintPaused = state ? 2 : 1; // 2 = paused; 1 = active.
 
         emit ActionPaused("Mint Paused", state);
+    }
+
+    /// @notice Updates the supply queue ordering.
+    /// @dev Requires harvester permissions. Each entry must be an approved
+    ///      market with no duplicates. May be a subset of approved markets.
+    /// @param newQueue New supply queue ordering.
+    function setSupplyQueue(address[] calldata newQueue) external nonReentrant {
+        _hasHarvesterPermissions();
+        _setSupplyQueue(newQueue);
+    }
+
+    /// @notice Updates the withdraw queue ordering.
+    /// @dev Requires harvester permissions. Each entry must be an approved
+    ///      market with no duplicates. May be a subset of approved markets.
+    /// @param newQueue New withdraw queue ordering.
+    function setWithdrawQueue(address[] calldata newQueue) external nonReentrant {
+        _hasHarvesterPermissions();
+        _setWithdrawQueue(newQueue);
+    }
+
+    /// @notice Returns the current supply queue.
+    function getSupplyQueue() external view returns (address[] memory) {
+        return supplyQueue;
+    }
+
+    /// @notice Returns the current withdraw queue.
+    function getWithdrawQueue() external view returns (address[] memory) {
+        return withdrawQueue;
     }
 
     /// @notice Accrues interest, absorbs yield, charges fees, and returns exchange rate.
@@ -831,42 +885,18 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Selects the best market index for a deposit by projecting each
-    ///      market's supply rate after adding `assets`. The market whose IRM
-    ///      projects the highest supply rate wins (routes capital where yield
-    ///      is best). Reverts if no unpaused market exists.
-    /// @param assets  Amount of underlying assets to deposit.
-    /// @return targetIndex  Index into `approvedCTokensList` of the chosen market.
-    function _optimalDepositTarget(uint256 assets) internal view returns (uint256 targetIndex) {
-        uint256 l = approvedCTokensList.length;
-
-        if (l == 0) revert LendingOptimizer__MarketNotApproved();
-
-        uint256 optimalRate;
-        bool foundViable;
+    /// @dev Returns the first non-paused market in the supply queue.
+    ///      Reverts if no viable market exists.
+    /// @return target Address of the chosen market.
+    function _supplyQueueTarget() internal view returns (address target) {
+        uint256 l = supplyQueue.length;
 
         for (uint256 i; i < l; ++i) {
-            address cTokenAddr = approvedCTokensList[i];
-
-            // Skip markets paused for deposits.
-            if (_isMarketPausedForAction(cTokenAddr, true)) continue;
-
-            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
-
-            uint256 projectedRate = cToken.IRM().supplyRate(
-                cToken.assetsHeld() + assets,
-                cToken.marketOutstandingDebt(),
-                cToken.interestFee()
-            );
-
-            if (!foundViable || projectedRate > optimalRate) {
-                foundViable = true;
-                optimalRate = projectedRate;
-                targetIndex = i;
-            }
+            address market = supplyQueue[i];
+            if (!_isMarketPausedForAction(market, true)) return market;
         }
 
-        if (!foundViable) revert LendingOptimizer__MarketPaused();
+        revert LendingOptimizer__MarketPaused();
     }
 
 /// @dev Returns true if the market is paused for the given action.
@@ -993,25 +1023,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _totalAssets -= assets;
     }
 
-/// @dev Withdraws `assets` across multiple markets, draining worst-yield first.
+/// @dev Withdraws `assets` across multiple markets in withdraw queue order.
     ///
     ///      Why multi-market? Standard ERC4626 requires that
     ///      `withdraw(maxWithdraw(owner))` never reverts. If a user's assets
     ///      are spread across N markets and no single market has enough idle
     ///      liquidity, a single-market withdraw would revert. This function
     ///      solves that by pulling from as many markets as needed.
-    ///
-    ///      Algorithm (3 phases):
-    ///        1. SNAPSHOT — For each market, record its address, current
-    ///           supply rate, and how much the optimizer can actually withdraw
-    ///           from it (capped by both the optimizer's cToken balance and
-    ///           the market's idle cash).
-    ///        2. SORT — Selection-sort the snapshots ascending by supply rate
-    ///           so the lowest-yielding (worst) markets come first.
-    ///           Max 8 markets ⇒ O(n²) is ~28 comparisons worst case.
-    ///        3. DRAIN — Walk the sorted list, pulling
-    ///           min(remaining, available) from each market until the full
-    ///           `assets` amount is satisfied.
     ///
     /// @param assets Total underlying assets to withdraw.
     /// @param shares Total shares to burn (already computed by caller).
@@ -1026,16 +1044,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Burn shares, spend allowance if needed, decrement _totalAssets.
         _prepareWithdraw(assets, shares, owner);
 
-        uint256 l = approvedCTokensList.length;
+        uint256 l = withdrawQueue.length;
+        uint256 remaining = assets;
 
-        // Build one snapshot per market: its address, supply rate,
-        // and how much the optimizer can actually pull from it.
-        MarketSnapshot[] memory markets = new MarketSnapshot[](l);
+        for (uint256 i; i < l && remaining > 0; ++i) {
+            address cTokenAddr = withdrawQueue[i];
 
-        for (uint256 i; i < l; ++i) {
-            address cTokenAddr = approvedCTokensList[i];
-
-            // Paused markets contribute 0 liquidity; fields stay 0.
+            // Skip paused markets.
             if (_isMarketPausedForAction(cTokenAddr, false)) continue;
 
             IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
@@ -1047,56 +1062,21 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             // How much idle cash the market actually has for withdrawals.
             uint256 marketLiquidity = cToken.assetsHeld();
 
-            // Snapshot the market address, liquidity, current supply rate.
-            markets[i].market = cTokenAddr;
-
             // Withdrawable = lesser of what we own vs. what the market can pay.
-            markets[i].liquidity = optimizerAssets < marketLiquidity
+            uint256 available = optimizerAssets < marketLiquidity
                 ? optimizerAssets
                 : marketLiquidity;
 
-            markets[i].rate = cToken.IRM().supplyRate(
-                cToken.assetsHeld(),
-                cToken.marketOutstandingDebt(),
-                cToken.interestFee()
-            );
-        }
+            if (available == 0) continue;
 
-        // Use selection sort to order markets by ascending supply rate (worst yield first).
-        for (uint256 i; i < l; ++i) {
-            uint256 minPos = i;
-
-            // Scan the unsorted tail for a lower rate.
-            for (uint256 j = i + 1; j < l; ++j) {
-                if (markets[j].rate < markets[minPos].rate) {
-                    minPos = j;
-                }
-            }
-
-            // If a lower rate was found, swap the positions.
-            if (minPos != i) {
-                (markets[i], markets[minPos]) = (markets[minPos], markets[i]);
-            }
-        }
-
-        // Walk the sorted array from index 0 (lowest rate) upward.
-        uint256 remaining = assets;
-        for (uint256 i; i < l && remaining > 0; ++i) {
-            // Nothing to pull from this market (paused or fully borrowed).
-            if (markets[i].liquidity == 0) continue;
-
-            // Pull as much as we need, capped by what this market can give.
-            uint256 withdrawAmount = remaining < markets[i].liquidity
+            uint256 withdrawAmount = remaining < available
                 ? remaining
-                : markets[i].liquidity;
+                : available;
 
-            IBorrowableCToken(markets[i].market).withdraw(
-                withdrawAmount, address(this), address(this)
-            );
+            cToken.withdraw(withdrawAmount, address(this), address(this));
             remaining -= withdrawAmount;
         }
 
-        // Safety check, should never trigger.
         if (remaining > 0) revert LendingOptimizer__InsufficientLiquidity();
 
         // Transfer the full amount to the receiver in one shot.
@@ -1105,15 +1085,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
 
-    /// @dev Returns total withdrawable liquidity across all non-paused markets.
+    /// @dev Returns total withdrawable liquidity across the withdraw queue.
     ///      For each market, withdrawable = min(optimizer's projected balance,
     ///      market's idle cash). Uses `_projectedMarketAssets()` for accuracy.
     ///      Used by maxWithdraw/maxRedeem to cap reported values so that
     ///      `withdraw(maxWithdraw(owner))` never reverts due to illiquidity.
     function _availableLiquidity() internal view returns (uint256 total) {
-        uint256 l = approvedCTokensList.length;
+        uint256 l = withdrawQueue.length;
         for (uint256 i; i < l; ++i) {
-            address cTokenAddr = approvedCTokensList[i];
+            address cTokenAddr = withdrawQueue[i];
             // Paused markets cannot be withdrawn from; skip entirely.
             if (_isMarketPausedForAction(cTokenAddr, false)) continue;
 
@@ -1348,6 +1328,54 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 }
             }
         }
+    }
+
+    /// @dev Validates and sets the supply queue.
+    function _setSupplyQueue(address[] calldata newQueue) internal {
+        _validateQueue(newQueue);
+        supplyQueue = newQueue;
+        emit SupplyQueueUpdated(newQueue);
+    }
+
+    /// @dev Validates and sets the withdraw queue.
+    function _setWithdrawQueue(address[] calldata newQueue) internal {
+        _validateQueue(newQueue);
+        withdrawQueue = newQueue;
+        emit WithdrawQueueUpdated(newQueue);
+    }
+
+    /// @dev Validates that all entries in a queue are approved markets
+    ///      with no duplicates. Queue may be a subset of approved markets.
+    function _validateQueue(address[] calldata queue) internal view {
+        uint256 l = queue.length;
+        // Queue can be a subset but never larger than the approved set.
+        if (l > approvedCTokensList.length) revert LendingOptimizer__InvalidParameter();
+
+        for (uint256 i; i < l; ++i) {
+            // Every entry must be an approved market.
+            if (!_isApprovedMarket(queue[i])) revert LendingOptimizer__InvalidQueueEntry();
+            // Duplicate check
+            for (uint256 j; j < i; ++j) {
+                if (queue[j] == queue[i]) revert LendingOptimizer__DuplicateInQueue();
+            }
+        }
+    }
+
+    /// @dev Removes a market from a queue using shift-left to preserve ordering.
+    ///      No-op (not revert) if the market is not in the queue, because
+    ///      addApprovedAsset only appends to withdrawQueue, a market may
+    ///      never have been added to supplyQueue.
+    function _removeFromQueue(address[] storage queue, address market) internal {
+        uint256 l = queue.length;
+        bool found;
+        for (uint256 i; i < l; ++i) {
+            if (found) {
+                queue[i - 1] = queue[i];
+            } else if (queue[i] == market) {
+                found = true;
+            }
+        }
+        if (found) queue.pop();
     }
 
     /// @dev Synchronizes optimizer state: absorbs yield from underlying

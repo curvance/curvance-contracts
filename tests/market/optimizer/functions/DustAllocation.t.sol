@@ -238,7 +238,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer))
         );
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         uint256 dustBalanceAfter = IBorrowableCToken(cUSDC_WBTC_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer))
@@ -281,7 +281,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         uint256 dustBalanceAfter = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
 
@@ -319,7 +319,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
             int256(0)
         );
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         uint256 totalAssetsAfter = optimizer.totalAssets();
 

@@ -44,9 +44,9 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return convertToShares(assets);
     }
 
-    /// @notice Exposes _optimalDepositTarget for deposit target selection.
-    function optimalDepositTarget(uint256 assets) external view returns (uint256) {
-        return _optimalDepositTarget(assets);
+    /// @notice Exposes _supplyQueueTarget for deposit target selection.
+    function supplyQueueTarget() external view returns (address) {
+        return _supplyQueueTarget();
     }
 
     /// @notice Test-only: deposits into a specific market for setup purposes.

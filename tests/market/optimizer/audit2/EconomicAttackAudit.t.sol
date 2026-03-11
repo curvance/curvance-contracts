@@ -211,8 +211,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         });
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
+        (address[] memory sq, address[] memory wq) = _currentQueues(harness);
         vm.prank(maliciousHarvester);
-        harness.rebalance(actions, bounds);
+        harness.rebalance(actions, bounds, sq, wq);
 
         uint256 rawAfter = harness.exposed_accrueMarkets();
         console2.log("After one rebalance:");
@@ -817,7 +818,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(actions, bounds) {} catch {
+            try harness.rebalance(actions, bounds, harness.getSupplyQueue(), harness.getWithdrawQueue()) {} catch {
                 console2.log("Rebalance failed at iteration", i);
                 break;
             }
@@ -834,7 +835,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(rev, bounds) {} catch {
+            try harness.rebalance(rev, bounds, harness.getSupplyQueue(), harness.getWithdrawQueue()) {} catch {
                 console2.log("Reverse rebalance failed at iteration", i);
                 break;
             }
@@ -964,9 +965,10 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         });
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
+        (address[] memory sq, address[] memory wq) = _currentQueues(harness);
         vm.prank(attacker);
         vm.expectRevert();
-        harness.rebalance(actions, bounds);
+        harness.rebalance(actions, bounds, sq, wq);
 
         console2.log("DEFENSE CONFIRMED: Harvester-only functions properly restricted");
     }

@@ -70,7 +70,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         // Execute rebalance.
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         // Verify total assets are preserved (allowing for minor rounding).
         uint256 totalAssetsAfter = optimizer.totalAssets();
@@ -140,8 +140,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Expect revert with AllocationExceedsCap error.
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenUnauthorized() public {
@@ -160,8 +161,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenArrayLengthMismatch() public {
@@ -179,8 +181,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenInvalidMarketOrder() public {
@@ -199,8 +202,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     /// @notice Verifies that rebalance adjusts _totalAssets for rounding loss,
@@ -273,7 +277,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
             bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
             bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
-            testOptimizer.rebalance(actions, bounds);
+            _rebalance(testOptimizer, actions, bounds);
         }
 
         // Key test: Call exchangeRateUpdated which internally calls _accrueIfNeeded.
@@ -333,8 +337,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // sumDeclaredWithdrawals (2000) != sumDeclaredReallocated (1000)
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     function test_lendingOptimizer_rebalance_success_emitsRebalancedEvent() public {
@@ -377,7 +382,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.expectEmit(false, false, false, false, address(optimizer));
         emit LendingOptimizer.Rebalanced(0, new address[](0), new uint256[](0));
 
-        optimizer.rebalance(actions, _unconstrainedBounds());
+        _rebalance(optimizer, actions, _unconstrainedBounds());
     }
 
     /// @notice Tests that rebalance reverts when final allocation exceeds market caps.
@@ -412,8 +417,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Reverts because market 2's allocation (~30%) exceeds its 20% cap.
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     function test_lendingOptimizer_rebalance_revert_withdrawalBelowMinReallocation() public {
@@ -438,8 +444,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     // ============ Allocation Bounds Tests ============
@@ -502,8 +509,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.stopPrank();
 
         // Rebalance reverts — the deposit shifted allocations outside bounds.
+        (address[] memory sq, address[] memory wq) = _currentQueues(testOpt);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        testOpt.rebalance(actions, bounds);
+        testOpt.rebalance(actions, bounds, sq, wq);
     }
 
     /// @notice A withdrawal between off-chain computation and on-chain execution
@@ -559,8 +567,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         testOpt.redeem(shares * 80 / 100, address(this), address(this));
 
         // Rebalance reverts — allocations shifted outside tight bounds.
+        (address[] memory sq, address[] memory wq) = _currentQueues(testOpt);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        testOpt.rebalance(actions, bounds);
+        testOpt.rebalance(actions, bounds, sq, wq);
     }
 
     /// @notice Bounds that match the post-rebalance state succeed.
@@ -597,7 +606,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         bounds[2] = LendingOptimizer.AllocationBound({ minBps: 500, maxBps: 1500 });
 
         // Should succeed — no state change, allocations within bounds.
-        optimizer.rebalance(actions, bounds);
+        _rebalance(optimizer, actions, bounds);
     }
 
     /// @notice Bounds array length mismatch reverts.
@@ -618,8 +627,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
         bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
 
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 
     /// @notice Bounds set to zero tolerance revert on any non-exact allocation.
@@ -649,7 +659,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4000, maxBps: 4000 });
         bounds[2] = LendingOptimizer.AllocationBound({ minBps: 1000, maxBps: 1000 });
 
+        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        optimizer.rebalance(actions, bounds);
+        optimizer.rebalance(actions, bounds, sq, wq);
     }
 }

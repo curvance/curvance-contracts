@@ -124,8 +124,7 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
 
         // Get the expected optimal target before deposit
-        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(depositAmount);
-        address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
+        address expectedMarket = LendingOptimizerHarness(address(optimizer)).supplyQueueTarget();
 
         // Get market balance before
         uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));

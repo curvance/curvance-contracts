@@ -98,10 +98,10 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         if (currentAssets <= highAssets) return 0;
 
         uint256 profit = currentAssets - highAssets;
-        uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, feeWad, WAD);
+        uint256 feeAssets = FixedPointMathLib.mulDiv(profit, feeWad, WAD);
         if (feeAssets == 0) return 0;
 
-        return FixedPointMathLib.fullMulDivUp(feeAssets, supply, currentAssets - feeAssets);
+        return FixedPointMathLib.fullMulDiv(feeAssets, supply, currentAssets - feeAssets);
     }
 
     // ==================== BASIC ACCRUAL BEHAVIOR ====================
