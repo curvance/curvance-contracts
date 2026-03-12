@@ -329,8 +329,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override nonReentrant returns (uint256 shares) {
         _accrueIfNeeded();
 
-        shares = previewWithdraw(assets);
-        _withdraw(assets, shares, receiver, owner);
+        // Compute shares directly from post-accrual state.
+        // Include cToken rounding loss so the withdrawer bears the cost.
+        uint256 loss = _totalWithdrawRoundingLoss(assets);
+        shares = FixedPointMathLib.fullMulDivUp(
+            assets + loss, totalSupply(), _totalAssets
+        );
+        _withdraw(assets, loss, shares, receiver, owner);
     }
 
 /// @notice Standard ERC4626 redeem - redeems across multiple markets
@@ -346,8 +351,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ) public override nonReentrant returns (uint256 assets) {
         _accrueIfNeeded();
 
-        assets = previewRedeem(shares);
-        _withdraw(assets, shares, receiver, owner);
+        // Compute assets from post-accrual state.
+        // Deduct cToken rounding loss so the redeemer bears the cost.
+        assets = convertToAssets(shares);
+        uint256 loss = _totalWithdrawRoundingLoss(assets);
+        assets = assets > loss ? assets - loss : 0;
+        _withdraw(assets, loss, shares, receiver, owner);
     }
 
 /// @notice Rebalances assets across approved markets and updates
@@ -761,14 +770,32 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Uses accrued market values and accounts for pending fee shares to
     ///      satisfy ERC4626: "deposit should return the same or more shares
     ///      as previewDeposit if called in the same transaction."
-    ///      Rounds down by 1 share to account for the cToken deposit
-    ///      round-trip (assets → cTokenShares → trackedAssets) losing
-    ///      up to 1 wei of recoverable value.
+    ///
+    ///      Simulates the cToken round-trip (assets → cToken shares →
+    ///      trackedAssets) for each non-paused market and uses the worst-case
+    ///      (minimum) trackedAssets. This properly accounts for layered
+    ///      rounding losses that can exceed 1 wei when the cToken exchange
+    ///      rate is high (1 cToken share = many asset wei).
     function previewDeposit(uint256 assets) public view override returns (uint256 shares) {
         (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
         if (accruedSupply == 0 || accruedTa == 0) return assets;
-        shares = FixedPointMathLib.fullMulDiv(assets, accruedSupply, accruedTa);
-        shares = shares == 0 ? 0 : shares - 1;
+
+        // Simulate the cToken round-trip for each non-paused market.
+        // Use the worst-case (minimum) trackedAssets to guarantee
+        // deposit() >= previewDeposit() regardless of which market
+        // is selected at execution time.
+        uint256 trackedAssets = assets;
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            address cTokenAddr = approvedCTokensList[i];
+            if (_isMarketPausedForAction(cTokenAddr, true)) continue;
+
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
+            uint256 roundTrip = cToken.convertToAssets(cToken.previewDeposit(assets));
+            if (roundTrip < trackedAssets) trackedAssets = roundTrip;
+        }
+
+        shares = FixedPointMathLib.fullMulDiv(trackedAssets, accruedSupply, accruedTa);
     }
 
     /// @notice Returns the asset cost for minting `shares`, using accrued state.
@@ -780,29 +807,45 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice Returns shares needed to withdraw `assets`, using accrued state.
-    /// @dev Rounds up so the vault never under-burns.
+    /// @dev Rounds up so the vault never under-burns. Simulates the
+    ///      multi-market withdrawal to compute the exact cToken rounding
+    ///      loss (each cToken.withdraw() rounds UP shares burned), then
+    ///      charges the withdrawer for the total loss. This ensures
+    ///      remaining shareholders are not diluted.
     function previewWithdraw(uint256 assets) public view override returns (uint256 shares) {
         (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
         if (accruedSupply == 0 || accruedTa == 0) return 0;
-        shares = FixedPointMathLib.fullMulDivUp(assets, accruedSupply, accruedTa);
+        uint256 loss = _totalWithdrawRoundingLoss(assets);
+        shares = FixedPointMathLib.fullMulDivUp(assets + loss, accruedSupply, accruedTa);
     }
 
     /// @notice Returns assets received for redeeming `shares`, using accrued state.
-    /// @dev Rounds down so the vault never over-pays.
+    /// @dev Rounds down so the vault never over-pays. Simulates the
+    ///      multi-market withdrawal to compute the exact cToken rounding
+    ///      loss, then deducts it from the assets returned. This ensures
+    ///      remaining shareholders are not diluted.
     function previewRedeem(uint256 shares) public view override returns (uint256 assets) {
         (uint256 accruedTa, uint256 accruedSupply) = _accruedState();
         if (accruedSupply == 0) return 0;
         assets = FixedPointMathLib.fullMulDiv(shares, accruedTa, accruedSupply);
+        uint256 loss = _totalWithdrawRoundingLoss(assets);
+        assets = assets > loss ? assets - loss : 0;
     }
 
-    /// @notice Returns 0 when deposits are paused or uninitialized.
+    /// @notice Returns 0 when deposits are paused, uninitialized,
+    ///         or all supply queue markets are paused.
     function maxDeposit(address) public view override returns (uint256) {
-        return mintPaused == 1 ? type(uint256).max : 0;
+        return mintPaused == 1 && _hasUnpausedSupplyTarget()
+            ? type(uint256).max
+            : 0;
     }
 
-    /// @notice Returns 0 when deposits are paused or uninitialized.
+    /// @notice Returns 0 when deposits are paused, uninitialized,
+    ///         or all supply queue markets are paused.
     function maxMint(address) public view override returns (uint256) {
-        return mintPaused == 1 ? type(uint256).max : 0;
+        return mintPaused == 1 && _hasUnpausedSupplyTarget()
+            ? type(uint256).max
+            : 0;
     }
 
     /// @notice Returns the maximum amount of assets that can be withdrawn from `owner`.
@@ -814,7 +857,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             ? 0
             : FixedPointMathLib.fullMulDiv(balanceOf(owner), accruedTa, accruedSupply);
         uint256 liquidity = _availableLiquidity();
-        return ownerAssets < liquidity ? ownerAssets : liquidity;
+        uint256 capped = ownerAssets < liquidity ? ownerAssets : liquidity;
+        // Deduct cToken rounding loss so withdraw(maxWithdraw(owner))
+        // never reverts due to insufficient shares.
+        uint256 loss = _totalWithdrawRoundingLoss(capped);
+        return capped > loss ? capped - loss : 0;
     }
 
     /// @notice Returns the maximum amount of shares that can be redeemed from `owner`.
@@ -897,6 +944,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
 
         revert LendingOptimizer__MarketPaused();
+    }
+
+    /// @dev Returns true if at least one supply queue market is unpaused.
+    function _hasUnpausedSupplyTarget() internal view returns (bool) {
+        uint256 l = supplyQueue.length;
+        for (uint256 i; i < l; ++i) {
+            if (!_isMarketPausedForAction(supplyQueue[i], true)) return true;
+        }
+        return false;
     }
 
 /// @dev Returns true if the market is paused for the given action.
@@ -991,27 +1047,40 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @dev Core mint logic shared by mint() variants.
-    ///      Uses previewMint (rounds up) to compute the asset cost, ensuring
-    ///      the vault never under-charges. Mints exactly `shares` shares
-    ///      regardless of cToken rounding; any rounding dust is absorbed
-    ///      by the vault as a tiny surplus.
+    ///      Computes asset cost directly from post-accrual state (rounds up)
+    ///      to ensure the vault never under-charges. Mints exactly `shares`.
+    ///
+    ///      Tracks `assets` (the full user payment) in `_totalAssets` rather
+    ///      than the cToken round-tripped value (`trackedAssets`). Since
+    ///      assets are rounded up, `assets >= shares * exchangeRate`, which
+    ///      guarantees the exchange rate does not drop. The 0-1 wei excess
+    ///      (assets - trackedAssets) is corrected at the next
+    ///      `_accrueIfNeeded()` call which recalculates from cToken positions.
     function _mintShares(
         uint256 shares,
         address receiver,
         address targetMarket
     ) internal returns (uint256 assets) {
         if (shares == 0) revert LendingOptimizer__InvalidParameter();
-        // Round up: user pays ceiling amount of assets for the requested shares.
-        assets = previewMint(shares);
-        _totalAssets += _pullAndDeposit(assets, targetMarket);
+        // Round up from post-accrual state (not preview).
+        uint256 supply = totalSupply();
+        assets = supply == 0
+            ? shares
+            : FixedPointMathLib.fullMulDivUp(shares, _totalAssets, supply);
+        _pullAndDeposit(assets, targetMarket);
+        // Track full user payment to prevent exchange rate drop from
+        // cToken deposit rounding. See natspec above.
+        _totalAssets += assets;
         // Mint exact requested shares (not derived from trackedAssets).
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @dev Pre-withdraw accounting: checks allowance, burns shares,
-    ///      and decrements `_totalAssets`. Used by `_withdrawMultiMarket`.
+    /// @dev Pre-withdraw accounting: checks allowance and burns shares.
+    ///      `_totalAssets` is recalculated from actual cToken positions
+    ///      after withdrawals in `_withdraw()` to properly absorb cToken
+    ///      rounding losses (cToken.withdraw rounds up shares burned).
     function _prepareWithdraw(
         uint256 assets,
         uint256 shares,
@@ -1020,7 +1089,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
-        _totalAssets -= assets;
     }
 
 /// @dev Withdraws `assets` across multiple markets in withdraw queue order.
@@ -1032,16 +1100,18 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      solves that by pulling from as many markets as needed.
     ///
     /// @param assets Total underlying assets to withdraw.
+    /// @param loss Simulated cToken rounding loss (from `_totalWithdrawRoundingLoss`).
     /// @param shares Total shares to burn (already computed by caller).
     /// @param receiver Address to receive withdrawn assets.
     /// @param owner Address whose shares are burned.
     function _withdraw(
         uint256 assets,
+        uint256 loss,
         uint256 shares,
         address receiver,
         address owner
     ) internal {
-        // Burn shares, spend allowance if needed, decrement _totalAssets.
+        // Burn shares, spend allowance if needed.
         _prepareWithdraw(assets, shares, owner);
 
         uint256 l = withdrawQueue.length;
@@ -1079,11 +1149,115 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         if (remaining > 0) revert LendingOptimizer__InsufficientLiquidity();
 
+        // Decrement _totalAssets by the withdrawn amount plus the cToken
+        // rounding loss. After _accrueIfNeeded(), _totalAssets is ground
+        // truth.
+        _totalAssets -= (assets + loss);
+
         // Transfer the full amount to the receiver in one shot.
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
+
+    /// @dev Simulates the multi-market withdrawal path and computes the
+    ///      total cToken rounding loss. Walks the withdraw queue, determines
+    ///      how much would be pulled from each market, and delegates to
+    ///      `_cTokenRoundingLoss` for the per-market loss computation.
+    /// @param assets Total underlying assets to simulate withdrawing.
+    /// @return loss Total rounding loss in asset terms.
+    function _totalWithdrawRoundingLoss(
+        uint256 assets
+    ) internal view returns (uint256 loss) {
+        uint256 l = withdrawQueue.length;
+        uint256 remaining = assets;
+
+        // Walk the withdraw queue in the same order as _withdraw(),
+        // mirroring the exact markets and amounts that will be touched.
+        for (uint256 i; i < l && remaining > 0; ++i) {
+            address cTokenAddr = withdrawQueue[i];
+
+            // Skip paused markets (same as the real withdrawal path).
+            if (_isMarketPausedForAction(cTokenAddr, false)) continue;
+
+            // Read the cToken state needed for loss simulation.
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
+            uint256 cTokenBalance = cToken.balanceOf(address(this));
+            uint256 cTokenAssets = cToken.totalAssets();
+            uint256 cTokenSupply = cToken.totalSupply();
+
+            // How much the optimizer owns in this market (in underlying).
+            uint256 optimizerAssets = FixedPointMathLib.fullMulDiv(
+                cTokenBalance, cTokenAssets, cTokenSupply
+            );
+
+            // Cap by what the market can actually pay out.
+            uint256 marketLiquidity = cToken.assetsHeld();
+            uint256 available = optimizerAssets < marketLiquidity
+                ? optimizerAssets
+                : marketLiquidity;
+
+            if (available == 0) continue;
+
+            // Pull as much as needed from this market, up to what's available.
+            uint256 withdrawAmount = remaining < available ? remaining : available;
+            remaining -= withdrawAmount;
+
+            // Accumulate the rounding loss for this market's withdrawal.
+            loss += _cTokenRoundingLoss(
+                cTokenBalance,
+                cTokenAssets,
+                cTokenSupply,
+                optimizerAssets,
+                withdrawAmount
+            );
+        }
+    }
+
+    /// @dev Computes the rounding loss from a single cToken withdrawal.
+    ///      cToken.withdraw() burns ceil(shares). The extra share burned
+    ///      shifts the cToken exchange rate, reducing the optimizer's
+    ///      remaining position value beyond the amount withdrawn.
+    /// @param cTokenBalance Optimizer's cToken share balance.
+    /// @param cTokenAssets cToken total assets.
+    /// @param cTokenSupply cToken total supply.
+    /// @param positionBefore Optimizer's position value (floor(cTokenBalance*cTokenAssets/cTokenSupply)).
+    /// @param withdrawAmount Amount of underlying to withdraw from this market.
+    /// @return Rounding loss in asset terms (0 if none).
+    function _cTokenRoundingLoss(
+        uint256 cTokenBalance,
+        uint256 cTokenAssets,
+        uint256 cTokenSupply,
+        uint256 positionBefore,
+        uint256 withdrawAmount
+    ) internal pure returns (uint256) {
+        // Matches BaseCToken._previewWithdraw(): ceil(assets * totalSupply / totalAssets).
+        // cToken.withdraw() burns this many shares — rounding up costs us
+        // 1 extra share vs the ideal floor amount.
+        uint256 sharesBurned = FixedPointMathLib.fullMulDivUp(
+            withdrawAmount, cTokenSupply, cTokenAssets
+        );
+
+        // Simulate the cToken state after the withdrawal.
+        uint256 supplyAfter = cTokenSupply - sharesBurned;
+
+        // Matches BaseCToken._convertToAssets(): floor(shares * totalAssets / totalSupply).
+        // Revalue our remaining cToken position at the post-withdrawal exchange rate.
+        uint256 positionAfter = supplyAfter > 0
+            ? FixedPointMathLib.fullMulDiv(
+                cTokenBalance - sharesBurned,
+                cTokenAssets - withdrawAmount,
+                supplyAfter
+            )
+            : 0;
+
+        // Our position decreased by more than withdrawAmount — the
+        // difference is the rounding loss borne by the withdrawer.
+        uint256 totalCost = positionBefore - positionAfter;
+        return totalCost > withdrawAmount
+            ? totalCost - withdrawAmount
+            : 0;
+    }
 
     /// @dev Returns total withdrawable liquidity across the withdraw queue.
     ///      For each market, withdrawable = min(optimizer's projected balance,
