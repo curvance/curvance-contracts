@@ -1497,8 +1497,8 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         assertEq(wq[0], cUSDC_WMON_MARKET, "Withdraw queue market mismatch");
     }
 
-    /// @notice Mint-paused market is excluded from supply queue but included in withdraw queue.
-    function test_optimalRebalance_success_mintPausedExcludedFromSupplyQueue() public {
+    /// @notice Mint-paused market is placed last in supply queue.
+    function test_optimalRebalance_success_mintPausedLastInSupplyQueue() public {
         _setUpUnconstrainedOptimizer();
 
         uint256 perMarket = 100_000e6;
@@ -1518,18 +1518,16 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         (, , address[] memory sq, address[] memory wq) = reader.optimalRebalance(address(optimizer), 500);
 
-        // Supply queue should exclude mint-paused market.
-        assertEq(sq.length, 2, "Supply queue should exclude mint-paused market");
-        for (uint256 i; i < sq.length; ++i) {
-            assertTrue(sq[i] != cUSDC_WETH_MARKET, "Mint-paused market should not be in supply queue");
-        }
-
-        // Withdraw queue should include all markets.
+        // Both queues include all markets.
+        assertEq(sq.length, 3, "Supply queue should include all markets");
         assertEq(wq.length, 3, "Withdraw queue should include all markets");
+
+        // Mint-paused market should be last in supply queue.
+        assertEq(sq[sq.length - 1], cUSDC_WETH_MARKET, "Mint-paused market should be last in supply queue");
     }
 
-    /// @notice Redeem-paused market is excluded from withdraw queue but included in supply queue.
-    function test_optimalRebalance_success_redeemPausedExcludedFromWithdrawQueue() public {
+    /// @notice Redeem-paused market is placed last in withdraw queue.
+    function test_optimalRebalance_success_redeemPausedLastInWithdrawQueue() public {
         _setUpUnconstrainedOptimizer();
 
         uint256 perMarket = 100_000e6;
@@ -1549,14 +1547,12 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         (, , address[] memory sq, address[] memory wq) = reader.optimalRebalance(address(optimizer), 500);
 
-        // Supply queue should include all markets.
+        // Both queues include all markets.
         assertEq(sq.length, 3, "Supply queue should include all markets");
+        assertEq(wq.length, 3, "Withdraw queue should include all markets");
 
-        // Withdraw queue should exclude redeem-paused market.
-        assertEq(wq.length, 2, "Withdraw queue should exclude redeem-paused market");
-        for (uint256 i; i < wq.length; ++i) {
-            assertTrue(wq[i] != cUSDC_WMON_MARKET, "Redeem-paused market should not be in withdraw queue");
-        }
+        // Redeem-paused market should be last in withdraw queue.
+        assertEq(wq[wq.length - 1], cUSDC_WMON_MARKET, "Redeem-paused market should be last in withdraw queue");
     }
 
     /// @notice Queue contents are a subset of approved markets.

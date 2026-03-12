@@ -181,35 +181,29 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         assertEq(result[2], cUSDC_WMON_MARKET, "Third entry should be WMON market");
     }
 
-    function test_setSupplyQueue_success_subsetOfMarkets() public {
+    function test_setSupplyQueue_reverts_subsetOfMarkets() public {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
-        // Queue can be a subset of approved markets.
+        // Queue must contain all approved markets — subsets are not allowed.
         address[] memory newQueue = new address[](2);
         newQueue[0] = cUSDC_WBTC_MARKET;
         newQueue[1] = cUSDC_WMON_MARKET;
 
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setSupplyQueue(newQueue);
-
-        address[] memory result = harness.getSupplyQueue();
-        assertEq(result.length, 2, "Queue length should be 2");
-        assertEq(result[0], cUSDC_WBTC_MARKET, "First entry should be WBTC market");
-        assertEq(result[1], cUSDC_WMON_MARKET, "Second entry should be WMON market");
     }
 
-    function test_setSupplyQueue_success_singleMarket() public {
+    function test_setSupplyQueue_reverts_singleMarketWhenThreeApproved() public {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Queue must contain all approved markets.
         address[] memory newQueue = new address[](1);
         newQueue[0] = cUSDC_WETH_MARKET;
 
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setSupplyQueue(newQueue);
-
-        address[] memory result = harness.getSupplyQueue();
-        assertEq(result.length, 1, "Queue length should be 1");
-        assertEq(result[0], cUSDC_WETH_MARKET, "Only entry should be WETH market");
     }
 
     function test_setSupplyQueue_success_changesDepositTarget() public {
@@ -239,9 +233,24 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Wrong length (2 != 3), so InvalidParameter fires first.
         address[] memory newQueue = new address[](2);
         newQueue[0] = cUSDC_WMON_MARKET;
         newQueue[1] = cUSDC_WMON_MARKET;
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        harness.setSupplyQueue(newQueue);
+    }
+
+    function test_setSupplyQueue_reverts_duplicateEntries_correctLength() public {
+        _setUpThreeMarketHarness();
+        _mockHarvestPermissions();
+
+        // Correct length but has duplicate — DuplicateInQueue fires.
+        address[] memory newQueue = new address[](3);
+        newQueue[0] = cUSDC_WMON_MARKET;
+        newQueue[1] = cUSDC_WMON_MARKET;
+        newQueue[2] = cUSDC_WBTC_MARKET;
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__DuplicateInQueue.selector);
         harness.setSupplyQueue(newQueue);
@@ -251,8 +260,23 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Wrong length (1 != 3), so InvalidParameter fires first.
         address[] memory newQueue = new address[](1);
         newQueue[0] = address(0xdead);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        harness.setSupplyQueue(newQueue);
+    }
+
+    function test_setSupplyQueue_reverts_unapprovedMarket_correctLength() public {
+        _setUpThreeMarketHarness();
+        _mockHarvestPermissions();
+
+        // Correct length but contains unapproved market.
+        address[] memory newQueue = new address[](3);
+        newQueue[0] = cUSDC_WMON_MARKET;
+        newQueue[1] = cUSDC_WBTC_MARKET;
+        newQueue[2] = address(0xdead);
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidQueueEntry.selector);
         harness.setSupplyQueue(newQueue);
@@ -303,29 +327,28 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         assertEq(result[2], cUSDC_WBTC_MARKET, "Third entry should be WBTC market");
     }
 
-    function test_setWithdrawQueue_success_subsetOfMarkets() public {
+    function test_setWithdrawQueue_reverts_subsetOfMarkets() public {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Queue must contain all approved markets — subsets are not allowed.
         address[] memory newQueue = new address[](1);
         newQueue[0] = cUSDC_WBTC_MARKET;
 
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setWithdrawQueue(newQueue);
-
-        address[] memory result = harness.getWithdrawQueue();
-        assertEq(result.length, 1, "Queue length should be 1");
-        assertEq(result[0], cUSDC_WBTC_MARKET, "Only entry should be WBTC market");
     }
 
     function test_setWithdrawQueue_reverts_duplicateEntries() public {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Wrong length (2 != 3), so InvalidParameter fires first.
         address[] memory newQueue = new address[](2);
         newQueue[0] = cUSDC_WBTC_MARKET;
         newQueue[1] = cUSDC_WBTC_MARKET;
 
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__DuplicateInQueue.selector);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setWithdrawQueue(newQueue);
     }
 
@@ -333,10 +356,11 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Wrong length (1 != 3), so InvalidParameter fires first.
         address[] memory newQueue = new address[](1);
         newQueue[0] = address(0xdead);
 
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidQueueEntry.selector);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setWithdrawQueue(newQueue);
     }
 
@@ -473,7 +497,7 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         harness.rebalance(actions, bounds, sq, badWithdrawQueue);
     }
 
-    function test_rebalance_success_subsetQueues() public {
+    function test_rebalance_reverts_emptySubsetQueue() public {
         _setUpOneMarketHarness();
         _mockHarvestPermissions();
 
@@ -488,18 +512,13 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
             bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
         }
 
-        // Supply queue as empty subset, withdraw queue as full set.
+        // Empty supply queue should now revert (L-8 fix).
         address[] memory emptyQueue = new address[](0);
         address[] memory fullQueue = new address[](1);
         fullQueue[0] = cUSDC_WMON_MARKET;
 
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.rebalance(actions, bounds, emptyQueue, fullQueue);
-
-        address[] memory supplyResult = harness.getSupplyQueue();
-        assertEq(supplyResult.length, 0, "Supply queue should be empty");
-
-        address[] memory withdrawResult = harness.getWithdrawQueue();
-        assertEq(withdrawResult.length, 1, "Withdraw queue should have 1 entry");
     }
 
     // ==================== Queue Validation Tests ====================
@@ -517,16 +536,14 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         harness.setSupplyQueue(badQueue);
     }
 
-    function test_queueValidation_success_emptyQueue() public {
+    function test_queueValidation_reverts_emptyQueue() public {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
-        // Empty queue should be valid.
+        // Empty queue should revert (L-8 fix).
         address[] memory emptyQueue = new address[](0);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
         harness.setSupplyQueue(emptyQueue);
-
-        address[] memory result = harness.getSupplyQueue();
-        assertEq(result.length, 0, "Queue should be empty");
     }
 
     function test_queueValidation_success_allMarketsInQueue() public {
@@ -548,9 +565,24 @@ contract TestLendingOptimizerQueueRouting is TestBaseLendingOptimizer {
         _setUpThreeMarketHarness();
         _mockHarvestPermissions();
 
+        // Wrong length (2 != 3), so InvalidParameter fires first.
         address[] memory badQueue = new address[](2);
         badQueue[0] = cUSDC_WMON_MARKET;
         badQueue[1] = address(0x1234);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        harness.setSupplyQueue(badQueue);
+    }
+
+    function test_queueValidation_reverts_mixOfApprovedAndUnapproved_correctLength() public {
+        _setUpThreeMarketHarness();
+        _mockHarvestPermissions();
+
+        // Correct length but contains unapproved market.
+        address[] memory badQueue = new address[](3);
+        badQueue[0] = cUSDC_WMON_MARKET;
+        badQueue[1] = cUSDC_WBTC_MARKET;
+        badQueue[2] = address(0x1234);
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidQueueEntry.selector);
         harness.setSupplyQueue(badQueue);

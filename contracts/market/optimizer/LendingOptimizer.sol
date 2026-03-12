@@ -446,11 +446,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Check that the manager intended to withdraw and deposit the same amount of assets.
         if (sumDeclaredWithdrawals != sumDeclaredReallocated) revert LendingOptimizer__AssetMismatch();
 
-        // Verify allocation caps and emit post-rebalance state.
-        _verifyAllocationCaps();
-
-        // Verify post-rebalance allocations fall within caller-specified bounds.
-        _verifyAllocationBounds(bounds);
+        // Verify allocation caps, bounds, and emit post-rebalance state.
+        _verifyAllocations(bounds);
 
         // Update supply and withdraw queues with the rebalance.
         _setSupplyQueue(newSupplyQueue);
@@ -567,8 +564,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _removeFromQueue(supplyQueue, cTokenToRemove);
         _removeFromQueue(withdrawQueue, cTokenToRemove);
 
-        // Verify allocation caps are respected after reallocation.
-        _verifyAllocationCaps();
+        // Verify allocation caps are respected after reallocation
+        // (no bounds check needed for removal).
+        _verifyAllocations(new AllocationBound[](0));
 
         emit MarketRemoved(cTokenToRemove);
     }
@@ -599,9 +597,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         approvedCTokensList.push(newAsset);
         allocationCaps[newAsset] = capWad;
 
-        // Auto-append to withdraw queue so funds are not trapped.
-        // Not added to supply queue, harvester opts in via
-        // rebalance() or setSupplyQueue().
+        // Auto-append to both queues so all approved markets are
+        // always routable for deposits and withdrawals.
+        supplyQueue.push(newAsset);
         withdrawQueue.push(newAsset);
 
         emit MarketAdded(newAsset, capBps);
@@ -872,7 +870,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 ownerShares = balanceOf(owner);
         uint256 liquidityShares = accruedTa == 0
             ? 0
-            : FixedPointMathLib.fullMulDivUp(_availableLiquidity(), accruedSupply, accruedTa);
+            : FixedPointMathLib.fullMulDiv(_availableLiquidity(), accruedSupply, accruedTa);
         return ownerShares < liquidityShares ? ownerShares : liquidityShares;
     }
 
@@ -1180,11 +1178,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             // Skip paused markets (same as the real withdrawal path).
             if (_isMarketPausedForAction(cTokenAddr, false)) continue;
 
-            // Read the cToken state needed for loss simulation.
+            // Read the projected cToken state for loss simulation.
+            // Uses _projectedCTokenState so the rounding loss is computed
+            // at the same exchange rate that _accruedState() projects,
+            // preventing stale-rate divergence in view functions.
             IBorrowableCToken cToken = IBorrowableCToken(cTokenAddr);
             uint256 cTokenBalance = cToken.balanceOf(address(this));
-            uint256 cTokenAssets = cToken.totalAssets();
-            uint256 cTokenSupply = cToken.totalSupply();
+            (uint256 cTokenAssets, uint256 cTokenSupply) = _projectedCTokenState(cTokenAddr);
 
             // How much the optimizer owns in this market (in underlying).
             uint256 optimizerAssets = FixedPointMathLib.fullMulDiv(
@@ -1319,20 +1319,27 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
     }
 
-    /// @dev Projects the optimizer's asset value in a single cToken market,
-    ///      accounting for pending intra-period vesting and cross-period
-    ///      interest that hasn't been accrued yet.
-    function _projectedMarketAssets(address cTokenAddr) internal view returns (uint256) {
+    /// @dev Projects a cToken's total assets and total supply after pending
+    ///      intra-period vesting, cross-period interest, and protocol fee
+    ///      share minting — without changing state. Returns raw cToken state
+    ///      when already current (block.timestamp == lastVestingClaim).
+    ///      Used by _projectedMarketAssets() (slow path) and
+    ///      _totalWithdrawRoundingLoss() so that view-path rounding loss
+    ///      matches the post-accrual exchange rate.
+    function _projectedCTokenState(
+        address cTokenAddr
+    ) internal view returns (uint256 projectedTa, uint256 projectedSupply) {
         IBorrowableCToken bcToken = IBorrowableCToken(cTokenAddr);
-        uint256 optimizerShares = bcToken.balanceOf(address(this));
-        if (optimizerShares == 0) return 0;
 
         (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim, ) =
             bcToken.getYieldInformation();
 
+        projectedSupply = bcToken.totalSupply();
+
         // If no time has passed since last claim, cToken view is already current.
         if (block.timestamp == lastVestingClaim) {
-            return bcToken.convertToAssets(optimizerShares);
+            projectedTa = bcToken.totalAssets();
+            return (projectedTa, projectedSupply);
         }
 
         uint256 outstandingDebt = bcToken.marketOutstandingDebt();
@@ -1371,28 +1378,42 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             );
         }
 
-        // Project cToken fee shares from total vesting.
-        uint256 cTokenSupply = bcToken.totalSupply();
-        uint256 cTokenInterestFee = bcToken.interestFee();
-        uint256 projectedCTokenTa = cachedCTokenTa + assetsToVest;
-        uint256 projectedCTokenSupply = cTokenSupply;
+        projectedTa = cachedCTokenTa + assetsToVest;
 
+        // Project cToken fee shares from total vesting.
+        uint256 cTokenInterestFee = bcToken.interestFee();
         if (cTokenInterestFee > 0 && assetsToVest > 0) {
             uint256 protocolFee = FixedPointMathLib.fullMulDivUp(
                 assetsToVest, cTokenInterestFee, BPS
             );
             if (protocolFee > 0) {
                 uint256 cTokenFeeShares = FixedPointMathLib.fullMulDivUp(
-                    protocolFee, cTokenSupply,
+                    protocolFee, projectedSupply,
                     cachedCTokenTa + assetsToVest - protocolFee
                 );
-                projectedCTokenSupply += cTokenFeeShares;
+                projectedSupply += cTokenFeeShares;
             }
         }
+    }
 
-        // Optimizer's assets = our cToken shares valued at the projected rate.
+    /// @dev Projects the optimizer's asset value in a single cToken market,
+    ///      accounting for pending intra-period vesting and cross-period
+    ///      interest that hasn't been accrued yet.
+    function _projectedMarketAssets(address cTokenAddr) internal view returns (uint256) {
+        IBorrowableCToken bcToken = IBorrowableCToken(cTokenAddr);
+        uint256 optimizerShares = bcToken.balanceOf(address(this));
+        if (optimizerShares == 0) return 0;
+
+        // If no time has passed since last claim, cToken view is already current.
+        (, , uint256 lastVestingClaim, ) = bcToken.getYieldInformation();
+        if (block.timestamp == lastVestingClaim) {
+            return bcToken.convertToAssets(optimizerShares);
+        }
+
+        // Slow path: project cToken state through pending vesting + cross-period interest.
+        (uint256 projectedTa, uint256 projectedSupply) = _projectedCTokenState(cTokenAddr);
         return FixedPointMathLib.mulDiv(
-            optimizerShares, projectedCTokenTa, projectedCTokenSupply
+            optimizerShares, projectedTa, projectedSupply
         );
     }
 
@@ -1445,12 +1466,22 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         return FixedPointMathLib.fullMulDiv(WAD, totalAssets(), supply);
     }
 
-    /// @dev Verifies that every market's current allocation does not exceed its cap
-    ///      and emits the post-rebalance state with per-market allocations.
-    function _verifyAllocationCaps() internal {
+    /// @dev Verifies allocation caps, optional bounds, syncs _totalAssets,
+    ///      and emits the post-rebalance state. Reads each market's balance
+    ///      once, avoiding redundant external calls.
+    ///
+    ///      Caps are always checked. Bounds are only checked when provided
+    ///      (bounds.length > 0). Bounds protect against race conditions
+    ///      where state changes between off-chain computation and on-chain
+    ///      execution (e.g., a deposit shifts allocations before the
+    ///      harvester's rebalance tx lands).
+    /// @param bounds Array of allocation bounds, one per approved market.
+    ///               Pass empty array to skip bounds check.
+    function _verifyAllocations(AllocationBound[] memory bounds) internal {
         uint256 l = approvedCTokensList.length;
         uint256[] memory allocations = new uint256[](l);
         uint256 ta;
+        bool checkBounds = bounds.length > 0;
 
         // Compute fresh total from actual post-rebalance market balances
         // instead of using the cached _totalAssets, which may be stale
@@ -1461,47 +1492,27 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
 
         // Sync cached total assets to the post-rebalance state.
-        // We recompute directly rather than calling _accrueIfNeeded()
-        // to avoid charging a performance fee on the rounding difference.
         _totalAssets = ta;
 
         if (ta > 0) {
             for (uint256 i; i < l; ++i) {
-                uint256 currentAllocation = FixedPointMathLib.fullMulDiv(allocations[i], WAD, ta);
-                if (currentAllocation > allocationCaps[approvedCTokensList[i]]) {
+                // Check allocation cap (WAD-based).
+                uint256 allocationWad = FixedPointMathLib.fullMulDiv(allocations[i], WAD, ta);
+                if (allocationWad > allocationCaps[approvedCTokensList[i]]) {
                     revert LendingOptimizer__AllocationExceedsCap();
+                }
+
+                // Check caller-specified bounds (BPS-based) if provided.
+                if (checkBounds) {
+                    uint256 allocationBps = FixedPointMathLib.mulDiv(allocations[i], BPS, ta);
+                    if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
+                        revert LendingOptimizer__AllocationOutOfBounds();
+                    }
                 }
             }
         }
 
         emit Rebalanced(ta, approvedCTokensList, allocations);
-    }
-
-    /// @dev Verifies that every market's post-rebalance allocation (in BPS)
-    ///      falls within the caller-specified [minBps, maxBps] range.
-    ///      Protects against race conditions where state changes between
-    ///      off-chain computation and on-chain execution.
-    ///
-    ///      Example: Harvester targets 70% for market A, 30% for market B.
-    ///      bounds[0] = {minBps: 6500, maxBps: 7500}  // 65%-75%
-    ///      bounds[1] = {minBps: 2500, maxBps: 3500}  // 25%-35%
-    ///      If a deposit shifts allocations to 60%/40% before execution,
-    ///      the rebalance reverts instead of producing unintended allocations.
-    /// @param bounds Array of allocation bounds, one per approved market.
-    function _verifyAllocationBounds(AllocationBound[] calldata bounds) internal view {
-        uint256 ta = totalAssets();
-        uint256 l = approvedCTokensList.length;
-
-        if (ta > 0) {
-            for (uint256 i; i < l; ++i) {
-                uint256 marketAssets = _getMarketAssets(approvedCTokensList[i]);
-                uint256 allocationBps = FixedPointMathLib.mulDiv(marketAssets, BPS, ta);
-
-                if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
-                    revert LendingOptimizer__AllocationOutOfBounds();
-                }
-            }
-        }
     }
 
     /// @dev Validates and sets the supply queue.
@@ -1518,12 +1529,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit WithdrawQueueUpdated(newQueue);
     }
 
-    /// @dev Validates that all entries in a queue are approved markets
-    ///      with no duplicates. Queue may be a subset of approved markets.
+    /// @dev Validates that a queue contains exactly all approved markets
+    ///      with no duplicates. Queues must always be a permutation of the
+    ///      approved markets list — ordering controls routing priority.
     function _validateQueue(address[] calldata queue) internal view {
         uint256 l = queue.length;
-        // Queue can be a subset but never larger than the approved set.
-        if (l > approvedCTokensList.length) revert LendingOptimizer__InvalidParameter();
+        // Queue must contain exactly all approved markets.
+        if (l != approvedCTokensList.length) revert LendingOptimizer__InvalidParameter();
 
         for (uint256 i; i < l; ++i) {
             // Every entry must be an approved market.
@@ -1536,9 +1548,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @dev Removes a market from a queue using shift-left to preserve ordering.
-    ///      No-op (not revert) if the market is not in the queue, because
-    ///      addApprovedAsset only appends to withdrawQueue, a market may
-    ///      never have been added to supplyQueue.
+    ///      No-op (not revert) if the market is not in the queue.
     function _removeFromQueue(address[] storage queue, address market) internal {
         uint256 l = queue.length;
         bool found;

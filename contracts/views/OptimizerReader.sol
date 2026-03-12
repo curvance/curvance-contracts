@@ -330,28 +330,30 @@ contract OptimizerReader {
         withdrawQueue = _buildQueue(markets, rates, false);
     }
 
-    /// @dev Selection-sorts markets into a queue.
-    /// @param isSupply If true, descending rate (best yield first), excluding
-    ///                 mint-paused markets. If false, ascending rate (worst
-    ///                 yield first), excluding redeem-paused markets.
+    /// @dev Selection-sorts markets into a queue. All markets are included —
+    ///      active markets sorted by rate first, paused markets appended last.
+    /// @param isSupply If true, descending rate (best yield first) with
+    ///                 mint-paused markets last. If false, ascending rate
+    ///                 (worst yield first) with redeem-paused markets last.
     function _buildQueue(
         address[] memory markets,
         uint256[] memory rates,
         bool isSupply
     ) internal view returns (address[] memory queue) {
         uint256 n = markets.length;
+        queue = new address[](n);
+        bool[] memory used = new bool[](n);
+        uint256 pos;
 
-        uint256 count;
+        // First: sort active (non-paused) markets by rate.
+        uint256 activeCount;
         for (uint256 i; i < n; ++i) {
             if (isSupply ? !_isMintPaused(markets[i]) : !_isRedeemPaused(markets[i])) {
-                ++count;
+                ++activeCount;
             }
         }
 
-        queue = new address[](count);
-        bool[] memory used = new bool[](n);
-
-        for (uint256 s; s < count; ++s) {
+        for (uint256 s; s < activeCount; ++s) {
             uint256 bestIdx;
             uint256 bestRate = isSupply ? 0 : type(uint256).max;
             bool found;
@@ -369,8 +371,15 @@ contract OptimizerReader {
                 }
             }
 
-            queue[s] = markets[bestIdx];
+            queue[pos++] = markets[bestIdx];
             used[bestIdx] = true;
+        }
+
+        // Then: append paused markets (order doesn't matter).
+        for (uint256 i; i < n; ++i) {
+            if (!used[i]) {
+                queue[pos++] = markets[i];
+            }
         }
     }
 
