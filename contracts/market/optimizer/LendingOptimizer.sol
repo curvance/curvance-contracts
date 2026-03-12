@@ -1444,10 +1444,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         return ct.convertToAssets(ct.balanceOf(address(this)));
     }
 
-    /// @dev Validates cToken has correct underlying, a registered market manager,
-    ///      and is actually listed in that market manager.
+    /// @dev Validates cToken has correct underlying, is borrowable,
+    ///      has a registered market manager, and is listed in that manager.
     function _validateCToken(address cToken) internal view {
         if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
+        if (!IBorrowableCToken(cToken).isBorrowable()) revert LendingOptimizer__InvalidParameter();
 
         address marketManager = address(IBorrowableCToken(cToken).marketManager());
         if (!centralRegistry.isMarketManager(marketManager)) revert LendingOptimizer__InvalidMarketManager();
