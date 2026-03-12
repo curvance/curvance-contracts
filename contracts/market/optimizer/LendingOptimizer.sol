@@ -261,7 +261,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Revert if the market has already been initialized.
         if (mintPaused != 0) revert LendingOptimizer__AlreadyInitialized();
-        // Array length sanity check.
+        // Revert if the target market is not approved.
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
 
         // Transfer _BASE_UNDERLYING_RESERVE assets.
@@ -461,11 +461,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev After removal, remaining market caps must sum to >= 100%. If not,
     ///      call `updateCap()` to increase a remaining market's cap before removal.
     ///      The caller specifies BPS-based percentages for redistribution
-    ///      via the `assets` field of each ReallocationAction. BPS values
+    ///      via the `assetsOrBps` field of each ReallocationAction. BPS values
     ///      must be positive and sum to exactly 10000 (100%).
     ///      The last target receives the remainder to avoid dust.
     /// @param cTokenToRemove Address of the market to remove.
-    /// @param removeActions Reallocation targets. `assets` field is BPS (1-10000).
+    /// @param removeActions Reallocation targets. `assetsOrBps` field is BPS (1-10000).
     function removeApprovedAsset(
         address cTokenToRemove,
         ReallocationAction[] calldata removeActions
@@ -1026,9 +1026,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         trackedAssets = _depositToMarket(targetMarket, assets);
     }
 
-    /// @dev Core deposit logic shared by deposit() variants.
-    ///      Shares are derived from the actual recoverable value (trackedAssets)
-    ///      via convertToShares, which rounds down -- favoring the vault.
+    /// @dev Core deposit logic. Shares are derived from the actual recoverable
+    ///      value (trackedAssets) via convertToShares, which rounds down --
+    ///      favoring the vault.
     function _deposit(
         uint256 assets,
         address receiver,
@@ -1046,9 +1046,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @dev Core mint logic shared by mint() variants.
-    ///      Computes asset cost directly from post-accrual state (rounds up)
-    ///      to ensure the vault never under-charges. Mints exactly `shares`.
+    /// @dev Core mint logic. Computes asset cost directly from post-accrual
+    ///      state (rounds up) to ensure the vault never under-charges.
+    ///      Mints exactly `shares`.
     ///
     ///      Tracks `assets` (the full user payment) in `_totalAssets` rather
     ///      than the cToken round-tripped value (`trackedAssets`). Since
@@ -1078,9 +1078,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @dev Pre-withdraw accounting: checks allowance and burns shares.
-    ///      `_totalAssets` is recalculated from actual cToken positions
-    ///      after withdrawals in `_withdraw()` to properly absorb cToken
-    ///      rounding losses (cToken.withdraw rounds up shares burned).
+    ///      `_totalAssets` is decremented by `assets + loss` in `_withdraw()`
+    ///      so the cToken rounding loss (cToken.withdraw rounds up shares
+    ///      burned) is absorbed by the withdrawer, not remaining depositors.
     function _prepareWithdraw(
         uint256 assets,
         uint256 shares,
