@@ -221,6 +221,13 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(USDC_MONAD)
         );
 
+        // Mock cToken.isBorrowable() to return true.
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(true)
+        );
+
         // Mock cToken.marketManager() to return invalid manager.
         vm.mockCall(
             mockMarket,
@@ -260,6 +267,11 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         );
         vm.mockCall(
             mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            mockMarket,
             abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
             abi.encode(validManager)
         );
@@ -283,6 +295,13 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
             mockMarket,
             abi.encodeWithSelector(IBorrowableCToken.asset.selector),
             abi.encode(USDC_MONAD)
+        );
+
+        // Mock cToken.isBorrowable() to return true.
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(true)
         );
 
         // Mock cToken.marketManager() to return valid manager.

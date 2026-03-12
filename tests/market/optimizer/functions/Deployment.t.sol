@@ -268,6 +268,13 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             abi.encode(USDC_MONAD)
         );
 
+        // Mock cToken.isBorrowable() to return true.
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("isBorrowable()"),
+            abi.encode(true)
+        );
+
         // Mock cToken.marketManager() to return the fake market manager.
         vm.mockCall(
             mockCToken,

@@ -56,6 +56,11 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
         vm.mockCall(
             mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            mockMarket,
             abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
             abi.encode(validManager)
         );
