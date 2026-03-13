@@ -375,12 +375,12 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
 
         for (uint256 i; i < 5; ++i) {
             optimizer.accrueIfNeeded();
-            uint256 rateBefore = optimizer.exchangeRate();
+            uint256 rateBefore = optimizer.exchangeRateUpdated();
 
             uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 10;
             optimizer.withdraw(assetsToWithdraw, user1, user1);
 
-            uint256 rateAfter = optimizer.exchangeRate();
+            uint256 rateAfter = optimizer.exchangeRateUpdated();
             // Live exchangeRate() reads cToken convertToAssets which rounds
             // down, causing a negligible rate decrease after withdrawals.
             assertGe(rateAfter + rateBefore / 1e10, rateBefore,
@@ -651,7 +651,7 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         // First withdraw to establish baseline (triggers initial accrual/fee).
         uint256 smallWithdraw = optimizer.maxWithdraw(user1) / 10;
         optimizer.withdraw(smallWithdraw, user1, user1);
-        uint256 rateAfterFirst = optimizer.exchangeRate();
+        uint256 rateAfterFirst = optimizer.exchangeRateUpdated();
 
         // Skip time — interest accrues in underlying markets.
         skip(7 days);
@@ -662,7 +662,7 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         // Skip vesting period.
         skip(1 days);
 
-        uint256 rateAfterYield = optimizer.exchangeRate();
+        uint256 rateAfterYield = optimizer.exchangeRateUpdated();
 
         // Exchange rate should increase after yield vests.
         assertGe(rateAfterYield, rateAfterFirst, "Rate should not decrease after yield vests");

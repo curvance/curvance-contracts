@@ -67,7 +67,7 @@ contract OptimizerReader {
     /// @return data The market data for each optimizer.
     function getOptimizerMarketData(
         address[] calldata optimizers
-    ) external view returns (OptimizerMarketData[] memory data) {
+    ) external returns (OptimizerMarketData[] memory data) {
         uint256 len = optimizers.length;
         data = new OptimizerMarketData[](len);
 
@@ -77,7 +77,7 @@ contract OptimizerReader {
             data[i]._address = optimizers[i];
             data[i].asset = opt.asset();
             data[i].totalAssets = opt.totalAssets();
-            data[i].sharePrice = opt.exchangeRate();
+            data[i].sharePrice = opt.exchangeRateUpdated();
             data[i].performanceFee = opt.fee();
 
             address[] memory cTokens = opt.getApprovedMarkets();

@@ -578,7 +578,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
     function testFuzz_exchangeRate_afterDeposit(uint256 assets) public {
         assets = bound(assets, 1e6, 10_000_000e6);
 
-        uint256 rateBefore = harness.exchangeRate();
+        uint256 rateBefore = harness.exchangeRateUpdated();
 
         deal(USDC_MONAD, depositor, assets);
         vm.startPrank(depositor);
@@ -586,7 +586,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         harness.deposit(assets, depositor);
         vm.stopPrank();
 
-        uint256 rateAfter = harness.exchangeRate();
+        uint256 rateAfter = harness.exchangeRateUpdated();
 
         assertGe(
             rateAfter,
@@ -607,7 +607,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
         harness.deposit(depositAmount, depositor);
         vm.stopPrank();
 
-        uint256 rateBefore = harness.exchangeRate();
+        uint256 rateBefore = harness.exchangeRateUpdated();
 
         // Withdraw a percentage of holdings.
         uint256 maxW = harness.maxWithdraw(depositor);
@@ -616,7 +616,7 @@ contract ERC4626ComplianceFuzz is TestBaseLendingOptimizer {
 
         vm.prank(depositor);
         try harness.withdraw(withdrawAmount, depositor, depositor) {
-            uint256 rateAfter = harness.exchangeRate();
+            uint256 rateAfter = harness.exchangeRateUpdated();
             assertGe(
                 rateAfter,
                 rateBefore,

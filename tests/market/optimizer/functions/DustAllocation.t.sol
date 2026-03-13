@@ -172,7 +172,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
     function test_dustAllocation_exchangeRate_consistentWithImbalance() public {
         _createExtremeImbalance();
 
-        uint256 exchangeRate1 = optimizer.exchangeRate();
+        uint256 exchangeRate1 = optimizer.exchangeRateUpdated();
 
         // Warp time to accrue some yield.
         vm.warp(block.timestamp + 1 days);

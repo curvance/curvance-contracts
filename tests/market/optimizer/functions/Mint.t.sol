@@ -380,7 +380,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 sharesToMint = 1000e6;
 
         // Track exchange rate across multiple mints
-        uint256 previousExchangeRate = optimizer.exchangeRate();
+        uint256 previousExchangeRate = optimizer.exchangeRateUpdated();
 
         for (uint256 i = 0; i < 5; i++) {
             address minter = i % 2 == 0 ? user1 : user2;
@@ -397,7 +397,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
             optimizer.accrueIfNeeded();
             skip(1 days); // Let yield vest
 
-            uint256 currentExchangeRate = optimizer.exchangeRate();
+            uint256 currentExchangeRate = optimizer.exchangeRateUpdated();
             
             // Exchange rate should never decrease (assuming no losses)
             assertGe(currentExchangeRate, previousExchangeRate, "Exchange rate should never decrease");

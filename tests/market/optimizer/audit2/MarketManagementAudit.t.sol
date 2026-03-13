@@ -392,7 +392,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         skip(2 days);
         harness.exchangeRateUpdated();
 
-        uint256 exchangeRateBefore = harness.exchangeRate();
+        uint256 exchangeRateBefore = harness.exchangeRateUpdated();
 
         console2.log("--- Before remove/re-add ---");
         console2.log("Exchange rate:", exchangeRateBefore);
@@ -434,7 +434,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Exchange rate should not have decreased.
-        uint256 exchangeRateAfter = harness.exchangeRate();
+        uint256 exchangeRateAfter = harness.exchangeRateUpdated();
 
         console2.log("--- After remove/re-add + deposit ---");
         console2.log("Exchange rate:", exchangeRateAfter);
@@ -589,7 +589,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         harness.exchangeRateUpdated();
 
         uint256 totalAssetsBefore = harness.totalAssets();
-        uint256 exchangeRateBefore = harness.exchangeRate();
+        uint256 exchangeRateBefore = harness.exchangeRateUpdated();
         uint256 m0Before = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
@@ -603,7 +603,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         _rebalance(harness, actions, _unconstrainedBoundsFor(harness));
 
         uint256 totalAssetsAfter = harness.totalAssets();
-        uint256 exchangeRateAfter = harness.exchangeRate();
+        uint256 exchangeRateAfter = harness.exchangeRateUpdated();
 
         console2.log("--- Zero-amount rebalance ---");
         console2.log("Total assets before:", totalAssetsBefore);

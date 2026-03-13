@@ -114,7 +114,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(fresh), initAssets);
         fresh.initializeDeposits(cUSDC_WMON_MARKET);
 
-        uint256 exchangeRateBefore = fresh.exchangeRate();
+        uint256 exchangeRateBefore = fresh.exchangeRateUpdated();
         uint256 totalAssetsBefore = fresh.totalAssets();
 
         // Attacker donates USDC directly.
@@ -123,7 +123,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).transfer(address(fresh), donationAmount);
 
         // Exchange rate and totalAssets should remain unchanged.
-        uint256 exchangeRateAfter = fresh.exchangeRate();
+        uint256 exchangeRateAfter = fresh.exchangeRateUpdated();
         uint256 totalAssetsAfter = fresh.totalAssets();
 
         assertEq(
@@ -279,7 +279,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(roundingHarness), depositAmount);
         roundingHarness.deposit(depositAmount, address(this));
 
-        uint256 exchangeRateBefore = roundingHarness.exchangeRate();
+        uint256 exchangeRateBefore = roundingHarness.exchangeRateUpdated();
 
         // Perform many rebalances back and forth.
         for (uint256 i = 0; i < numRebalances; i++) {
@@ -340,7 +340,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         // Each rebalance round-trip (withdraw + deposit) can lose a small amount
         // from cToken share truncation. The loss scales with both the number of
         // rebalances and the rebalance size. Use a relative tolerance (0.001%).
-        uint256 exchangeRateAfter = roundingHarness.exchangeRate();
+        uint256 exchangeRateAfter = roundingHarness.exchangeRateUpdated();
         assertGe(
             exchangeRateAfter + exchangeRateBefore / 100_000,
             exchangeRateBefore,
@@ -452,7 +452,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         );
 
         // Exchange rate should always be positive and valid.
-        uint256 finalRate = feeHarness.exchangeRate();
+        uint256 finalRate = feeHarness.exchangeRateUpdated();
         assertGt(finalRate, 0, "Exchange rate should be positive at end");
     }
 }

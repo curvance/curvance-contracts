@@ -207,7 +207,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         LendingOptimizerHarness(address(optimizer)).depositToMarket(1_001e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
-        uint256 exchangeRateBefore = optimizer.exchangeRate();
+        uint256 exchangeRateBefore = optimizer.exchangeRateUpdated();
 
         // Capture target market balances before removal.
         uint256 m0AssetsBefore = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
@@ -240,7 +240,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore, 10, "Total assets should be preserved");
 
         // 3. Exchange rate should not decrease beyond cToken rounding tolerance.
-        uint256 exchangeRateAfter = optimizer.exchangeRate();
+        uint256 exchangeRateAfter = optimizer.exchangeRateUpdated();
         assertGe(exchangeRateAfter + 1e8, exchangeRateBefore, "Exchange rate should not materially decrease");
 
         // 4. Target markets received approximately correct BPS proportions.
@@ -331,7 +331,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         optimizer.exchangeRateUpdated();
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
-        uint256 exchangeRateBefore = optimizer.exchangeRate();
+        uint256 exchangeRateBefore = optimizer.exchangeRateUpdated();
 
         // Remove with uneven split after yield has made amounts non-round.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](2);
@@ -356,7 +356,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore, 10, "Total assets preserved after yield-accrued removal");
 
         // Exchange rate should not materially decrease.
-        uint256 exchangeRateAfter = optimizer.exchangeRate();
+        uint256 exchangeRateAfter = optimizer.exchangeRateUpdated();
         assertGe(exchangeRateAfter + 1e8, exchangeRateBefore, "Exchange rate stable after yield-accrued removal");
     }
 

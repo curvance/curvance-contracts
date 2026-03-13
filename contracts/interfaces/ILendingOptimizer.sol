@@ -48,7 +48,6 @@ interface ILendingOptimizer {
     function setMintPaused(bool state) external;
     function setSupplyQueue(address[] calldata newQueue) external;
     function setWithdrawQueue(address[] calldata newQueue) external;
-    function exchangeRate() external view returns (uint256);
     function exchangeRateUpdated() external returns (uint256);
     function accrueIfNeeded() external;
     function skim() external;

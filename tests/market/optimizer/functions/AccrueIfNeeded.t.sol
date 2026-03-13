@@ -231,7 +231,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         // Call again in same block (no new yield)
         harness.accrueIfNeeded();
 
-        uint256 currentRate = harness.exchangeRate();
+        uint256 currentRate = harness.exchangeRateUpdated();
         uint256 daoBalanceAfter = harness.balanceOf(_daoAddress());
 
         // If rate <= watermark, no additional fees
@@ -335,7 +335,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
 
         // Watermark is calculated using currentAssets (rawTa).
         // So watermark >= currentRate immediately after accrual.
-        uint256 currentRate = harness.exchangeRate();
+        uint256 currentRate = harness.exchangeRateUpdated();
         assertGe(newWatermark, currentRate, "Watermark should be >= current rate");
     }
 
@@ -414,7 +414,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         optimizer.accrueIfNeeded();
 
         // Verify rate is maintained properly
-        uint256 rate = optimizer.exchangeRate();
+        uint256 rate = optimizer.exchangeRateUpdated();
         uint256 totalAssets = optimizer.totalAssets();
         uint256 totalSupply = optimizer.totalSupply();
         uint256 expectedRate = _expectedRate(totalAssets, totalSupply);

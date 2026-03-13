@@ -371,7 +371,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days + 1);
         harness.exchangeRateUpdated();
 
-        uint256 rateAfterPhase1 = harness.exchangeRate();
+        uint256 rateAfterPhase1 = harness.exchangeRateUpdated();
         uint256 watermark1 = harness.exchangeRateHighWatermark();
         uint256 feeShares1 = harness.balanceOf(liveCentralRegistry.daoAddress());
 
@@ -403,7 +403,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             harness.exchangeRateUpdated();
         }
 
-        uint256 rateAfterPhase2 = harness.exchangeRate();
+        uint256 rateAfterPhase2 = harness.exchangeRateUpdated();
         uint256 feeShares2 = harness.balanceOf(liveCentralRegistry.daoAddress());
 
         console2.log("\nPhase 2 (fee=0, 3 cycles):");
@@ -419,7 +419,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         harness.setFee(1_000);
 
         uint256 watermarkImmediately = harness.exchangeRateHighWatermark();
-        uint256 rateImmediately = harness.exchangeRate();
+        uint256 rateImmediately = harness.exchangeRateUpdated();
         console2.log("\nPhase 3 (fee restore to 10%):");
         console2.log("  Watermark immediately after setFee:", watermarkImmediately);
         console2.log("  Rate immediately:", rateImmediately);
@@ -442,7 +442,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         }
 
         uint256 watermarkSettled = harness.exchangeRateHighWatermark();
-        uint256 rateSettled = harness.exchangeRate();
+        uint256 rateSettled = harness.exchangeRateUpdated();
         console2.log("  Watermark after settling:", watermarkSettled);
         console2.log("  Rate after settling:", rateSettled);
         console2.log("  Fee after settling:", harness.fee());
@@ -613,7 +613,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         harness.exchangeRateUpdated();
 
         uint256 initialDaoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
-        uint256 rateBeforeFeeZero = harness.exchangeRate();
+        uint256 rateBeforeFeeZero = harness.exchangeRateUpdated();
         uint256 watermarkBefore = harness.exchangeRateHighWatermark();
 
         console2.log("Initial state (10% fee):");
@@ -632,7 +632,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Update DAO shares after additional cycles to settle.
         initialDaoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
-        rateBeforeFeeZero = harness.exchangeRate();
+        rateBeforeFeeZero = harness.exchangeRateUpdated();
 
         console2.log("  After settling - fee:", harness.fee());
         console2.log("  DAO shares after settling:", initialDaoShares);
@@ -646,7 +646,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             harness.exchangeRateUpdated();
         }
 
-        uint256 rateAfterFreeYield = harness.exchangeRate();
+        uint256 rateAfterFreeYield = harness.exchangeRateUpdated();
         uint256 daoSharesDuringFreeYield = harness.balanceOf(liveCentralRegistry.daoAddress());
 
         console2.log("\nAfter 5 vesting cycles with fee=0:");
@@ -669,7 +669,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         console2.log("\nAfter restoring fee to 10%:");
         console2.log("  New watermark:", watermarkAfterRestore);
-        console2.log("  Current rate:", harness.exchangeRate());
+        console2.log("  Current rate:", harness.exchangeRateUpdated());
 
         // CRITICAL: watermark was reset to current rate (0->nonzero transition).
         // All yield earned during fee=0 is below this watermark.
@@ -896,7 +896,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         _userDeposit(victim, 1_000_000e6);
 
-        uint256 previousRate = harness.exchangeRate();
+        uint256 previousRate = harness.exchangeRateUpdated();
         console2.log("Initial rate:", previousRate);
 
         // Cycle 1: Normal yield accrual.
@@ -905,7 +905,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days + 1);
         harness.exchangeRateUpdated();
 
-        uint256 rate1 = harness.exchangeRate();
+        uint256 rate1 = harness.exchangeRateUpdated();
         assertGe(rate1, previousRate, "Rate decreased after cycle 1");
         console2.log("Rate after cycle 1:", rate1);
         previousRate = rate1;
@@ -920,7 +920,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days + 1);
         harness.exchangeRateUpdated();
 
-        uint256 rate2 = harness.exchangeRate();
+        uint256 rate2 = harness.exchangeRateUpdated();
         assertGe(rate2, previousRate, "Rate decreased after fee change");
         console2.log("Rate after fee change:", rate2);
         previousRate = rate2;
@@ -931,7 +931,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         _userDeposit(victim2, 500_000e6);
 
-        uint256 rate3 = harness.exchangeRate();
+        uint256 rate3 = harness.exchangeRateUpdated();
         assertGe(rate3, previousRate, "Rate decreased after deposit");
         console2.log("Rate after new deposit:", rate3);
         previousRate = rate3;
@@ -940,7 +940,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         skip(1 days + 1);
         harness.exchangeRateUpdated();
 
-        uint256 rate4 = harness.exchangeRate();
+        uint256 rate4 = harness.exchangeRateUpdated();
         assertGe(rate4, previousRate, "Rate decreased after yield accrual");
         console2.log("Final rate:", rate4);
     }

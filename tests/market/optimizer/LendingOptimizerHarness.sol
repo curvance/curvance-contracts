@@ -49,21 +49,6 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return _supplyQueueTarget();
     }
 
-    /// @notice Exposes _accruedState() for diagnostic testing.
-    function exposed_accruedState() external view returns (uint256 accruedTa, uint256 accruedSupply) {
-        return _accruedState();
-    }
-
-    /// @notice Exposes _projectedMarketAssets() for diagnostic testing.
-    function exposed_projectedMarketAssets(address cToken) external view returns (uint256) {
-        return _projectedMarketAssets(cToken);
-    }
-
-    /// @notice Exposes _availableLiquidity() for diagnostic testing.
-    function exposed_availableLiquidity() external view returns (uint256) {
-        return _availableLiquidity();
-    }
-
     /// @notice Test-only: deposits into a specific market for setup purposes.
     /// @dev Bypasses optimal routing to allow tests to create specific
     ///      allocation distributions across markets.

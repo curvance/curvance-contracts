@@ -753,7 +753,7 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         // Skip some time
         skip(6 hours);
 
-        uint256 rateBeforeBadDebt = optimizer.exchangeRate();
+        uint256 rateBeforeBadDebt = optimizer.exchangeRateUpdated();
 
         console2.log("Rate before bad debt:", rateBeforeBadDebt);
 

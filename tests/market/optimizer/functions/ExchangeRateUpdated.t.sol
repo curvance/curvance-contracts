@@ -281,7 +281,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         assertGe(newWatermark, initialWatermark, "Watermark should increase with yield");
 
         // After accrual, watermark captures rate at the time fees were charged.
-        uint256 currentRate = optimizer.exchangeRate();
+        uint256 currentRate = optimizer.exchangeRateUpdated();
         // The watermark is set when fees are charged. Verify both are reasonable.
         assertGt(newWatermark, WAD, "Watermark should be above WAD after yield");
         assertGt(currentRate, WAD, "Current rate should be above WAD after yield");
@@ -317,7 +317,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // After calling exchangeRateUpdated, the view should match
         uint256 rateUpdated = optimizer.exchangeRateUpdated();
-        uint256 rateView = optimizer.exchangeRate();
+        uint256 rateView = optimizer.exchangeRateUpdated();
 
         assertEq(rateUpdated, rateView, "exchangeRateUpdated and exchangeRate should match after accrual");
     }
@@ -536,7 +536,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         assertEq(rateFromUpdate, expectedRate, "exchangeRateUpdated must match formula");
 
         // Verify view function matches
-        uint256 rateView = optimizer.exchangeRate();
+        uint256 rateView = optimizer.exchangeRateUpdated();
         assertEq(rateView, expectedRate, "exchangeRate() must match formula");
 
         // After fee accrual, watermark is set based on currentAssets (raw from cTokens).
@@ -553,7 +553,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
         optimizer.deposit(100_000e6, address(this));
 
-        uint256 previousRate = optimizer.exchangeRate();
+        uint256 previousRate = optimizer.exchangeRateUpdated();
         uint256 previousWatermark = optimizer.exchangeRateHighWatermark();
 
         for (uint256 i = 0; i < 5; i++) {
@@ -565,7 +565,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
             uint256 totalSupply = optimizer.totalSupply();
 
             // Verify exchange rate consistency every cycle
-            uint256 rate = optimizer.exchangeRate();
+            uint256 rate = optimizer.exchangeRateUpdated();
             uint256 expectedRate = FixedPointMathLib.mulDiv(WAD, totalAssets, totalSupply);
             assertEq(rate, expectedRate, "Rate must match formula each cycle");
 

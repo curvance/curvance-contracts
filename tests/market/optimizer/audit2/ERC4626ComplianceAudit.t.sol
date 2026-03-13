@@ -436,13 +436,13 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     function test_E_deadShares_largeDeposit_fairExchangeRate() public {
         _setUpHarnessNoFee();
 
-        uint256 rateBefore = harness.exchangeRate();
+        uint256 rateBefore = harness.exchangeRateUpdated();
         console2.log("Exchange rate before large deposit:", rateBefore);
 
         uint256 largeAmount = 10_000_000e6; // 10M USDC
         _depositAs(user1Addr, largeAmount);
 
-        uint256 rateAfter = harness.exchangeRate();
+        uint256 rateAfter = harness.exchangeRateUpdated();
         console2.log("Exchange rate after large deposit:", rateAfter);
 
         // Exchange rate should not decrease.
@@ -1160,14 +1160,14 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
     function test_exchangeRate_monotonicity_complexSequence() public {
         _setUpHarnessWithFee();
 
-        uint256 lastRate = harness.exchangeRate();
+        uint256 lastRate = harness.exchangeRateUpdated();
         console2.log("Initial rate:", lastRate);
 
         // Deposit from 3 users.
         for (uint256 i = 0; i < 3; i++) {
             address user = i == 0 ? user1Addr : (i == 1 ? user2Addr : user3Addr);
             _depositAs(user, (i + 1) * 100_000e6);
-            uint256 newRate = harness.exchangeRate();
+            uint256 newRate = harness.exchangeRateUpdated();
             assertGe(newRate, lastRate, "Rate decreased after deposit");
             lastRate = newRate;
         }
@@ -1176,7 +1176,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         for (uint256 cycle = 0; cycle < 3; cycle++) {
             vm.warp(block.timestamp + 2 days);
             harness.accrueIfNeeded();
-            uint256 newRate = harness.exchangeRate();
+            uint256 newRate = harness.exchangeRateUpdated();
             assertGe(newRate, lastRate, "Rate decreased during yield accrual cycle");
             lastRate = newRate;
             console2.log("Rate after cycle", cycle, ":", newRate);
@@ -1185,7 +1185,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         // Partial withdrawal.
         vm.prank(user1Addr);
         harness.withdraw(50_000e6, user1Addr, user1Addr);
-        uint256 rateAfterWithdraw = harness.exchangeRate();
+        uint256 rateAfterWithdraw = harness.exchangeRateUpdated();
         // Live exchangeRate() reads cToken convertToAssets which rounds
         // down, causing a negligible rate decrease after withdrawals.
         assertGe(rateAfterWithdraw + lastRate / 1e10, lastRate,
@@ -1410,10 +1410,10 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
 
         skip(3 days);
 
-        uint256 rateBefore = harness.exchangeRate();
+        uint256 rateBefore = harness.exchangeRateUpdated();
 
         harness.accrueIfNeeded();
-        uint256 rateAfter = harness.exchangeRate();
+        uint256 rateAfter = harness.exchangeRateUpdated();
 
         assertEq(rateBefore, rateAfter,
             "exchangeRate should match before and after accrual");
@@ -1435,7 +1435,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
             uint256 previewMnt = harness.previewMint(shares);
             uint256 previewWd  = harness.previewWithdraw(amount);
             uint256 previewRdm = harness.previewRedeem(shares);
-            uint256 rate       = harness.exchangeRate();
+            uint256 rate       = harness.exchangeRateUpdated();
 
             harness.accrueIfNeeded();
 
@@ -1447,7 +1447,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
                 "previewWithdraw mismatch in cycle");
             assertEq(previewRdm, harness.previewRedeem(shares),
                 "previewRedeem mismatch in cycle");
-            assertEq(rate, harness.exchangeRate(),
+            assertEq(rate, harness.exchangeRateUpdated(),
                 "exchangeRate mismatch in cycle");
         }
     }
@@ -1461,13 +1461,13 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
 
         uint256 amount = 100_000e6;
         uint256 previewBefore = harness.previewDeposit(amount);
-        uint256 rateBefore = harness.exchangeRate();
+        uint256 rateBefore = harness.exchangeRateUpdated();
 
         harness.accrueIfNeeded();
 
         assertEq(previewBefore, harness.previewDeposit(amount),
             "previewDeposit should match without fee");
-        assertEq(rateBefore, harness.exchangeRate(),
+        assertEq(rateBefore, harness.exchangeRateUpdated(),
             "exchangeRate should match without fee");
     }
 }

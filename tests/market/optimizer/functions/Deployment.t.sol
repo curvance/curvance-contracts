@@ -337,7 +337,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
 
         // With no deposits, exchange rate should be WAD (1e18)
-        assertEq(optimizer.exchangeRate(), WAD);
+        assertEq(optimizer.exchangeRateUpdated(), WAD);
         assertEq(optimizer.exchangeRateUpdated(), WAD);
     }
 }

@@ -588,7 +588,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         // Exchange rate should be approximately 1:1 (WAD) after initialization
         // May vary slightly due to market exchange rates
-        uint256 exchangeRate = optimizer.exchangeRate();
+        uint256 exchangeRate = optimizer.exchangeRateUpdated();
         assertGt(exchangeRate, 0);
     }
 

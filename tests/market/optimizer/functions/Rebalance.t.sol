@@ -250,7 +250,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         uint256 totalAssetsBefore = testOptimizer.totalAssets();
         uint256 totalSupplyBefore = testOptimizer.totalSupply();
-        uint256 exchangeRateBefore = testOptimizer.exchangeRate();
+        uint256 exchangeRateBefore = testOptimizer.exchangeRateUpdated();
 
         // Mock harvest permissions for rebalancing.
         vm.mockCall(

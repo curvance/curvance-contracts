@@ -292,7 +292,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         harness.depositToMarket(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
-        uint256 exchangeRateBefore = optimizer.exchangeRate();
+        uint256 exchangeRateBefore = optimizer.exchangeRateUpdated();
 
         LendingOptimizer.ReallocationAction[] memory actions =
             new LendingOptimizer.ReallocationAction[](3);
@@ -303,7 +303,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
         uint256 totalAssetsAfter = optimizer.totalAssets();
-        uint256 exchangeRateAfter = optimizer.exchangeRate();
+        uint256 exchangeRateAfter = optimizer.exchangeRateUpdated();
 
         assertApproxEqAbs(
             totalAssetsAfter,
