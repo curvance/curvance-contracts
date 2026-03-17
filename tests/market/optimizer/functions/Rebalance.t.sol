@@ -140,9 +140,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Expect revert with AllocationExceedsCap error.
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenUnauthorized() public {
@@ -153,17 +152,24 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        // Mock harvest permissions to return false (unauthorized).
+        // Use a caller that has NEITHER harvester nor market permissions.
+        // rebalance() now accepts both, so we need a truly unauthorized caller.
+        address unauthorizedCaller = address(0xDEAD);
         vm.mockCall(
             address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, unauthorizedCaller),
+            abi.encode(false)
+        );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, unauthorizedCaller),
             abi.encode(false)
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
+        vm.prank(unauthorizedCaller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenArrayLengthMismatch() public {
@@ -181,9 +187,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_fail_whenInvalidMarketOrder() public {
@@ -202,9 +207,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     /// @notice Verifies that rebalance adjusts _totalAssets for rounding loss,
@@ -250,7 +254,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         uint256 totalAssetsBefore = testOptimizer.totalAssets();
         uint256 totalSupplyBefore = testOptimizer.totalSupply();
-        uint256 exchangeRateBefore = testOptimizer.exchangeRateUpdated();
+        uint256 exchangeRateBefore = testOptimizer.exchangeRate();
 
         // Mock harvest permissions for rebalancing.
         vm.mockCall(
@@ -284,7 +288,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         // If _totalAssets wasn't properly adjusted for rounding loss, this would
         // detect rawTa < totalAssets and trigger bad debt handling, which clears vesting.
         // Instead, it should work normally.
-        uint256 exchangeRateAfter = testOptimizer.exchangeRateUpdated();
+        uint256 exchangeRateAfter = testOptimizer.exchangeRate();
 
         // Total assets may be slightly less due to accumulated rounding (up to 5 wei for 5 rebalances).
         uint256 totalAssetsAfter = testOptimizer.totalAssets();
@@ -337,9 +341,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // sumDeclaredWithdrawals (2000) != sumDeclaredReallocated (1000)
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_success_emitsRebalancedEvent() public {
@@ -417,9 +420,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Reverts because market 2's allocation (~30%) exceeds its 20% cap.
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_revert_withdrawalBelowMinReallocation() public {
@@ -444,9 +446,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     // ============ Allocation Bounds Tests ============
@@ -509,9 +510,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         vm.stopPrank();
 
         // Rebalance reverts — the deposit shifted allocations outside bounds.
-        (address[] memory sq, address[] memory wq) = _currentQueues(testOpt);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        testOpt.rebalance(actions, bounds, sq, wq);
+        testOpt.rebalance(actions, bounds);
     }
 
     /// @notice A withdrawal between off-chain computation and on-chain execution
@@ -540,10 +540,11 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         );
         testOpt.initializeDeposits(cUSDC_WMON_MARKET);
 
-        deal(USDC_MONAD, address(this), 40_000e6);
-        IERC20(USDC_MONAD).approve(address(testOpt), 40_000e6);
-        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WMON_MARKET);
-        testOpt.depositToMarket(20_000e6, address(this), cUSDC_WBTC_MARKET);
+        // Create an imbalanced allocation: 80% in market 0, 20% in market 1.
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(testOpt), 50_000e6);
+        testOpt.depositToMarket(40_000e6, address(this), cUSDC_WMON_MARKET);
+        testOpt.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         vm.mockCall(
             address(liveCentralRegistry),
@@ -556,20 +557,14 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
 
-        // Tight bounds: 48%-52% each.
+        // Tight bounds: 48%-52% each. But actual allocation is ~80/20.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
         bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
         bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
 
-        // User withdraws 80% — multi-market drains worst-yield first,
-        // skewing per-market allocations away from 50/50.
-        uint256 shares = testOpt.balanceOf(address(this));
-        testOpt.redeem(shares * 80 / 100, address(this), address(this));
-
-        // Rebalance reverts — allocations shifted outside tight bounds.
-        (address[] memory sq, address[] memory wq) = _currentQueues(testOpt);
+        // Rebalance reverts — allocations are outside tight bounds.
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        testOpt.rebalance(actions, bounds, sq, wq);
+        testOpt.rebalance(actions, bounds);
     }
 
     /// @notice Bounds that match the post-rebalance state succeed.
@@ -627,9 +622,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
         bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
 
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 
     /// @notice Bounds set to zero tolerance revert on any non-exact allocation.
@@ -659,8 +653,7 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4000, maxBps: 4000 });
         bounds[2] = LendingOptimizer.AllocationBound({ minBps: 1000, maxBps: 1000 });
 
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
     }
 }

@@ -122,21 +122,24 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
 
         uint256 sharesToMint = 1000e6;
         uint256 expectedAssets = optimizer.previewMint(sharesToMint);
-        
+
         deal(USDC_MONAD, user1, expectedAssets * 2, true);
         IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
 
-        // Get the expected optimal target before mint
-        address expectedMarket = LendingOptimizerHarness(address(optimizer)).supplyQueueTarget();
-
-        // Get market balance before
-        uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
+        // Get the total cToken balance across all approved markets before mint.
+        uint256 totalCTokensBefore;
+        for (uint256 i = 0; i < optimizer.numApprovedMarkets(); i++) {
+            totalCTokensBefore += IBorrowableCToken(optimizer.approvedCTokensList(i)).balanceOf(address(optimizer));
+        }
 
         optimizer.mint(sharesToMint, user1);
 
-        // Verify deposit went to the expected market
-        uint256 marketBalanceAfter = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-        assertGt(marketBalanceAfter, marketBalanceBefore, "Expected market should receive deposit");
+        // Verify deposit went to some market (total cToken balance increased).
+        uint256 totalCTokensAfter;
+        for (uint256 i = 0; i < optimizer.numApprovedMarkets(); i++) {
+            totalCTokensAfter += IBorrowableCToken(optimizer.approvedCTokensList(i)).balanceOf(address(optimizer));
+        }
+        assertGt(totalCTokensAfter, totalCTokensBefore, "Some market should receive deposit");
 
         vm.stopPrank();
     }
@@ -380,7 +383,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 sharesToMint = 1000e6;
 
         // Track exchange rate across multiple mints
-        uint256 previousExchangeRate = optimizer.exchangeRateUpdated();
+        uint256 previousExchangeRate = optimizer.exchangeRate();
 
         for (uint256 i = 0; i < 5; i++) {
             address minter = i % 2 == 0 ? user1 : user2;
@@ -397,7 +400,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
             optimizer.accrueIfNeeded();
             skip(1 days); // Let yield vest
 
-            uint256 currentExchangeRate = optimizer.exchangeRateUpdated();
+            uint256 currentExchangeRate = optimizer.exchangeRate();
             
             // Exchange rate should never decrease (assuming no losses)
             assertGe(currentExchangeRate, previousExchangeRate, "Exchange rate should never decrease");

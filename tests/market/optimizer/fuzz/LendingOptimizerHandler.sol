@@ -276,7 +276,7 @@ contract LendingOptimizerHandler is Test {
 
         _mockHarvestPermissions(address(this));
 
-        try optimizer.rebalance(actions, _unconstrainedBounds(), optimizer.getSupplyQueue(), optimizer.getWithdrawQueue()) {
+        try optimizer.rebalance(actions, _unconstrainedBounds()) {
             ghost_rebalanceCount++;
         } catch {
             // Expected revert (e.g., allocation cap exceeded).
@@ -290,6 +290,8 @@ contract LendingOptimizerHandler is Test {
         duration = bound(duration, 1, 7 days);
         vm.warp(block.timestamp + duration);
         // Accrue interest so _totalAssets reflects the new cToken values.
+        // exchangeRate() is now a simple view; use exchangeRateUpdated()
+        // which triggers _accrueIfNeeded().
         try optimizer.exchangeRateUpdated() {} catch {}
         _updateExchangeRate();
     }

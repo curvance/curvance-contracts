@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -44,13 +45,8 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return convertToShares(assets);
     }
 
-    /// @notice Exposes _supplyQueueTarget for deposit target selection.
-    function supplyQueueTarget() external view returns (address) {
-        return _supplyQueueTarget();
-    }
-
     /// @notice Test-only: deposits into a specific market for setup purposes.
-    /// @dev Bypasses optimal routing to allow tests to create specific
+    /// @dev Bypasses pro-rata routing to allow tests to create specific
     ///      allocation distributions across markets.
     function depositToMarket(
         uint256 assets,
@@ -59,6 +55,15 @@ contract LendingOptimizerHarness is LendingOptimizer {
     ) external nonReentrant returns (uint256 shares) {
         _checkMintPaused();
         _accrueIfNeeded();
-        shares = _deposit(assets, receiver, targetMarket);
+
+        SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
+        uint256 trackedAssets = _depositToMarket(targetMarket, assets);
+
+        shares = convertToShares(trackedAssets);
+        if (shares == 0) revert LendingOptimizer__InvalidParameter();
+
+        _totalAssets += trackedAssets;
+        _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 }

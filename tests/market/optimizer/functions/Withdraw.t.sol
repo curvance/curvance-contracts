@@ -221,7 +221,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         uint256 shares1 = optimizer.withdraw(assetsToWithdraw, user1, user1);
 
         // Record exchange rate AFTER first withdraw (after initial fee extraction)
-        uint256 rateAfterFirstWithdraw = optimizer.exchangeRateUpdated();
+        uint256 rateAfterFirstWithdraw = optimizer.exchangeRate();
 
         // Skip time (interest accrues in underlying markets)
         skip(7 days);
@@ -233,7 +233,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         skip(1 days);
 
         // Record exchange rate after yield vests
-        uint256 rateAfterYieldVests = optimizer.exchangeRateUpdated();
+        uint256 rateAfterYieldVests = optimizer.exchangeRate();
 
         // Second withdraw
         uint256 shares2 = optimizer.withdraw(assetsToWithdraw, user1, user1);
@@ -467,7 +467,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             optimizer.accrueIfNeeded();
 
             // Record rate immediately before withdraw
-            uint256 rateBefore = optimizer.exchangeRateUpdated();
+            uint256 rateBefore = optimizer.exchangeRate();
 
             // Use maxWithdraw / 10 to ensure we can do multiple withdraws
             uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 10;
@@ -475,7 +475,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             optimizer.withdraw(assetsToWithdraw, user1, user1);
 
             // Record rate immediately after withdraw
-            uint256 rateAfter = optimizer.exchangeRateUpdated();
+            uint256 rateAfter = optimizer.exchangeRate();
 
             // Exchange rate should not decrease from a withdraw operation itself.
             // Live exchangeRate() reads cToken convertToAssets which rounds

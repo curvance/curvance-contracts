@@ -123,6 +123,8 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         // 3. Skip time so interest accrues, raising the exchange rate.
         skip(60 days);
         _refreshMockFeeds();
+        // Use exchangeRateUpdated() to trigger accrual; exchangeRate() is
+        // now a simple cached view that won't detect new yield.
         optimizer.exchangeRateUpdated();
 
         uint256 watermarkAfterYield = optimizer.exchangeRateHighWatermark();
@@ -280,6 +282,7 @@ contract TestWatermarkManipulation is TestBaseMarketIsolated {
         // Let yield accrue.
         skip(30 days);
         _refreshMockFeeds();
+        // Use exchangeRateUpdated() to trigger accrual.
         optimizer.exchangeRateUpdated();
 
         uint256 watermarkBeforeDrawdown = optimizer.exchangeRateHighWatermark();

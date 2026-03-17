@@ -25,8 +25,6 @@ interface ILendingOptimizer {
     function fee() external view returns (uint256);
     function exchangeRateHighWatermark() external view returns (uint256);
     function mintPaused() external view returns (uint8);
-    function supplyQueue(uint256 index) external view returns (address);
-    function withdrawQueue(uint256 index) external view returns (address);
 
     /// ERC4626 OVERRIDES ///
     /// @dev Declared here so LendingOptimizer can use
@@ -46,14 +44,11 @@ interface ILendingOptimizer {
     function updateCap(address cToken, uint256 newCapBps) external;
     function setFee(uint256 newFeeBps) external;
     function setMintPaused(bool state) external;
-    function setSupplyQueue(address[] calldata newQueue) external;
-    function setWithdrawQueue(address[] calldata newQueue) external;
+    function exchangeRate() external view returns (uint256);
     function exchangeRateUpdated() external returns (uint256);
     function accrueIfNeeded() external;
     function skim() external;
     function skimAvailable() external view returns (uint256);
     function numApprovedMarkets() external view returns (uint256);
     function getApprovedMarkets() external view returns (address[] memory);
-    function getSupplyQueue() external view returns (address[] memory);
-    function getWithdrawQueue() external view returns (address[] memory);
 }

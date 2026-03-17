@@ -125,36 +125,28 @@ contract OptimizerReader {
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
     ///      allocation across markets, respecting allocation caps. Returns
-    ///      ReallocationAction[], AllocationBound[], and queue arrays that
-    ///      can be passed directly to LendingOptimizer.rebalance().
+    ///      ReallocationAction[] and AllocationBound[] that can be passed
+    ///      directly to LendingOptimizer.rebalance().
     ///      Bounds are set to [idealBps - slippageBps, idealBps + slippageBps],
     ///      clamped to [0, 10000].
-    ///      Queues are sorted by projected supply rate at the ideal allocation:
-    ///      supplyQueue descending (best yield first), withdrawQueue ascending
-    ///      (worst yield first). Paused markets are excluded from the
-    ///      relevant queue.
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
     /// @return actions The rebalance actions array matching approvedCTokensList order.
     /// @return bounds The allocation bounds array matching approvedCTokensList order.
-    /// @return supplyQueue Markets sorted by descending projected supply rate.
-    /// @return withdrawQueue Markets sorted by ascending projected supply rate.
     function optimalRebalance(
         address optimizer,
         uint256 slippageBps
     ) external view returns (
         LendingOptimizer.ReallocationAction[] memory actions,
-        LendingOptimizer.AllocationBound[] memory bounds,
-        address[] memory supplyQueue,
-        address[] memory withdrawQueue
+        LendingOptimizer.AllocationBound[] memory bounds
     ) {
         address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
 
         actions = new LendingOptimizer.ReallocationAction[](markets.length);
         bounds = new LendingOptimizer.AllocationBound[](markets.length);
 
-        if (markets.length == 0) return (actions, bounds, supplyQueue, withdrawQueue);
+        if (markets.length == 0) return (actions, bounds);
 
         MarketAlloc[] memory m;
         {
@@ -198,7 +190,6 @@ contract OptimizerReader {
             }
         }
 
-        (supplyQueue, withdrawQueue) = _computeQueues(markets, m);
     }
 
     /// @dev Chunked greedy allocation: computes the ideal per-market asset
@@ -308,81 +299,6 @@ contract OptimizerReader {
         }
     }
 
-    /// @dev Computes supply and withdraw queues by sorting markets based on
-    ///      projected supply rates at the ideal allocation.
-    function _computeQueues(
-        address[] memory markets,
-        MarketAlloc[] memory m
-    ) internal view returns (
-        address[] memory supplyQueue,
-        address[] memory withdrawQueue
-    ) {
-        uint256 n = markets.length;
-        uint256[] memory rates = new uint256[](n);
-
-        for (uint256 i; i < n; ++i) {
-            rates[i] = m[i].irm.supplyRate(
-                m[i].simAssetsHeld, m[i].debt, m[i].fees
-            );
-        }
-
-        supplyQueue = _buildQueue(markets, rates, true);
-        withdrawQueue = _buildQueue(markets, rates, false);
-    }
-
-    /// @dev Selection-sorts markets into a queue. All markets are included —
-    ///      active markets sorted by rate first, paused markets appended last.
-    /// @param isSupply If true, descending rate (best yield first) with
-    ///                 mint-paused markets last. If false, ascending rate
-    ///                 (worst yield first) with redeem-paused markets last.
-    function _buildQueue(
-        address[] memory markets,
-        uint256[] memory rates,
-        bool isSupply
-    ) internal view returns (address[] memory queue) {
-        uint256 n = markets.length;
-        queue = new address[](n);
-        bool[] memory used = new bool[](n);
-        uint256 pos;
-
-        // First: sort active (non-paused) markets by rate.
-        uint256 activeCount;
-        for (uint256 i; i < n; ++i) {
-            if (isSupply ? !_isMintPaused(markets[i]) : !_isRedeemPaused(markets[i])) {
-                ++activeCount;
-            }
-        }
-
-        for (uint256 s; s < activeCount; ++s) {
-            uint256 bestIdx;
-            uint256 bestRate = isSupply ? 0 : type(uint256).max;
-            bool found;
-
-            for (uint256 i; i < n; ++i) {
-                if (used[i]) continue;
-                if (isSupply ? _isMintPaused(markets[i]) : _isRedeemPaused(markets[i])) {
-                    continue;
-                }
-
-                if (!found || (isSupply ? rates[i] > bestRate : rates[i] < bestRate)) {
-                    bestRate = rates[i];
-                    bestIdx = i;
-                    found = true;
-                }
-            }
-
-            queue[pos++] = markets[bestIdx];
-            used[bestIdx] = true;
-        }
-
-        // Then: append paused markets (order doesn't matter).
-        for (uint256 i; i < n; ++i) {
-            if (!used[i]) {
-                queue[pos++] = markets[i];
-            }
-        }
-    }
-
     function _balanceOf(
         address token,
         address account
@@ -407,13 +323,6 @@ contract OptimizerReader {
     /// @dev Convenience overload — resolves market manager from cToken.
     function _isMintPaused(address cToken) internal view returns (bool mp) {
         mp = _isMintPaused(cToken, _marketManager(cToken));
-    }
-
-    /// @dev Returns true if redeeming is paused for `cToken`.
-    function _isRedeemPaused(address cToken) internal view returns (bool) {
-        return MarketManagerIsolated(
-            address(_marketManager(cToken))
-        ).redeemPaused() == 2;
     }
 
     function _marketManager(

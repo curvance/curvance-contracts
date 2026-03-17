@@ -434,7 +434,7 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         _depositForUser(user1, depositAmount);
 
         // Track exchange rate across multiple redeems
-        uint256 previousExchangeRate = optimizer.exchangeRateUpdated();
+        uint256 previousExchangeRate = optimizer.exchangeRate();
 
         vm.startPrank(user1);
 
@@ -448,7 +448,7 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
             optimizer.accrueIfNeeded();
             skip(1 days); // Let yield vest
 
-            uint256 currentExchangeRate = optimizer.exchangeRateUpdated();
+            uint256 currentExchangeRate = optimizer.exchangeRate();
 
             // Exchange rate should never decrease (assuming no losses)
             assertGe(currentExchangeRate, previousExchangeRate, "Exchange rate should never decrease");

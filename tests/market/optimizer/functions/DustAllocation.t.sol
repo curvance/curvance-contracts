@@ -172,12 +172,12 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
     function test_dustAllocation_exchangeRate_consistentWithImbalance() public {
         _createExtremeImbalance();
 
-        uint256 exchangeRate1 = optimizer.exchangeRateUpdated();
+        uint256 exchangeRate1 = optimizer.exchangeRate();
 
         // Warp time to accrue some yield.
         vm.warp(block.timestamp + 1 days);
 
-        uint256 exchangeRate2 = optimizer.exchangeRateUpdated();
+        uint256 exchangeRate2 = optimizer.exchangeRate();
 
         // Exchange rate should increase or stay same (yield accrues).
         assertGe(exchangeRate2, exchangeRate1, "Exchange rate should not decrease");
@@ -347,7 +347,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         // Skip time and trigger accrual.
         vm.warp(block.timestamp + 2 days);
 
-        uint256 exchangeRate = optimizer.exchangeRateUpdated();
+        uint256 exchangeRate = optimizer.exchangeRate();
 
         // Should not revert - system should handle dust market normally.
         assertGt(exchangeRate, 0, "Exchange rate should be valid");
@@ -490,7 +490,7 @@ contract TestLendingOptimizerDustAllocation is TestBaseLendingOptimizer {
         vm.warp(block.timestamp + 2 days);
 
         // Trigger accrual.
-        uint256 exchangeRateAfter = optimizer.exchangeRateUpdated();
+        uint256 exchangeRateAfter = optimizer.exchangeRate();
 
         // Exchange rate should reflect yield (including from dust markets).
         assertGe(exchangeRateAfter, WAD, "Exchange rate should be at least 1:1");

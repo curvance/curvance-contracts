@@ -365,7 +365,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         assertGt(shares, 0, "Should receive shares with 6 markets");
 
         // Exchange rate should be valid.
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
         assertGt(rate, 0, "Exchange rate should be positive with 6 markets");
     }
 
@@ -442,9 +442,8 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
-        (address[] memory sq, address[] memory wq) = _currentQueues(optimizer);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions, bounds, sq, wq);
+        optimizer.rebalance(actions, bounds);
 
         // A corrective rebalance that moves assets from WMON to WBTC should pass.
         uint256 wmonTarget = (totalAssets * 25) / 100; // 25% < 30% cap
@@ -504,7 +503,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         assertGe(totalAssetsAfter, 77777, "Total assets should be >= initial dead shares value");
 
         // Exchange rate should still be valid and > 0.
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
         assertGt(rate, 0, "Exchange rate should be positive");
 
         // A new user should be able to deposit without issues.
@@ -526,7 +525,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         // --- STEP 1: Initialization ---
         _setUpThreeMarkets();
-        assertApproxEqAbs(optimizer.exchangeRateUpdated(), WAD, 100, "Initial rate should be ~1:1");
+        assertApproxEqAbs(optimizer.exchangeRate(), WAD, 100, "Initial rate should be ~1:1");
         assertEq(optimizer.mintPaused(), 1, "Optimizer should be active");
 
         // --- STEP 2: Deposit ---
@@ -566,7 +565,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             "Step 2: total assets should include deposit + dead shares"
         );
         assertApproxEqRel(
-            optimizer.exchangeRateUpdated(),
+            optimizer.exchangeRate(),
             WAD,
             0.001e18,
             "Step 2: rate should be approximately preserved"
@@ -583,7 +582,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         uint256 totalAssetsAfterYield = optimizer.totalAssets();
         assertGe(totalAssetsAfterYield, totalAssetsBefore, "Step 3: total assets should grow from yield");
 
-        uint256 rateAfterYield = optimizer.exchangeRateUpdated();
+        uint256 rateAfterYield = optimizer.exchangeRate();
         assertGe(rateAfterYield, WAD, "Step 3: rate should be >= 1:1");
 
         // --- STEP 4: Fee Charging ---
@@ -632,7 +631,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             "Step 6: user balance should increase by redeemed assets"
         );
 
-        uint256 finalRate = optimizer.exchangeRateUpdated();
+        uint256 finalRate = optimizer.exchangeRate();
         assertGt(finalRate, 0, "Step 6: final rate should be positive");
         assertGe(finalRate, WAD, "Step 6: final rate should be >= 1:1 (yield should not be lost)");
     }
@@ -875,11 +874,11 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 5; i++) {
             skip(2 days);
             // Should never revert.
-            optimizer.exchangeRateUpdated();
+            optimizer.exchangeRate();
         }
 
         // Exchange rate should have increased from yield on dead shares.
-        uint256 finalRate = optimizer.exchangeRateUpdated();
+        uint256 finalRate = optimizer.exchangeRate();
         assertGe(finalRate, WAD, "Rate should be >= 1:1 after yield on dead shares");
 
         // A user deposit after many cycles should work fine.

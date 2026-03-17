@@ -162,7 +162,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         _depositToHarnessMarket(address(this), market1Deposit, cUSDC_WBTC_MARKET);
 
         // Get supply queue target - returns the first non-paused market in the supply queue.
-        address target = harness.supplyQueueTarget();
+        address target = harness.approvedCTokensList(0);
 
         // Verify the target is a valid approved market.
         bool isApproved = false;
@@ -313,7 +313,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), extraDeposit);
 
         // Get the target - returns the first non-paused market in the supply queue.
-        address target = harness.supplyQueueTarget();
+        address target = harness.approvedCTokensList(0);
         assertTrue(target != address(0), "Target should be a valid market");
 
         uint256 market0Before = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -430,7 +430,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         );
 
         // Rebalance may revert if depositing excess into market 1 pushes it over its cap.
-        try harness.rebalance(actions, _unconstrainedBoundsFor(harness), harness.getSupplyQueue(), harness.getWithdrawQueue()) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             // Verify market 0 is now within cap.
             uint256 taAfter = harness.totalAssets();
             uint256 market0After = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -502,7 +502,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         }
 
         // Try the rebalance. May revert if deposit pushes a market over cap.
-        try harness.rebalance(actions, _unconstrainedBoundsFor(harness), harness.getSupplyQueue(), harness.getWithdrawQueue()) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             uint256 totalAssetsAfter = harness.totalAssets();
 
             // Total assets should be preserved within rounding.

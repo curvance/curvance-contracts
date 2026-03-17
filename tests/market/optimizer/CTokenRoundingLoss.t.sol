@@ -189,9 +189,12 @@ contract CTokenRoundingLossTest is TestBaseLendingOptimizer {
         emit log_named_uint("rate after (WAD)      ", rateAfter);
         emit log_named_uint("totalAssets after     ", optimizer.totalAssets());
         emit log_named_uint("totalSupply after     ", optimizer.totalSupply());
-        emit log_named_uint("RATE DROP (WAD)       ", rateBefore - rateAfter);
 
-        assertTrue(rateAfter < rateBefore, "Exchange rate should drop due to cToken rounding loss");
+        // With the new withdraw() implementation, the cToken rounding loss is
+        // charged to the withdrawer by adding it to the shares burned. This
+        // prevents the exchange rate from dropping. The rate should be preserved
+        // or slightly increase (due to rounding loss accruing to the vault).
+        assertGe(rateAfter, rateBefore, "Exchange rate should not drop with rounding loss charging");
     }
 
     function _exchangeRateWAD() internal view returns (uint256) {

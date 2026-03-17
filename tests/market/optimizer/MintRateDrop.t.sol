@@ -15,11 +15,16 @@ contract MintRateDropTest is TestBaseLendingOptimizer {
         super.setUp();
     }
 
+    /// @notice Verifies that mint() no longer causes a rate drop.
+    /// @dev The contract now uses `_totalAssets += assets` (full user payment)
+    ///      in mint(), not `_totalAssets += trackedAssets`. This prevents the
+    ///      double-floor loss from dropping the exchange rate. The 0-1 wei
+    ///      excess self-corrects at the next _accrueIfNeeded().
     function test_mint_rate_drops() public {
         _deployOptimizer();
         _initAndDeposit();
 
-        // Warp for non-1:1 cToken rate (needed for double-floor to trigger).
+        // Warp for non-1:1 cToken rate.
         vm.warp(block.timestamp + 365 days);
         optimizer.accrueIfNeeded();
 
@@ -31,23 +36,9 @@ contract MintRateDropTest is TestBaseLendingOptimizer {
         uint256 cA = cToken.totalAssets();
         uint256 cS = cToken.totalSupply();
 
-        emit log_named_uint("rate before (WAD)     ", rateBefore);
-        emit log_named_uint("optA                  ", optA);
-        emit log_named_uint("optS                  ", optS);
-
         // Find a shares amount where the cToken double-floor loses 1 wei.
         uint256 shares = _findMintRateDropShares(optA, optS, cA, cS);
         uint256 assets = FixedPointMathLib.fullMulDivUp(shares, optA, optS);
-
-        // Show the double-floor math.
-        uint256 cSharesReceived = FixedPointMathLib.fullMulDiv(assets, cS, cA);
-        uint256 trackedAssets = FixedPointMathLib.fullMulDiv(cSharesReceived, cA, cS);
-
-        emit log_named_uint("mint shares           ", shares);
-        emit log_named_uint("user pays (assets)    ", assets);
-        emit log_named_uint("cToken shares received", cSharesReceived);
-        emit log_named_uint("trackedAssets (2xfloor)", trackedAssets);
-        emit log_named_uint("double-floor loss     ", assets - trackedAssets);
 
         // Do the mint as a new user.
         address minter = address(0xBEEF);
@@ -59,15 +50,12 @@ contract MintRateDropTest is TestBaseLendingOptimizer {
         optimizer.mint(shares, minter);
         vm.stopPrank();
 
-        // Read rate IMMEDIATELY after mint (before next accrual re-syncs).
+        // Read rate IMMEDIATELY after mint.
         uint256 rateAfter = _exchangeRateWAD();
 
-        emit log_named_uint("rate after  (WAD)     ", rateAfter);
-        emit log_named_uint("totalAssets after     ", optimizer.totalAssets());
-        emit log_named_uint("totalSupply after     ", optimizer.totalSupply());
-        emit log_named_uint("RATE DROP   (WAD)     ", rateBefore - rateAfter);
-
-        assertTrue(rateAfter < rateBefore, "Rate should drop after mint due to double-floor loss");
+        // With the new mint() implementation, the rate should NOT drop
+        // because _totalAssets tracks the full user payment.
+        assertGe(rateAfter, rateBefore, "Rate should not drop after mint with new implementation");
     }
 
     function _exchangeRateWAD() internal view returns (uint256) {

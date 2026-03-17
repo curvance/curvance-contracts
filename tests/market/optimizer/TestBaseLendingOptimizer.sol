@@ -368,26 +368,13 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         }
     }
 
-    /// @dev Returns the current supply and withdraw queues for an optimizer.
-    function _currentQueues(LendingOptimizer lo)
-        internal
-        view
-        returns (address[] memory sq, address[] memory wq)
-    {
-        sq = lo.getSupplyQueue();
-        wq = lo.getWithdrawQueue();
-    }
-
-    /// @dev Convenience wrapper for rebalance that passes the current queues unchanged.
-    ///      NOTE: Do NOT use with vm.expectRevert — the view calls consume the expected revert.
-    ///      For revert tests, fetch queues first with _currentQueues() then call rebalance directly.
+    /// @dev Convenience wrapper for rebalance.
     function _rebalance(
         LendingOptimizer lo,
         LendingOptimizer.ReallocationAction[] memory actions,
         LendingOptimizer.AllocationBound[] memory bounds
     ) internal {
-        (address[] memory sq, address[] memory wq) = _currentQueues(lo);
-        lo.rebalance(actions, bounds, sq, wq);
+        lo.rebalance(actions, bounds);
     }
 
 }

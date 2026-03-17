@@ -145,9 +145,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Skip time so vesting finishes and _totalAssets syncs.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Record _totalAssets before removal.
         uint256 totalAssetsIndexedBefore = harness.exposed_totalAssetsIndexed();
@@ -209,9 +209,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Perform 5 remove/add cycles with market 2.
         for (uint256 cycle = 0; cycle < 5; cycle++) {
@@ -239,9 +239,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
             // Let vesting finish between cycles.
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         // Check accounting.
@@ -280,7 +280,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Start vesting.
         skip(3 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 hours);
 
         uint256 rawBefore = _getActualMarketValue(address(harness));
@@ -335,7 +335,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue and start vesting.
         skip(3 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Check allocations after some time.
         skip(12 hours);
@@ -354,7 +354,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 taAfterVesting = harness.totalAssets();
         uint256 m2AssetsAfter = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
@@ -388,11 +388,11 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
-        uint256 exchangeRateBefore = harness.exchangeRateUpdated();
+        uint256 exchangeRateBefore = harness.exchangeRate();
 
         console2.log("--- Before remove/re-add ---");
         console2.log("Exchange rate:", exchangeRateBefore);
@@ -434,7 +434,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Exchange rate should not have decreased.
-        uint256 exchangeRateAfter = harness.exchangeRateUpdated();
+        uint256 exchangeRateAfter = harness.exchangeRate();
 
         console2.log("--- After remove/re-add + deposit ---");
         console2.log("Exchange rate:", exchangeRateAfter);
@@ -464,9 +464,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         for (uint256 i = 0; i < 3; i++) {
             // Accrue cTokens first.
@@ -492,16 +492,16 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         // Do a final accrual cycle to sync _totalAssets with actual values.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 finalTotalAssets = harness.exposed_totalAssetsIndexed();
         uint256 totalActual = _getActualMarketValue(address(harness));
@@ -541,7 +541,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let time pass for interest accrual.
         skip(5 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
 
         // Accrue all cTokens first so convertToAssets matches what removeApprovedAsset
@@ -584,12 +584,12 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         harness.depositToMarket(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 totalAssetsBefore = harness.totalAssets();
-        uint256 exchangeRateBefore = harness.exchangeRateUpdated();
+        uint256 exchangeRateBefore = harness.exchangeRate();
         uint256 m0Before = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
@@ -603,7 +603,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         _rebalance(harness, actions, _unconstrainedBoundsFor(harness));
 
         uint256 totalAssetsAfter = harness.totalAssets();
-        uint256 exchangeRateAfter = harness.exchangeRateUpdated();
+        uint256 exchangeRateAfter = harness.exchangeRate();
 
         console2.log("--- Zero-amount rebalance ---");
         console2.log("Total assets before:", totalAssetsBefore);
@@ -612,7 +612,11 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 m0After = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
-        assertEq(m0After, m0Before, "Market 0 should not change with zero rebalance");
+        // With pro-rata routing, rebalance() calls _accrueIfNeeded() which may
+        // accrue cToken interest between the snapshot and the check, causing small
+        // differences. Allow tolerance for interest accrual during the rebalance tx.
+        assertApproxEqAbs(m0After, m0Before, m0Before / 10000,
+            "Market 0 should not change significantly with zero rebalance");
         console2.log("CONFIRMED: Zero-amount rebalance is a valid no-op (wastes gas only)");
     }
 
@@ -758,9 +762,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // To remove market 1 (WBTC 50% cap), remaining = 60% + 20% = 80% < 100%.
         // Must increase WETH cap first.

@@ -179,16 +179,16 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Accrue to get a clean baseline. Multiple cycles to ensure
         // all vesting finishes and we're in a steady state.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         // Vesting may have started again from detected yield.
         // Wait for it to finish.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         // One more cycle to be safe.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // After multiple cycles, yield-per-cycle becomes very small.
 
@@ -211,9 +211,8 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         });
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
-        (address[] memory sq, address[] memory wq) = _currentQueues(harness);
         vm.prank(maliciousHarvester);
-        harness.rebalance(actions, bounds, sq, wq);
+        harness.rebalance(actions, bounds);
 
         uint256 rawAfter = harness.exposed_accrueMarkets();
         console2.log("After one rebalance:");
@@ -310,7 +309,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 feeSharesBefore = harness.balanceOf(
             liveCentralRegistry.daoAddress()
@@ -330,7 +329,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Wait and trigger accrual.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 feeSharesAfter = harness.balanceOf(
             liveCentralRegistry.daoAddress()
@@ -348,7 +347,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Now let more yield accrue with fee = 0.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Verify no fees charged when fee = 0.
         uint256 feeSharesAfterZeroFee = harness.balanceOf(
@@ -367,11 +366,11 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Phase 1: Let yield accrue and vest with 10% fee.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
-        uint256 rateAfterPhase1 = harness.exchangeRateUpdated();
+        uint256 rateAfterPhase1 = harness.exchangeRate();
         uint256 watermark1 = harness.exchangeRateHighWatermark();
         uint256 feeShares1 = harness.balanceOf(liveCentralRegistry.daoAddress());
 
@@ -383,7 +382,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Phase 2: Manager sets fee to 0.
         // Wait for yield to settle before changing fee.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(0);
@@ -398,12 +397,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Let yield accrue untaxed for several days.
         for (uint256 i = 0; i < 3; i++) {
             skip(1 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
-        uint256 rateAfterPhase2 = harness.exchangeRateUpdated();
+        uint256 rateAfterPhase2 = harness.exchangeRate();
         uint256 feeShares2 = harness.balanceOf(liveCentralRegistry.daoAddress());
 
         console2.log("\nPhase 2 (fee=0, 3 cycles):");
@@ -419,7 +418,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         harness.setFee(1_000);
 
         uint256 watermarkImmediately = harness.exchangeRateHighWatermark();
-        uint256 rateImmediately = harness.exchangeRateUpdated();
+        uint256 rateImmediately = harness.exchangeRate();
         console2.log("\nPhase 3 (fee restore to 10%):");
         console2.log("  Watermark immediately after setFee:", watermarkImmediately);
         console2.log("  Rate immediately:", rateImmediately);
@@ -435,14 +434,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Wait for deferred fee to actually apply.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         if (harness.fee() != 1_000) {
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 watermarkSettled = harness.exchangeRateHighWatermark();
-        uint256 rateSettled = harness.exchangeRateUpdated();
+        uint256 rateSettled = harness.exchangeRate();
         console2.log("  Watermark after settling:", watermarkSettled);
         console2.log("  Rate after settling:", rateSettled);
         console2.log("  Fee after settling:", harness.fee());
@@ -459,9 +458,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Verify future yield IS taxed.
         uint256 daoSharesBeforeTax = harness.balanceOf(liveCentralRegistry.daoAddress());
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 daoSharesAfterTax = harness.balanceOf(liveCentralRegistry.daoAddress());
         console2.log("  After new yield cycle, DAO shares:", daoSharesAfterTax);
@@ -608,12 +607,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let initial yield accrue and vest with fees.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 initialDaoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
-        uint256 rateBeforeFeeZero = harness.exchangeRateUpdated();
+        uint256 rateBeforeFeeZero = harness.exchangeRate();
         uint256 watermarkBefore = harness.exchangeRateHighWatermark();
 
         console2.log("Initial state (10% fee):");
@@ -624,7 +623,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Step 1: Manager sets fee to 0.
         // Wait for yield to settle before changing fee.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(0);
@@ -632,7 +631,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Update DAO shares after additional cycles to settle.
         initialDaoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
-        rateBeforeFeeZero = harness.exchangeRateUpdated();
+        rateBeforeFeeZero = harness.exchangeRate();
 
         console2.log("  After settling - fee:", harness.fee());
         console2.log("  DAO shares after settling:", initialDaoShares);
@@ -641,12 +640,12 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Multiple vesting cycles with no fees.
         for (uint256 i = 0; i < 5; i++) {
             skip(1 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
-        uint256 rateAfterFreeYield = harness.exchangeRateUpdated();
+        uint256 rateAfterFreeYield = harness.exchangeRate();
         uint256 daoSharesDuringFreeYield = harness.balanceOf(liveCentralRegistry.daoAddress());
 
         console2.log("\nAfter 5 vesting cycles with fee=0:");
@@ -662,14 +661,14 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // If deferred, force apply.
         if (harness.fee() != 1_000) {
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 watermarkAfterRestore = harness.exchangeRateHighWatermark();
 
         console2.log("\nAfter restoring fee to 10%:");
         console2.log("  New watermark:", watermarkAfterRestore);
-        console2.log("  Current rate:", harness.exchangeRateUpdated());
+        console2.log("  Current rate:", harness.exchangeRate());
 
         // CRITICAL: watermark was reset to current rate (0->nonzero transition).
         // All yield earned during fee=0 is below this watermark.
@@ -685,9 +684,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Step 4: Verify future yield IS taxed.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 daoSharesAfterRestore = harness.balanceOf(liveCentralRegistry.daoAddress());
         console2.log("\nAfter one cycle with restored fee:");
@@ -724,7 +723,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             skip(1 days + 1);
 
             // Trigger accrual - yield is immediately recognized.
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
 
             // Record share price for a new depositor.
             uint256 depositAmount = 100_000e6;
@@ -752,7 +751,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // New depositor deposits after yield accrual.
         uint256 newDeposit = 100_000e6;
@@ -763,7 +762,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let more yield accrue.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Calculate new depositor's value after yield.
         uint256 victim2Assets = harness.convertToAssets(victim2Shares);
@@ -792,7 +791,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 totalAssetsBefore = harness.totalAssets();
         uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
@@ -818,7 +817,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(actions, bounds, harness.getSupplyQueue(), harness.getWithdrawQueue()) {} catch {
+            try harness.rebalance(actions, bounds) {} catch {
                 console2.log("Rebalance failed at iteration", i);
                 break;
             }
@@ -835,7 +834,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(rev, bounds, harness.getSupplyQueue(), harness.getWithdrawQueue()) {} catch {
+            try harness.rebalance(rev, bounds) {} catch {
                 console2.log("Reverse rebalance failed at iteration", i);
                 break;
             }
@@ -869,7 +868,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Set fee to 50% (max).
         vm.prank(mktManager);
@@ -896,51 +895,51 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         _userDeposit(victim, 1_000_000e6);
 
-        uint256 previousRate = harness.exchangeRateUpdated();
+        uint256 previousRate = harness.exchangeRate();
         console2.log("Initial rate:", previousRate);
 
         // Cycle 1: Normal yield accrual.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
-        uint256 rate1 = harness.exchangeRateUpdated();
+        uint256 rate1 = harness.exchangeRate();
         assertGe(rate1, previousRate, "Rate decreased after cycle 1");
         console2.log("Rate after cycle 1:", rate1);
         previousRate = rate1;
 
         // Cycle 2: Fee change during vesting.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(2_000); // Change to 20%
 
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
-        uint256 rate2 = harness.exchangeRateUpdated();
+        uint256 rate2 = harness.exchangeRate();
         assertGe(rate2, previousRate, "Rate decreased after fee change");
         console2.log("Rate after fee change:", rate2);
         previousRate = rate2;
 
         // Cycle 3: New deposit after yield accrual.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         _userDeposit(victim2, 500_000e6);
 
-        uint256 rate3 = harness.exchangeRateUpdated();
+        uint256 rate3 = harness.exchangeRate();
         assertGe(rate3, previousRate, "Rate decreased after deposit");
         console2.log("Rate after new deposit:", rate3);
         previousRate = rate3;
 
         // More yield accrual.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
-        uint256 rate4 = harness.exchangeRateUpdated();
+        uint256 rate4 = harness.exchangeRate();
         assertGe(rate4, previousRate, "Rate decreased after yield accrual");
         console2.log("Final rate:", rate4);
     }
@@ -965,10 +964,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         });
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
-        (address[] memory sq, address[] memory wq) = _currentQueues(harness);
         vm.prank(attacker);
         vm.expectRevert();
-        harness.rebalance(actions, bounds, sq, wq);
+        harness.rebalance(actions, bounds);
 
         console2.log("DEFENSE CONFIRMED: Harvester-only functions properly restricted");
     }
