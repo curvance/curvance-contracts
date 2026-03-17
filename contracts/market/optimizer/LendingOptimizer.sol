@@ -333,6 +333,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// @notice Standard ERC4626 withdraw - withdraws pro-rata across
     ///         active markets while respecting liquidity constraints.
+    /// @dev Executes withdrawals first (violating CEI), then measures the
+    ///      actual cToken rounding loss by re-reading positions. Shares
+    ///      burned reflect the true cost including rounding loss, so
+    ///      remaining depositors are not diluted. CEI violation is safe
+    ///      because cToken markets are trusted and nonReentrant is enforced.
     /// @param assets The amount of underlying assets to withdraw.
     /// @param receiver The address to receive the withdrawn assets.
     /// @param owner The address that owns the shares being burned.
@@ -342,20 +347,35 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver,
         address owner
     ) public override nonReentrant returns (uint256 shares) {
+        if (assets == 0) revert LendingOptimizer__InvalidParameter();
         _checkRedeemPaused();
         _accrueIfNeeded();
 
-        // Compute shares directly from post-accrual state.
-        // Include cToken rounding loss so the withdrawer bears the cost.
-        uint256 loss = _totalWithdrawRoundingLoss(assets);
+        uint256 taBefore = _totalAssets;
+        uint256 supplyBefore = totalSupply();
+
+        // Execute pro-rata withdrawals and re-sync _totalAssets from
+        // actual cToken positions. The difference taBefore - _totalAssets
+        // captures both the withdrawn assets and any cToken rounding loss.
+        _totalAssets = _executeWithdraw(assets);
+
+        // Burn shares based on actual cost (assets + rounding loss).
+        uint256 actualCost = taBefore - _totalAssets;
         shares = FixedPointMathLib.fullMulDivUp(
-            assets + loss, totalSupply(), _totalAssets
+            actualCost, supplyBefore, taBefore
         );
-        _withdraw(assets, loss, shares, receiver, owner);
+
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+
+        SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /// @notice Standard ERC4626 redeem - redeems pro-rata across
     ///         active markets while respecting liquidity constraints.
+    /// @dev Same CEI violation pattern as withdraw() — executes first,
+    ///      measures actual rounding loss after, reduces user payout.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
     /// @param owner The address that owns the shares being burned.
@@ -368,12 +388,25 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _checkRedeemPaused();
         _accrueIfNeeded();
 
-        // Compute assets from post-accrual state.
-        // Deduct cToken rounding loss so the redeemer bears the cost.
+        // Compute gross assets from shares before any state changes.
+        uint256 taBefore = _totalAssets;
         assets = convertToAssets(shares);
-        uint256 loss = _totalWithdrawRoundingLoss(assets);
-        assets = assets > loss ? assets - loss : 0;
-        _withdraw(assets, loss, shares, receiver, owner);
+        if (assets == 0) revert LendingOptimizer__InvalidParameter();
+
+        // Execute pro-rata withdrawals and re-sync _totalAssets.
+        _totalAssets = _executeWithdraw(assets);
+
+        // Measure actual rounding loss and reduce user payout.
+        // actualCost = assets + roundingLoss, so user receives
+        // assets - roundingLoss, bearing the full rounding cost.
+        uint256 actualCost = taBefore - _totalAssets;
+        assets = assets - (actualCost - assets);
+
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+        _burn(owner, shares);
+
+        SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /// @notice Rebalances assets across approved markets.
@@ -890,193 +923,59 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);
     }
 
-    /// @dev Pre-withdraw accounting: checks allowance and burns shares.
-    ///      `_totalAssets` is decremented by `assets + loss` in `_withdraw()`
-    ///      so the cToken rounding loss (cToken.withdraw rounds up shares
-    ///      burned) is absorbed by the withdrawer, not remaining depositors.
-    /// @param assets The amount of assets being withdrawn (must be > 0).
-    /// @param shares The amount of shares to burn.
-    /// @param owner The address whose shares are being burned.
-    function _prepareWithdraw(
-        uint256 assets,
-        uint256 shares,
-        address owner
-    ) internal {
-        if (assets == 0) revert LendingOptimizer__InvalidParameter();
-        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-        _burn(owner, shares);
-    }
-
-    /// @dev Withdraws `assets` pro-rata across active markets to maintain
-    ///      current allocation percentages. Markets with insufficient liquidity
-    ///      have their allocations capped, with shortfalls redistributed
-    ///      sequentially. All markets are guaranteed non-paused (checked at
-    ///      entry point via `_checkRedeemPaused`).
-    ///
+    /// @dev Executes pro-rata withdrawals across all markets and returns
+    ///      the total remaining position (for `_totalAssets` re-sync).
+    ///      All markets are guaranteed non-paused (checked at entry point).
     /// @param assets Total underlying assets to withdraw.
-    /// @param loss Simulated cToken rounding loss (from `_totalWithdrawRoundingLoss`).
-    /// @param shares Total shares to burn (already computed by caller).
-    /// @param receiver Address to receive withdrawn assets.
-    /// @param owner Address whose shares are burned.
-    function _withdraw(
-        uint256 assets,
-        uint256 loss,
-        uint256 shares,
-        address receiver,
-        address owner
-    ) internal {
-        // Burn shares and spend allowance if caller != owner.
-        _prepareWithdraw(assets, shares, owner);
-
-        // Read each non-paused market's optimizer position and available
-        // liquidity (min of position and idle cash).
-        (uint256[] memory marketAssets, uint256[] memory liquidityLimit, uint256 totalMarketAssets)
-            = _getWithdrawLiquidity();
-
-        // Compute pro-rata withdrawal amounts. Each market's share is
-        // proportional to its current allocation. Markets with insufficient
-        // liquidity are capped, and the shortfall is redistributed.
-        uint256[] memory amounts = _calcProRata(
-            assets, marketAssets, liquidityLimit, totalMarketAssets
-        );
-
-        // Ensure the full withdrawal amount was allocated across markets.
-        // If total liquidity is insufficient, revert.
+    /// @return newTotalAssets Sum of optimizer positions after withdrawals.
+    function _executeWithdraw(uint256 assets) internal returns (uint256 newTotalAssets) {
         uint256 l = approvedCTokensList.length;
-        uint256 totalAllocated;
-        for (uint256 i; i < l; ++i) totalAllocated += amounts[i];
-        if (totalAllocated < assets) revert LendingOptimizer__InsufficientLiquidity();
+        uint256[] memory marketAssets = new uint256[](l);
+        uint256[] memory liquidityLimit = new uint256[](l);
+        uint256 totalMarketAssets;
 
-        // Execute the actual cToken withdrawals.
-        for (uint256 i; i < l; ++i) {
-            if (amounts[i] == 0) continue;
-            IBorrowableCToken(approvedCTokensList[i]).withdraw(
-                amounts[i], address(this), address(this)
-            );
-        }
-
-        // Decrement _totalAssets by the withdrawn amount plus the cToken
-        // rounding loss. The loss is borne by the withdrawer — remaining
-        // depositors are not diluted. Ground truth resets at next accrual.
-        _totalAssets -= (assets + loss);
-
-        // Transfer the full withdrawal amount to the receiver.
-        SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /// @dev Simulates the pro-rata withdrawal path and computes the total
-    ///      cToken rounding loss. Mirrors `_withdraw()` exactly.
-    /// @param assets Total underlying assets to simulate withdrawing.
-    /// @return loss Total rounding loss in asset terms.
-    function _totalWithdrawRoundingLoss(
-        uint256 assets
-    ) internal view returns (uint256 loss) {
-        // Read the same market data that _withdraw() will use, ensuring
-        // the simulated amounts match the real withdrawal path exactly.
-        (uint256[] memory marketAssets, uint256[] memory liquidityLimit, uint256 totalMarketAssets)
-            = _getWithdrawLiquidity();
-
-        // Compute the same pro-rata amounts that _withdraw() will execute.
-        uint256[] memory amounts = _calcProRata(
-            assets, marketAssets, liquidityLimit, totalMarketAssets
-        );
-
-        // For each market that will be touched, compute the rounding loss
-        // from cToken.withdraw()'s ceil(shares) burn. Reads raw cToken
-        // state (totalAssets, totalSupply) needed for the loss math.
-        uint256 l = approvedCTokensList.length;
-        for (uint256 i; i < l; ++i) {
-            if (amounts[i] == 0) continue;
-
-            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
-            uint256 cTokenBalance = cToken.balanceOf(address(this));
-            uint256 cTokenAssets = cToken.totalAssets();
-            uint256 cTokenSupply = cToken.totalSupply();
-
-            loss += _cTokenRoundingLoss(
-                cTokenBalance, cTokenAssets, cTokenSupply, marketAssets[i], amounts[i]
-            );
-        }
-    }
-
-    /// @dev Reads per-market withdrawal data for all non-paused markets.
-    ///      Shared by `_withdraw()` and `_totalWithdrawRoundingLoss()`.
-    function _getWithdrawLiquidity() internal view returns (
-        uint256[] memory marketAssets,
-        uint256[] memory liquidityLimit,
-        uint256 totalMarketAssets
-    ) {
-        uint256 l = approvedCTokensList.length;
-        marketAssets = new uint256[](l);
-        liquidityLimit = new uint256[](l);
-
-        // All markets are guaranteed non-paused for redemptions
-        // (checked at entry point via _checkRedeemPaused).
+        // Read each market's optimizer position and available liquidity.
+        // marketAssets[i]    = optimizer's full position (pro-rata weight).
+        // liquidityLimit[i]  = min(position, idle cash) — max withdrawable.
         for (uint256 i; i < l; ++i) {
             IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
-
-            // How much the optimizer owns in this market (underlying terms).
             uint256 optimizerAssets = cToken.convertToAssets(
                 cToken.balanceOf(address(this))
             );
-
-            // How much idle cash the market actually has for withdrawals.
             uint256 marketLiquidity = cToken.assetsHeld();
 
-            // marketAssets = optimizer's full position (weight for pro-rata).
-            // liquidityLimit = min(position, idle cash) — actual withdrawable.
             marketAssets[i] = optimizerAssets;
             liquidityLimit[i] = optimizerAssets < marketLiquidity
                 ? optimizerAssets
                 : marketLiquidity;
             totalMarketAssets += optimizerAssets;
         }
-    }
 
-    /// @dev Computes the rounding loss from a single cToken withdrawal.
-    ///      cToken.withdraw() burns ceil(shares). The extra share burned
-    ///      shifts the cToken exchange rate, reducing the optimizer's
-    ///      remaining position value beyond the amount withdrawn.
-    /// @param cTokenBalance Optimizer's cToken share balance.
-    /// @param cTokenAssets cToken total assets.
-    /// @param cTokenSupply cToken total supply.
-    /// @param positionBefore Optimizer's position value (floor(cTokenBalance*cTokenAssets/cTokenSupply)).
-    /// @param withdrawAmount Amount of underlying to withdraw from this market.
-    /// @return Rounding loss in asset terms (0 if none).
-    function _cTokenRoundingLoss(
-        uint256 cTokenBalance,
-        uint256 cTokenAssets,
-        uint256 cTokenSupply,
-        uint256 positionBefore,
-        uint256 withdrawAmount
-    ) internal pure returns (uint256) {
-        // Matches BaseCToken._previewWithdraw(): ceil(assets * totalSupply / totalAssets).
-        // cToken.withdraw() burns this many shares — rounding up costs us
-        // 1 extra share vs the ideal floor amount.
-        uint256 sharesBurned = FixedPointMathLib.fullMulDivUp(
-            withdrawAmount, cTokenSupply, cTokenAssets
+        // Split withdrawal pro-rata by position size, capped by each
+        // market's available liquidity. Shortfalls from liquidity-limited
+        // markets are redistributed sequentially to others.
+        uint256[] memory amounts = _calcProRata(
+            assets, marketAssets, liquidityLimit, totalMarketAssets
         );
 
-        // Simulate the cToken state after the withdrawal.
-        uint256 supplyAfter = cTokenSupply - sharesBurned;
+        // Verify the full amount was allocated. If total available
+        // liquidity across all markets is insufficient, revert.
+        uint256 totalAllocated;
+        for (uint256 i; i < l; ++i) totalAllocated += amounts[i];
+        if (totalAllocated < assets) revert LendingOptimizer__InsufficientLiquidity();
 
-        // Matches BaseCToken._convertToAssets(): floor(shares * totalAssets / totalSupply).
-        // Revalue our remaining cToken position at the post-withdrawal exchange rate.
-        uint256 positionAfter = supplyAfter > 0
-            ? FixedPointMathLib.fullMulDiv(
-                cTokenBalance - sharesBurned,
-                cTokenAssets - withdrawAmount,
-                supplyAfter
-            )
-            : 0;
-
-        // Our position decreased by more than withdrawAmount — the
-        // difference is the rounding loss borne by the withdrawer.
-        uint256 totalCost = positionBefore - positionAfter;
-        return totalCost > withdrawAmount
-            ? totalCost - withdrawAmount
-            : 0;
+        // Execute cToken withdrawals and re-read positions in a single
+        // pass. The returned newTotalAssets reflects ground truth after
+        // withdrawals, capturing any cToken rounding loss (from ceil
+        // share burns) that the caller uses for accounting.
+        for (uint256 i; i < l; ++i) {
+            if (amounts[i] > 0) {
+                IBorrowableCToken(approvedCTokensList[i]).withdraw(
+                    amounts[i], address(this), address(this)
+                );
+            }
+            newTotalAssets += _getMarketAssets(approvedCTokensList[i]);
+        }
     }
 
     /// @dev Deposits assets pro-rata across active markets, maintaining
