@@ -1194,13 +1194,13 @@ contract ProtocolReader {
 
         t.irmTargetRate = _mulDiv(
             uint256(targetRateBase) * SECONDS_PER_YEAR,
-            WAD,
-            uint256(targetUtilization)
+            uint256(targetUtilization),
+            WAD
         );
         t.irmMaxRate = t.irmTargetRate + _mulDiv(
             uint256(maxRateBase) * SECONDS_PER_YEAR,
-            WAD,
-            WAD - uint256(targetUtilization)
+            WAD - uint256(targetUtilization),
+            WAD
         );
         t.irmTargetUtilization = uint256(targetUtilization);
         t.interestFee = _interestFee(bcToken);
