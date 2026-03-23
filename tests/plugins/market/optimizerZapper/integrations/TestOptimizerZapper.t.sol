@@ -41,20 +41,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        // Deploy LendingOptimizer with borrowableCUSDC as the sole market.
-        address[] memory cTokens = new address[](1);
-        cTokens[0] = address(borrowableCUSDC);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 10000; // 100%
-
-        optimizer = new LendingOptimizer(
-            usdc,
-            ICentralRegistry(address(centralRegistry)),
-            cTokens,
-            caps,
-            0 // No performance fee for test simplicity.
-        );
-
         // Prepare underlying tokens for listTokens — each cToken pulls
         // 77777 of its underlying via initializeDeposits(msg.sender).
         _prepareWETH(address(this), 77777);
@@ -74,6 +60,21 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             100_000e18
         );
         _setCTokenConfigHighValues(address(borrowableCWETH), 100_000e18, 0);
+
+        // Deploy LendingOptimizer with borrowableCUSDC as the sole market.
+        // Must be after listTokens since _validateCToken checks isListed().
+        address[] memory cTokens = new address[](1);
+        cTokens[0] = address(borrowableCUSDC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 10000; // 100%
+
+        optimizer = new LendingOptimizer(
+            usdc,
+            ICentralRegistry(address(centralRegistry)),
+            cTokens,
+            caps,
+            0 // No performance fee for test simplicity.
+        );
 
         // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
         _prepareUSDC(address(this), 77777);

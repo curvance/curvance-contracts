@@ -53,7 +53,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Remove cUSDC_WETH_MARKET (20% cap).
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Verify market was removed.
         uint256 numMarketsAfter = optimizer.numApprovedMarkets();
@@ -94,7 +94,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // 1. If we try empty removeActions, it will revert with AssetMismatch (redeemed != reallocated)
         // 2. Even if we could remove, _validateAllocationCaps would fail with InsufficientAllocationCaps
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, removeActions, new LendingOptimizer.AllocationBound[](0));
     }
 
     function test_lendingOptimizer_removeApprovedAsset_success_afterUpdatingCap() public {
@@ -127,8 +127,9 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // First, demonstrate that removal would fail without updating cap.
         // Market 0 has 60% cap, which is < 100%.
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WBTC_MARKET);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
-        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions, bounds);
 
         // Now update market 0's cap to 100% (10_000 BPS).
         // updateCap only validates when DECREASING, so increasing is allowed.
@@ -139,7 +140,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // Now removal should succeed.
         uint256 totalAssetsBefore = optimizer.totalAssets();
-        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WBTC_MARKET));
 
         // Verify market was removed.
         assertEq(optimizer.numApprovedMarkets(), 1, "Should have 1 market after removal");
@@ -178,7 +179,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         vm.expectEmit(true, false, false, false, address(optimizer));
         emit LendingOptimizer.MarketRemoved(cUSDC_WETH_MARKET);
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
     }
 
     // ========================================================================
@@ -226,7 +227,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(3_000)
         );
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // 1. No cToken dust in removed market.
         assertEq(
@@ -290,7 +291,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(4_000)
         );
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // No cToken dust.
         assertEq(
@@ -342,7 +343,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(4_500)
         );
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // No cToken dust in removed market.
         assertEq(
@@ -416,7 +417,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(3_333)
         );
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Snapshot after.
         uint256 m0After = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
@@ -493,7 +494,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET), int256(10_000)
         );
 
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Optimizer should not hold USDC dust — all redeemed assets should be re-deposited.
         uint256 usdcAfter = IERC20(USDC_MONAD).balanceOf(address(optimizer));
@@ -530,7 +531,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // Remove market 2 with empty removeActions — no assets to reallocate.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Verify market was removed.
         assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
@@ -573,8 +574,9 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Should revert because remaining cap (50%) < 100%.
+        LendingOptimizer.AllocationBound[] memory boundsWmon = _unconstrainedBoundsForRemoval(cUSDC_WMON_MARKET);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
-        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, removeActions, boundsWmon);
 
         // Also try removing market 1 (50% cap), leaving only market 0 (60% cap).
         removeActions[0] = LendingOptimizer.ReallocationAction(
@@ -583,8 +585,9 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
 
         // Should also revert because remaining cap (60%) < 100%.
+        LendingOptimizer.AllocationBound[] memory boundsWbtc = _unconstrainedBoundsForRemoval(cUSDC_WBTC_MARKET);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
-        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions, boundsWbtc);
     }
 
 }

@@ -364,7 +364,34 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         uint256 l = optimizer.numApprovedMarkets();
         bounds = new LendingOptimizer.AllocationBound[](l);
         for (uint256 i; i < l; ++i) {
-            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: optimizer.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    /// @dev Returns unconstrained allocation bounds for the post-removal approved
+    ///      markets list. Call BEFORE removeApprovedAsset since it needs the
+    ///      pre-removal list to predict the post-removal order (swap-and-pop).
+    function _unconstrainedBoundsForRemoval(address cTokenToRemove) internal view returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l - 1);
+        // Find the index of the market being removed.
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (optimizer.approvedCTokensList(i) == cTokenToRemove) {
+                removeIndex = i;
+                break;
+            }
+        }
+        // Simulate swap-and-pop to get post-removal order.
+        address[] memory postRemoval = new address[](l - 1);
+        for (uint256 i; i < l; ++i) {
+            if (i < l - 1) postRemoval[i] = optimizer.approvedCTokensList(i);
+        }
+        if (removeIndex != l - 1) {
+            postRemoval[removeIndex] = optimizer.approvedCTokensList(l - 1);
+        }
+        for (uint256 i; i < l - 1; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
         }
     }
 

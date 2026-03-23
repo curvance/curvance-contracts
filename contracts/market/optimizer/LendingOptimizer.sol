@@ -21,7 +21,7 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 /// @title Curvance Lending Optimizer.
 /// @notice Optimizes yield across multiple Curvance lending markets
 ///         for a single underlying asset.
-/// @dev This contract extends ERC4626 with multi-market allocation
+/// @dev This contract is ERC4626-like with multi-market allocation
 ///      support, enabling users to deposit a single asset and have it
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
@@ -74,6 +74,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Used to protect against race conditions where market state
     ///      changes between off-chain computation and on-chain execution.
     struct AllocationBound {
+        /// @notice The cToken market address. Must match approvedCTokensList
+        ///         ordering to commit the caller to a specific market layout.
+        address cToken;
         /// @notice Minimum allocation in BPS for this market.
         uint256 minBps;
         /// @notice Maximum allocation in BPS for this market.
@@ -93,6 +96,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
+
+    /// @dev Minimum acceptable trackedAssets from the initial deposit.
+    ///      Ensures cToken rounding never silently reduces the dead share
+    ///      count below a safe threshold. Set to _BASE_UNDERLYING_RESERVE - 7
+    ///      to tolerate minor rounding while catching pathological cases.
+    uint256 internal constant _BASE_UNDERLYING_RESERVE_FLOOR = 77770;
 
     /// STORAGE ///
 
@@ -255,6 +264,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Deposit into target market.
         uint256 trackedAssets = _depositToMarket(targetMarket, assets);
+        // Sanity check: revert if cToken rounding reduced the dead share
+        // count below the safety floor. This should never happen at
+        // initialization (1:1 exchange rate) but guards against edge cases.
+        if (trackedAssets < _BASE_UNDERLYING_RESERVE_FLOOR) revert LendingOptimizer__InvalidParameter();
 
         // Update _totalAssets with the actual recoverable value.
         _totalAssets += trackedAssets;
@@ -271,7 +284,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Deposit(msg.sender, address(0), assets, trackedAssets);
     }
 
-    /// @notice Standard ERC4626 deposit - deposits pro-rata across active
+    /// @notice ERC4626-like deposit - deposits pro-rata across active
     ///         markets to maintain current allocation percentages.
     /// @param assets The amount of underlying assets to deposit.
     /// @param receiver The address to receive the minted shares.
@@ -290,17 +303,24 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Route the deposit pro-rata across all non-paused markets,
         // maintaining current allocation percentages.
         // trackedAssets = sum of recoverable values after cToken rounding.
-        uint256 trackedAssets = _depositProRata(assets);
+        uint256[] memory perMarket = _calculateDepositProRata(assets, false);
+        uint256 trackedAssets;
+        for (uint256 i; i < approvedCTokensList.length; ++i) {
+            if (perMarket[i] == 0) continue;
+            trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
+        }
 
         // Derive shares from trackedAssets (not input assets) BEFORE updating
         // _totalAssets, so convertToShares uses the pre-deposit denominator.
         shares = convertToShares(trackedAssets);
+        // Revert if the deposit is too small to mint any shares.
+        if (shares == 0) revert LendingOptimizer__ZeroAmount();
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @notice Standard ERC4626 mint - mints exact shares by depositing
+    /// @notice ERC4626-like mint - mints exact shares by depositing
     ///         pro-rata across active markets.
     /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
@@ -319,19 +339,32 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // because initializeDeposits() must be called before any deposits.
         assets = FixedPointMathLib.fullMulDivUp(shares, _totalAssets, totalSupply());
 
-        // Pull assets and route pro-rata across non-paused markets.
-        SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
-        _depositProRata(assets);
+        // Compute pro-rata amounts with conversion roundtrip so that
+        // each per-market deposit covers the full withdrawal cost of the
+        // shares being minted. This prevents mint() from rounding in
+        // favor of the user at the expense of existing depositors.
+        uint256[] memory perMarket = _calculateDepositProRata(assets, true);
+        assets = 0;
+        for (uint256 i; i < approvedCTokensList.length; ++i) {
+            assets += perMarket[i];
+        }
 
-        // Track the full user payment (not the cToken round-tripped value)
-        // to prevent exchange rate drop from cToken deposit rounding.
-        // The 0-1 wei excess corrects at the next _accrueIfNeeded().
-        _totalAssets += assets;
+        // Pull the (potentially inflated) assets and deposit to markets.
+        SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
+        uint256 trackedAssets;
+        for (uint256 i; i < approvedCTokensList.length; ++i) {
+            if (perMarket[i] == 0) continue;
+            trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
+        }
+
+        // Track recoverable value so exchange rate accurately reflects
+        // what can be withdrawn. Any excess corrects at next _accrueIfNeeded().
+        _totalAssets += trackedAssets;
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @notice Standard ERC4626 withdraw - withdraws pro-rata across
+    /// @notice ERC4626-like withdraw - withdraws pro-rata across
     ///         active markets while respecting liquidity constraints.
     /// @dev Executes withdrawals first (violating CEI), then measures the
     ///      actual cToken rounding loss by re-reading positions. Shares
@@ -357,7 +390,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Execute pro-rata withdrawals and re-sync _totalAssets from
         // actual cToken positions. The difference taBefore - _totalAssets
         // captures both the withdrawn assets and any cToken rounding loss.
-        _totalAssets = _executeWithdraw(assets);
+        (_totalAssets,) = _executeWithdraw(assets, false);
 
         // Burn shares based on actual cost (assets + rounding loss).
         uint256 actualCost = taBefore - _totalAssets;
@@ -372,10 +405,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    /// @notice Standard ERC4626 redeem - redeems pro-rata across
+    /// @notice ERC4626-like redeem - redeems pro-rata across
     ///         active markets while respecting liquidity constraints.
-    /// @dev Same CEI violation pattern as withdraw() — executes first,
-    ///      measures actual rounding loss after, reduces user payout.
+    /// @dev Executes withdrawals with a conversion roundtrip to ensure
+    ///      the optimizer's position drops by exactly the fair amount.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
     /// @param owner The address that owns the shares being burned.
@@ -393,14 +426,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         assets = convertToAssets(shares);
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
 
-        // Execute pro-rata withdrawals and re-sync _totalAssets.
-        _totalAssets = _executeWithdraw(assets);
-
-        // Measure actual rounding loss and reduce user payout.
-        // actualCost = assets + roundingLoss, so user receives
-        // assets - roundingLoss, bearing the full rounding cost.
-        uint256 actualCost = taBefore - _totalAssets;
-        assets = assets - (actualCost - assets);
+        // Execute pro-rata withdrawals with conversion roundtrip to
+        // ensure the optimizer's position drops by exactly what is fair
+        // for the redeemed shares. Without this, cToken rounding loss
+        // leaves dust stuck in the optimizer and drops the exchange rate.
+        (_totalAssets, assets) = _executeWithdraw(assets, true);
 
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares);
@@ -504,17 +534,24 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @param removeActions Reallocation targets. `assetsOrBps` field is BPS (1-10000).
     function removeApprovedAsset(
         address cTokenToRemove,
-        ReallocationAction[] calldata removeActions
+        ReallocationAction[] calldata removeActions,
+        AllocationBound[] calldata bounds
     ) external nonReentrant {
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
         // Revert if there is only one market.
-        uint256 l = approvedCTokensList.length;
-        if (l == 1) revert LendingOptimizer__InvalidParameter();
+        if (approvedCTokensList.length == 1) revert LendingOptimizer__InvalidParameter();
+        // Bounds must match the post-removal market count.
+        if (bounds.length != approvedCTokensList.length - 1) revert LendingOptimizer__ArrayLengthMismatch();
 
         // Revert if the market to remove is not approved.
         if (!_isApprovedMarket(cTokenToRemove)) revert LendingOptimizer__MarketNotApproved();
+
+        // Revert if the market to remove is paused for redemptions.
+        if (_isMarketPausedForAction(cTokenToRemove, false)) {
+            revert LendingOptimizer__MarketPaused();
+        }
 
         // Validate remaining allocation caps sum to >= 100%.
         _validateAllocationCaps(cTokenToRemove, 0);
@@ -522,86 +559,102 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Accrue yield and charge protocol's performance fee.
         _accrueIfNeeded();
 
-        IBorrowableCToken cToken = IBorrowableCToken(cTokenToRemove);
-
         // Delete the allocation cap for the removed market.
         delete allocationCaps[cTokenToRemove];
 
         // Check if there are actual assets to redeem.
         // Both zero shares and non-zero shares that round down to
         // zero assets are handled.
-        uint256 sharesToRedeem = cToken.balanceOf(address(this));
-        uint256 previewedAssets = sharesToRedeem > 0
-            ? cToken.convertToAssets(sharesToRedeem)
-            : 0;
+        {
+            IBorrowableCToken cToken = IBorrowableCToken(cTokenToRemove);
+            uint256 sharesToRedeem = cToken.balanceOf(address(this));
+            uint256 previewedAssets = sharesToRedeem > 0
+                ? cToken.convertToAssets(sharesToRedeem)
+                : 0;
 
-        // Only redeem and reallocate if there are previewed assets.
-        // Else we can skip straight to removing the market from the approved list.
-        if (previewedAssets > 0) {
-            // Revert if no reallocation targets are provided.
-            if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
+            // Only redeem and reallocate if there are previewed assets.
+            // Else we can skip straight to removing the market from the approved list.
+            if (previewedAssets > 0) {
+                // Revert if no reallocation targets are provided.
+                if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
 
-            // Redeem all shares from the market being removed.
-            uint256 assetsRedeemed = cToken.redeem(
-                sharesToRedeem,
-                address(this),
-                address(this)
-            );
+                // Redeem all shares from the market being removed.
+                uint256 assetsRedeemed = cToken.redeem(
+                    sharesToRedeem,
+                    address(this),
+                    address(this)
+                );
 
-            // Distribute redeemed assets proportionally via BPS.
-            uint256 totalBps;
-            uint256 totalDeposited;
-            uint256 lastAction = removeActions.length - 1;
+                // Distribute redeemed assets proportionally via BPS.
+                uint256 totalBps;
+                uint256 totalDeposited;
+                uint256 lastAction = removeActions.length - 1;
 
-            for (uint256 i; i <= lastAction; ++i) {
-                address cTokenAddress = address(removeActions[i].cToken);
-                int256 bps = removeActions[i].assetsOrBps;
+                for (uint256 i; i <= lastAction; ++i) {
+                    address cTokenAddress = address(removeActions[i].cToken);
 
-                // Revert if BPS is not positive.
-                if (bps <= 0) revert LendingOptimizer__InvalidParameter();
-                // Revert if target is the market being removed.
-                if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
-                // Revert if the reallocation target is not an approved market.
-                if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
+                    // Validate the reallocation target.
+                    {
+                        int256 bps = removeActions[i].assetsOrBps;
+                        // Revert if BPS is not positive.
+                        if (bps <= 0) revert LendingOptimizer__InvalidParameter();
+                        // Revert if target is the market being removed.
+                        if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
+                        // Revert if the reallocation target is not an approved market.
+                        if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
+                        // Revert if duplicate reallocation target.
+                        for (uint256 j; j < i; ++j) {
+                            if (address(removeActions[j].cToken) == cTokenAddress) revert LendingOptimizer__InvalidParameter();
+                        }
+                        // Revert if the reallocation target is paused for minting.
+                        if (_isMarketPausedForAction(cTokenAddress, true)) {
+                            revert LendingOptimizer__MarketPaused();
+                        }
+                        totalBps += uint256(bps);
+                    }
 
-                totalBps += uint256(bps);
+                    // Last target receives the remainder to avoid dust.
+                    // Else deposit normally.
+                    uint256 depositAmount;
+                    if (i == lastAction) {
+                        depositAmount = assetsRedeemed - totalDeposited;
+                    } else {
+                        depositAmount = FixedPointMathLib.fullMulDiv(assetsRedeemed, uint256(removeActions[i].assetsOrBps), BPS);
+                        totalDeposited += depositAmount;
+                    }
 
-                // Last target receives the remainder to avoid dust.
-                // Else deposit normally.
-                uint256 depositAmount;
-                if (i == lastAction) {
-                    depositAmount = assetsRedeemed - totalDeposited;
-                } else {
-                    depositAmount = FixedPointMathLib.fullMulDiv(assetsRedeemed, uint256(bps), BPS);
-                    totalDeposited += depositAmount;
+                    // Skip deposit if dust amount rounds to zero cToken shares.
+                    if (IBorrowableCToken(cTokenAddress).convertToShares(depositAmount) > 0) {
+                        _depositToMarket(cTokenAddress, depositAmount);
+                    }
                 }
 
-                _depositToMarket(cTokenAddress, depositAmount);
+                // Revert if BPS values do not sum to exactly 100%.
+                if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
             }
-
-            // Revert if BPS values do not sum to exactly 100%.
-            if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
         }
 
         // Find the index of the cToken to remove.
-        uint256 removeIndex;
-        for (uint256 i; i < l; ++i) {
-            if (approvedCTokensList[i] == cTokenToRemove) {
-                removeIndex = i;
-                break;
+        {
+            uint256 l = approvedCTokensList.length;
+            uint256 removeIndex;
+            for (uint256 i; i < l; ++i) {
+                if (approvedCTokensList[i] == cTokenToRemove) {
+                    removeIndex = i;
+                    break;
+                }
             }
+
+            // Update approved markets list using swap and pop.
+            uint256 swapIndex = l - 1;
+            if (removeIndex != swapIndex) {
+                approvedCTokensList[removeIndex] = approvedCTokensList[swapIndex];
+            }
+            approvedCTokensList.pop();
         }
 
-        // Update approved markets list using swap and pop.
-        uint256 swapIndex = l - 1;
-        if (removeIndex != swapIndex) {
-            approvedCTokensList[removeIndex] = approvedCTokensList[swapIndex];
-        }
-        approvedCTokensList.pop();
-
-        // Verify allocation caps are respected after reallocation
-        // (no bounds check needed for removal).
-        _verifyAllocations(new AllocationBound[](0));
+        // Verify allocation caps and caller-specified bounds after reallocation.
+        _verifyAllocations(bounds);
 
         emit MarketRemoved(cTokenToRemove);
     }
@@ -761,8 +814,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      interest accrues continuously.
     ///
     ///      NOTE: `totalAssets()` intentionally returns the cached value
-    ///      because `_deposit()` calls `convertToShares()` — which reads
-    ///      `totalAssets()` — AFTER depositing into a cToken. An accrued read
+    ///      because `deposit()` calls `convertToShares()` — which reads
+    ///      `totalAssets()` — AFTER depositing into cTokens. An accrued read
     ///      would include the just-deposited amount, inflating the denominator
     ///      and minting fewer shares than intended.
     /// @return The cached total assets held by the optimizer.
@@ -927,8 +980,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      the total remaining position (for `_totalAssets` re-sync).
     ///      All markets are guaranteed non-paused (checked at entry point).
     /// @param assets Total underlying assets to withdraw.
+    /// @param conversionRoundtrip If true, adjusts each per-market amount
+    ///        via previewRedeem(previewDeposit(amount)) so the optimizer's
+    ///        position drops by exactly the fair amount for the redeemed
+    ///        shares. Used by redeem() to prevent dust accumulation.
     /// @return newTotalAssets Sum of optimizer positions after withdrawals.
-    function _executeWithdraw(uint256 assets) internal returns (uint256 newTotalAssets) {
+    /// @return totalWithdrawn Sum of adjusted per-market withdrawal amounts.
+    function _executeWithdraw(uint256 assets, bool conversionRoundtrip) internal returns (uint256 newTotalAssets, uint256 totalWithdrawn) {
         uint256 l = approvedCTokensList.length;
         uint256[] memory marketAssets = new uint256[](l);
         uint256[] memory liquidityLimit = new uint256[](l);
@@ -961,7 +1019,21 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Verify the full amount was allocated. If total available
         // liquidity across all markets is insufficient, revert.
         uint256 totalAllocated;
-        for (uint256 i; i < l; ++i) totalAllocated += amounts[i];
+        for (uint256 i; i < l; ++i) {
+            totalAllocated += amounts[i];
+            // For redeem(): adjust each amount via previewRedeem(previewDeposit(amount))
+            // so the withdrawn amount rounds down to exactly what the cToken would
+            // give back, preventing dust from accumulating in the optimizer.
+            if (conversionRoundtrip) {
+                amounts[i] = IBorrowableCToken(approvedCTokensList[i]).previewRedeem(
+                    IBorrowableCToken(approvedCTokensList[i]).previewDeposit(amounts[i])
+                );
+            }
+            totalWithdrawn += amounts[i];
+        }
+
+        // Revert if roundtrip adjustment reduced all withdrawals to zero.
+        if (conversionRoundtrip && totalWithdrawn == 0) revert LendingOptimizer__ZeroAmount();
         if (totalAllocated < assets) revert LendingOptimizer__InsufficientLiquidity();
 
         // Execute cToken withdrawals and re-read positions in a single
@@ -978,15 +1050,19 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
     }
 
-    /// @dev Deposits assets pro-rata across active markets, maintaining
-    ///      current allocation percentages. If no markets have assets
-    ///      (first deposit), deposits the entire amount into the first market.
+    /// @dev Computes pro-rata deposit amounts across active markets,
+    ///      maintaining current allocation percentages. If no markets have
+    ///      assets (first deposit), allocates the entire amount to the first market.
     ///      All markets are guaranteed non-paused (checked at entry point
     ///      via `_checkMintPaused`).
-    /// @param assets Total assets to deposit (already in this contract).
-    /// @return trackedAssets Sum of recoverable values across all deposits.
-    function _depositProRata(uint256 assets) internal returns (uint256 trackedAssets) {
+    /// @param assets Total assets to deposit.
+    /// @param conversionRoundtrip If true, inflates each per-market amount
+    ///        via previewMint(previewWithdraw(amount)) so that the deposited
+    ///        cToken position can cover a full withdrawal of `amount`. Used by
+    ///        mint() to prevent rounding in the user's favor.
+    function _calculateDepositProRata(uint256 assets, bool conversionRoundtrip) internal view returns (uint256[] memory amounts) {
         uint256 l = approvedCTokensList.length;
+        amounts = new uint256[](l);
         uint256[] memory marketAssets = new uint256[](l);
         uint256 totalMarketAssets;
         uint256 lastNonZero;
@@ -1016,9 +1092,17 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 deposited += amount;
             }
 
-            // Skip zero-amount deposits (markets with no current allocation).
-            if (amount == 0) continue;
-            trackedAssets += _depositToMarket(approvedCTokensList[i], amount);
+            // Skip deposits that would round to zero cToken shares.
+            if (amount == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(amount) == 0) continue;
+
+            // For mint(): inflate amount so the deposited cToken position
+            // covers a full withdrawal of the pro-rata share.
+            if (conversionRoundtrip) {
+                amount = IBorrowableCToken(approvedCTokensList[i]).previewMint(
+                    IBorrowableCToken(approvedCTokensList[i]).previewWithdraw(amount)
+                );
+            }
+            amounts[i] = amount;
         }
     }
 
@@ -1139,11 +1223,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      and emits the post-rebalance state. Reads each market's balance
     ///      once, avoiding redundant external calls.
     ///
-    ///      All markets are checked against their original caps (including
-    ///      paused markets). If a paused market drifts over its cap due to
-    ///      net withdrawals from active markets, rebalance is blocked until
-    ///      the market is unpaused or the DAO adjusts caps.
-    ///
     ///      Caps are always checked. Bounds are only checked when provided
     ///      (bounds.length > 0). Bounds protect against race conditions
     ///      where state changes between off-chain computation and on-chain
@@ -1163,6 +1242,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         for (uint256 i; i < l; ++i) {
             allocations[i] = _getMarketAssets(approvedCTokensList[i]);
             ta += allocations[i];
+            // Validate bounds ordering and sanity when provided.
+            if (checkBounds) {
+                if (bounds[i].cToken != approvedCTokensList[i]) revert LendingOptimizer__InvalidParameter();
+                if (bounds[i].minBps > bounds[i].maxBps) revert LendingOptimizer__InvalidParameter();
+            }
         }
 
         // Sync cached total assets to the post-rebalance state.
@@ -1180,6 +1264,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 if (checkBounds) {
                     uint256 allocationBps = FixedPointMathLib.fullMulDiv(allocations[i], BPS, ta);
                     if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
+                        revert LendingOptimizer__AllocationOutOfBounds();
+                    }
+                }
+            }
+        } else {
+            // If totalAssets is zero, all bounds must allow zero allocation.
+            if (checkBounds) {
+                for (uint256 i; i < l; ++i) {
+                    if (bounds[i].minBps > 0) {
                         revert LendingOptimizer__AllocationOutOfBounds();
                     }
                 }
@@ -1215,7 +1308,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
                 if (currentRate > highRate) {
                     uint256 profit = rawTa - FixedPointMathLib.fullMulDiv(highRate, supply, WAD);
-                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, _bpsToWad(fee), WAD);
+                    // Round up to prevent fee undercharge on dust profits.
+                    uint256 feeAssets = FixedPointMathLib.fullMulDivUp(profit, _bpsToWad(fee), WAD);
 
                     if (feeAssets > 0) {
                         uint256 feeShares = FixedPointMathLib.fullMulDiv(

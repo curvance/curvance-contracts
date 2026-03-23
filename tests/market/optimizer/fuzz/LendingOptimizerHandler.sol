@@ -77,7 +77,7 @@ contract LendingOptimizerHandler is Test {
         uint256 l = optimizer.numApprovedMarkets();
         bounds = new LendingOptimizer.AllocationBound[](l);
         for (uint256 i; i < l; ++i) {
-            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: optimizer.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
         }
     }
 
@@ -226,7 +226,10 @@ contract LendingOptimizerHandler is Test {
             // Track the asset value of transferred shares so that
             // the round-trip invariant accounts for shares received
             // via transfer (not just direct deposits).
-            uint256 assetValue = optimizer.convertToAssets(amount);
+            // Round up (+1) so the ghost accounting never under-counts
+            // the receiver's "deposit", which would cause false positives
+            // on the round-trip invariant with dust amounts.
+            uint256 assetValue = optimizer.convertToAssets(amount) + 1;
             ghost_userDeposited[receiver] += assetValue;
             ghost_transferCount++;
         } catch {

@@ -652,9 +652,11 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         console2.log("Actual withdrawn1:", withdrawn1);
         console2.log("Actual withdrawn2:", withdrawn2);
 
-        // Verify actual matches expected (1 wei tolerance for cToken rounding during withdraw)
-        assertApproxEqAbs(withdrawn1, expectedWithdrawn1, 1, "Withdrawn1 should match cToken-derived expectation");
-        assertApproxEqAbs(withdrawn2, expectedWithdrawn2, 1, "Withdrawn2 should match cToken-derived expectation");
+        // Verify actual matches expected. The conversion roundtrip in
+        // redeem() (previewRedeem(previewDeposit())) may reduce payout by
+        // a few wei per market vs the raw convertToAssets calculation.
+        assertApproxEqAbs(withdrawn1, expectedWithdrawn1, 3, "Withdrawn1 should match cToken-derived expectation");
+        assertApproxEqAbs(withdrawn2, expectedWithdrawn2, 3, "Withdrawn2 should match cToken-derived expectation");
 
         // Both should receive less than deposited due to bad debt
         assertLt(withdrawn1, deposit1, "Depositor1 should receive less due to bad debt");
@@ -663,11 +665,12 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         // Verify proportionality via share ratio (depositor1 has 2x shares of depositor2)
         // withdrawn1 / depositor1Shares should equal withdrawn2 / depositor2Shares
         // Cross-multiply: withdrawn1 * depositor2Shares = withdrawn2 * depositor1Shares
-        // Max error from 1-wei rounding per withdrawal: 1 * max(shares1, shares2)
+        // Max error from rounding per withdrawal amplified by share count,
+        // plus conversion roundtrip rounding per market.
         assertApproxEqAbs(
             withdrawn1 * depositor2Shares,
             withdrawn2 * depositor1Shares,
-            depositor1Shares, // Max rounding amplification
+            depositor1Shares * 2,
             "Withdrawal amounts should be proportional to shares"
         );
     }
@@ -931,9 +934,9 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
 
         // Rebalance should succeed
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
-        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: address(borrowableCUSDC), minBps: 0, maxBps: 10000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: address(borrowableCUSDC2), minBps: 0, maxBps: 10000 });
+        bounds[2] = LendingOptimizer.AllocationBound({ cToken: address(borrowableCUSDC3), minBps: 0, maxBps: 10000 });
         optimizer.rebalance(actions, bounds);
 
         // Verify funds moved

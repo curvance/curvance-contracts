@@ -279,8 +279,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
             );
 
             LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
-            bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
-            bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 0, maxBps: 10000 });
+            bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 0, maxBps: 10000 });
             _rebalance(testOptimizer, actions, bounds);
         }
 
@@ -498,8 +498,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Tight bounds: 48%-52% each.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 4800, maxBps: 5200 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 4800, maxBps: 5200 });
 
         // Frontrunner deposits 40k into market 0, skewing to ~75/25.
         address frontrunner = address(0xBEEF);
@@ -559,8 +559,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Tight bounds: 48%-52% each. But actual allocation is ~80/20.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4800, maxBps: 5200 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 4800, maxBps: 5200 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 4800, maxBps: 5200 });
 
         // Rebalance reverts — allocations are outside tight bounds.
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
@@ -596,9 +596,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Wide bounds that comfortably fit ~50/40/10.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 4500, maxBps: 5500 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 3500, maxBps: 4500 });
-        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 500, maxBps: 1500 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 4500, maxBps: 5500 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 3500, maxBps: 4500 });
+        bounds[2] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WETH_MARKET, minBps: 500, maxBps: 1500 });
 
         // Should succeed — no state change, allocations within bounds.
         _rebalance(optimizer, actions, bounds);
@@ -619,8 +619,8 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
 
         // Only 2 bounds for 3 markets.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 0, maxBps: 10000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 0, maxBps: 10000 });
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
         optimizer.rebalance(actions, bounds);
@@ -649,9 +649,9 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         // Impossibly tight: require exactly 5000/4000/1000 BPS.
         // BPS truncation means markets won't hit these exact values.
         LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](3);
-        bounds[0] = LendingOptimizer.AllocationBound({ minBps: 5000, maxBps: 5000 });
-        bounds[1] = LendingOptimizer.AllocationBound({ minBps: 4000, maxBps: 4000 });
-        bounds[2] = LendingOptimizer.AllocationBound({ minBps: 1000, maxBps: 1000 });
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 5000, maxBps: 5000 });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 4000, maxBps: 4000 });
+        bounds[2] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WETH_MARKET, minBps: 1000, maxBps: 1000 });
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
         optimizer.rebalance(actions, bounds);

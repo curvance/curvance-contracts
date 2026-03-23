@@ -41,7 +41,30 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 l = lo.numApprovedMarkets();
         bounds = new LendingOptimizer.AllocationBound[](l);
         for (uint256 i; i < l; ++i) {
-            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: lo.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    function _unconstrainedBoundsForRemoval(LendingOptimizer lo, address cTokenToRemove)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l - 1);
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (lo.approvedCTokensList(i) == cTokenToRemove) { removeIndex = i; break; }
+        }
+        address[] memory postRemoval = new address[](l - 1);
+        for (uint256 i; i < l; ++i) {
+            if (i < l - 1) postRemoval[i] = lo.approvedCTokensList(i);
+        }
+        if (removeIndex != l - 1) {
+            postRemoval[removeIndex] = lo.approvedCTokensList(l - 1);
+        }
+        for (uint256 i; i < l - 1; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
         }
     }
 
@@ -268,7 +291,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         );
 
         // Try removal.
-        try harness.removeApprovedAsset(markets[marketToRemoveIdx], removeActions) {
+        try harness.removeApprovedAsset(markets[marketToRemoveIdx], removeActions, _unconstrainedBoundsForRemoval(harness, markets[marketToRemoveIdx])) {
             assertApproxEqAbs(
                 harness.totalAssets(), totalAssetsBefore, 10,
                 "Total assets should be preserved after market removal"

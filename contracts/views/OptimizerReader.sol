@@ -181,11 +181,12 @@ contract OptimizerReader {
                 if (ta > 0) {
                     uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
                     bounds[i] = LendingOptimizer.AllocationBound(
+                        markets[i],
                         idealBps > slippageBps ? idealBps - slippageBps : 0,
                         idealBps + slippageBps > 10000 ? 10000 : idealBps + slippageBps
                     );
                 } else {
-                    bounds[i] = LendingOptimizer.AllocationBound(0, 10000);
+                    bounds[i] = LendingOptimizer.AllocationBound(markets[i], 0, 10000);
                 }
             }
         }

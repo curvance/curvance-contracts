@@ -686,26 +686,14 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         _mockMarketPermissions();
 
-        // removeApprovedAsset should succeed even though the market is paused,
-        // because it directly calls cToken.redeem() which is an ERC4626 operation
-        // on the cToken itself, not gated by the optimizer's _isMarketPausedForAction.
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        // removeApprovedAsset should revert because the market to remove
+        // is paused for redemptions. Assets would be lost if removal proceeded.
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, bounds);
 
-        // Verify removal succeeded.
-        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
-        assertEq(
-            optimizer.allocationCaps(cUSDC_WETH_MARKET),
-            0,
-            "Removed market cap should be 0"
-        );
-
-        // Total assets should be preserved.
-        assertApproxEqAbs(
-            optimizer.totalAssets(),
-            totalAssetsBefore,
-            10,
-            "Total assets should be preserved after removing paused market"
-        );
+        // Market should still be approved.
+        assertEq(optimizer.numApprovedMarkets(), 3, "Should still have 3 markets");
     }
 
     // =====================================================================
@@ -742,7 +730,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         // Removing a zero-balance market succeeds with empty removeActions.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
         assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
@@ -788,7 +776,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         _mockMarketPermissions();
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Verify removal succeeded.
         assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");

@@ -45,7 +45,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         uint256 l = h.numApprovedMarkets();
         bounds = new LendingOptimizer.AllocationBound[](l);
         for (uint256 i; i < l; ++i) {
-            bounds[i] = LendingOptimizer.AllocationBound({ minBps: 0, maxBps: 10000 });
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: h.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
         }
     }
 

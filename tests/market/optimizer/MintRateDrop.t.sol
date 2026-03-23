@@ -38,15 +38,15 @@ contract MintRateDropTest is TestBaseLendingOptimizer {
 
         // Find a shares amount where the cToken double-floor loses 1 wei.
         uint256 shares = _findMintRateDropShares(optA, optS, cA, cS);
-        uint256 assets = FixedPointMathLib.fullMulDivUp(shares, optA, optS);
 
         // Do the mint as a new user.
         address minter = address(0xBEEF);
-        deal(USDC_MONAD, minter, assets);
         optimizer.accrueIfNeeded();
         rateBefore = _exchangeRateWAD();
+        uint256 assets = optimizer.previewMint(shares);
+        deal(USDC_MONAD, minter, assets + 1000);
         vm.startPrank(minter);
-        IERC20(USDC_MONAD).approve(address(optimizer), assets);
+        IERC20(USDC_MONAD).approve(address(optimizer), assets + 1000);
         optimizer.mint(shares, minter);
         vm.stopPrank();
 

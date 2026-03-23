@@ -21,8 +21,11 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions =
             new LendingOptimizer.ReallocationAction[](0);
 
+        // Compute bounds before expectRevert (helper makes external calls).
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WMON_MARKET);
+
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizer.removeApprovedAsset(address(0xdead), actions);
+        optimizer.removeApprovedAsset(address(0xdead), actions, bounds);
     }
 
     function test_reverts_noReallocationTargets_withAssets() public {
@@ -39,8 +42,10 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions =
             new LendingOptimizer.ReallocationAction[](0);
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
     }
 
     function test_reverts_zeroBps() public {
@@ -58,8 +63,10 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET), int256(0)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
     }
 
     function test_reverts_unapprovedTarget() public {
@@ -77,8 +84,10 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
             IBorrowableCToken(address(0xdead)), int256(10000)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
     }
 
     function test_reverts_bpsNotHundredPercent() public {
@@ -96,7 +105,9 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET), int256(5000)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
     }
 }

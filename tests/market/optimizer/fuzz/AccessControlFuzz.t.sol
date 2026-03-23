@@ -89,7 +89,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
 
         vm.prank(caller);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
-        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, actions);
+        optimizer.removeApprovedAsset(cUSDC_WMON_MARKET, actions, new LendingOptimizer.AllocationBound[](0));
     }
 
     /// @notice Random callers without market permissions cannot updateCap.
