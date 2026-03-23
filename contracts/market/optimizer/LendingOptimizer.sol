@@ -532,6 +532,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      The last target receives the remainder to avoid dust.
     /// @param cTokenToRemove Address of the market to remove.
     /// @param removeActions Reallocation targets. `assetsOrBps` field is BPS (1-10000).
+    /// @param bounds Post-removal allocation bounds, one per remaining market.
+    ///               Must match the post-removal approvedCTokensList order (swap-and-pop).
     function removeApprovedAsset(
         address cTokenToRemove,
         ReallocationAction[] calldata removeActions,
