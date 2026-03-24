@@ -122,6 +122,39 @@ contract OptimizerReader {
         }
     }
 
+    /// @notice Returns the annualized weighted-average supply APY for a
+    ///         LendingOptimizer, in WAD (1e18 = 100%).
+    /// @dev Does not account for the optimizer's performance fee.
+    /// @param optimizer The LendingOptimizer address.
+    /// @return apy The annualized supply APY in WAD.
+    function getOptimizerAPY(
+        address optimizer
+    ) external view returns (uint256 apy) {
+        ILendingOptimizer opt = ILendingOptimizer(optimizer);
+        uint256 ta = opt.totalAssets();
+        if (ta == 0) return 0;
+
+        address[] memory markets = opt.getApprovedMarkets();
+        uint256 weightedRate;
+
+        for (uint256 i; i < markets.length; ++i) {
+            IBorrowableCToken ct = IBorrowableCToken(markets[i]);
+            uint256 allocated = ct.convertToAssets(
+                _balanceOf(address(ct), optimizer)
+            );
+
+            uint256 rate = _IRM(ct).supplyRate(
+                _assetsHeld(ct),
+                _outstandingDebt(ct),
+                _interestFee(ct)
+            );
+
+            weightedRate += FixedPointMathLib.mulDiv(allocated, rate, ta);
+        }
+
+        apy = weightedRate * 31_536_000;
+    }
+
     /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
     /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
     ///      allocation across markets, respecting allocation caps. Returns
