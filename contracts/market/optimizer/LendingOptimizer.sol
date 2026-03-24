@@ -300,7 +300,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Pull assets from the caller into the optimizer.
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
 
-        // Route the deposit pro-rata across all non-paused markets,
+        // Route the deposit pro-rata across all approved markets,
         // maintaining current allocation percentages.
         // trackedAssets = sum of recoverable values after cToken rounding.
         uint256[] memory perMarket = _calculateDepositProRata(assets, false);
@@ -365,7 +365,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice ERC4626-like withdraw - withdraws pro-rata across
-    ///         active markets while respecting liquidity constraints.
+    ///         all approved markets while respecting liquidity constraints.
     /// @dev Executes withdrawals first (violating CEI), then measures the
     ///      actual cToken rounding loss by re-reading positions. Shares
     ///      burned reflect the true cost including rounding loss, so
@@ -406,7 +406,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice ERC4626-like redeem - redeems pro-rata across
-    ///         active markets while respecting liquidity constraints.
+    ///         all approved markets while respecting liquidity constraints.
     /// @dev Executes withdrawals with a conversion roundtrip to ensure
     ///      the optimizer's position drops by exactly the fair amount.
     /// @param shares The amount of shares to redeem.
@@ -978,9 +978,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);
     }
 
-    /// @dev Executes pro-rata withdrawals across all markets and returns
-    ///      the total remaining position (for `_totalAssets` re-sync).
-    ///      All markets are guaranteed non-paused (checked at entry point).
+    /// @dev Executes pro-rata withdrawals across all approved markets and
+    ///      returns the total remaining position (for `_totalAssets` re-sync).
+    ///      Entry point reverts if any market is paused for redemptions.
     /// @param assets Total underlying assets to withdraw.
     /// @param conversionRoundtrip If true, adjusts each per-market amount
     ///        via previewRedeem(previewDeposit(amount)) so the optimizer's
@@ -1052,11 +1052,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
     }
 
-    /// @dev Computes pro-rata deposit amounts across active markets,
-    ///      maintaining current allocation percentages. If no markets have
-    ///      assets (first deposit), allocates the entire amount to the first market.
-    ///      All markets are guaranteed non-paused (checked at entry point
-    ///      via `_checkMintPaused`).
+    /// @dev Computes pro-rata deposit amounts across all approved markets,
+    ///      maintaining current allocation percentages. Only callable
+    ///      post-initializeDeposits (totalMarketAssets > 0).
+    ///      Entry point reverts if any market is paused for minting.
     /// @param assets Total assets to deposit.
     /// @param conversionRoundtrip If true, inflates each per-market amount
     ///        via previewMint(previewWithdraw(amount)) so that the deposited
@@ -1070,7 +1069,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 lastNonZero;
 
         // Gather each market's current asset allocation.
-        // All markets are guaranteed non-paused (checked at entry point).
+        // Entry point reverts if any market is paused for minting.
         // totalMarketAssets is always > 0 post-initializeDeposits.
         for (uint256 i; i < l; ++i) {
             marketAssets[i] = _getMarketAssets(approvedCTokensList[i]);
@@ -1221,17 +1220,16 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         return FixedPointMathLib.fullMulDiv(WAD, totalAssets(), supply);
     }
 
-    /// @dev Verifies allocation caps, optional bounds, syncs _totalAssets,
+    /// @dev Verifies allocation caps and bounds, syncs _totalAssets,
     ///      and emits the post-rebalance state. Reads each market's balance
     ///      once, avoiding redundant external calls.
     ///
-    ///      Caps are always checked. Bounds are only checked when provided
-    ///      (bounds.length > 0). Bounds protect against race conditions
-    ///      where state changes between off-chain computation and on-chain
-    ///      execution (e.g., a deposit shifts allocations before the
-    ///      harvester's rebalance tx lands).
+    ///      Both caps and bounds are always checked. Bounds protect against
+    ///      race conditions where state changes between off-chain computation
+    ///      and on-chain execution (e.g., a deposit shifts allocations before
+    ///      the harvester's rebalance tx lands).
     /// @param bounds Array of allocation bounds, one per approved market.
-    ///               Pass empty array to skip bounds check.
+    ///               Must match approvedCTokensList length.
     function _verifyAllocations(AllocationBound[] memory bounds) internal {
         uint256 l = approvedCTokensList.length;
         uint256[] memory allocations = new uint256[](l);
