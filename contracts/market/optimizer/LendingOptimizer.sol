@@ -306,7 +306,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256[] memory perMarket = _calculateDepositProRata(assets, false);
         uint256 trackedAssets;
         for (uint256 i; i < approvedCTokensList.length; ++i) {
-            if (perMarket[i] == 0) continue;
+            // Skip deposits that would round to zero cToken shares.
+            if (perMarket[i] == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(perMarket[i]) == 0) continue;
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
         }
 
@@ -353,7 +354,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
         uint256 trackedAssets;
         for (uint256 i; i < approvedCTokensList.length; ++i) {
-            if (perMarket[i] == 0) continue;
+            // Skip deposits that would round to zero cToken shares.
+            if (perMarket[i] == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(perMarket[i]) == 0) continue;
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
         }
 
@@ -1092,9 +1094,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 );
                 deposited += amount;
             }
-
-            // Skip deposits that would round to zero cToken shares.
-            if (amount == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(amount) == 0) continue;
 
             // For mint(): inflate amount so the deposited cToken position
             // covers a full withdrawal of the pro-rata share.
