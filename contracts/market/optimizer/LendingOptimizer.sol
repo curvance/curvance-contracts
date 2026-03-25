@@ -630,6 +630,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                     // Skip deposit if dust amount rounds to zero cToken shares.
                     if (IBorrowableCToken(cTokenAddress).convertToShares(depositAmount) > 0) {
                         _depositToMarket(cTokenAddress, depositAmount);
+                    } else {
+                        // Use the dust in a later deposit if it's not the last.
+                        totalDeposited -= depositAmount;
                     }
                 }
 
