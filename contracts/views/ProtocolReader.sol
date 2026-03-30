@@ -56,9 +56,9 @@ contract ProtocolReader {
         uint256 closeFactorMin;
         uint256 closeFactorMax;
         uint256[2] adapters;
-        uint256 irmBaseRate;
-        uint256 irmVertexRate;
-        uint256 irmVertexStart;
+        uint256 irmTargetRate;
+        uint256 irmMaxRate;
+        uint256 irmTargetUtilization;
         uint256 interestFee;
     }
 
@@ -1184,17 +1184,25 @@ contract ProtocolReader {
         DynamicIRM irm = DynamicIRM(address(_IRM(bcToken)));
 
         (
-            uint64 baseRate,
-            uint64 vertexRate,
-            uint64 vertexStart,
+            uint64 targetRateBase,
+            uint64 maxRateBase,
+            uint64 targetUtilization,
             ,,,,,  // increaseThresholdStart, decreaseThresholdEnd,
                    // adjustmentVelocity, decayPerAdjustment,
                    // vertexMultiplierMax, linkedToken
         ) = irm.ratesConfig();
 
-        t.irmBaseRate = uint256(baseRate) * SECONDS_PER_YEAR;
-        t.irmVertexRate = uint256(vertexRate) * SECONDS_PER_YEAR;
-        t.irmVertexStart = uint256(vertexStart);
+        t.irmTargetRate = _mulDiv(
+            uint256(targetRateBase) * SECONDS_PER_YEAR,
+            uint256(targetUtilization),
+            WAD
+        );
+        t.irmMaxRate = t.irmTargetRate + _mulDiv(
+            uint256(maxRateBase) * SECONDS_PER_YEAR,
+            WAD - uint256(targetUtilization),
+            WAD
+        );
+        t.irmTargetUtilization = uint256(targetUtilization);
         t.interestFee = _interestFee(bcToken);
     }
 
