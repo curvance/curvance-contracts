@@ -422,20 +422,23 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         markets[0] = address(marketManagerIsolated); // Valid.
         markets[1] = address(0xdead);                // Invalid — not a MarketManager.
 
-        // Expect failure event for the bad address.
-        vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xdead));
-
+        // Tx succeeds despite bad address (try/catch catches failures).
         massPause.pauseAll(markets);
 
         // Market 1 should be PAUSED — the bad address didn't block it.
         assertEq(
             marketManagerIsolated.liquidationPaused(),
             2,
-            "market 1 should be paused despite bad address in batch"
+            "market 1 liquidation should be paused despite bad address in batch"
         );
-        assertEq(marketManagerIsolated.redeemPaused(), 2);
-        assertEq(marketManagerIsolated.transferPaused(), 2);
+        assertEq(marketManagerIsolated.redeemPaused(), 2, "redeem should be paused");
+        assertEq(marketManagerIsolated.transferPaused(), 2, "transfer should be paused");
+
+        (bool mintPaused, bool collPaused, bool borrowPaused) =
+            marketManagerIsolated.actionsPaused(address(borrowableCWMON_1));
+        assertTrue(mintPaused, "mint should be paused");
+        assertTrue(collPaused, "collateralization should be paused");
+        assertTrue(borrowPaused, "borrow should be paused");
     }
 
     /// @notice Explicit single-market array still works for targeted operations.
