@@ -11,9 +11,6 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
-// NOTE: This test fails when input amount is very small.
-// Fails when amount0 is 3.584e18. Probably due to precision loss.
-// Issues arise with getAmountOut execution.
 contract TestAerodromeStableCToken is TestBaseMarketIsolated {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
