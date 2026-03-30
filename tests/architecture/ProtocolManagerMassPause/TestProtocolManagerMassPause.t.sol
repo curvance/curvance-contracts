@@ -563,7 +563,7 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
 
     function test_pauseAll_emitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 1);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 1, 0);
         massPause.pauseAll(_singleMarketArray());
     }
 
@@ -571,13 +571,13 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.pauseAll(_singleMarketArray());
 
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("All", false, 1);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", false, 1, 0);
         massPause.unpauseAll(_singleMarketArray());
     }
 
     function test_pauseSupply_emitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", true, 1);
+        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", true, 1, 0);
         massPause.pauseSupply(_singleMarketArray());
     }
 
@@ -585,13 +585,13 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.pauseSupply(_singleMarketArray());
 
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", false, 1);
+        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", false, 1, 0);
         massPause.unpauseSupply(_singleMarketArray());
     }
 
     function test_pauseRedemption_emitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Redemption", true, 1);
+        emit ProtocolManagerMassPause.MassPauseExecuted("Redemption", true, 1, 0);
         massPause.pauseRedemption(_singleMarketArray());
     }
 
@@ -602,7 +602,8 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         emit ProtocolManagerMassPause.MassPauseExecuted(
             "Redemption",
             false,
-            1
+            1,
+            0
         );
         massPause.unpauseRedemption(_singleMarketArray());
     }
@@ -610,7 +611,7 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
     function test_pauseAll_autoDiscover_emitsCorrectCount() public {
         // Auto-discover should find 2 markets (m1 + m2).
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 2);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 2, 0);
         massPause.pauseAll(_emptyArray());
     }
 

@@ -56,7 +56,8 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     event MassPauseExecuted(
         string posture,
         bool paused,
-        uint256 marketsAttempted
+        uint256 marketsAttempted,
+        uint256 marketsFailed
     );
 
     /// @notice Emitted when any pause/unpause call fails for a market.
@@ -70,6 +71,9 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     /// @param _owner The authorized caller (operations multisig).
     constructor(ICentralRegistry cr, address _owner) {
         CentralRegistryLib._isCentralRegistry(cr);
+        if (_owner == address(0)) {
+            revert ProtocolManagerMassPause__Unauthorized();
+        }
         centralRegistry = cr;
         owner = _owner;
     }
@@ -86,6 +90,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             MarketManagerIsolated mm = MarketManagerIsolated(resolved[i]);
@@ -94,19 +99,27 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("All", true, numMarkets);
+        emit MassPauseExecuted("All", true, numMarkets, marketsFailed);
     }
 
     /// @notice Unpauses all 6 action types across the target markets.
     /// @dev Full recovery from emergency lockdown.
+    ///      WARNING: This clears ALL pause flags regardless of who set them.
+    ///      If other actors (emergencyCouncil, ProtocolManagerDeployment,
+    ///      base ProtocolManager) have individually paused specific tokens,
+    ///      those pauses are also cleared. After a mass unpause, verify
+    ///      whether any ProtocolManagerDeployment.pendingUnpause flags are
+    ///      still active and re-apply individual pauses as needed.
     /// @param markets The markets to unpause. Empty array = all markets.
     function unpauseAll(address[] calldata markets) external nonReentrant {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             MarketManagerIsolated mm = MarketManagerIsolated(resolved[i]);
@@ -115,10 +128,11 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("All", false, numMarkets);
+        emit MassPauseExecuted("All", false, numMarkets, marketsFailed);
     }
 
     /// @notice Pauses supply-side actions: Mint, Collateralization, Borrow.
@@ -129,6 +143,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             uint256 failed = _setEntryPauses(
@@ -138,18 +153,22 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("Supply", true, numMarkets);
+        emit MassPauseExecuted("Supply", true, numMarkets, marketsFailed);
     }
 
     /// @notice Unpauses supply-side actions: Mint, Collateralization, Borrow.
+    /// @dev WARNING: Clears supply pauses regardless of origin. See
+    ///      `unpauseAll` documentation for individual-pause interaction.
     /// @param markets The markets to unpause supply on. Empty = all markets.
     function unpauseSupply(address[] calldata markets) external nonReentrant {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             uint256 failed = _setEntryPauses(
@@ -159,10 +178,11 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("Supply", false, numMarkets);
+        emit MassPauseExecuted("Supply", false, numMarkets, marketsFailed);
     }
 
     /// @notice Pauses all value-exit vectors: Redeem, Transfer, Liquidation.
@@ -173,6 +193,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             uint256 failed = _setExitPauses(
@@ -182,18 +203,22 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("Redemption", true, numMarkets);
+        emit MassPauseExecuted("Redemption", true, numMarkets, marketsFailed);
     }
 
     /// @notice Unpauses all value-exit vectors: Redeem, Transfer, Liquidation.
+    /// @dev WARNING: Clears exit pauses regardless of origin. See
+    ///      `unpauseAll` documentation for individual-pause interaction.
     /// @param markets The markets to unpause exits on. Empty = all markets.
     function unpauseRedemption(address[] calldata markets) external nonReentrant {
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
+        uint256 marketsFailed;
 
         for (uint256 i; i < numMarkets; ++i) {
             uint256 failed = _setExitPauses(
@@ -203,10 +228,11 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
             if (failed > 0) {
                 emit MarketPauseFailed(resolved[i]);
+                ++marketsFailed;
             }
         }
 
-        emit MassPauseExecuted("Redemption", false, numMarkets);
+        emit MassPauseExecuted("Redemption", false, numMarkets, marketsFailed);
     }
 
     /// INTERNAL FUNCTIONS ///

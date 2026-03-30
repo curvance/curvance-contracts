@@ -69,6 +69,9 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
     /// @param _owner The authorized caller (deployer multisig).
     constructor(ICentralRegistry cr, address _owner) {
         CentralRegistryLib._isCentralRegistry(cr);
+        if (_owner == address(0)) {
+            revert ProtocolManagerDeployment__ParametersAreInvalid();
+        }
         centralRegistry = cr;
         owner = _owner;
     }
@@ -113,6 +116,13 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
         // available at this contract, approved to the cToken.
         address underlying0 = ICToken(token0).asset();
         address underlying1 = ICToken(token1).asset();
+
+        // SafeTransferLib does not verify code existence —
+        // calls to codeless addresses succeed silently, which would
+        // defeat the dead-share reserve protection.
+        if (underlying0.code.length == 0 || underlying1.code.length == 0) {
+            revert ProtocolManagerDeployment__ParametersAreInvalid();
+        }
 
         SafeTransferLib.safeTransferFrom(
             underlying0,
