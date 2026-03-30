@@ -58,7 +58,6 @@ contract KuruCalldataChecker is BaseSwapChecker {
             (
                 IKuruFlowRouter.SwapIntent memory swapIntent,
                 IKuruFlowRouter.FeeCollection memory feeCollection,
-                bytes memory program
             ) = abi.decode(
                 _getFuncParams(swapAction.call),
                 (

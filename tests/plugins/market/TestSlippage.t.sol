@@ -34,7 +34,7 @@ contract TestSlippage is TestBaseMarketIsolated {
 
     function setUp() public override {
 
-        _fork("MON_NODE_URI_MONAD_MAINNET", FORK_BLOCK);
+        _fork("MON_NODE_URI_MONAD_ARCHIVE", FORK_BLOCK);
 
         _initMainConstantVariables();
         _deployCentralRegistry();

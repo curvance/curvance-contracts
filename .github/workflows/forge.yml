@@ -7,7 +7,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -31,6 +31,14 @@ jobs:
           key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
           restore-keys: |
             forge-build-
+
+      - name: Restore Foundry RPC cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.foundry/cache/rpc
+          key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}
+          restore-keys: |
+            foundry-rpc-${{ runner.os }}-
 
       - name: Run test harness (with automatic retry after delay)
         shell: bash
@@ -58,6 +66,7 @@ jobs:
           ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
           ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
           MON_NODE_URI_MONAD_MAINNET: ${{ secrets.MON_NODE_URI_MONAD_MAINNET }}
+          MON_NODE_URI_MONAD_ARCHIVE: ${{ secrets.MON_NODE_URI_MONAD_ARCHIVE }}
 
       - name: Save Forge build cache
         if: always()
@@ -67,3 +76,10 @@ jobs:
             cache
             artifacts
           key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
+
+      - name: Save Foundry RPC cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.foundry/cache/rpc
+          key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}
