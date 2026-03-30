@@ -410,33 +410,40 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
     // 4. BATCH REVERT ISOLATION
     // ══════════════════════════════════════════════════════
 
-    /// @notice If one address in the markets array is invalid, the entire
-    ///         pauseAll call reverts. No partial execution.
-    ///         This is a known trade-off — use explicit arrays to work around.
-    function test_batchRevert_badAddressRevertsEntireBatch() public {
+    /// @notice With try/catch, a bad address in the markets array no longer
+    ///         blocks the entire batch. The good market gets paused and the
+    ///         bad market emits {MarketPauseFailed}.
+    function test_batchResilience_badAddressDoesNotBlockBatch() public {
         _deployMarket1();
+
+        // Unpause mint for clean state.
+        marketManagerIsolated.setMintPaused(address(borrowableCWMON_1), false);
+        marketManagerIsolated.setMintPaused(address(borrowableCUSDC_1), false);
 
         address[] memory markets = new address[](2);
         markets[0] = address(marketManagerIsolated); // Valid.
         markets[1] = address(0xdead);                // Invalid — not a MarketManager.
 
-        // Entire call reverts.
-        vm.expectRevert();
+        // Expect failure event for the bad address.
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xdead));
+
         massPause.pauseAll(markets);
 
-        // Market 1 should be UNAFFECTED (tx reverted atomically).
+        // Market 1 should be PAUSED — the bad address didn't block it.
         assertEq(
             marketManagerIsolated.liquidationPaused(),
-            1,
-            "market 1 should be unpaused — tx reverted"
+            2,
+            "market 1 should be paused despite bad address in batch"
         );
+        assertEq(marketManagerIsolated.redeemPaused(), 2);
+        assertEq(marketManagerIsolated.transferPaused(), 2);
     }
 
-    /// @notice Workaround: use explicit single-market array to isolate failures.
-    function test_batchRevert_workaround_explicitArrays() public {
+    /// @notice Explicit single-market array still works for targeted operations.
+    function test_batchResilience_explicitArrayStillWorks() public {
         _deployMarket1();
 
-        // Pause market 1 individually — succeeds regardless of other markets.
         massPause.pauseAll(_singleMarketArray(address(marketManagerIsolated)));
         assertEq(marketManagerIsolated.liquidationPaused(), 2, "market 1 should be paused");
     }
@@ -531,8 +538,8 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
     // 6. PERMISSION BOUNDARY ENFORCEMENT
     // ══════════════════════════════════════════════════════
 
-    /// @notice After revoking market permissions, both contracts
-    ///         become inert — all operations revert.
+    /// @notice After revoking market permissions, the deployment manager
+    ///         reverts on all operations.
     function test_permissionRevocation_deploymentInert() public {
         centralRegistry.removeMarketPermissions(address(deploymentManager));
 
@@ -550,27 +557,34 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         );
     }
 
-    /// @notice After revoking market permissions, mass pause is completely
-    ///         disabled across all postures.
+    /// @notice After revoking market permissions, mass pause calls succeed
+    ///         but all setters fail silently with {MarketPauseFailed} events.
+    ///         The markets remain unaffected.
     function test_permissionRevocation_massPauseInert() public {
         _deployMarket1();
 
+        // Unpause mint for clean state.
+        marketManagerIsolated.setMintPaused(address(borrowableCWMON_1), false);
+        marketManagerIsolated.setMintPaused(address(borrowableCUSDC_1), false);
+
         centralRegistry.removeMarketPermissions(address(massPause));
 
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__Unauthorized.selector
+        // Calls succeed (try/catch) but market remains unpaused.
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(
+            address(marketManagerIsolated)
         );
         massPause.pauseAll(_singleMarketArray(address(marketManagerIsolated)));
+        assertEq(marketManagerIsolated.liquidationPaused(), 1, "should still be unpaused");
 
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__Unauthorized.selector
-        );
         massPause.pauseSupply(_singleMarketArray(address(marketManagerIsolated)));
-
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__Unauthorized.selector
+        (bool mintPaused, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON_1)
         );
+        assertFalse(mintPaused, "mint should still be unpaused");
+
         massPause.pauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
+        assertEq(marketManagerIsolated.redeemPaused(), 1, "redeem should still be unpaused");
     }
 
     /// @notice Neither contract can escalate permissions or access

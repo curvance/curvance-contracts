@@ -545,13 +545,18 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.unpauseRedemption(_singleMarketArray());
     }
 
-    function test_pauseAll_revertsWithoutMarketPermissions() public {
+    function test_pauseAll_withoutMarketPermissions_emitsFailure() public {
         centralRegistry.removeMarketPermissions(address(massPause));
 
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__Unauthorized.selector
+        // With try/catch, the tx succeeds but emits MarketPauseFailed.
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(
+            address(marketManagerIsolated)
         );
         massPause.pauseAll(_singleMarketArray());
+
+        // Market should remain unpaused — all setters failed silently.
+        _assertM1AllUnpaused();
     }
 
     /// ==================== EVENTS ==================== ///

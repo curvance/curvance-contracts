@@ -30,9 +30,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      If an empty `markets` array is passed, the contract auto-discovers
 ///      all registered markets from `centralRegistry.marketManagers()`.
 ///
+///      All setter calls are wrapped in try/catch to prevent one
+///      misbehaving market from blocking the entire batch. Failed markets
+///      emit {MarketPauseFailed} for operator monitoring.
+///
 ///      Gas: Per market with 2 tokens, worst case is ~9 SSTOREs at 5,000
-///      gas each (warm nonzero→nonzero) ≈ 45-60k per market. Comfortably
-///      handles 250+ markets within a 30M gas limit.
+///      gas each (warm nonzero→nonzero) + ~1,800 try/catch overhead
+///      ≈ 50-65k per market. Comfortably handles 250+ markets within
+///      a 30M gas limit.
 contract ProtocolManagerMassPause is ReentrancyGuard {
     /// CONSTANTS ///
 
@@ -48,7 +53,16 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
     /// EVENTS ///
 
-    event MassPauseExecuted(string posture, bool paused, uint256 marketsAffected);
+    event MassPauseExecuted(
+        string posture,
+        bool paused,
+        uint256 marketsAttempted
+    );
+
+    /// @notice Emitted when any pause/unpause call fails for a market.
+    /// @dev Indicates a market is in an unexpected state — operator should
+    ///      investigate. Remaining markets in the batch are unaffected.
+    event MarketPauseFailed(address indexed market);
 
     /// CONSTRUCTOR ///
 
@@ -65,6 +79,8 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     /// @notice Pauses all 6 action types across the target markets.
     /// @dev Full emergency lockdown. No deposits, borrows, redemptions,
     ///      transfers, collateralization, or liquidations.
+    ///      Individual market failures are caught and logged — they do not
+    ///      block other markets from being paused.
     /// @param markets The markets to pause. Empty array = all markets.
     function pauseAll(address[] calldata markets) external nonReentrant {
         _checkOwner();
@@ -73,8 +89,12 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
         for (uint256 i; i < numMarkets; ++i) {
             MarketManagerIsolated mm = MarketManagerIsolated(resolved[i]);
-            _setExitPauses(mm, true);
-            _setEntryPauses(mm, true);
+            uint256 failed = _setExitPauses(mm, true)
+                + _setEntryPauses(mm, true);
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("All", true, numMarkets);
@@ -90,8 +110,12 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
         for (uint256 i; i < numMarkets; ++i) {
             MarketManagerIsolated mm = MarketManagerIsolated(resolved[i]);
-            _setExitPauses(mm, false);
-            _setEntryPauses(mm, false);
+            uint256 failed = _setExitPauses(mm, false)
+                + _setEntryPauses(mm, false);
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("All", false, numMarkets);
@@ -107,7 +131,14 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         uint256 numMarkets = resolved.length;
 
         for (uint256 i; i < numMarkets; ++i) {
-            _setEntryPauses(MarketManagerIsolated(resolved[i]), true);
+            uint256 failed = _setEntryPauses(
+                MarketManagerIsolated(resolved[i]),
+                true
+            );
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("Supply", true, numMarkets);
@@ -121,7 +152,14 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         uint256 numMarkets = resolved.length;
 
         for (uint256 i; i < numMarkets; ++i) {
-            _setEntryPauses(MarketManagerIsolated(resolved[i]), false);
+            uint256 failed = _setEntryPauses(
+                MarketManagerIsolated(resolved[i]),
+                false
+            );
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("Supply", false, numMarkets);
@@ -137,7 +175,14 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         uint256 numMarkets = resolved.length;
 
         for (uint256 i; i < numMarkets; ++i) {
-            _setExitPauses(MarketManagerIsolated(resolved[i]), true);
+            uint256 failed = _setExitPauses(
+                MarketManagerIsolated(resolved[i]),
+                true
+            );
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("Redemption", true, numMarkets);
@@ -151,7 +196,14 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         uint256 numMarkets = resolved.length;
 
         for (uint256 i; i < numMarkets; ++i) {
-            _setExitPauses(MarketManagerIsolated(resolved[i]), false);
+            uint256 failed = _setExitPauses(
+                MarketManagerIsolated(resolved[i]),
+                false
+            );
+
+            if (failed > 0) {
+                emit MarketPauseFailed(resolved[i]);
+            }
         }
 
         emit MassPauseExecuted("Redemption", false, numMarkets);
@@ -176,33 +228,44 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     }
 
     /// @notice Sets market-wide exit pauses: Liquidation, Redeem, Transfer.
+    /// @dev Each call is independently try/caught. Returns the number of
+    ///      failed calls so the caller can emit failure events.
     /// @param mm The MarketManagerIsolated to configure.
     /// @param state True to pause, false to unpause.
+    /// @return failed The number of setter calls that reverted.
     function _setExitPauses(
         MarketManagerIsolated mm,
         bool state
-    ) internal {
-        mm.setLiquidationPaused(state);
-        mm.setRedeemPaused(state);
-        mm.setTransferPaused(state);
+    ) internal returns (uint256 failed) {
+        try mm.setLiquidationPaused(state) {} catch { ++failed; }
+        try mm.setRedeemPaused(state) {} catch { ++failed; }
+        try mm.setTransferPaused(state) {} catch { ++failed; }
     }
 
     /// @notice Sets token-level entry pauses: Mint, Collateralization, Borrow
     ///         for all tokens listed in the market.
-    /// @dev Auto-discovers tokens via `queryTokensListed()`.
+    /// @dev Auto-discovers tokens via `queryTokensListed()`. Each call is
+    ///      independently try/caught. If token discovery itself fails, the
+    ///      entire entry pause for this market is skipped.
     /// @param mm The MarketManagerIsolated to configure.
     /// @param state True to pause, false to unpause.
+    /// @return failed The number of setter calls that reverted.
     function _setEntryPauses(
         MarketManagerIsolated mm,
         bool state
-    ) internal {
-        address[] memory tokens = mm.queryTokensListed();
-        uint256 numTokens = tokens.length;
+    ) internal returns (uint256 failed) {
+        address[] memory tokens;
+        try mm.queryTokensListed() returns (address[] memory t) {
+            tokens = t;
+        } catch {
+            return 1;
+        }
 
+        uint256 numTokens = tokens.length;
         for (uint256 j; j < numTokens; ++j) {
-            mm.setMintPaused(tokens[j], state);
-            mm.setCollateralizationPaused(tokens[j], state);
-            mm.setBorrowPaused(tokens[j], state);
+            try mm.setMintPaused(tokens[j], state) {} catch { ++failed; }
+            try mm.setCollateralizationPaused(tokens[j], state) {} catch { ++failed; }
+            try mm.setBorrowPaused(tokens[j], state) {} catch { ++failed; }
         }
     }
 
