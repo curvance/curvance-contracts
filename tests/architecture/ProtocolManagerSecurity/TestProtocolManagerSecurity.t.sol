@@ -31,8 +31,6 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
     MarketManagerIsolated public marketManager2;
     BorrowableCToken public borrowableCUSDC_2;
     BorrowableCToken public borrowableCWMON_2;
-
-    ChainlinkAdaptor public chainlinkAdaptor;
     uint256 constant BASE_UNDERLYING_RESERVE = 77777;
 
     function setUp() public virtual override {
