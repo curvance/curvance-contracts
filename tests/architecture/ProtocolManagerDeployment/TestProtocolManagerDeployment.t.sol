@@ -615,4 +615,151 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         assertEq(deploymentManager.owner(), address(this));
         assertEq(deploymentManager.BASE_UNDERLYING_RESERVE(), 77777);
     }
+
+    /// ==================== UNPAUSE MARKET ==================== ///
+
+    function test_deployMarket_setsPendingUnpause() public {
+        _deployMarketViaManager();
+
+        assertTrue(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should be true after deploy"
+        );
+    }
+
+    function test_unpauseMarket_success() public {
+        _deployMarketViaManager();
+
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+
+        // Both tokens should have mint unpaused.
+        (bool mintPaused0, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertFalse(mintPaused0, "token0 mint should be unpaused");
+
+        (bool mintPaused1, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCUSDC_MONAD)
+        );
+        assertFalse(mintPaused1, "token1 mint should be unpaused");
+    }
+
+    function test_unpauseMarket_consumesAllowance() public {
+        _deployMarketViaManager();
+
+        assertTrue(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated))
+        );
+
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+
+        assertFalse(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should be consumed"
+        );
+    }
+
+    function test_unpauseMarket_revertsNoPendingUnpause() public {
+        // No deployment happened — no allowance exists.
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__NoPendingUnpause
+                .selector
+        );
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+    }
+
+    function test_unpauseMarket_revertsDoubleUnpause() public {
+        _deployMarketViaManager();
+
+        // First unpause succeeds.
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+
+        // Second unpause reverts — allowance already consumed.
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__NoPendingUnpause
+                .selector
+        );
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+    }
+
+    function test_unpauseMarket_revertsUnauthorized() public {
+        _deployMarketViaManager();
+
+        address unauthorized = address(0xdead);
+        vm.prank(unauthorized);
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__Unauthorized
+                .selector
+        );
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+    }
+
+    function test_unpauseMarket_onlyAffectsMint() public {
+        _deployMarketViaManager();
+
+        // Manually pause collateralization and borrow too.
+        marketManagerIsolated.setCollateralizationPaused(
+            address(borrowableCWMON),
+            true
+        );
+        marketManagerIsolated.setBorrowPaused(
+            address(borrowableCUSDC_MONAD),
+            true
+        );
+
+        // Unpause market — should only touch mint.
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+
+        // Mint should be unpaused.
+        (bool mintPaused, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertFalse(mintPaused, "mint should be unpaused");
+
+        // Collateralization and borrow should still be paused.
+        (, bool collPaused, ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertTrue(collPaused, "collateralization should still be paused");
+
+        (, , bool borrowPaused) = marketManagerIsolated.actionsPaused(
+            address(borrowableCUSDC_MONAD)
+        );
+        assertTrue(borrowPaused, "borrow should still be paused");
+
+        // Market-wide pauses should be unaffected.
+        assertEq(marketManagerIsolated.liquidationPaused(), 1);
+        assertEq(marketManagerIsolated.redeemPaused(), 1);
+        assertEq(marketManagerIsolated.transferPaused(), 1);
+    }
+
+    function test_unpauseMarket_depositsWorkAfterUnpause() public {
+        _deployMarketViaManager();
+
+        // Deposits should fail while paused.
+        address user = address(0xBEEF);
+        deal(WMON_ADDRESS, user, 1e18);
+
+        vm.startPrank(user);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 1e18);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        borrowableCWMON.deposit(1e18, user);
+        vm.stopPrank();
+
+        // Unpause via one-time allowance.
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+
+        // Deposits should now succeed.
+        vm.startPrank(user);
+        borrowableCWMON.deposit(1e18, user);
+        vm.stopPrank();
+
+        assertTrue(
+            borrowableCWMON.balanceOf(user) > 0,
+            "user should have shares after unpause"
+        );
+    }
 }

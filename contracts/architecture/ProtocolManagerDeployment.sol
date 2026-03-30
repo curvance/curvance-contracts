@@ -12,7 +12,8 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 /// @title Curvance Protocol Manager - Deployment.
 /// @notice Atomic market deployment: lists a token pair, pauses minting,
-///         and sets risk parameters in a single transaction.
+///         and sets risk parameters in a single transaction. Includes a
+///         one-time unpause allowance per deployed market.
 /// @dev Standalone protocol manager for initial market setup. Does not
 ///      inherit the base ProtocolManager since it needs no period-limit
 ///      tracking or managed-address accounting.
@@ -29,6 +30,12 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 ///         pulls the approved underlying into the cToken.
 ///      5. Minting is paused on both tokens.
 ///      6. Token configs (risk parameters) are set for both tokens.
+///      7. A one-time unpause allowance is recorded for this market.
+///
+///      The `unpauseMarket` function consumes the one-time allowance,
+///      unpausing only the mint action on the deployed tokens. This
+///      scopes the unpause exactly to what `deployMarket` paused and
+///      prevents the contract from being used as a general unpause tool.
 contract ProtocolManagerDeployment is ReentrancyGuard {
     /// CONSTANTS ///
 
@@ -43,10 +50,18 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
     /// @notice The address authorized to call deployment functions.
     address public immutable owner;
 
+    /// STORAGE ///
+
+    /// @notice One-time unpause allowance per deployed market.
+    /// @dev Set to true by `deployMarket`, consumed by `unpauseMarket`.
+    ///      Scopes unpause authority to markets this contract deployed.
+    mapping(address => bool) public pendingUnpause;
+
     /// ERRORS ///
 
     error ProtocolManagerDeployment__Unauthorized();
     error ProtocolManagerDeployment__ParametersAreInvalid();
+    error ProtocolManagerDeployment__NoPendingUnpause();
 
     /// CONSTRUCTOR ///
 
@@ -67,8 +82,8 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
     ///      the cToken vaults to prevent rounding attacks.
     ///
     ///      After this call, the market exists with minting paused.
-    ///      A subsequent `setMintPaused(false)` via the pause manager
-    ///      (or directly) is needed to open the market for deposits.
+    ///      Call `unpauseMarket` to consume the one-time allowance and
+    ///      open the market for deposits.
     ///
     /// @param marketManager The MarketManagerIsolated to deploy into.
     /// @param token0 The first cToken address to list.
@@ -129,5 +144,39 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
         // 3. Set risk parameters for both tokens.
         mm.updateTokenConfig(config0);
         mm.updateTokenConfig(config1);
+
+        // 4. Grant one-time unpause allowance for this market.
+        pendingUnpause[marketManager] = true;
+    }
+
+    /// @notice Unpauses minting on a market that was deployed by this
+    ///         contract, consuming the one-time allowance.
+    /// @dev Can only be called once per market. Only unpauses the mint
+    ///      action — the same action that `deployMarket` paused. Does not
+    ///      affect collateralization, borrow, or market-wide pause states.
+    ///      Discovers tokens via `queryTokensListed()` on the market.
+    /// @param marketManager The MarketManagerIsolated to unpause.
+    function unpauseMarket(
+        address marketManager
+    ) external nonReentrant {
+        if (msg.sender != owner) {
+            revert ProtocolManagerDeployment__Unauthorized();
+        }
+
+        if (!pendingUnpause[marketManager]) {
+            revert ProtocolManagerDeployment__NoPendingUnpause();
+        }
+
+        // Consume the one-time allowance.
+        delete pendingUnpause[marketManager];
+
+        // Discover and unpause all listed tokens.
+        MarketManagerIsolated mm = MarketManagerIsolated(marketManager);
+        address[] memory tokens = mm.queryTokensListed();
+        uint256 numTokens = tokens.length;
+
+        for (uint256 i; i < numTokens; ++i) {
+            mm.setMintPaused(tokens[i], false);
+        }
     }
 }

@@ -465,9 +465,8 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         );
         assertTrue(mintPaused, "Phase 1: mint should be paused after deploy");
 
-        // ─── PHASE 2: Go live (unpause minting) ───
-        marketManagerIsolated.setMintPaused(address(borrowableCWMON_1), false);
-        marketManagerIsolated.setMintPaused(address(borrowableCUSDC_1), false);
+        // ─── PHASE 2: Go live (unpause minting via one-time allowance) ───
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
 
         // ─── PHASE 3: User deposits ───
         address user = address(0xBEEF);
