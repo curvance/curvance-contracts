@@ -90,20 +90,6 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
 
         // Grant market permissions to the deployment manager.
         centralRegistry.addMarketPermissions(address(deploymentManager));
-
-        // Fund this contract with underlying assets for initialization.
-        deal(_USDC_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
-        deal(WMON_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
-
-        // Approve the deployment manager to pull underlying.
-        IERC20(_USDC_ADDRESS).approve(
-            address(deploymentManager),
-            BASE_UNDERLYING_RESERVE
-        );
-        IERC20(WMON_ADDRESS).approve(
-            address(deploymentManager),
-            BASE_UNDERLYING_RESERVE
-        );
     }
 
     /// HELPER FUNCTIONS ///
@@ -128,9 +114,175 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         config.debtCap = debtCap;
     }
 
-    /// TESTS ///
+    function _fundAndApprove() internal {
+        deal(_USDC_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+        deal(WMON_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+
+        IERC20(_USDC_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+        IERC20(WMON_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+    }
+
+    function _deployMarketViaManager() internal {
+        _fundAndApprove();
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+    }
+
+    /// ==================== DEPLOYMENT SUCCESS ==================== ///
 
     function test_deployMarket_success() public {
+        _deployMarketViaManager();
+
+        // Verify tokens are listed.
+        assertTrue(marketManagerIsolated.isListed(address(borrowableCWMON)));
+        assertTrue(
+            marketManagerIsolated.isListed(address(borrowableCUSDC_MONAD))
+        );
+    }
+
+    function test_deployMarket_correctTokensListedArray() public {
+        _deployMarketViaManager();
+
+        address[] memory listed = marketManagerIsolated.queryTokensListed();
+        assertEq(listed.length, 2);
+        assertEq(listed[0], address(borrowableCWMON));
+        assertEq(listed[1], address(borrowableCUSDC_MONAD));
+    }
+
+    function test_deployMarket_mintPausedBothTokens() public {
+        _deployMarketViaManager();
+
+        (bool mintPaused0, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertTrue(mintPaused0, "token0 mint should be paused");
+
+        (bool mintPaused1, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCUSDC_MONAD)
+        );
+        assertTrue(mintPaused1, "token1 mint should be paused");
+    }
+
+    function test_deployMarket_otherActionsNotPaused() public {
+        _deployMarketViaManager();
+
+        // Collateralization and borrow should NOT be paused.
+        (, bool collPaused0, bool borrowPaused0) = marketManagerIsolated
+            .actionsPaused(address(borrowableCWMON));
+        assertFalse(collPaused0, "token0 collateralization should not be paused");
+        assertFalse(borrowPaused0, "token0 borrow should not be paused");
+
+        (, bool collPaused1, bool borrowPaused1) = marketManagerIsolated
+            .actionsPaused(address(borrowableCUSDC_MONAD));
+        assertFalse(collPaused1, "token1 collateralization should not be paused");
+        assertFalse(borrowPaused1, "token1 borrow should not be paused");
+
+        // Market-wide pauses should also be off.
+        assertEq(marketManagerIsolated.liquidationPaused(), 1);
+        assertEq(marketManagerIsolated.redeemPaused(), 1);
+        assertEq(marketManagerIsolated.transferPaused(), 1);
+    }
+
+    function test_deployMarket_collateralCapsSet() public {
+        _deployMarketViaManager();
+
+        assertEq(
+            marketManagerIsolated.collateralCaps(address(borrowableCWMON)),
+            1_000_000e18
+        );
+        assertEq(
+            marketManagerIsolated.collateralCaps(address(borrowableCUSDC_MONAD)),
+            0
+        );
+    }
+
+    function test_deployMarket_debtCapsSet() public {
+        _deployMarketViaManager();
+
+        assertEq(marketManagerIsolated.debtCaps(address(borrowableCWMON)), 0);
+        assertEq(
+            marketManagerIsolated.debtCaps(address(borrowableCUSDC_MONAD)),
+            1_000_000e6
+        );
+    }
+
+    function test_deployMarket_collConfigSet() public {
+        _deployMarketViaManager();
+
+        (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
+            marketManagerIsolated.collConfig(address(borrowableCWMON));
+
+        assertEq(collRatio, 7000, "collRatio mismatch");
+        // collReqSoft is stored as premium above BPS (4000 + 10000).
+        assertEq(collReqSoft, 14000, "collReqSoft mismatch");
+        // collReqHard is stored as premium above BPS (3000 + 10000).
+        assertEq(collReqHard, 13000, "collReqHard mismatch");
+    }
+
+    function test_deployMarket_liquidationConfigSet() public {
+        _deployMarketViaManager();
+
+        (
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
+            uint256 liqIncMin,
+            uint256 liqIncMax,
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve,
+            uint256 closeFactorMin,
+            uint256 closeFactorMax
+        ) = marketManagerIsolated.liquidationConfig(address(borrowableCWMON));
+
+        // liqIncBase stored as BPS + incentive (10000 + 1000).
+        assertEq(liqIncBase, 11000, "liqIncBase mismatch");
+        // liqIncCurve = liqIncHard - liqIncBase (1500 - 1000).
+        assertEq(liqIncCurve, 500, "liqIncCurve mismatch");
+        // liqIncMin stored as BPS + min (10000 + 10).
+        assertEq(liqIncMin, 10010, "liqIncMin mismatch");
+        // liqIncMax stored as BPS + max (10000 + 2000).
+        assertEq(liqIncMax, 12000, "liqIncMax mismatch");
+        assertEq(closeFactorBase, 2000, "closeFactorBase mismatch");
+        // closeFactorCurve = BPS - closeFactorBase (10000 - 2000).
+        assertEq(closeFactorCurve, 8000, "closeFactorCurve mismatch");
+        assertEq(closeFactorMin, 2000, "closeFactorMin mismatch");
+        assertEq(closeFactorMax, 5000, "closeFactorMax mismatch");
+    }
+
+    function test_deployMarket_underlyingConsumed() public {
+        _fundAndApprove();
+
+        assertEq(
+            IERC20(_USDC_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE
+        );
+
         MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
             address(borrowableCWMON),
             1_000_000e18,
@@ -150,39 +302,66 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             config1
         );
 
-        // Verify tokens are listed.
-        assertTrue(marketManagerIsolated.isListed(address(borrowableCWMON)));
-        assertTrue(
-            marketManagerIsolated.isListed(address(borrowableCUSDC_MONAD))
-        );
-
-        // Verify minting is paused on both tokens.
-        (bool mintPaused0, , ) = marketManagerIsolated.actionsPaused(
-            address(borrowableCWMON)
-        );
-        assertTrue(mintPaused0, "token0 mint should be paused");
-
-        (bool mintPaused1, , ) = marketManagerIsolated.actionsPaused(
-            address(borrowableCUSDC_MONAD)
-        );
-        assertTrue(mintPaused1, "token1 mint should be paused");
-
-        // Verify token configs were set (check collateral caps as proxy).
-        assertEq(
-            marketManagerIsolated.collateralCaps(address(borrowableCWMON)),
-            1_000_000e18
-        );
-        assertEq(
-            marketManagerIsolated.debtCaps(address(borrowableCUSDC_MONAD)),
-            1_000_000e6
-        );
-
-        // Verify underlying was consumed (this contract should have 0 left).
+        // Caller should have zero underlying remaining.
         assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(this)), 0);
         assertEq(IERC20(WMON_ADDRESS).balanceOf(address(this)), 0);
+
+        // Deployment manager contract should also have zero.
+        assertEq(
+            IERC20(_USDC_ADDRESS).balanceOf(address(deploymentManager)),
+            0
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(deploymentManager)),
+            0
+        );
     }
 
+    function test_deployMarket_noResidualApproval() public {
+        _deployMarketViaManager();
+
+        // The deployment manager should have zero residual approval
+        // to the cTokens after initializeDeposits consumed them.
+        assertEq(
+            IERC20(_USDC_ADDRESS).allowance(
+                address(deploymentManager),
+                address(borrowableCUSDC_MONAD)
+            ),
+            0,
+            "USDC residual approval"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).allowance(
+                address(deploymentManager),
+                address(borrowableCWMON)
+            ),
+            0,
+            "WMON residual approval"
+        );
+    }
+
+    /// ==================== INTEGRATION ==================== ///
+
+    function test_deployMarket_mintRevertsWhenPaused() public {
+        _deployMarketViaManager();
+
+        // Fund a user and try to mint — should revert because mint is paused.
+        address user = address(0xBEEF);
+        deal(WMON_ADDRESS, user, 1e18);
+
+        vm.startPrank(user);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 1e18);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        borrowableCWMON.deposit(1e18, user);
+        vm.stopPrank();
+    }
+
+    /// ==================== AUTHORIZATION ==================== ///
+
     function test_deployMarket_revertsUnauthorized() public {
+        _fundAndApprove();
+
         MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
             address(borrowableCWMON),
             1_000_000e18,
@@ -210,7 +389,74 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
-    function test_deployMarket_revertsMismatchedConfig() public {
+    function test_deployMarket_revertsWithoutMarketPermissions() public {
+        _fundAndApprove();
+
+        // Remove market permissions from the deployment manager.
+        centralRegistry.removeMarketPermissions(address(deploymentManager));
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        // Should revert at listTokens → _checkMarketPermissions.
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__Unauthorized.selector
+        );
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+    }
+
+    /// ==================== PARAMETER VALIDATION ==================== ///
+
+    function test_deployMarket_revertsParametersInvalid_config0Mismatch()
+        public
+    {
+        _fundAndApprove();
+
+        // config0 has wrong cToken address.
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(0xbeef),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__ParametersAreInvalid
+                .selector
+        );
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+    }
+
+    function test_deployMarket_revertsParametersInvalid_config1Mismatch()
+        public
+    {
+        _fundAndApprove();
+
         MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
             address(borrowableCWMON),
             1_000_000e18,
@@ -225,7 +471,7 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
 
         vm.expectRevert(
             ProtocolManagerDeployment
-                .ProtocolManagerDeployment__Unauthorized
+                .ProtocolManagerDeployment__ParametersAreInvalid
                 .selector
         );
         deploymentManager.deployMarket(
@@ -237,7 +483,13 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
-    function test_deployMarket_correctTokensListedArray() public {
+    function test_deployMarket_revertsTokensAlreadyListed() public {
+        // Deploy once successfully.
+        _deployMarketViaManager();
+
+        // Try to deploy again — listTokens checks tokensListed.length != 0.
+        _fundAndApprove();
+
         MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
             address(borrowableCWMON),
             1_000_000e18,
@@ -249,6 +501,9 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             1_000_000e6
         );
 
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
+        );
         deploymentManager.deployMarket(
             address(marketManagerIsolated),
             address(borrowableCWMON),
@@ -256,10 +511,106 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             config0,
             config1
         );
+    }
 
-        address[] memory listed = marketManagerIsolated.queryTokensListed();
-        assertEq(listed.length, 2);
-        assertEq(listed[0], address(borrowableCWMON));
-        assertEq(listed[1], address(borrowableCUSDC_MONAD));
+    function test_deployMarket_revertsSameToken() public {
+        _fundAndApprove();
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            0,
+            1_000_000e6
+        );
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
+        );
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCWMON),
+            config0,
+            config1
+        );
+    }
+
+    function test_deployMarket_revertsInsufficientBalance() public {
+        // Approve but don't fund.
+        IERC20(_USDC_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+        IERC20(WMON_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        vm.expectRevert();
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+    }
+
+    function test_deployMarket_revertsInsufficientApproval() public {
+        // Fund but only approve for the first token.
+        deal(_USDC_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+        deal(WMON_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+
+        IERC20(WMON_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+        // Intentionally skip USDC approval.
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        vm.expectRevert();
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+    }
+
+    /// ==================== CONSTRUCTOR ==================== ///
+
+    function test_constructor_setsImmutables() public view {
+        assertEq(
+            address(deploymentManager.centralRegistry()),
+            address(centralRegistry)
+        );
+        assertEq(deploymentManager.owner(), address(this));
+        assertEq(deploymentManager.BASE_UNDERLYING_RESERVE(), 77777);
     }
 }

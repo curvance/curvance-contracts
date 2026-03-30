@@ -9,7 +9,6 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Protocol Manager - Deployment.
 /// @notice Atomic market deployment: lists a token pair, pauses minting,
@@ -47,6 +46,7 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
     /// ERRORS ///
 
     error ProtocolManagerDeployment__Unauthorized();
+    error ProtocolManagerDeployment__ParametersAreInvalid();
 
     /// CONSTRUCTOR ///
 
@@ -88,7 +88,7 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
 
         // Validate config cToken addresses match the listed tokens.
         if (config0.cToken != token0 || config1.cToken != token1) {
-            revert ProtocolManagerDeployment__Unauthorized();
+            revert ProtocolManagerDeployment__ParametersAreInvalid();
         }
 
         MarketManagerIsolated mm = MarketManagerIsolated(marketManager);

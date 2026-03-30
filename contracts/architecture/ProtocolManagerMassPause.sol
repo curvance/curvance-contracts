@@ -7,7 +7,6 @@ import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 /// @title Curvance Protocol Manager - Mass Pause.
 /// @notice Emergency pause/unpause across all markets in a single
