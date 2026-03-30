@@ -36,6 +36,19 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     // HELPERS
     // =====================================================================
 
+    /// @dev Returns unconstrained allocation bounds for the given harness.
+    function _unconstrainedBoundsFor(LendingOptimizerHarness h)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = h.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: h.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
     /// @dev Sets up a harness with two markets, no fee, 1-day vesting.
     ///      Uses high caps (100% each) to avoid AllocationExceedsCap during rebalance tests.
     function _setUpHarnessTwoMarketsNoFee() internal {
@@ -113,7 +126,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Mock harvester permissions for a given address.
@@ -152,7 +165,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user, amount);
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(harness), amount);
-        harness.deposit(amount, user, market);
+        harness.deposit(amount, user);
         vm.stopPrank();
     }
 
@@ -166,16 +179,16 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Accrue to get a clean baseline. Multiple cycles to ensure
         // all vesting finishes and we're in a steady state.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         // Vesting may have started again from detected yield.
         // Wait for it to finish.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         // One more cycle to be safe.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // After multiple cycles, yield-per-cycle becomes very small.
 
@@ -190,15 +203,16 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
         actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: -int256(100_000e6)
+            assetsOrBps: -int256(100_000e6)
         });
         actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: int256(100_000e6)
+            assetsOrBps: int256(100_000e6)
         });
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
         vm.prank(maliciousHarvester);
-        harness.rebalance(actions);
+        harness.rebalance(actions, bounds);
 
         uint256 rawAfter = harness.exposed_accrueMarkets();
         console2.log("After one rebalance:");
@@ -217,7 +231,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
     /// @notice Tests whether a harvester can prevent standard withdrawals
     ///         by moving all assets into markets with no idle liquidity.
-    /// @dev If all markets' assetsHeld() is 0, optimalWithdrawalTarget reverts.
+    /// @dev If all markets' assetsHeld() is 0, _withdrawMultiMarket reverts.
     ///      Users must use targeted withdrawals to specific markets.
     function test_attack_B_strategicRebalanceForWithdrawalDoS() public {
         _setUpHarnessTwoMarketsNoFee();
@@ -246,7 +260,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         }
 
         // Now show the concept: if both markets have 0 idle liquidity,
-        // optimalWithdrawalTarget would revert.
+        // _withdrawMultiMarket would revert.
         // We test by trying to withdraw more than available idle liquidity.
         uint256 totalIdle = idle0 + idle1;
         if (totalIdle > 0) {
@@ -255,7 +269,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             if (largeWithdraw <= victimAssets) {
                 // This should revert because no single market has enough idle.
-                // optimalWithdrawalTarget checks per-market, not aggregate.
+                // _withdrawMultiMarket drains worst-yield markets first.
                 bool reverted = false;
                 vm.startPrank(victim);
                 try harness.withdraw(largeWithdraw, victim, victim) {
@@ -267,24 +281,15 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
                 vm.stopPrank();
 
                 if (reverted) {
-                    // Show that targeted withdrawal to a specific market
-                    // with enough balance could work.
-                    uint256 optimizerBal0 = IBorrowableCToken(cUSDC_WMON_MARKET)
-                        .convertToAssets(
-                            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
-                        );
-                    console2.log("Optimizer balance in market 0:", optimizerBal0);
-
-                    // Try targeted withdrawal from market with most idle.
-                    address targetMarket = idle0 >= idle1 ? cUSDC_WMON_MARKET : cUSDC_WBTC_MARKET;
+                    // Show that a smaller withdrawal within available liquidity works.
                     uint256 targetIdle = idle0 >= idle1 ? idle0 : idle1;
 
                     if (targetIdle > 100e6) {
                         uint256 safeAmount = targetIdle / 2;
                         vm.startPrank(victim);
-                        harness.withdraw(safeAmount, victim, victim, targetMarket);
+                        harness.withdraw(safeAmount, victim, victim);
                         vm.stopPrank();
-                        console2.log("Targeted withdrawal of", safeAmount, "from specific market succeeded");
+                        console2.log("Smaller withdrawal of", safeAmount, "succeeded");
                     }
                 }
             }
@@ -304,7 +309,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 feeSharesBefore = harness.balanceOf(
             liveCentralRegistry.daoAddress()
@@ -324,7 +329,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Wait and trigger accrual.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 feeSharesAfter = harness.balanceOf(
             liveCentralRegistry.daoAddress()
@@ -342,7 +347,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Now let more yield accrue with fee = 0.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Verify no fees charged when fee = 0.
         uint256 feeSharesAfterZeroFee = harness.balanceOf(
@@ -361,9 +366,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Phase 1: Let yield accrue and vest with 10% fee.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 rateAfterPhase1 = harness.exchangeRate();
         uint256 watermark1 = harness.exchangeRateHighWatermark();
@@ -377,7 +382,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Phase 2: Manager sets fee to 0.
         // Wait for yield to settle before changing fee.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(0);
@@ -392,9 +397,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Let yield accrue untaxed for several days.
         for (uint256 i = 0; i < 3; i++) {
             skip(1 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 rateAfterPhase2 = harness.exchangeRate();
@@ -429,10 +434,10 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Wait for deferred fee to actually apply.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         if (harness.fee() != 1_000) {
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 watermarkSettled = harness.exchangeRateHighWatermark();
@@ -453,9 +458,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Verify future yield IS taxed.
         uint256 daoSharesBeforeTax = harness.balanceOf(liveCentralRegistry.daoAddress());
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 daoSharesAfterTax = harness.balanceOf(liveCentralRegistry.daoAddress());
         console2.log("  After new yield cycle, DAO shares:", daoSharesAfterTax);
@@ -523,7 +528,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    // F. optimalWithdrawalTarget GRIEFING
+    // F. MULTI-MARKET WITHDRAWAL GRIEFING
     // =====================================================================
 
     /// @notice Tests that when all markets have insufficient idle liquidity
@@ -553,7 +558,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
             // Only test if victim has enough shares for this withdrawal.
             if (oversizedWithdraw <= victimAssets) {
-                // Standard withdraw uses optimalWithdrawalTarget.
+                // Standard withdraw uses _withdrawMultiMarket.
                 // It checks EACH market individually:
                 //   marketAssets >= assets && cToken.assetsHeld() >= assets
                 // If no single market passes both checks, it reverts.
@@ -580,7 +585,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
                     if (safeAmount > 0) {
                         vm.startPrank(victim);
-                        harness.withdraw(safeAmount, victim, victim, bestMarket);
+                        harness.withdraw(safeAmount, victim, victim);
                         vm.stopPrank();
                         console2.log("  Targeted withdrawal of", safeAmount, "succeeded");
                     }
@@ -602,9 +607,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let initial yield accrue and vest with fees.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 initialDaoShares = harness.balanceOf(liveCentralRegistry.daoAddress());
         uint256 rateBeforeFeeZero = harness.exchangeRate();
@@ -618,7 +623,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Step 1: Manager sets fee to 0.
         // Wait for yield to settle before changing fee.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(0);
@@ -635,9 +640,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // Multiple vesting cycles with no fees.
         for (uint256 i = 0; i < 5; i++) {
             skip(1 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 rateAfterFreeYield = harness.exchangeRate();
@@ -656,7 +661,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         // If deferred, force apply.
         if (harness.fee() != 1_000) {
             skip(1 days + 1);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         uint256 watermarkAfterRestore = harness.exchangeRateHighWatermark();
@@ -679,9 +684,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Step 4: Verify future yield IS taxed.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 daoSharesAfterRestore = harness.balanceOf(liveCentralRegistry.daoAddress());
         console2.log("\nAfter one cycle with restored fee:");
@@ -718,7 +723,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             skip(1 days + 1);
 
             // Trigger accrual - yield is immediately recognized.
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
 
             // Record share price for a new depositor.
             uint256 depositAmount = 100_000e6;
@@ -746,7 +751,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // New depositor deposits after yield accrual.
         uint256 newDeposit = 100_000e6;
@@ -757,7 +762,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let more yield accrue.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Calculate new depositor's value after yield.
         uint256 victim2Assets = harness.convertToAssets(victim2Shares);
@@ -786,7 +791,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 totalAssetsBefore = harness.totalAssets();
         uint256 indexedBefore = harness.exposed_totalAssetsIndexed();
@@ -803,15 +808,16 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
             actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: -int256(rebalanceAmt)
+                assetsOrBps: -int256(rebalanceAmt)
             });
             actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: int256(rebalanceAmt)
+                assetsOrBps: int256(rebalanceAmt)
             });
 
+            LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(actions) {} catch {
+            try harness.rebalance(actions, bounds) {} catch {
                 console2.log("Rebalance failed at iteration", i);
                 break;
             }
@@ -819,15 +825,16 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory rev = new LendingOptimizer.ReallocationAction[](2);
             rev[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: int256(rebalanceAmt)
+                assetsOrBps: int256(rebalanceAmt)
             });
             rev[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: -int256(rebalanceAmt)
+                assetsOrBps: -int256(rebalanceAmt)
             });
 
+            bounds = _unconstrainedBoundsFor(harness);
             vm.prank(maliciousHarvester);
-            try harness.rebalance(rev) {} catch {
+            try harness.rebalance(rev, bounds) {} catch {
                 console2.log("Reverse rebalance failed at iteration", i);
                 break;
             }
@@ -861,7 +868,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Let yield accrue.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Set fee to 50% (max).
         vm.prank(mktManager);
@@ -893,9 +900,9 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Cycle 1: Normal yield accrual.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 rate1 = harness.exchangeRate();
         assertGe(rate1, previousRate, "Rate decreased after cycle 1");
@@ -904,13 +911,13 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Cycle 2: Fee change during vesting.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         vm.prank(mktManager);
         harness.setFee(2_000); // Change to 20%
 
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 rate2 = harness.exchangeRate();
         assertGe(rate2, previousRate, "Rate decreased after fee change");
@@ -919,7 +926,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // Cycle 3: New deposit after yield accrual.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         _userDeposit(victim2, 500_000e6);
 
@@ -930,7 +937,7 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
 
         // More yield accrual.
         skip(1 days + 1);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 rate4 = harness.exchangeRate();
         assertGe(rate4, previousRate, "Rate decreased after yield accrual");
@@ -949,16 +956,17 @@ contract EconomicAttackAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
         actions[0] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-            assets: int256(0)
+            assetsOrBps: int256(0)
         });
         actions[1] = LendingOptimizer.ReallocationAction({
             cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-            assets: int256(0)
+            assetsOrBps: int256(0)
         });
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsFor(harness);
         vm.prank(attacker);
         vm.expectRevert();
-        harness.rebalance(actions);
+        harness.rebalance(actions, bounds);
 
         console2.log("DEFENSE CONFIRMED: Harvester-only functions properly restricted");
     }

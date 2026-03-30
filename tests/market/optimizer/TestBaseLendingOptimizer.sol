@@ -283,7 +283,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _setUpTwoMarkets() internal {
@@ -312,7 +312,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _setUpThreeMarkets() internal {
@@ -343,7 +343,7 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositToAllMarkets(uint256 amountPerMarket) internal {
@@ -352,8 +352,56 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), amountPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), amountPerMarket);
-            optimizer.deposit(amountPerMarket, address(this), markets[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                amountPerMarket, address(this), markets[i]
+            );
         }
+    }
+
+    /// @dev Returns unconstrained allocation bounds ([0, 10000]) for all
+    ///      approved markets. Useful for tests that don't care about bounds.
+    function _unconstrainedBounds() internal view returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: optimizer.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    /// @dev Returns unconstrained allocation bounds for the post-removal approved
+    ///      markets list. Call BEFORE removeApprovedAsset since it needs the
+    ///      pre-removal list to predict the post-removal order (swap-and-pop).
+    function _unconstrainedBoundsForRemoval(address cTokenToRemove) internal view returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l - 1);
+        // Find the index of the market being removed.
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (optimizer.approvedCTokensList(i) == cTokenToRemove) {
+                removeIndex = i;
+                break;
+            }
+        }
+        // Simulate swap-and-pop to get post-removal order.
+        address[] memory postRemoval = new address[](l - 1);
+        for (uint256 i; i < l; ++i) {
+            if (i < l - 1) postRemoval[i] = optimizer.approvedCTokensList(i);
+        }
+        if (removeIndex != l - 1) {
+            postRemoval[removeIndex] = optimizer.approvedCTokensList(l - 1);
+        }
+        for (uint256 i; i < l - 1; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    /// @dev Convenience wrapper for rebalance.
+    function _rebalance(
+        LendingOptimizer lo,
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) internal {
+        lo.rebalance(actions, bounds);
     }
 
 }

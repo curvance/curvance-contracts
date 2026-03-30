@@ -7,9 +7,9 @@ contract MockCalldataChecker is BaseSwapChecker {
     constructor(address _target) BaseSwapChecker(_target) {}
 
     function checkCalldata(
-        SwapperLib.Swap memory swapAction,
-        address recipient
-    ) external view override returns (uint256) {
+        SwapperLib.Swap memory,
+        address
+    ) external pure override returns (uint256) {
         return 0; // update if we ever need to return a min amount out
         // for now it's only used as a placeholder for tests.
     }

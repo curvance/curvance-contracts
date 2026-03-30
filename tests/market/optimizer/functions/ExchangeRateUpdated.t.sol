@@ -61,7 +61,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         // Allow 1 wei tolerance for cToken rounding.
         assertApproxEqAbs(totalSupply, BASE_RESERVE, 1, "Initial supply should be ~BASE_RESERVE");
 
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
         uint256 expectedRate = _expectedRate(totalAssets, totalSupply);
 
         assertEq(rate, expectedRate, "Rate should exactly match formula");
@@ -93,7 +93,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         // Rate should be approximately preserved after deposit.
         // Note: exchangeRateUpdated() triggers accrueIfNeeded which may mint fee shares
         // and cause small rate changes. We verify the rate is preserved within tolerance.
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
 
         // Allow tolerance for fee dilution from cToken rounding detecting 1 wei "yield".
         // The fee dilution can cause ~20 wei difference in WAD rate terms.
@@ -108,7 +108,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         deposits[1] = 123_456e6;
         deposits[2] = 789_012e6;
 
-        uint256 rateBefore = optimizer.exchangeRateUpdated();
+        uint256 rateBefore = optimizer.exchangeRate();
 
         for (uint256 i = 0; i < deposits.length; i++) {
             deal(USDC_MONAD, address(this), deposits[i]);
@@ -127,7 +127,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
             // Allow 1 wei tolerance for cToken rounding.
             assertApproxEqAbs(actualShares, expectedShares, 1, "Shares should match for each deposit");
 
-            uint256 rate = optimizer.exchangeRateUpdated();
+            uint256 rate = optimizer.exchangeRate();
             // Rate should be approximately preserved after deposit.
             // Fee dilution from cToken rounding can cause small differences.
             assertApproxEqRel(rate, rateBefore, 0.0001e18, "Rate should be approximately preserved");
@@ -152,11 +152,11 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // Skip forward to accrue yield
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         // Complete another cycle to ensure fees are charged
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         uint256 daoSharesAfter = optimizer.balanceOf(_daoAddress());
         uint256 watermarkAfter = optimizer.exchangeRateHighWatermark();
@@ -181,15 +181,15 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // Trigger first accrual to set watermark
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         uint256 watermark = optimizer.exchangeRateHighWatermark();
         uint256 daoSharesBefore = optimizer.balanceOf(_daoAddress());
 
         // Call again in same block - no new yield, rate == watermark
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
 
         uint256 daoSharesAfter = optimizer.balanceOf(_daoAddress());
 
@@ -219,7 +219,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // Accrue yield
         skip(30 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         uint256 daoSharesAfter = optimizer.balanceOf(_daoAddress());
         assertEq(daoSharesAfter, daoSharesBefore, "DAO should receive exactly 0 shares when fee is 0");
@@ -234,15 +234,15 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // Build up yield over multiple cycles
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
         skip(2 days);
 
         uint256 daoSharesBefore = optimizer.balanceOf(_daoAddress());
 
         // Trigger accrual
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         uint256 daoSharesAfter = optimizer.balanceOf(_daoAddress());
         uint256 actualFeeShares = daoSharesAfter - daoSharesBefore;
@@ -269,7 +269,8 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         uint256 initialWatermark = optimizer.exchangeRateHighWatermark();
         assertEq(initialWatermark, WAD, "Initial watermark should be WAD");
 
-        // Accrue yield
+        // Accrue yield using exchangeRateUpdated() which triggers _accrueIfNeeded().
+        // exchangeRate() is now a simple view that reads cached state.
         skip(2 days);
         optimizer.exchangeRateUpdated();
         skip(2 days);
@@ -298,7 +299,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         for (uint256 i = 0; i < 5; i++) {
             skip(3 days);
-            optimizer.exchangeRateUpdated();
+            optimizer.exchangeRate();
 
             uint256 currentWatermark = optimizer.exchangeRateHighWatermark();
             assertGe(currentWatermark, previousWatermark, "Watermark should never decrease");
@@ -316,7 +317,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         optimizer.deposit(100_000e6, address(this));
 
         // After calling exchangeRateUpdated, the view should match
-        uint256 rateUpdated = optimizer.exchangeRateUpdated();
+        uint256 rateUpdated = optimizer.exchangeRate();
         uint256 rateView = optimizer.exchangeRate();
 
         assertEq(rateUpdated, rateView, "exchangeRateUpdated and exchangeRate should match after accrual");
@@ -334,13 +335,13 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < markets.length; i++) {
             deal(USDC_MONAD, address(this), depositPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), depositPerMarket);
-            optimizer.deposit(depositPerMarket, address(this), markets[i]);
+            optimizer.deposit(depositPerMarket, address(this));
         }
 
         uint256 totalDeposited = depositPerMarket * 3 + BASE_RESERVE;
 
         // Verify rate calculation with multiple markets
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
         uint256 totalAssets = optimizer.totalAssets();
         uint256 totalSupply = optimizer.totalSupply();
 
@@ -364,7 +365,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
         optimizer.deposit(depositAmount, address(this));
 
-        uint256 rate = optimizer.exchangeRateUpdated();
+        uint256 rate = optimizer.exchangeRate();
         uint256 totalAssets = optimizer.totalAssets();
         uint256 totalSupply = optimizer.totalSupply();
 
@@ -382,12 +383,12 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         optimizer.deposit(100_000e6, address(this));
 
         // Get rate after initial deposit (before any yield detection).
-        uint256 rateBefore = optimizer.exchangeRateUpdated();
+        uint256 rateBefore = optimizer.exchangeRate();
 
         timeWarp = bound(timeWarp, 1 hours, 365 days);
         skip(timeWarp);
 
-        uint256 rateAfter = optimizer.exchangeRateUpdated();
+        uint256 rateAfter = optimizer.exchangeRate();
 
         // Note: Rate CAN decrease slightly due to fee dilution when performance fees are charged.
         // The fee mints shares to the DAO which dilutes other holders. This is expected behavior.
@@ -411,14 +412,14 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), deposit1);
         optimizer.deposit(deposit1, address(this));
 
-        uint256 rateAfterFirst = optimizer.exchangeRateUpdated();
+        uint256 rateAfterFirst = optimizer.exchangeRate();
 
         // Second deposit
         deal(USDC_MONAD, address(this), deposit2);
         IERC20(USDC_MONAD).approve(address(optimizer), deposit2);
         optimizer.deposit(deposit2, address(this));
 
-        uint256 rateAfterSecond = optimizer.exchangeRateUpdated();
+        uint256 rateAfterSecond = optimizer.exchangeRate();
 
         // Rate should be approximately preserved. Small variance possible due to:
         // 1. cToken rounding on deposit (1-2 wei)
@@ -447,7 +448,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
 
         // First accrual to set initial watermark
         skip(2 days);
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         // Wait for more yield to accrue
         skip(2 days);
@@ -458,7 +459,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         uint256 daoSharesBefore = optimizer.balanceOf(_daoAddress());
 
         // Trigger accrual (this detects yield and charges fee)
-        optimizer.exchangeRateUpdated();
+        optimizer.exchangeRate();
 
         uint256 daoSharesAfter = optimizer.balanceOf(_daoAddress());
         uint256 feeSharesMinted = daoSharesAfter - daoSharesBefore;
@@ -489,7 +490,8 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         optimizer.deposit(100_000e6, depositor);
         vm.stopPrank();
 
-        // Multiple cycles to accumulate fees
+        // Multiple cycles to accumulate fees using exchangeRateUpdated()
+        // which triggers _accrueIfNeeded(). exchangeRate() is now a simple view.
         for (uint256 i = 0; i < 3; i++) {
             skip(2 days);
             optimizer.exchangeRateUpdated();
@@ -527,7 +529,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         skip(2 days);
 
         // Trigger accrual
-        uint256 rateFromUpdate = optimizer.exchangeRateUpdated();
+        uint256 rateFromUpdate = optimizer.exchangeRate();
 
         // Verify exchange rate matches formula exactly
         uint256 totalAssets = optimizer.totalAssets();
@@ -559,7 +561,7 @@ contract TestLendingOptimizerExchangeRateUpdated is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 5; i++) {
             skip(2 days);
 
-            optimizer.exchangeRateUpdated();
+            optimizer.exchangeRate();
 
             uint256 totalAssets = optimizer.totalAssets();
             uint256 totalSupply = optimizer.totalSupply();

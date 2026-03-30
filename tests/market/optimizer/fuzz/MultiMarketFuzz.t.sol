@@ -32,6 +32,42 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
 
     // ==================== Helpers ====================
 
+    /// @dev Returns unconstrained allocation bounds for the given optimizer.
+    function _unconstrainedBoundsFor(LendingOptimizer lo)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: lo.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    function _unconstrainedBoundsForRemoval(LendingOptimizer lo, address cTokenToRemove)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l - 1);
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (lo.approvedCTokensList(i) == cTokenToRemove) { removeIndex = i; break; }
+        }
+        address[] memory postRemoval = new address[](l - 1);
+        for (uint256 i; i < l; ++i) {
+            if (i < l - 1) postRemoval[i] = lo.approvedCTokensList(i);
+        }
+        if (removeIndex != l - 1) {
+            postRemoval[removeIndex] = lo.approvedCTokensList(l - 1);
+        }
+        for (uint256 i; i < l - 1; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
+        }
+    }
+
     function _deployThreeMarketHarness() internal {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -54,7 +90,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _deployTwoMarketHarness() internal {
@@ -77,7 +113,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _deployTightCapHarness() internal {
@@ -103,7 +139,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositToHarness(address depositor, uint256 amount) internal {
@@ -118,7 +154,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, depositor, amount);
         vm.startPrank(depositor);
         IERC20(USDC_MONAD).approve(address(harness), amount);
-        harness.deposit(amount, depositor, market);
+        harness.deposit(amount, depositor);
         vm.stopPrank();
     }
 
@@ -128,75 +164,11 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         );
     }
 
-    /// @dev Helper to verify deposit target has the highest projected rate among all markets.
-    function _verifyDepositOptimal(
-        uint256 targetIndex,
-        uint256 depositAmount,
-        uint256 /* newTotal */
-    ) internal view {
-        address chosenMarket = harness.approvedCTokensList(targetIndex);
-        IBorrowableCToken chosenCt = IBorrowableCToken(chosenMarket);
-        uint256 chosenRate = chosenCt.IRM().supplyRate(
-            chosenCt.assetsHeld() + depositAmount,
-            chosenCt.marketOutstandingDebt(),
-            chosenCt.interestFee()
-        );
-
-        for (uint256 i = 0; i < 3; i++) {
-            if (i == targetIndex) continue;
-            address otherMarket = harness.approvedCTokensList(i);
-            IBorrowableCToken otherCt = IBorrowableCToken(otherMarket);
-            uint256 otherRate = otherCt.IRM().supplyRate(
-                otherCt.assetsHeld() + depositAmount,
-                otherCt.marketOutstandingDebt(),
-                otherCt.interestFee()
-            );
-            assertGe(
-                chosenRate,
-                otherRate,
-                "Chosen market must have highest projected rate among all markets"
-            );
-        }
-    }
-
     /// @dev Helper to verify withdrawal target has the lowest projected rate among viable markets.
-    function _verifyWithdrawalOptimal(
-        uint256 targetIndex,
-        uint256 withdrawAmount
-    ) internal view {
-        address chosenMarket = harness.approvedCTokensList(targetIndex);
-        IBorrowableCToken chosenCt = IBorrowableCToken(chosenMarket);
-        uint256 chosenRate = chosenCt.IRM().supplyRate(
-            chosenCt.assetsHeld() - withdrawAmount,
-            chosenCt.marketOutstandingDebt(),
-            chosenCt.interestFee()
-        );
-
-        for (uint256 i = 0; i < 3; i++) {
-            if (i == targetIndex) continue;
-            address otherMarket = harness.approvedCTokensList(i);
-            uint256 otherAssets = _getMarketAssets(otherMarket);
-            uint256 otherLiquidity = IBorrowableCToken(otherMarket).assetsHeld();
-
-            if (otherAssets >= withdrawAmount && otherLiquidity >= withdrawAmount) {
-                IBorrowableCToken otherCt = IBorrowableCToken(otherMarket);
-                uint256 otherRate = otherCt.IRM().supplyRate(
-                    otherCt.assetsHeld() - withdrawAmount,
-                    otherCt.marketOutstandingDebt(),
-                    otherCt.interestFee()
-                );
-                assertLe(
-                    chosenRate,
-                    otherRate,
-                    "Chosen market must have lowest projected rate among viable markets"
-                );
-            }
-        }
-    }
 
     // ==================== Tests ====================
 
-    function testFuzz_optimalDepositTarget_varied(
+    function testFuzz_supplyQueueTarget_varied(
         uint256 depositAmount,
         uint256 market0Deposit,
         uint256 market1Deposit
@@ -212,17 +184,18 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         _depositToHarnessMarket(address(this), market0Deposit, cUSDC_WMON_MARKET);
         _depositToHarnessMarket(address(this), market1Deposit, cUSDC_WBTC_MARKET);
 
-        // Get optimal target.
-        uint256 targetIndex = harness.optimalDepositTarget(depositAmount);
+        // Get supply queue target - returns the first non-paused market in the supply queue.
+        address target = harness.approvedCTokensList(0);
 
-        // Verify the chosen index is valid.
-        assertLt(targetIndex, 3, "Target index must be within bounds");
-
-        // Verify the chosen market has the highest projected rate.
-        {
-            uint256 newTotal = harness.totalAssets() + depositAmount;
-            _verifyDepositOptimal(targetIndex, depositAmount, newTotal);
+        // Verify the target is a valid approved market.
+        bool isApproved = false;
+        for (uint256 i = 0; i < harness.numApprovedMarkets(); i++) {
+            if (harness.approvedCTokensList(i) == target) {
+                isApproved = true;
+                break;
+            }
         }
+        assertTrue(isApproved, "Supply queue target must be an approved market");
 
         // Execute deposit and verify it succeeds.
         deal(USDC_MONAD, user1, depositAmount);
@@ -231,62 +204,6 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         uint256 shares = harness.deposit(depositAmount, user1);
         vm.stopPrank();
         assertGt(shares, 0, "Deposit must mint shares");
-    }
-
-    function testFuzz_optimalWithdrawalTarget_varied(
-        uint256 withdrawAmount,
-        uint256 market0Deposit,
-        uint256 market1Deposit
-    ) public {
-        _deployThreeMarketHarness();
-
-        // Pre-load different amounts into markets.
-        market0Deposit = bound(market0Deposit, 100e6, 5_000_000e6);
-        market1Deposit = bound(market1Deposit, 100e6, 5_000_000e6);
-
-        _depositToHarnessMarket(user1, market0Deposit, cUSDC_WMON_MARKET);
-        _depositToHarnessMarket(user1, market1Deposit, cUSDC_WBTC_MARKET);
-
-        // Bound withdraw to what is actually withdrawable.
-        uint256 maxW = harness.maxWithdraw(user1);
-        vm.assume(maxW >= 1e6);
-
-        // Further bound withdrawal to the maximum liquidity available in any
-        // single market. The optimizer's optimalWithdrawalTarget selects a
-        // single market, so the withdrawal amount must fit within one market's
-        // available liquidity.
-        uint256 maxSingleMarketLiquidity;
-        for (uint256 i = 0; i < harness.numApprovedMarkets(); i++) {
-            address m = harness.approvedCTokensList(i);
-            uint256 mAssets = _getMarketAssets(m);
-            uint256 mLiquidity = IBorrowableCToken(m).assetsHeld();
-            uint256 available = mAssets < mLiquidity ? mAssets : mLiquidity;
-            if (available > maxSingleMarketLiquidity) {
-                maxSingleMarketLiquidity = available;
-            }
-        }
-        vm.assume(maxSingleMarketLiquidity >= 1e6);
-
-        uint256 effectiveMax = maxW < maxSingleMarketLiquidity ? maxW : maxSingleMarketLiquidity;
-        vm.assume(effectiveMax >= 1e6);
-        withdrawAmount = bound(withdrawAmount, 1e6, effectiveMax);
-
-        // Call optimalWithdrawalTarget.
-        uint256 targetIndex = harness.optimalWithdrawalTarget(withdrawAmount);
-        assertLt(targetIndex, 3, "Target index must be within bounds");
-
-        {
-            address chosenMarket = harness.approvedCTokensList(targetIndex);
-            uint256 chosenAssets = _getMarketAssets(chosenMarket);
-            uint256 chosenLiquidity = IBorrowableCToken(chosenMarket).assetsHeld();
-
-            // Verify the chosen market has sufficient balance and liquidity.
-            assertGe(chosenAssets, withdrawAmount, "Chosen market must have enough balance");
-            assertGe(chosenLiquidity, withdrawAmount, "Chosen market must have enough liquidity");
-        }
-
-        // Verify no other viable market has a lower projected rate.
-        _verifyWithdrawalOptimal(targetIndex, withdrawAmount);
     }
 
     function testFuzz_marketAdditionMidOperation(
@@ -335,7 +252,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user2, 1_000e6);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-        uint256 shares = harness.deposit(1_000e6, user2, cUSDC_WETH_MARKET);
+        uint256 shares = harness.deposit(1_000e6, user2);
         vm.stopPrank();
         assertGt(shares, 0, "Should be able to deposit to newly added market");
     }
@@ -364,20 +281,17 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         // Increase first remaining market cap to 100% so remaining caps >= 100%.
         harness.updateCap(firstRemaining, 10_000);
 
-        // Estimate redeem output and build reallocation action.
+        // Build reallocation action with BPS (single target gets 100%).
         IBorrowableCToken cTokenToRemove = IBorrowableCToken(markets[marketToRemoveIdx]);
-        uint256 estimatedRedeem = cTokenToRemove.convertToAssets(
-            cTokenToRemove.balanceOf(address(harness))
-        );
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(firstRemaining),
-            int256(estimatedRedeem)
+            int256(10_000)
         );
 
-        // Try removal - may fail if redeem output != estimate.
-        try harness.removeApprovedAsset(marketToRemoveIdx, removeActions) {
+        // Try removal.
+        try harness.removeApprovedAsset(markets[marketToRemoveIdx], removeActions, _unconstrainedBoundsForRemoval(harness, markets[marketToRemoveIdx])) {
             assertApproxEqAbs(
                 harness.totalAssets(), totalAssetsBefore, 10,
                 "Total assets should be preserved after market removal"
@@ -421,9 +335,9 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(harness), extraDeposit);
 
-        // Get the target - when all markets are at cap, defaults to market 0.
-        uint256 target = harness.optimalDepositTarget(extraDeposit);
-        assertLt(target, 3, "Target should be a valid index");
+        // Get the target - returns the first non-paused market in the supply queue.
+        address target = harness.approvedCTokensList(0);
+        assertTrue(target != address(0), "Target should be a valid market");
 
         uint256 market0Before = _getMarketAssets(cUSDC_WMON_MARKET);
 
@@ -539,7 +453,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         );
 
         // Rebalance may revert if depositing excess into market 1 pushes it over its cap.
-        try harness.rebalance(actions) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             // Verify market 0 is now within cap.
             uint256 taAfter = harness.totalAssets();
             uint256 market0After = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -611,7 +525,7 @@ contract MultiMarketFuzz is TestBaseLendingOptimizer {
         }
 
         // Try the rebalance. May revert if deposit pushes a market over cap.
-        try harness.rebalance(actions) {
+        try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {
             uint256 totalAssetsAfter = harness.totalAssets();
 
             // Total assets should be preserved within rounding.

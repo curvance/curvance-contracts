@@ -68,8 +68,17 @@ contract LendingOptimizerHandler is Test {
         return actors[seed % actors.length];
     }
 
-    function _selectMarket(uint256 seed) internal view returns (address) {
-        return markets[seed % markets.length];
+    /// @dev Returns unconstrained allocation bounds for the optimizer.
+    function _unconstrainedBounds()
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = optimizer.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: optimizer.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
     }
 
     function _updateExchangeRate() internal {
@@ -101,17 +110,17 @@ contract LendingOptimizerHandler is Test {
     // ========================================================================
 
     /// @notice Deposit assets into the optimizer for a random actor.
-    function deposit(uint256 actorSeed, uint256 assets, uint256 marketIndex) external {
+    function deposit(uint256 actorSeed, uint256 assets, uint256 marketSeed) external {
         address actor = _selectActor(actorSeed);
         assets = bound(assets, 1e6, 10_000_000e6);
-        address market = _selectMarket(marketIndex);
+        address market = markets[marketSeed % markets.length];
 
         deal(address(usdc), actor, assets);
 
         vm.startPrank(actor);
         usdc.approve(address(optimizer), assets);
 
-        try optimizer.deposit(assets, actor, market) returns (uint256 shares) {
+        try optimizer.depositToMarket(assets, actor, market) returns (uint256 shares) {
             ghost_totalDeposited += assets;
             ghost_userDeposited[actor] += assets;
             ghost_totalSharesMinted += shares;
@@ -125,17 +134,16 @@ contract LendingOptimizerHandler is Test {
     }
 
     /// @notice Withdraw assets for a random actor who has shares.
-    function withdraw(uint256 actorSeed, uint256 assets, uint256 marketIndex) external {
+    function withdraw(uint256 actorSeed, uint256 assets, uint256) external {
         address actor = _selectActor(actorSeed);
         uint256 maxW = optimizer.maxWithdraw(actor);
         if (maxW == 0) return;
 
         assets = bound(assets, 1, maxW);
-        address market = _selectMarket(marketIndex);
 
         vm.startPrank(actor);
 
-        try optimizer.withdraw(assets, actor, actor, market) returns (uint256 shares) {
+        try optimizer.withdraw(assets, actor, actor) returns (uint256 shares) {
             ghost_totalWithdrawn += assets;
             ghost_userWithdrawn[actor] += assets;
             ghost_totalSharesBurned += shares;
@@ -149,17 +157,16 @@ contract LendingOptimizerHandler is Test {
     }
 
     /// @notice Redeem shares for a random actor who has shares.
-    function redeem(uint256 actorSeed, uint256 shares, uint256 marketIndex) external {
+    function redeem(uint256 actorSeed, uint256 shares, uint256) external {
         address actor = _selectActor(actorSeed);
         uint256 maxR = optimizer.maxRedeem(actor);
         if (maxR == 0) return;
 
         shares = bound(shares, 1, maxR);
-        address market = _selectMarket(marketIndex);
 
         vm.startPrank(actor);
 
-        try optimizer.redeem(shares, actor, actor, market) returns (uint256 assets) {
+        try optimizer.redeem(shares, actor, actor) returns (uint256 assets) {
             ghost_totalWithdrawn += assets;
             ghost_userWithdrawn[actor] += assets;
             ghost_totalSharesBurned += shares;
@@ -219,7 +226,10 @@ contract LendingOptimizerHandler is Test {
             // Track the asset value of transferred shares so that
             // the round-trip invariant accounts for shares received
             // via transfer (not just direct deposits).
-            uint256 assetValue = optimizer.convertToAssets(amount);
+            // Round up (+1) so the ghost accounting never under-counts
+            // the receiver's "deposit", which would cause false positives
+            // on the round-trip invariant with dust amounts.
+            uint256 assetValue = optimizer.convertToAssets(amount) + 1;
             ghost_userDeposited[receiver] += assetValue;
             ghost_transferCount++;
         } catch {
@@ -260,16 +270,16 @@ contract LendingOptimizerHandler is Test {
         for (uint256 i; i < numMarkets; ++i) {
             actions[i].cToken = IBorrowableCToken(markets[i]);
             if (i == withdrawMarketIndex) {
-                actions[i].assets = -int256(amount);
+                actions[i].assetsOrBps = -int256(amount);
             } else if (i == depositMarketIndex) {
-                actions[i].assets = int256(amount);
+                actions[i].assetsOrBps = int256(amount);
             }
             // else: assets defaults to 0 (no-op)
         }
 
         _mockHarvestPermissions(address(this));
 
-        try optimizer.rebalance(actions) {
+        try optimizer.rebalance(actions, _unconstrainedBounds()) {
             ghost_rebalanceCount++;
         } catch {
             // Expected revert (e.g., allocation cap exceeded).
@@ -282,6 +292,10 @@ contract LendingOptimizerHandler is Test {
     function warpTime(uint256 duration) external {
         duration = bound(duration, 1, 7 days);
         vm.warp(block.timestamp + duration);
+        // Accrue interest so _totalAssets reflects the new cToken values.
+        // exchangeRate() is now a simple view; use exchangeRateUpdated()
+        // which triggers _accrueIfNeeded().
+        try optimizer.exchangeRateUpdated() {} catch {}
         _updateExchangeRate();
     }
 

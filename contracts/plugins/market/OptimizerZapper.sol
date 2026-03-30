@@ -58,8 +58,6 @@ contract OptimizerZapper is ReentrancyGuard {
     /// @notice Swaps `swapAction.inputToken` into the optimizer's underlying
     ///         asset and deposits into a LendingOptimizer vault.
     /// @param optimizer The LendingOptimizer vault to deposit into.
-    /// @param targetMarket The cToken market address within the optimizer
-    ///                     (computed offchain, passed to optimizer's 3-arg deposit).
     /// @param depositAsWrappedNative When `inputToken` is the native gas token,
     ///                               indicates wrapping before swap/deposit.
     /// @param swapAction Swap instructions. If inputToken == outputToken the
@@ -70,7 +68,6 @@ contract OptimizerZapper is ReentrancyGuard {
     /// @return shares The amount of optimizer shares minted to `receiver`.
     function swapAndDeposit(
         address optimizer,
-        address targetMarket,
         bool depositAsWrappedNative,
         SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
@@ -115,8 +112,7 @@ contract OptimizerZapper is ReentrancyGuard {
         SwapperLib._approveIfNeeded(underlying, optimizer, assets);
         shares = ILendingOptimizer(optimizer).deposit(
             assets,
-            receiver,
-            targetMarket
+            receiver
         );
         SwapperLib._removeApprovalIfNeeded(underlying, optimizer);
 

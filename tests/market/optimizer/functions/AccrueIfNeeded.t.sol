@@ -51,7 +51,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Sets up a zero-fee harness for testing accrual without fee interference.
@@ -79,7 +79,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Calculates expected exchange rate: WAD * totalAssets / totalSupply
@@ -98,10 +98,10 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         if (currentAssets <= highAssets) return 0;
 
         uint256 profit = currentAssets - highAssets;
-        uint256 feeAssets = FixedPointMathLib.mulDivUp(profit, feeWad, WAD);
+        uint256 feeAssets = FixedPointMathLib.mulDiv(profit, feeWad, WAD);
         if (feeAssets == 0) return 0;
 
-        return FixedPointMathLib.fullMulDivUp(feeAssets, supply, currentAssets - feeAssets);
+        return FixedPointMathLib.fullMulDiv(feeAssets, supply, currentAssets - feeAssets);
     }
 
     // ==================== BASIC ACCRUAL BEHAVIOR ====================
@@ -378,7 +378,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < markets.length; i++) {
             deal(USDC_MONAD, address(this), depositPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), depositPerMarket);
-            optimizer.deposit(depositPerMarket, address(this), markets[i]);
+            optimizer.deposit(depositPerMarket, address(this));
         }
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -404,7 +404,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < markets.length; i++) {
             deal(USDC_MONAD, address(this), depositPerMarket);
             IERC20(USDC_MONAD).approve(address(optimizer), depositPerMarket);
-            optimizer.deposit(depositPerMarket, address(this), markets[i]);
+            optimizer.deposit(depositPerMarket, address(this));
         }
 
         // Skip to allow yield
@@ -557,7 +557,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
 
         // Trigger accrual
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Record totalAssets
         uint256 totalAssetsBefore = harness.totalAssets();
@@ -566,7 +566,7 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         skip(12 hours);
 
         // exchangeRateUpdated should internally call accrueIfNeeded
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 totalAssetsAfter = harness.totalAssets();
 

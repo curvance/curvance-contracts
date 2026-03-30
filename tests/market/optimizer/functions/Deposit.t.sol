@@ -58,139 +58,7 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
-    }
-
-    // ============ deposit(assets, receiver, targetMarket) Tests ============
-
-    function test_lendingOptimizer_deposit_success_targetMarketA() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
-        uint256 totalAssetsBefore = optimizer.totalAssets();
-        uint256 user1SharesBefore = optimizer.balanceOf(user1);
-
-        uint256 shares = optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-
-        // Allow 0-2 wei variance due to cToken interest accrual and fee dilution.
-        assertApproxEqAbs(shares, expectedShares, 2, "Shares minted should approximately match preview");
-        assertEq(optimizer.balanceOf(user1), user1SharesBefore + shares, "User balance should increase");
-        // Assets may differ slightly due to cToken rounding during deposit.
-        assertApproxEqAbs(optimizer.totalAssets(), totalAssetsBefore + depositAmount, 2, "Total assets should approximately increase");
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_deposit_success_targetMarketDifferentReceiver() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
-
-        // Deposit for user2 as receiver
-        uint256 shares = optimizer.deposit(depositAmount, user2, cUSDC_WMON_MARKET);
-
-        // Allow 0-2 wei variance due to cToken interest accrual and fee dilution.
-        assertApproxEqAbs(shares, expectedShares, 2, "Shares minted should approximately match preview");
-        assertEq(optimizer.balanceOf(user2), shares, "Receiver should get the shares");
-        assertEq(optimizer.balanceOf(user1), 0, "Depositor should have no shares");
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_deposit_success_targetMarketAllMarkets() public {
-        uint256 depositAmount = 1000e6;
-
-        // Test deposit to each approved market
-        address[3] memory markets = [cUSDC_WMON_MARKET, cUSDC_WETH_MARKET, cUSDC_WBTC_MARKET];
-
-        for (uint256 i = 0; i < markets.length; i++) {
-            deal(USDC_MONAD, user1, depositAmount, true);
-
-            vm.startPrank(user1);
-            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-            uint256 sharesBefore = optimizer.balanceOf(user1);
-            uint256 shares = optimizer.deposit(depositAmount, user1, markets[i]);
-
-            assertGt(shares, 0, "Should mint shares");
-            assertEq(optimizer.balanceOf(user1), sharesBefore + shares, "Shares should be credited");
-            vm.stopPrank();
-        }
-    }
-
-    function test_lendingOptimizer_deposit_success_targetMarketEmitsEvent() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-        // Only check indexed parameters (caller and owner) since shares
-        // may differ by 1-2 wei due to cToken rounding.
-        vm.expectEmit(true, true, false, false);
-        emit Deposit(user1, user1, 0, 0);
-
-        optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_deposit_revert_targetMarketNotApproved() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-        // Use a random address that's not an approved market
-        address fakeMarket = makeAddr("fakeMarket");
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizer.deposit(depositAmount, user1, fakeMarket);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_deposit_revert_targetMarketNotInitialized() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(uninitializedOptimizer), depositAmount);
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        uninitializedOptimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_deposit_success_targetMarketMultipleDeposits() public {
-        vm.startPrank(user1);
-
-        uint256 depositAmount = 1000e6;
-        uint256 numDeposits = 5;
-        uint256 totalDeposited;
-
-        for (uint256 i = 0; i < numDeposits; i++) {
-            deal(USDC_MONAD, user1, depositAmount, true);
-            IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-            optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-            totalDeposited += depositAmount;
-        }
-
-        // User should have shares proportional to deposits
-        assertGt(optimizer.balanceOf(user1), 0, "User should have shares");
-
-        vm.stopPrank();
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     // ============ deposit(assets, receiver) - ERC4626 Standard Tests ============
@@ -255,18 +123,20 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, depositAmount, true);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
 
-        // Get the expected optimal target before deposit
-        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalDepositTarget(depositAmount);
-        address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
-
-        // Get market balance before
-        uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
+        // Get the total cToken balance across all approved markets before deposit.
+        uint256 totalCTokensBefore;
+        for (uint256 i = 0; i < optimizer.numApprovedMarkets(); i++) {
+            totalCTokensBefore += IBorrowableCToken(optimizer.approvedCTokensList(i)).balanceOf(address(optimizer));
+        }
 
         optimizer.deposit(depositAmount, user1);
 
-        // Verify deposit went to the expected market
-        uint256 marketBalanceAfter = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-        assertGt(marketBalanceAfter, marketBalanceBefore, "Expected market should receive deposit");
+        // Verify deposit went to some market (total cToken balance increased).
+        uint256 totalCTokensAfter;
+        for (uint256 i = 0; i < optimizer.numApprovedMarkets(); i++) {
+            totalCTokensAfter += IBorrowableCToken(optimizer.approvedCTokensList(i)).balanceOf(address(optimizer));
+        }
+        assertGt(totalCTokensAfter, totalCTokensBefore, "Some market should receive deposit");
 
         vm.stopPrank();
     }
@@ -417,25 +287,6 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
     }
 
     // ============ Fuzz Tests ============
-
-    function testFuzz_lendingOptimizer_deposit_targetMarket(uint256 depositAmount) public {
-        // Bound to reasonable amounts (1 USDC to 10M USDC)
-        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
-
-        vm.startPrank(user1);
-
-        deal(USDC_MONAD, user1, depositAmount, true);
-        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-
-        uint256 expectedShares = optimizer.previewDeposit(depositAmount);
-        uint256 shares = optimizer.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
-
-        // Allow 0-2 wei variance due to cToken interest accrual and fee dilution.
-        assertApproxEqAbs(shares, expectedShares, 2, "Shares should approximately match preview");
-        assertEq(optimizer.balanceOf(user1), shares, "Balance should equal shares");
-
-        vm.stopPrank();
-    }
 
     function testFuzz_lendingOptimizer_deposit_optimalMarket(uint256 depositAmount) public {
         // Bound to reasonable amounts (1 USDC to 10M USDC)
@@ -617,5 +468,13 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
             tolerance,
             "Total assets should approximately equal sum of all deposits"
         );
+    }
+
+    function test_lendingOptimizer_deposit_reverts_zeroAmount() public {
+        _setUpOneMarket();
+        vm.startPrank(user1);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.deposit(0, user1);
+        vm.stopPrank();
     }
 }

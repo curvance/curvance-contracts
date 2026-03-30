@@ -56,13 +56,23 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
         vm.mockCall(
             mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            mockMarket,
             abi.encodeWithSelector(IBorrowableCToken.marketManager.selector),
             abi.encode(validManager)
+        );
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(IMarketManager.isListed.selector, mockMarket),
+            abi.encode(true)
         );
     }
 
     /// @dev Mocks a cToken with full operational support (for _accrueMarkets,
-    ///      _optimalTarget, _depositToMarket, etc.). Returns 0 balance/assets
+    ///      _optimalDepositTarget, _depositToMarket, etc.). Returns 0 balance/assets
     ///      by default so the market behaves as empty.
     function _mockOperationalCToken(address mockMarket) internal {
         _mockValidCToken(mockMarket);
@@ -182,7 +192,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 4, "Should have 4 approved markets");
 
@@ -191,7 +201,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), depositAmount);
             IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
-            optimizer.deposit(depositAmount, address(this), cTokens[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                depositAmount, address(this), cTokens[i]
+            );
         }
 
         // Verify total assets track all deposits (+ dead shares).
@@ -206,7 +218,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Withdraw a portion from market 0.
         uint256 withdrawAmount = 1_000e6;
         uint256 sharesBurned = optimizer.withdraw(
-            withdrawAmount, address(this), address(this), cUSDC_WMON_MARKET
+            withdrawAmount, address(this), address(this)
         );
         assertGt(sharesBurned, 0, "Should have burned shares on withdraw");
 
@@ -256,7 +268,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 5, "Should have 5 approved markets");
 
@@ -264,7 +276,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 3; i++) {
             deal(USDC_MONAD, address(this), 10_000e6);
             IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-            optimizer.deposit(10_000e6, address(this), cTokens[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                10_000e6, address(this), cTokens[i]
+            );
         }
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
@@ -289,7 +303,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         );
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions);
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         // Total assets should be preserved.
         assertApproxEqAbs(
@@ -340,14 +354,14 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         assertEq(optimizer.numApprovedMarkets(), 6, "Should have MAX_MARKETS");
 
         // Deposit.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        uint256 shares = optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        uint256 shares = optimizer.deposit(10_000e6, address(this));
         assertGt(shares, 0, "Should receive shares with 6 markets");
 
         // Exchange rate should be valid.
@@ -386,16 +400,20 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit 10K to each market => ~50/50 allocation.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Verify current allocation is ~50% each.
         uint256 totalAssets = optimizer.totalAssets();
@@ -423,8 +441,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0)
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
 
         // A corrective rebalance that moves assets from WMON to WBTC should pass.
         uint256 wmonTarget = (totalAssets * 25) / 100; // 25% < 30% cap
@@ -437,7 +456,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WBTC_MARKET), int256(moveAmount)
         );
 
-        optimizer.rebalance(actions);
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         // Verify WMON is now within its cap.
         uint256 wmonAssetsAfter = _getMarketAssets(cUSDC_WMON_MARKET);
@@ -530,8 +549,12 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(optimizer), totalDeposit);
-        uint256 shares1 = optimizer.deposit(depositPerMarket, user, cUSDC_WMON_MARKET);
-        uint256 shares2 = optimizer.deposit(depositPerMarket, user, cUSDC_WBTC_MARKET);
+        uint256 shares1 = LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositPerMarket, user, cUSDC_WMON_MARKET
+        );
+        uint256 shares2 = LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositPerMarket, user, cUSDC_WBTC_MARKET
+        );
         vm.stopPrank();
 
         assertGt(shares1 + shares2, 0, "Step 2: shares should be minted");
@@ -559,7 +582,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         uint256 totalAssetsAfterYield = optimizer.totalAssets();
         assertGe(totalAssetsAfterYield, totalAssetsBefore, "Step 3: total assets should grow from yield");
 
-        uint256 rateAfterYield = optimizer.exchangeRateUpdated();
+        uint256 rateAfterYield = optimizer.exchangeRate();
         assertGe(rateAfterYield, WAD, "Step 3: rate should be >= 1:1");
 
         // --- STEP 4: Fee Charging ---
@@ -586,7 +609,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
         _mockHarvestPermissions();
-        optimizer.rebalance(actions);
+        _rebalance(optimizer, actions, _unconstrainedBounds());
 
         assertApproxEqAbs(
             optimizer.totalAssets(), totalAssetsBefore, 10,
@@ -628,15 +651,21 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // so the reallocation stays within caps after removal.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            1_000e6, address(this), cUSDC_WETH_MARKET
+        );
 
         // Record assets in WETH market before removal.
         uint256 wethAssets = _getMarketAssets(cUSDC_WETH_MARKET);
@@ -652,31 +681,19 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(wethAssets)
+            int256(10_000)
         );
 
         _mockMarketPermissions();
 
-        // removeApprovedAsset should succeed even though the market is paused,
-        // because it directly calls cToken.redeem() which is an ERC4626 operation
-        // on the cToken itself, not gated by the optimizer's _isMarketPausedForAction.
-        optimizer.removeApprovedAsset(2, removeActions);
+        // removeApprovedAsset should revert because the market to remove
+        // is paused for redemptions. Assets would be lost if removal proceeded.
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, bounds);
 
-        // Verify removal succeeded.
-        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
-        assertEq(
-            optimizer.allocationCaps(cUSDC_WETH_MARKET),
-            0,
-            "Removed market cap should be 0"
-        );
-
-        // Total assets should be preserved.
-        assertApproxEqAbs(
-            optimizer.totalAssets(),
-            totalAssetsBefore,
-            10,
-            "Total assets should be preserved after removing paused market"
-        );
+        // Market should still be approved.
+        assertEq(optimizer.numApprovedMarkets(), 3, "Should still have 3 markets");
     }
 
     // =====================================================================
@@ -687,34 +704,36 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
     ///         The underlying cToken.redeem(0,...) reverts with ZeroAmount,
     ///         so this verifies the revert behavior. Then deposits a minimal
     ///         amount and verifies that removal succeeds with a near-zero balance.
-    function test_removeApprovedAsset_zeroBalanceMarket_revertsOnRedeem() public {
+    function test_removeApprovedAsset_zeroBalanceMarket_succeeds() public {
         _setUpThreeMarkets();
 
         // Deposit only to markets 0 and 1, NOT market 2 (WETH).
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Verify WETH market has zero optimizer balance.
         uint256 wethCTokenBalance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
         assertEq(wethCTokenBalance, 0, "WETH market should have 0 cToken balance");
 
-        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
-        removeActions[0] = LendingOptimizer.ReallocationAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(0)
-        );
+        uint256 totalAssetsBefore = optimizer.totalAssets();
 
         _mockMarketPermissions();
 
-        // Attempting to remove a zero-balance market reverts because
-        // the underlying cToken.redeem(0,...) does not allow zero amounts.
-        vm.expectRevert();
-        optimizer.removeApprovedAsset(2, removeActions);
+        // Removing a zero-balance market succeeds with empty removeActions.
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
     }
 
     /// @notice Deposits a minimal amount to a market, then removes it.
@@ -725,16 +744,22 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         // Deposit to markets 0 and 1.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WMON_MARKET
+        );
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-        optimizer.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            10_000e6, address(this), cUSDC_WBTC_MARKET
+        );
 
         // Deposit a minimal amount to WETH (just enough to have non-zero shares).
         deal(USDC_MONAD, address(this), 100e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 100e6);
-        optimizer.deposit(100e6, address(this), cUSDC_WETH_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            100e6, address(this), cUSDC_WETH_MARKET
+        );
 
         // Verify WETH market has a non-zero balance.
         uint256 wethCTokenBalance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
@@ -747,11 +772,11 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(wethAssets)
+            int256(10_000)
         );
 
         _mockMarketPermissions();
-        optimizer.removeApprovedAsset(2, removeActions);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
 
         // Verify removal succeeded.
         assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
@@ -805,7 +830,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
         _mockMarketPermissions();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Auto-routed deposit should select one of the real markets
         // (mock market has 0 supply rate from IRM so real markets should win).
@@ -837,7 +862,7 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
         for (uint256 i = 0; i < 5; i++) {
             skip(2 days);
             // Should never revert.
-            optimizer.exchangeRateUpdated();
+            optimizer.exchangeRate();
         }
 
         // Exchange rate should have increased from yield on dead shares.

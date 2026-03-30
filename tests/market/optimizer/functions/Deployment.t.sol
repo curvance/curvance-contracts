@@ -70,6 +70,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify ERC165 interface support
         assertTrue(optimizer.supportsInterface(type(IERC165).interfaceId));
+        assertTrue(optimizer.supportsInterface(type(IERC20).interfaceId));
         assertTrue(optimizer.supportsInterface(type(ERC4626).interfaceId));
     }
 
@@ -267,6 +268,13 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
             abi.encode(USDC_MONAD)
         );
 
+        // Mock cToken.isBorrowable() to return true.
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("isBorrowable()"),
+            abi.encode(true)
+        );
+
         // Mock cToken.marketManager() to return the fake market manager.
         vm.mockCall(
             mockCToken,
@@ -330,6 +338,6 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // With no deposits, exchange rate should be WAD (1e18)
         assertEq(optimizer.exchangeRate(), WAD);
-        assertEq(optimizer.exchangeRateUpdated(), WAD);
+        assertEq(optimizer.exchangeRate(), WAD);
     }
 }

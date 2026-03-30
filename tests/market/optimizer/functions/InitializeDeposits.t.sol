@@ -47,7 +47,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Verify initialized (totalSupply > 0)
         assertGt(optimizer.totalSupply(), 0);
@@ -86,7 +86,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Second initialization fails
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AlreadyInitialized.selector);
@@ -95,7 +95,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function test_lendingOptimizer_initializeDeposits_fail_whenInvalidMarket() public {
@@ -124,7 +124,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encode(true)
         );
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizer.initializeDeposits(1);
+        optimizer.initializeDeposits(address(1));
     }
 
     function test_lendingOptimizer_deposit_fail_whenNotInitialized() public {
@@ -218,7 +218,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Allow 1 wei variance due to cToken rounding.
         assertApproxEqAbs(optimizer.totalSupply(), initAssets, 1);
@@ -254,7 +254,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(1);
+        optimizer.initializeDeposits(cUSDC_WBTC_MARKET);
 
         // Allow 1 wei variance due to cToken rounding.
         assertApproxEqAbs(optimizer.totalSupply(), initAssets, 1);
@@ -290,7 +290,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(2);
+        optimizer.initializeDeposits(cUSDC_WETH_MARKET);
 
         // Allow 1 wei variance due to cToken rounding.
         assertApproxEqAbs(optimizer.totalSupply(), initAssets, 1);
@@ -328,7 +328,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function test_lendingOptimizer_initializeDeposits_fail_whenOutOfBoundsIndex() public {
@@ -356,8 +356,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        vm.expectRevert();
-        optimizer.initializeDeposits(99);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.initializeDeposits(address(99));
     }
 
     function test_lendingOptimizer_initializeDeposits_fail_whenInsufficientBalance() public {
@@ -387,7 +387,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         // Should revert due to insufficient balance
         vm.expectRevert();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function test_lendingOptimizer_initializeDeposits_fail_whenInsufficientAllowance() public {
@@ -417,7 +417,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encode(true)
         );
         vm.expectRevert();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function test_lendingOptimizer_initializeDeposits_fail_whenNoAllowance() public {
@@ -446,7 +446,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encode(true)
         );
         vm.expectRevert();
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function test_lendingOptimizer_initializeDeposits_anyoneCanCall() public {
@@ -477,7 +477,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, randomUser),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
         vm.stopPrank();
 
         // Verify initialization succeeded.
@@ -513,7 +513,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         uint256 balanceAfter = IERC20(USDC_MONAD).balanceOf(address(this));
 
@@ -552,7 +552,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(1);
+        optimizer.initializeDeposits(cUSDC_WBTC_MARKET);
 
         // Verify cToken balance is only in the targeted market
         assertGt(IERC20(cUSDC_WBTC_MARKET).balanceOf(address(optimizer)), 0);
@@ -584,7 +584,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Exchange rate should be approximately 1:1 (WAD) after initialization
         // May vary slightly due to market exchange rates
@@ -619,14 +619,14 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
 
         // High watermark should still be WAD after initialization
         // (no performance fee accrual on first deposit)
         assertEq(optimizer.exchangeRateHighWatermark(), WAD);
     }
 
-    function testFuzz_lendingOptimizer_initializeDeposits_validMarketIndex(uint256 targetMarket) public {
+    function testFuzz_lendingOptimizer_initializeDeposits_validMarket(uint256 marketIndex) public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
         approvedCTokens[1] = cUSDC_WBTC_MARKET;
@@ -649,15 +649,15 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
 
-        // Bound to valid market indices
-        targetMarket = bound(targetMarket, 0, 2);
+        // Bound to valid market indices and select the corresponding address
+        marketIndex = bound(marketIndex, 0, 2);
 
         vm.mockCall(
             address(liveCentralRegistry),
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(targetMarket);
+        optimizer.initializeDeposits(approvedCTokens[marketIndex]);
 
         // Verify initialization succeeded.
         // Allow 1 wei variance due to cToken rounding.
@@ -691,7 +691,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         // Targeted deposit should fail before initialization
         vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        optimizer.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
+        optimizer.deposit(depositAmount, address(this));
     }
 
     function test_lendingOptimizer_targetedMint_fail_whenNotInitialized() public {
@@ -720,7 +720,7 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         // Targeted mint should fail before initialization
         vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
-        optimizer.mint(1000e6, address(this), cUSDC_WMON_MARKET);
+        optimizer.mint(1000e6, address(this));
     }
 
 }

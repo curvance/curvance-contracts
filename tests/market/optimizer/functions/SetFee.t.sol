@@ -193,11 +193,14 @@ contract TestLendingOptimizerSetFee is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        // Force accrual to get current watermark.
+        // Force accrual to get current watermark using exchangeRateUpdated()
+        // since exchangeRate() is now a simple view that reads cached state.
         optimizer.exchangeRateUpdated();
         uint256 watermarkBefore = optimizer.exchangeRateHighWatermark();
 
         // Change fee (not from 0) - watermark should not be reset.
+        // setFee calls _accrueIfNeeded internally, but since we just accrued
+        // in the same block, no new yield should be detected.
         optimizer.setFee(2_000);
 
         uint256 watermarkAfter = optimizer.exchangeRateHighWatermark();

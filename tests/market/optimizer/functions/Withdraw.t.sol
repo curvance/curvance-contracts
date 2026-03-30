@@ -50,7 +50,7 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
             abi.encode(true)
         );
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     function _depositForUser(address user, uint256 amount) internal {
@@ -58,189 +58,6 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         vm.startPrank(user);
         IERC20(USDC_MONAD).approve(address(optimizer), amount);
         optimizer.deposit(amount, user);
-        vm.stopPrank();
-    }
-
-    function _depositToMarket(address user, uint256 amount, address market) internal {
-        deal(USDC_MONAD, user, amount, true);
-        vm.startPrank(user);
-        IERC20(USDC_MONAD).approve(address(optimizer), amount);
-        optimizer.deposit(amount, user, market);
-        vm.stopPrank();
-    }
-
-    // ============ withdraw(assets, receiver, owner, targetMarket) Tests ============
-
-    function test_lendingOptimizer_withdraw_success_targetMarket() public {
-        // Deposit first
-        uint256 depositAmount = 10_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-
-        uint256 sharesBefore = optimizer.balanceOf(user1);
-        uint256 assetsBefore = IERC20(USDC_MONAD).balanceOf(user1);
-
-        uint256 shares = optimizer.withdraw(assetsToWithdraw, user1, user1, cUSDC_WMON_MARKET);
-
-        assertGt(shares, 0, "Should burn shares");
-        assertEq(optimizer.balanceOf(user1), sharesBefore - shares, "Shares should be burned");
-        assertEq(IERC20(USDC_MONAD).balanceOf(user1), assetsBefore + assetsToWithdraw, "User should receive exact assets");
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketDifferentReceiver() public {
-        uint256 depositAmount = 10_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-        uint256 user2BalanceBefore = IERC20(USDC_MONAD).balanceOf(user2);
-
-        // Withdraw with user2 as receiver
-        optimizer.withdraw(assetsToWithdraw, user2, user1, cUSDC_WMON_MARKET);
-
-        assertEq(IERC20(USDC_MONAD).balanceOf(user2), user2BalanceBefore + assetsToWithdraw, "Receiver should get exact assets");
-        assertEq(IERC20(USDC_MONAD).balanceOf(user1), 0, "Owner should not receive assets");
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketAllMarkets() public {
-        // Deposit to each market
-        address[3] memory markets = [cUSDC_WMON_MARKET, cUSDC_WETH_MARKET, cUSDC_WBTC_MARKET];
-        uint256 depositAmount = 10_000e6;
-
-        for (uint256 i = 0; i < markets.length; i++) {
-            _depositToMarket(user1, depositAmount, markets[i]);
-        }
-
-        vm.startPrank(user1);
-
-        // Withdraw from each market
-        for (uint256 i = 0; i < markets.length; i++) {
-            uint256 assetsToWithdraw = 1000e6;
-            uint256 balanceBefore = IERC20(USDC_MONAD).balanceOf(user1);
-
-            uint256 shares = optimizer.withdraw(assetsToWithdraw, user1, user1, markets[i]);
-
-            assertGt(shares, 0, "Should burn shares");
-            assertEq(
-                IERC20(USDC_MONAD).balanceOf(user1),
-                balanceBefore + assetsToWithdraw,
-                "Should receive exact assets"
-            );
-        }
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketEmitsEvent() public {
-        uint256 depositAmount = 10_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-
-        // Accrue first so preview matches actual
-        optimizer.accrueIfNeeded();
-        uint256 expectedShares = optimizer.previewWithdraw(assetsToWithdraw);
-
-        vm.expectEmit(true, true, true, true);
-        emit Withdraw(user1, user1, user1, assetsToWithdraw, expectedShares);
-
-        optimizer.withdraw(assetsToWithdraw, user1, user1, cUSDC_WMON_MARKET);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_fail_targetMarketNotApproved() public {
-        uint256 depositAmount = 10_000e6;
-        _depositForUser(user1, depositAmount);
-
-        vm.startPrank(user1);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-        address fakeMarket = makeAddr("fakeMarket");
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizer.withdraw(assetsToWithdraw, user1, user1, fakeMarket);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketWithAllowance() public {
-        uint256 depositAmount = 10_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-
-        // Accrue first and calculate shares after accrual
-        optimizer.accrueIfNeeded();
-        uint256 expectedShares = optimizer.previewWithdraw(assetsToWithdraw);
-
-        // User1 approves user2 for expected shares (add buffer for any rounding)
-        vm.prank(user1);
-        optimizer.approve(user2, expectedShares + 1);
-
-        // User2 withdraws on behalf of user1
-        vm.startPrank(user2);
-
-        uint256 user2BalanceBefore = IERC20(USDC_MONAD).balanceOf(user2);
-
-        uint256 shares = optimizer.withdraw(assetsToWithdraw, user2, user1, cUSDC_WMON_MARKET);
-
-        assertEq(IERC20(USDC_MONAD).balanceOf(user2), user2BalanceBefore + assetsToWithdraw, "Caller should receive assets");
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_fail_targetMarketInsufficientAllowance() public {
-        uint256 depositAmount = 10_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
-        uint256 expectedShares = optimizer.previewWithdraw(assetsToWithdraw);
-
-        // User1 approves less than needed
-        vm.prank(user1);
-        optimizer.approve(user2, expectedShares / 2);
-
-        // User2 tries to withdraw more than allowed
-        vm.startPrank(user2);
-
-        vm.expectRevert();
-        optimizer.withdraw(assetsToWithdraw, user2, user1, cUSDC_WMON_MARKET);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketMultipleWithdraws() public {
-        uint256 depositAmount = 50_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 numWithdraws = 5;
-
-        for (uint256 i = 0; i < numWithdraws; i++) {
-            // Use maxWithdraw / 10 to ensure we can do multiple withdraws
-            uint256 withdrawAmount = optimizer.maxWithdraw(user1) / 10;
-            uint256 balanceBefore = IERC20(USDC_MONAD).balanceOf(user1);
-            uint256 sharesBefore = optimizer.balanceOf(user1);
-
-            uint256 shares = optimizer.withdraw(withdrawAmount, user1, user1, cUSDC_WMON_MARKET);
-
-            assertGt(shares, 0, "Should burn shares");
-            assertLt(optimizer.balanceOf(user1), sharesBefore, "Shares should decrease");
-            assertEq(IERC20(USDC_MONAD).balanceOf(user1), balanceBefore + withdrawAmount, "Should receive exact assets");
-        }
-
         vm.stopPrank();
     }
 
@@ -298,31 +115,6 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         emit Withdraw(user1, user1, user1, assetsToWithdraw, expectedShares);
 
         optimizer.withdraw(assetsToWithdraw, user1, user1);
-
-        vm.stopPrank();
-    }
-
-    function test_lendingOptimizer_withdraw_success_optimalMarketSelectsCorrectly() public {
-        // Deposit to multiple markets
-        _depositToMarket(user1, 50_000e6, cUSDC_WMON_MARKET);
-        _depositToMarket(user1, 30_000e6, cUSDC_WBTC_MARKET);
-
-        vm.startPrank(user1);
-
-        uint256 assetsToWithdraw = 10_000e6;
-
-        // Get the expected optimal target before withdraw
-        uint256 expectedTarget = LendingOptimizerHarness(address(optimizer)).optimalWithdrawalTarget(assetsToWithdraw);
-        address expectedMarket = optimizer.approvedCTokensList(expectedTarget);
-
-        // Get market balance before
-        uint256 marketBalanceBefore = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-
-        optimizer.withdraw(assetsToWithdraw, user1, user1);
-
-        // Verify withdraw came from the expected market
-        uint256 marketBalanceAfter = IBorrowableCToken(expectedMarket).balanceOf(address(optimizer));
-        assertLt(marketBalanceAfter, marketBalanceBefore, "Expected market should have reduced balance");
 
         vm.stopPrank();
     }
@@ -686,8 +478,10 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
             uint256 rateAfter = optimizer.exchangeRate();
 
             // Exchange rate should not decrease from a withdraw operation itself.
-            // The ratio of assets-to-shares should remain constant or increase.
-            assertGe(rateAfter, rateBefore, "Exchange rate should not decrease from withdrawal");
+            // Live exchangeRate() reads cToken convertToAssets which rounds
+            // down, causing a negligible rate decrease after withdrawals.
+            assertGe(rateAfter + rateBefore / 1e10, rateBefore,
+                "Exchange rate should not decrease from withdrawal beyond cToken rounding tolerance");
 
             // Skip time to generate yield for next iteration
             skip(1 days);
@@ -719,29 +513,6 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
     }
 
     // ============ Fuzz Tests ============
-
-    function testFuzz_lendingOptimizer_withdraw_targetMarket(uint256 assetsToWithdraw) public {
-        uint256 depositAmount = 100_000e6;
-        _depositToMarket(user1, depositAmount, cUSDC_WMON_MARKET);
-
-        vm.startPrank(user1);
-
-        // Accrue first so maxWithdraw is accurate
-        optimizer.accrueIfNeeded();
-
-        // Bound to reasonable amounts
-        uint256 maxAssets = optimizer.maxWithdraw(user1);
-        assetsToWithdraw = bound(assetsToWithdraw, 1e6, maxAssets);
-
-        uint256 balanceBefore = IERC20(USDC_MONAD).balanceOf(user1);
-
-        uint256 shares = optimizer.withdraw(assetsToWithdraw, user1, user1, cUSDC_WMON_MARKET);
-
-        assertGt(shares, 0, "Should burn shares");
-        assertEq(IERC20(USDC_MONAD).balanceOf(user1), balanceBefore + assetsToWithdraw, "Should receive exact assets");
-
-        vm.stopPrank();
-    }
 
     function testFuzz_lendingOptimizer_withdraw_optimalMarket(uint256 assetsToWithdraw) public {
         uint256 depositAmount = 100_000e6;

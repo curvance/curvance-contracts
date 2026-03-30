@@ -37,6 +37,42 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         );
     }
 
+    /// @dev Returns unconstrained allocation bounds for the given harness.
+    function _unconstrainedBoundsFor(LendingOptimizerHarness h)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = h.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: h.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
+    }
+
+    function _unconstrainedBoundsForRemoval(LendingOptimizerHarness h, address cTokenToRemove)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = h.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l - 1);
+        uint256 removeIndex;
+        for (uint256 i; i < l; ++i) {
+            if (h.approvedCTokensList(i) == cTokenToRemove) { removeIndex = i; break; }
+        }
+        address[] memory postRemoval = new address[](l - 1);
+        for (uint256 i; i < l; ++i) {
+            if (i < l - 1) postRemoval[i] = h.approvedCTokensList(i);
+        }
+        if (removeIndex != l - 1) {
+            postRemoval[removeIndex] = h.approvedCTokensList(l - 1);
+        }
+        for (uint256 i; i < l - 1; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
+        }
+    }
+
     /// @dev Sets up harness with 3 markets for tests needing internal state.
     function _setUpHarnessThreeMarkets() internal {
         address[] memory approvedCTokens = new address[](3);
@@ -60,7 +96,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Like _setUpHarnessThreeMarkets but with unconstrained caps (100% each).
@@ -87,7 +123,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
     }
 
     /// @dev Helper: remove market 2 (WETH) and reallocate to both remaining markets
@@ -95,25 +131,17 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     ///      Because convertToAssets(balance) may differ from redeem(balance),
     ///      we need to handle the AssetMismatch by distributing across markets.
     function _removeMarket2ToMarkets01() internal {
-        uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
-        uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
-
-        // Split reallocation across both remaining markets to stay within caps.
-        // Give half to market 0, half to market 1.
-        uint256 half = m2Assets / 2;
-        uint256 remainder = m2Assets - half;
-
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](2);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(half)
+            int256(5_000)
         );
         removeActions[1] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WBTC_MARKET),
-            int256(remainder)
+            int256(5_000)
         );
 
-        harness.removeApprovedAsset(2, removeActions);
+        harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
     }
 
     // =========================================================================
@@ -134,15 +162,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // After removal to market 0: market0 ~10.5K / ~20.5K = ~51% < 60% cap.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Skip time so vesting finishes and _totalAssets syncs.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Record _totalAssets before removal.
         uint256 totalAssetsIndexedBefore = harness.exposed_totalAssetsIndexed();
@@ -159,9 +187,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(market2Assets)
+            int256(10_000)
         );
-        harness.removeApprovedAsset(2, removeActions);
+        harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
 
         // After removal: _totalAssets was set by _accrueIfNeeded BEFORE the redeem/deposit.
         uint256 totalAssetsIndexedAfter = harness.exposed_totalAssetsIndexed();
@@ -198,15 +226,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Use small amounts for market 2 to stay within caps.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Perform 5 remove/add cycles with market 2.
         for (uint256 cycle = 0; cycle < 5; cycle++) {
@@ -215,22 +243,14 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             IBorrowableCToken(cUSDC_WMON_MARKET).accrueIfNeeded();
             IBorrowableCToken(cUSDC_WBTC_MARKET).accrueIfNeeded();
 
-            // Get assets in market 2.
-            uint256 m2Balance = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
-            uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Balance);
-
-            // Remove market 2, split reallocation across markets 0 and 1 to stay within caps.
-            uint256 toM0 = m2Assets / 2;
-            uint256 toM1 = m2Assets - toM0;
-
             LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](2);
             removeActions[0] = LendingOptimizer.ReallocationAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET), int256(toM0)
+                IBorrowableCToken(cUSDC_WMON_MARKET), int256(5_000)
             );
             removeActions[1] = LendingOptimizer.ReallocationAction(
-                IBorrowableCToken(cUSDC_WBTC_MARKET), int256(toM1)
+                IBorrowableCToken(cUSDC_WBTC_MARKET), int256(5_000)
             );
-            harness.removeApprovedAsset(2, removeActions);
+            harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
 
             // Add market 2 back with unconstrained cap.
             harness.addApprovedAsset(cUSDC_WETH_MARKET, 10_000);
@@ -238,13 +258,13 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             // Deposit a small amount to market 2 to give it assets.
             deal(USDC_MONAD, address(this), 1_000e6);
             IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-            harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+            harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
             // Let vesting finish between cycles.
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         // Check accounting.
@@ -277,13 +297,13 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 600_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 600_000e6);
-        harness.deposit(300_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(200_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(100_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(300_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(200_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(100_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Start vesting.
         skip(3 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(1 hours);
 
         uint256 rawBefore = _getActualMarketValue(address(harness));
@@ -301,7 +321,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
             actions[2] = LendingOptimizer.ReallocationAction(
                 IBorrowableCToken(cUSDC_WETH_MARKET), int256(0)
             );
-            harness.rebalance(actions);
+            _rebalance(harness, actions, _unconstrainedBoundsFor(harness));
         }
 
         uint256 rawAfter = _getActualMarketValue(address(harness));
@@ -332,13 +352,13 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit with allocations under cap.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let yield accrue and start vesting.
         skip(3 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // Check allocations after some time.
         skip(12 hours);
@@ -357,7 +377,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         // Let vesting finish.
         skip(1 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 taAfterVesting = harness.totalAssets();
         uint256 m2AssetsAfter = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
@@ -385,15 +405,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Use small amounts for market 2 to stay within caps after reallocation.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 exchangeRateBefore = harness.exchangeRate();
 
@@ -408,9 +428,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WMON_MARKET),
-            int256(m2Assets)
+            int256(10_000)
         );
-        harness.removeApprovedAsset(2, removeActions);
+        harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
 
         // Verify removal.
         assertEq(harness.numApprovedMarkets(), 2, "Should have 2 markets");
@@ -434,7 +454,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit to the re-added market.
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Exchange rate should not have decreased.
         uint256 exchangeRateAfter = harness.exchangeRate();
@@ -461,15 +481,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         for (uint256 i = 0; i < 3; i++) {
             // Accrue cTokens first.
@@ -482,9 +502,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
             LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
             removeActions[0] = LendingOptimizer.ReallocationAction(
-                IBorrowableCToken(cUSDC_WMON_MARKET), int256(m2Assets)
+                IBorrowableCToken(cUSDC_WMON_MARKET), int256(10_000)
             );
-            harness.removeApprovedAsset(2, removeActions);
+            harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
 
             assertEq(harness.allocationCaps(cUSDC_WETH_MARKET), 0);
 
@@ -492,19 +512,19 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
             deal(USDC_MONAD, address(this), 1_000e6);
             IERC20(USDC_MONAD).approve(address(harness), 1_000e6);
-            harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+            harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
             skip(2 days);
-            harness.exchangeRateUpdated();
+            harness.exchangeRate();
         }
 
         // Do a final accrual cycle to sync _totalAssets with actual values.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 finalTotalAssets = harness.exposed_totalAssetsIndexed();
         uint256 totalActual = _getActualMarketValue(address(harness));
@@ -538,13 +558,13 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit with small amount for market 2.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let time pass for interest accrual.
         skip(5 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
 
         // Accrue all cTokens first so convertToAssets matches what removeApprovedAsset
@@ -561,9 +581,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), int256(m2Assets)
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(10_000)
         );
-        harness.removeApprovedAsset(2, removeActions);
+        harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET));
 
         uint256 cTokenBalanceAfter = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
         console2.log("cToken balance after removal:", cTokenBalanceAfter);
@@ -582,14 +602,14 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 300_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 300_000e6);
-        harness.deposit(150_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(100_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(50_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(150_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(100_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(50_000e6, address(this), cUSDC_WETH_MARKET);
 
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         uint256 totalAssetsBefore = harness.totalAssets();
         uint256 exchangeRateBefore = harness.exchangeRate();
@@ -603,7 +623,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
         actions[2] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        harness.rebalance(actions);
+        _rebalance(harness, actions, _unconstrainedBoundsFor(harness));
 
         uint256 totalAssetsAfter = harness.totalAssets();
         uint256 exchangeRateAfter = harness.exchangeRate();
@@ -615,7 +635,11 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 m0After = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
-        assertEq(m0After, m0Before, "Market 0 should not change with zero rebalance");
+        // With pro-rata routing, rebalance() calls _accrueIfNeeded() which may
+        // accrue cToken interest between the snapshot and the check, causing small
+        // differences. Allow tolerance for interest accrual during the rebalance tx.
+        assertApproxEqAbs(m0After, m0Before, m0Before / 10000,
+            "Market 0 should not change significantly with zero rebalance");
         console2.log("CONFIRMED: Zero-amount rebalance is a valid no-op (wastes gas only)");
     }
 
@@ -631,19 +655,20 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Removing 60% cap market: remaining 50% + 20% = 70% < 100%. Should revert.
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 m0Assets = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
         );
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
-        removeActions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(m0Assets));
+        removeActions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(10_000));
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(harness, cUSDC_WMON_MARKET);
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
-        harness.removeApprovedAsset(0, removeActions);
+        harness.removeApprovedAsset(cUSDC_WMON_MARKET, removeActions, bounds);
 
         console2.log("CONFIRMED: Cannot remove market if remaining caps < 100%");
     }
@@ -666,7 +691,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(harness), initAssets);
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Add with minimum cap (1 BPS = 0.01%).
         harness.addApprovedAsset(cUSDC_WETH_MARKET, 1);
@@ -678,7 +703,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Deposit works.
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 10_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.deposit(10_000e6, address(this));
         console2.log("CONFIRMED: Minimum cap (1 BPS) market addition works");
     }
 
@@ -723,21 +748,23 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
 
         deal(USDC_MONAD, address(this), 21_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 21_000e6);
-        harness.deposit(10_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(10_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
 
         uint256 m2Bal = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(harness));
         uint256 m2Assets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(m2Bal);
 
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
-            IBorrowableCToken(cUSDC_WETH_MARKET), int256(m2Assets)
+            IBorrowableCToken(cUSDC_WETH_MARKET), int256(10_000)
         );
 
-        // allocationCaps deleted before reallocation loop — should revert.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        harness.removeApprovedAsset(2, removeActions);
+        // With BPS-based removal, passing the removed market as a reallocation
+        // target is caught by parameter validation before market approval checks.
+        LendingOptimizer.AllocationBound[] memory remBounds = _unconstrainedBoundsForRemoval(harness, cUSDC_WETH_MARKET);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        harness.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, remBounds);
         console2.log("CONFIRMED: Cannot reallocate to the market being removed");
     }
 
@@ -754,15 +781,15 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Market 0 (60% cap): 5K, Market 1 (50% cap): 1K, Market 2 (20% cap): 5K
         deal(USDC_MONAD, address(this), 11_000e6);
         IERC20(USDC_MONAD).approve(address(harness), 11_000e6);
-        harness.deposit(5_000e6, address(this), cUSDC_WMON_MARKET);
-        harness.deposit(1_000e6, address(this), cUSDC_WBTC_MARKET);
-        harness.deposit(5_000e6, address(this), cUSDC_WETH_MARKET);
+        harness.depositToMarket(5_000e6, address(this), cUSDC_WMON_MARKET);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WBTC_MARKET);
+        harness.depositToMarket(5_000e6, address(this), cUSDC_WETH_MARKET);
 
         // Let vesting finish.
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
         skip(2 days);
-        harness.exchangeRateUpdated();
+        harness.exchangeRate();
 
         // To remove market 1 (WBTC 50% cap), remaining = 60% + 20% = 80% < 100%.
         // Must increase WETH cap first.
@@ -783,9 +810,9 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         // Actually send to WMON which has more headroom.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
         removeActions[0] = LendingOptimizer.ReallocationAction(
-            IBorrowableCToken(cUSDC_WMON_MARKET), int256(m1Assets)
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(10_000)
         );
-        harness.removeApprovedAsset(1, removeActions);
+        harness.removeApprovedAsset(cUSDC_WBTC_MARKET, removeActions, _unconstrainedBoundsForRemoval(harness, cUSDC_WBTC_MARKET));
 
         // Swap-and-pop: index 1 gets replaced by last element (WETH).
         assertEq(harness.numApprovedMarkets(), 2, "Should have 2 markets");
@@ -797,7 +824,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
         actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
         actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WETH_MARKET), int256(0));
 
-        harness.rebalance(actions);
+        _rebalance(harness, actions, _unconstrainedBoundsFor(harness));
         console2.log("CONFIRMED: Swap-and-pop correctly maintains array ordering");
     }
 

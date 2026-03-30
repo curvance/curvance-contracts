@@ -79,6 +79,7 @@ interface IBorrowableCToken {
     /// @return The number of assets a user would receive for converting
     ///         `shares`.
     function convertToAssets(uint256 shares) external view returns (uint256);
+    function convertToShares(uint256 assets) external view returns (uint256);
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
@@ -242,6 +243,9 @@ interface IBorrowableCToken {
     /// @param assets The number of assets to preview a deposit call.
     /// @return The shares received for depositing `assets`.
     function previewDeposit(uint256 assets) external view returns (uint256);
+    function previewWithdraw(uint256 assets) external view returns (uint256);
+    function previewRedeem(uint256 shares) external view returns (uint256);
+    function previewMint(uint256 shares) external view returns (uint256);
 
     /// IBorrowableCToken SPECIFIC FUNCTIONS ///
 

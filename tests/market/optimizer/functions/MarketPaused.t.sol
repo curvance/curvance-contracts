@@ -59,135 +59,31 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         );
     }
 
-    // ============ Targeted Deposit Paused Tests ============
-
-    function test_lendingOptimizer_deposit_revert_targetMarketMintPaused() public {
-        _mockMintPaused(cUSDC_WMON_MARKET, true);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WMON_MARKET);
-    }
-
-    function test_lendingOptimizer_deposit_success_targetMarketNotPaused() public {
-        // Pause a different market, deposit to a non-paused one.
-        _mockMintPaused(cUSDC_WBTC_MARKET, true);
-
-        deal(USDC_MONAD, address(this), 1_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
-
-        uint256 shares = optimizer.deposit(1_000e6, address(this), cUSDC_WMON_MARKET);
-        assertGt(shares, 0, "Should deposit to non-paused market");
-    }
-
-    // ============ Targeted Mint Paused Tests ============
-
-    function test_lendingOptimizer_mint_revert_targetMarketMintPaused() public {
-        _mockMintPaused(cUSDC_WBTC_MARKET, true);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-
-        uint256 sharesToMint = optimizer.previewDeposit(1_000e6);
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.mint(sharesToMint, address(this), cUSDC_WBTC_MARKET);
-    }
-
-    function test_lendingOptimizer_mint_success_targetMarketNotPaused() public {
-        _mockMintPaused(cUSDC_WBTC_MARKET, true);
-
-        deal(USDC_MONAD, address(this), 10_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
-
-        uint256 sharesToMint = optimizer.previewDeposit(1_000e6);
-
-        // Mint to a non-paused market should work.
-        uint256 assets = optimizer.mint(sharesToMint, address(this), cUSDC_WMON_MARKET);
-        assertGt(assets, 0, "Should mint on non-paused market");
-    }
-
-    // ============ Targeted Withdraw Paused Tests ============
-
-    function test_lendingOptimizer_withdraw_revert_targetMarketRedeemPaused() public {
-        // redeemPaused is market-wide on the MarketManager.
-        // Pause redeem on the WMON market manager.
-        _mockRedeemPaused(marketManagerWMON, true);
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.withdraw(100e6, address(this), address(this), cUSDC_WMON_MARKET);
-    }
-
-    function test_lendingOptimizer_withdraw_success_targetMarketRedeemNotPaused() public {
-        // Pause redeem on WMON manager only.
-        _mockRedeemPaused(marketManagerWMON, true);
-
-        // Withdraw from a market whose manager is NOT paused should work
-        // (only if that market's manager is different).
-        if (marketManagerWBTC != marketManagerWMON) {
-            uint256 assets = optimizer.withdraw(100e6, address(this), address(this), cUSDC_WBTC_MARKET);
-            assertGt(assets, 0, "Should withdraw from non-paused market manager");
-        }
-    }
-
-    // ============ Targeted Redeem Paused Tests ============
-
-    function test_lendingOptimizer_redeem_revert_targetMarketRedeemPaused() public {
-        _mockRedeemPaused(marketManagerWETH, true);
-
-        uint256 sharesToRedeem = optimizer.balanceOf(address(this)) / 10;
-
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.redeem(sharesToRedeem, address(this), address(this), cUSDC_WETH_MARKET);
-    }
-
-    function test_lendingOptimizer_redeem_success_targetMarketRedeemNotPaused() public {
-        _mockRedeemPaused(marketManagerWETH, true);
-
-        uint256 sharesToRedeem = optimizer.balanceOf(address(this)) / 10;
-
-        if (marketManagerWMON != marketManagerWETH) {
-            uint256 assets = optimizer.redeem(sharesToRedeem, address(this), address(this), cUSDC_WMON_MARKET);
-            assertGt(assets, 0, "Should redeem from non-paused market manager");
-        }
-    }
-
     // ============ Auto-Routed Deposit Skips Paused Markets ============
 
     function test_lendingOptimizer_deposit_autoRoute_skipsPausedMarket() public {
-        // Pause mint on the first market. Auto-route should skip it.
+        // Pause mint on the first market. With pro-rata routing, ANY paused
+        // market causes the optimizer to revert on deposit.
         _mockMintPaused(cUSDC_WMON_MARKET, true);
-
-        uint256 wmonBalanceBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
 
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
 
-        uint256 shares = optimizer.deposit(1_000e6, address(this));
-        assertGt(shares, 0, "Auto-routed deposit should succeed");
-
-        // The paused market should NOT have received the deposit.
-        uint256 wmonBalanceAfter = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        assertEq(wmonBalanceAfter, wmonBalanceBefore, "Paused market should not receive deposit");
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.deposit(1_000e6, address(this));
     }
 
     function test_lendingOptimizer_mint_autoRoute_skipsPausedMarket() public {
-        // Pause mint on first market.
+        // Pause mint on first market. With pro-rata routing, ANY paused
+        // market causes the optimizer to revert on mint.
         _mockMintPaused(cUSDC_WMON_MARKET, true);
-
-        uint256 wmonBalanceBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
 
         deal(USDC_MONAD, address(this), 10_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
 
         uint256 sharesToMint = optimizer.previewDeposit(1_000e6);
-        uint256 assets = optimizer.mint(sharesToMint, address(this));
-        assertGt(assets, 0, "Auto-routed mint should succeed");
-
-        uint256 wmonBalanceAfter = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
-        assertEq(wmonBalanceAfter, wmonBalanceBefore, "Paused market should not receive mint");
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.mint(sharesToMint, address(this));
     }
 
     function test_lendingOptimizer_deposit_autoRoute_allMintPaused_reverts() public {
@@ -206,29 +102,31 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
     // ============ Auto-Routed Withdraw Skips Paused Markets ============
 
     function test_lendingOptimizer_withdraw_autoRoute_skipsRedeemPaused() public {
-        // Pause redeem on the WMON market manager.
+        // Pause redeem on the WMON market manager. With pro-rata routing,
+        // ANY paused market causes the optimizer to revert on withdraw.
         _mockRedeemPaused(marketManagerWMON, true);
 
-        // Auto-routed withdraw should skip markets under the paused manager.
-        uint256 assets = optimizer.withdraw(100e6, address(this), address(this));
-        assertGt(assets, 0, "Auto-routed withdraw should succeed by skipping paused market");
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.withdraw(100e6, address(this), address(this));
     }
 
     function test_lendingOptimizer_redeem_autoRoute_skipsRedeemPaused() public {
+        // With pro-rata routing, ANY paused market causes the optimizer to revert on redeem.
         _mockRedeemPaused(marketManagerWMON, true);
 
         uint256 sharesToRedeem = optimizer.balanceOf(address(this)) / 10;
-        uint256 assets = optimizer.redeem(sharesToRedeem, address(this), address(this));
-        assertGt(assets, 0, "Auto-routed redeem should succeed by skipping paused market");
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.redeem(sharesToRedeem, address(this), address(this));
     }
 
     function test_lendingOptimizer_withdraw_autoRoute_allRedeemPaused_reverts() public {
-        // Pause redeem on ALL market managers.
+        // Pause redeem on ALL market managers. Now reverts with MarketPaused
+        // since ANY paused market blocks withdrawals.
         _mockRedeemPaused(marketManagerWMON, true);
         _mockRedeemPaused(marketManagerWBTC, true);
         _mockRedeemPaused(marketManagerWETH, true);
 
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientLiquidity.selector);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
         optimizer.withdraw(100e6, address(this), address(this));
     }
 
@@ -252,8 +150,9 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw from paused market
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_revert_depositToPausedMarket() public {
@@ -274,8 +173,9 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 
     function test_lendingOptimizer_rebalance_success_zeroAmountOnPausedMarket() public {
@@ -302,7 +202,7 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         setupActions[2] = LendingOptimizer.ReallocationAction(
             IBorrowableCToken(cUSDC_WETH_MARKET), -int256(excessWeth)
         );
-        optimizer.rebalance(setupActions);
+        _rebalance(optimizer, setupActions, _unconstrainedBounds());
 
         // Now pause mint on WETH market.
         _mockMintPaused(cUSDC_WETH_MARKET, true);
@@ -323,64 +223,22 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
         );
 
         // Should succeed — paused market is not touched.
-        optimizer.rebalance(actions);
-    }
-
-    // ============ Pause and Unpause Lifecycle ============
-
-    function test_lendingOptimizer_deposit_success_afterMarketUnpaused() public {
-        // Pause mint on market.
-        _mockMintPaused(cUSDC_WMON_MARKET, true);
-
-        deal(USDC_MONAD, address(this), 2_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 2_000e6);
-
-        // Should revert while paused.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.deposit(1_000e6, address(this), cUSDC_WMON_MARKET);
-
-        // Unpause.
-        _mockMintPaused(cUSDC_WMON_MARKET, false);
-
-        // Should succeed after unpause.
-        uint256 shares = optimizer.deposit(1_000e6, address(this), cUSDC_WMON_MARKET);
-        assertGt(shares, 0, "Should deposit after market is unpaused");
-    }
-
-    function test_lendingOptimizer_withdraw_success_afterMarketUnpaused() public {
-        // Pause redeem.
-        _mockRedeemPaused(marketManagerWMON, true);
-
-        // Should revert while paused.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.withdraw(100e6, address(this), address(this), cUSDC_WMON_MARKET);
-
-        // Unpause.
-        _mockRedeemPaused(marketManagerWMON, false);
-
-        // Should succeed after unpause.
-        uint256 shares = optimizer.withdraw(100e6, address(this), address(this), cUSDC_WMON_MARKET);
-        assertGt(shares, 0, "Should withdraw after market is unpaused");
+        _rebalance(optimizer, actions, _unconstrainedBounds());
     }
 
     // ============ Mixed Pause State Tests ============
 
     function test_lendingOptimizer_deposit_autoRoute_twoPausedOneActive() public {
-        // Pause 2 out of 3 markets.
+        // Pause 2 out of 3 markets. With pro-rata routing, ANY paused
+        // market causes the optimizer to revert on deposit.
         _mockMintPaused(cUSDC_WMON_MARKET, true);
         _mockMintPaused(cUSDC_WBTC_MARKET, true);
-
-        uint256 wethBalanceBefore = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
 
         deal(USDC_MONAD, address(this), 1_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
 
-        uint256 shares = optimizer.deposit(1_000e6, address(this));
-        assertGt(shares, 0, "Should route to only active market");
-
-        // Only the non-paused market should have received the deposit.
-        uint256 wethBalanceAfter = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
-        assertGt(wethBalanceAfter, wethBalanceBefore, "Only active market should receive deposit");
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
+        optimizer.deposit(1_000e6, address(this));
     }
 
     function test_lendingOptimizer_rebalance_mixedPauseState() public {
@@ -405,7 +263,8 @@ contract TestLendingOptimizerMarketPaused is TestBaseLendingOptimizer {
             -int256(1_000e6) // withdraw from redeem-paused market
         );
 
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketPaused.selector);
-        optimizer.rebalance(actions);
+        optimizer.rebalance(actions, bounds);
     }
 }

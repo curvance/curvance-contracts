@@ -41,20 +41,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        // Deploy LendingOptimizer with borrowableCUSDC as the sole market.
-        address[] memory cTokens = new address[](1);
-        cTokens[0] = address(borrowableCUSDC);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 10000; // 100%
-
-        optimizer = new LendingOptimizer(
-            usdc,
-            ICentralRegistry(address(centralRegistry)),
-            cTokens,
-            caps,
-            0 // No performance fee for test simplicity.
-        );
-
         // Prepare underlying tokens for listTokens — each cToken pulls
         // 77777 of its underlying via initializeDeposits(msg.sender).
         _prepareWETH(address(this), 77777);
@@ -75,10 +61,25 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         );
         _setCTokenConfigHighValues(address(borrowableCWETH), 100_000e18, 0);
 
+        // Deploy LendingOptimizer with borrowableCUSDC as the sole market.
+        // Must be after listTokens since _validateCToken checks isListed().
+        address[] memory cTokens = new address[](1);
+        cTokens[0] = address(borrowableCUSDC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 10000; // 100%
+
+        optimizer = new LendingOptimizer(
+            usdc,
+            ICentralRegistry(address(centralRegistry)),
+            cTokens,
+            caps,
+            0 // No performance fee for test simplicity.
+        );
+
         // Initialize the optimizer (pulls 77777 USDC via initializeDeposits).
         _prepareUSDC(address(this), 77777);
         usdc.approve(address(optimizer), 77777);
-        optimizer.initializeDeposits(0);
+        optimizer.initializeDeposits(address(borrowableCUSDC));
 
         // Seed liquidity into borrowableCUSDC so deposits have somewhere to go.
         address liquidityProvider = makeAddr("liquidityProvider");
@@ -118,7 +119,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.prank(user1);
         uint256 shares = optimizerZapper.swapAndDeposit{ value: ethAmount }(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -145,7 +145,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         uint256 shares = optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -173,7 +172,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         uint256 shares = optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -203,7 +201,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.expectRevert(OptimizerZapper.OptimizerZapper__ExecutionError.selector);
         optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -228,7 +225,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.expectRevert(OptimizerZapper.OptimizerZapper__AssetMismatch.selector);
         optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -253,7 +249,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.expectRevert(OptimizerZapper.OptimizerZapper__ExecutionError.selector);
         optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             type(uint256).max,
@@ -278,7 +273,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.expectRevert(OptimizerZapper.OptimizerZapper__ExecutionError.selector);
         optimizerZapper.swapAndDeposit{ value: 1 ether }(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -360,7 +354,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         // Initialize the optimizer.
         _prepareUSDC(address(this), 77777);
         usdc.approve(address(optimizer2), 77777);
-        optimizer2.initializeDeposits(0);
+        optimizer2.initializeDeposits(address(borrowableCUSDC));
 
         // Deposit 1000 USDC entirely into market 0 — this pushes market 0
         // to ~100% of total assets, well above its 50% cap.
@@ -379,7 +373,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         uint256 shares = optimizerZapper.swapAndDeposit(
             address(optimizer2),
-            address(borrowableCUSDC), // target market 0
             false,
             swapAction,
             0,
@@ -413,7 +406,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         uint256 usdcBefore = usdc.balanceOf(user1);
         optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -445,7 +437,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MintPaused.selector);
         optimizerZapper.swapAndDeposit(
             address(optimizer),
-            address(borrowableCUSDC),
             false,
             swapAction,
             0,
@@ -454,28 +445,4 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testSwapAndDeposit_fail_InvalidTargetMarket() public {
-        uint256 amount = 1000e6;
-        _prepareUSDC(user1, amount);
-
-        SwapperLib.Swap memory swapAction;
-        swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = amount;
-        swapAction.outputToken = _USDC_ADDRESS;
-
-        vm.startPrank(user1);
-        usdc.approve(address(optimizerZapper), amount);
-
-        // Pass an address that isn't in the optimizer's approved list.
-        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
-        optimizerZapper.swapAndDeposit(
-            address(optimizer),
-            address(0xdead),
-            false,
-            swapAction,
-            0,
-            user1
-        );
-        vm.stopPrank();
-    }
 }

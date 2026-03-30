@@ -208,6 +208,24 @@ contract VelodromeVolatileCToken is StrategyCToken {
                 0,
                 false
             );
+
+            // Verify the pool can price this swap amount. While
+            // volatile pool math (x*y=k) is less prone to overflow
+            // than stable curves, this guard provides consistent
+            // protection across both pool types for dust amounts.
+            // Reverting lets the bot's simulation catch it so rewards
+            // stay in the gauge and no gas is wasted.
+            (bool canSwap, ) = _asset.staticcall(
+                abi.encodeWithSignature(
+                    "getAmountOut(uint256,address)",
+                    swapAmount,
+                    sd.token0
+                )
+            );
+            if (!canSwap) {
+                revert VelodromeVolatileCToken__SlippageError();
+            }
+
             // Feed calculated data, and stable = false.
             uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
                 address(sd.router),

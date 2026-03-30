@@ -61,7 +61,20 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             abi.encode(true)
         );
 
-        harness.initializeDeposits(0);
+        harness.initializeDeposits(cUSDC_WMON_MARKET);
+    }
+
+    /// @dev Returns unconstrained allocation bounds for the given optimizer.
+    function _unconstrainedBoundsFor(LendingOptimizer lo)
+        internal
+        view
+        returns (LendingOptimizer.AllocationBound[] memory bounds)
+    {
+        uint256 l = lo.numApprovedMarkets();
+        bounds = new LendingOptimizer.AllocationBound[](l);
+        for (uint256 i; i < l; ++i) {
+            bounds[i] = LendingOptimizer.AllocationBound({ cToken: lo.approvedCTokensList(i), minBps: 0, maxBps: 10000 });
+        }
     }
 
     // =========================================================================
@@ -99,7 +112,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(fresh), initAssets);
-        fresh.initializeDeposits(0);
+        fresh.initializeDeposits(cUSDC_WMON_MARKET);
 
         uint256 exchangeRateBefore = fresh.exchangeRate();
         uint256 totalAssetsBefore = fresh.totalAssets();
@@ -129,7 +142,7 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, victim, victimDeposit);
         vm.startPrank(victim);
         IERC20(USDC_MONAD).approve(address(fresh), victimDeposit);
-        uint256 victimShares = fresh.deposit(victimDeposit, victim, cUSDC_WMON_MARKET);
+        uint256 victimShares = fresh.deposit(victimDeposit, victim);
         vm.stopPrank();
 
         uint256 victimValue = fresh.convertToAssets(victimShares);
@@ -158,21 +171,21 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, 2_000_000e6);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(harness), 2_000_000e6);
-        harness.deposit(2_000_000e6, user1, cUSDC_WMON_MARKET);
+        harness.deposit(2_000_000e6, user1);
         vm.stopPrank();
 
         // User2 deposits into market 1.
         deal(USDC_MONAD, user2, 1_000_000e6);
         vm.startPrank(user2);
         IERC20(USDC_MONAD).approve(address(harness), 1_000_000e6);
-        harness.deposit(1_000_000e6, user2, cUSDC_WBTC_MARKET);
+        harness.deposit(1_000_000e6, user2);
         vm.stopPrank();
 
         // Attacker deposits before rebalance.
         deal(USDC_MONAD, attacker, depositSize);
         vm.startPrank(attacker);
         IERC20(USDC_MONAD).approve(address(harness), depositSize);
-        uint256 attackerShares = harness.deposit(depositSize, attacker, cUSDC_WMON_MARKET);
+        uint256 attackerShares = harness.deposit(depositSize, attacker);
         vm.stopPrank();
 
         uint256 attackerValueBefore = harness.convertToAssets(attackerShares);
@@ -195,18 +208,18 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
             actions[0] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                assets: -int256(safeRebalance)
+                assetsOrBps: -int256(safeRebalance)
             });
             actions[1] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                assets: int256(safeRebalance)
+                assetsOrBps: int256(safeRebalance)
             });
             actions[2] = LendingOptimizer.ReallocationAction({
                 cToken: IBorrowableCToken(cUSDC_WETH_MARKET),
-                assets: int256(0)
+                assetsOrBps: int256(0)
             });
 
-            try harness.rebalance(actions) {} catch {
+            try harness.rebalance(actions, _unconstrainedBoundsFor(harness)) {} catch {
                 // Rebalance might fail due to allocation caps; that's OK.
                 return;
             }
@@ -258,13 +271,13 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(roundingHarness), initAssets);
-        roundingHarness.initializeDeposits(0);
+        roundingHarness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit a substantial amount into market 0.
         uint256 depositAmount = 5_000_000e6;
         deal(USDC_MONAD, address(this), depositAmount);
         IERC20(USDC_MONAD).approve(address(roundingHarness), depositAmount);
-        roundingHarness.deposit(depositAmount, address(this), cUSDC_WMON_MARKET);
+        roundingHarness.deposit(depositAmount, address(this));
 
         uint256 exchangeRateBefore = roundingHarness.exchangeRate();
 
@@ -301,24 +314,24 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
             if (i % 2 == 0) {
                 actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: -int256(safeAmount)
+                    assetsOrBps: -int256(safeAmount)
                 });
                 actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: int256(safeAmount)
+                    assetsOrBps: int256(safeAmount)
                 });
             } else {
                 actions[0] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WMON_MARKET),
-                    assets: int256(safeAmount)
+                    assetsOrBps: int256(safeAmount)
                 });
                 actions[1] = LendingOptimizer.ReallocationAction({
                     cToken: IBorrowableCToken(cUSDC_WBTC_MARKET),
-                    assets: -int256(safeAmount)
+                    assetsOrBps: -int256(safeAmount)
                 });
             }
 
-            try roundingHarness.rebalance(actions) {} catch {
+            try roundingHarness.rebalance(actions, _unconstrainedBoundsFor(roundingHarness)) {} catch {
                 break; // Allocation cap or liquidity issue; stop.
             }
         }
@@ -368,14 +381,14 @@ contract EconomicAttackFuzz is TestBaseLendingOptimizer {
         uint256 initAssets = 77777;
         deal(USDC_MONAD, address(this), initAssets);
         IERC20(USDC_MONAD).approve(address(feeHarness), initAssets);
-        feeHarness.initializeDeposits(0);
+        feeHarness.initializeDeposits(cUSDC_WMON_MARKET);
 
         // Deposit.
         uint256 depositAmount = 5_000_000e6;
         deal(USDC_MONAD, user1, depositAmount);
         vm.startPrank(user1);
         IERC20(USDC_MONAD).approve(address(feeHarness), depositAmount);
-        feeHarness.deposit(depositAmount, user1, cUSDC_WMON_MARKET);
+        feeHarness.deposit(depositAmount, user1);
         vm.stopPrank();
 
         // Cycle 1: fee1 active, let yield accrue and charge fees.

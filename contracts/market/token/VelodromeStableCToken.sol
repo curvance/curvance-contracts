@@ -214,6 +214,23 @@ contract VelodromeStableCToken is StrategyCToken {
                 sd.decimalsB,
                 true
             );
+
+            // Verify the stable pool can price this swap amount.
+            // Aerodrome/Velodrome stable curve getAmountOut overflows
+            // for dust amounts relative to pool reserves. Reverting
+            // lets the bot's simulation catch it so rewards stay in
+            // the gauge and no gas is wasted.
+            (bool canSwap, ) = _asset.staticcall(
+                abi.encodeWithSignature(
+                    "getAmountOut(uint256,address)",
+                    swapAmount,
+                    sd.token0
+                )
+            );
+            if (!canSwap) {
+                revert VelodromeStableCToken__SlippageError();
+            }
+
             // Feed calculated data, and stable = true.
             uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
                 address(sd.router),
