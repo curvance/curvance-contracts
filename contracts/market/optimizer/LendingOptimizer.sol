@@ -423,8 +423,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _checkRedeemPaused();
         _accrueIfNeeded();
 
-        // Compute gross assets from shares before any state changes.
-        uint256 taBefore = _totalAssets;
+        // Convert shares to assets before state changes.
         assets = convertToAssets(shares);
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
 
