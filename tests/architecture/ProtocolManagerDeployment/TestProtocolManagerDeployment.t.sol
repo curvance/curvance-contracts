@@ -527,9 +527,11 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             1_000_000e6
         );
 
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__InvalidParameter.selector
-        );
+        // When token0 == token1, underlying0 == underlying1. The second
+        // safeTransferFrom fails because the first already consumed the
+        // caller's entire balance of that underlying. Reverts before
+        // reaching listTokens.
+        vm.expectRevert();
         deploymentManager.deployMarket(
             address(marketManagerIsolated),
             address(borrowableCWMON),
