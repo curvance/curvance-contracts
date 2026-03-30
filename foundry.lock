@@ -1,0 +1,26 @@
+{
+  "lib/forge-std": {
+    "rev": "ee93fdc45d1e5e4dee883afe0103109881a83549"
+  },
+  "lib/openzeppelin-contracts": {
+    "branch": {
+      "name": "release-v5.1",
+      "rev": "69c8def5f222ff96f2b5beff05dfba996368aa79"
+    }
+  },
+  "lib/pendle-core-v2-public": {
+    "branch": {
+      "name": "main",
+      "rev": "8240517c021c5a14e309691bd01fb326e93dea64"
+    }
+  },
+  "lib/pigeon": {
+    "rev": "a105539b515b83a937116f9b2520d9902b6889b7"
+  },
+  "lib/redstone": {
+    "rev": "90fac013799dd96bf1e0719a80ef7fd51e2e00c2"
+  },
+  "lib/solady": {
+    "rev": "834bbc4fd366ca8bce8c532a0e3b34eca6be709c"
+  }
+}

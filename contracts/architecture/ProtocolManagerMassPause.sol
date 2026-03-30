@@ -237,6 +237,10 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         MarketManagerIsolated mm,
         bool state
     ) internal returns (uint256 failed) {
+        // Solidity's try/catch does not catch the compiler-generated
+        // EXTCODESIZE revert for no-code addresses. Guard explicitly.
+        if (address(mm).code.length == 0) return 3;
+
         try mm.setLiquidationPaused(state) {} catch { ++failed; }
         try mm.setRedeemPaused(state) {} catch { ++failed; }
         try mm.setTransferPaused(state) {} catch { ++failed; }
@@ -254,6 +258,10 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
         MarketManagerIsolated mm,
         bool state
     ) internal returns (uint256 failed) {
+        // Solidity's try/catch does not catch the compiler-generated
+        // EXTCODESIZE revert for no-code addresses. Guard explicitly.
+        if (address(mm).code.length == 0) return 1;
+
         address[] memory tokens;
         try mm.queryTokensListed() returns (address[] memory t) {
             tokens = t;

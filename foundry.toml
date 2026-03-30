@@ -34,7 +34,7 @@ allow_internal_expect_revert = true
 runs = 50
 
 # Suppress common linting notes
-[profile.lint]
+[lint]
 
 # Disable specific lint rules to reduce noise
 exclude_lints = [
