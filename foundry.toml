@@ -51,6 +51,6 @@ exclude_lints = [
 # RPC resilience for fork tests
 # retry: retries on transient failures (429s, timeouts)
 # compute_units_per_second: throttles requests to avoid rate limits on cold cache runs
-[rpc]
+[profile.default.rpc]
 retry = 5
 compute_units_per_second = 100
