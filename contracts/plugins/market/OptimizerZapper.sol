@@ -22,9 +22,8 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      Flow:
 ///      1. Pull input token (ERC20) or receive native gas token.
 ///      2. Swap into the optimizer's underlying asset (skip if already matching).
-///      3. Approve optimizer, call `deposit(assets, receiver, targetMarket)`.
+///      3. Approve optimizer, call `deposit(assets, receiver)`.
 ///      4. Verify minimum shares received.
-///      5. Refund any dust remaining in the zapper to the caller.
 ///
 contract OptimizerZapper is ReentrancyGuard {
 
@@ -51,9 +50,6 @@ contract OptimizerZapper is ReentrancyGuard {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Allows contract to receive native tokens.
-    receive() external payable {}
 
     /// @notice Swaps `swapAction.inputToken` into the optimizer's underlying
     ///         asset and deposits into a LendingOptimizer vault.
@@ -119,13 +115,6 @@ contract OptimizerZapper is ReentrancyGuard {
         // Slippage guard.
         if (shares < expectedShares) {
             revert OptimizerZapper__ExecutionError();
-        }
-
-        // Refund any underlying dust left in the zapper (e.g. from swap
-        // over-delivery). Input token dust is consumed by the aggregator.
-        uint256 dust = IERC20(underlying).balanceOf(address(this));
-        if (dust > 0) {
-            SafeTransferLib.safeTransfer(underlying, msg.sender, dust);
         }
     }
 
