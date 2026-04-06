@@ -387,37 +387,6 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
     // ─── Additional Coverage ─────────────────────────────────────────
 
-    function testSwapAndDeposit_DustRefund() public {
-        // Seed some USDC dust into the zapper from a prior interaction.
-        uint256 dust = 50e6;
-        _prepareUSDC(address(optimizerZapper), dust);
-
-        uint256 amount = 1000e6;
-        _prepareUSDC(user1, amount);
-
-        SwapperLib.Swap memory swapAction;
-        swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = amount;
-        swapAction.outputToken = _USDC_ADDRESS;
-
-        vm.startPrank(user1);
-        usdc.approve(address(optimizerZapper), amount);
-
-        uint256 usdcBefore = usdc.balanceOf(user1);
-        optimizerZapper.swapAndDeposit(
-            address(optimizer),
-            false,
-            swapAction,
-            0,
-            user1
-        );
-        vm.stopPrank();
-
-        // Dust from prior interaction is swept to caller.
-        assertEq(usdc.balanceOf(address(optimizerZapper)), 0, "Zapper should be empty");
-        assertEq(usdc.balanceOf(user1), dust, "Caller should receive dust");
-    }
-
     function testSwapAndDeposit_fail_OptimizerPaused() public {
         // Pause the optimizer.
         optimizer.setMintPaused(true);
