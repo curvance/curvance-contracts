@@ -1077,6 +1077,22 @@ contract ProtocolReader {
         return (cSoft, cHard, debt, lFactor, errorCodeHit);
     }
 
+    function getBalancesOf(
+        address[] calldata tokens,
+        address account
+    ) external view returns (uint256[] memory) {
+        uint256 numTokens = tokens.length;
+        uint256[] memory balances = new uint256[](numTokens);
+        for (uint256 i; i < numTokens; ++i) {
+            balances[i] = CommonLib._isNative(tokens[i])
+                ? account.balance
+                : _balanceOf(tokens[i], account);
+        }
+        return balances;
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
     /// @dev Returns true if minting is paused for `cToken`.
     function _isMintPaused(
         address cToken,
