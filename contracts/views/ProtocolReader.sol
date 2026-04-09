@@ -1077,31 +1077,56 @@ contract ProtocolReader {
         return (cSoft, cHard, debt, lFactor, errorCodeHit);
     }
 
-    /// @notice Batch-fetch oracle prices for multiple assets in a single call.
-    /// @param assets Array of token/cToken addresses to price.
-    /// @param inUSD Whether to return prices denominated in USD.
-    /// @param getLower Whether to return the lower bound price.
-    /// @return prices Array of prices in the same order as `assets`.
-    /// @return errorCodes Array of oracle error codes (0 = no error).
-    function getPricesOf(
-        address[] calldata assets,
-        bool inUSD,
-        bool getLower
-    ) external view returns (uint256[] memory prices, uint256[] memory errorCodes) {
-        uint256 numAssets = assets.length;
-        prices = new uint256[](numAssets);
-        errorCodes = new uint256[](numAssets);
-        IOracleManager om = _getOracleManager();
-        for (uint256 i; i < numAssets; ++i) {
-            (prices[i], errorCodes[i]) = om.getPrice(
-                assets[i],
-                inUSD,
-                getLower
-            );
-            if (errorCodes[i] == BAD_SOURCE) {
-                prices[i] = 0;
-            }
-        }
+    /// @notice Single-call snapshot of everything the SDK needs for leverage
+    ///         operations: fresh aggregate position (via hypotheticalLiquidityOf),
+    ///         individual oracle prices for token conversions, and projected
+    ///         debt balance for full deleverage swap sizing.
+    /// @param account The user's address.
+    /// @param cToken The collateral cToken address.
+    /// @param borrowableCToken The debt cToken address.
+    /// @param bufferTime Seconds of interest to project forward on debt.
+    function getLeverageSnapshot(
+        address account,
+        address cToken,
+        address borrowableCToken,
+        uint256 bufferTime
+    ) external view returns (
+        uint256 collateralUsd,
+        uint256 debtUsd,
+        uint256 collateralAssetPrice,
+        uint256 sharePrice,
+        uint256 debtAssetPrice,
+        uint256 debtTokenBalance,
+        bool oracleError
+    ) {
+        IMarketManager mm = _marketManager(cToken);
+
+        // Fresh aggregate position — calls _assetDataOf internally,
+        // fetches all oracle prices + projects interest via bufferTime.
+        HypotheticalResult memory r = hypotheticalLiquidityOf(
+            mm, account, address(0), 0, 0, bufferTime
+        );
+        collateralUsd = r.collateral;
+        debtUsd = r.debt;
+        oracleError = r.oracleError;
+
+        // Individual prices for SDK token conversions.
+        (collateralAssetPrice,) = getPrice(
+            ICToken(cToken).asset(), true, true
+        );
+        sharePrice = (
+            collateralAssetPrice * ICToken(cToken).exchangeRate()
+        ) / WAD;
+        (debtAssetPrice,) = getPrice(
+            ICToken(borrowableCToken).asset(), true, false
+        );
+
+        // Specific debt in token terms for full deleverage swap sizing.
+        debtTokenBalance = debtBalanceAtTimestamp(
+            account,
+            borrowableCToken,
+            block.timestamp + bufferTime
+        );
     }
 
     function getBalancesOf(
