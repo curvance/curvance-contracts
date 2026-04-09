@@ -1077,6 +1077,33 @@ contract ProtocolReader {
         return (cSoft, cHard, debt, lFactor, errorCodeHit);
     }
 
+    /// @notice Batch-fetch oracle prices for multiple assets in a single call.
+    /// @param assets Array of token/cToken addresses to price.
+    /// @param inUSD Whether to return prices denominated in USD.
+    /// @param getLower Whether to return the lower bound price.
+    /// @return prices Array of prices in the same order as `assets`.
+    /// @return errorCodes Array of oracle error codes (0 = no error).
+    function getPricesOf(
+        address[] calldata assets,
+        bool inUSD,
+        bool getLower
+    ) external view returns (uint256[] memory prices, uint256[] memory errorCodes) {
+        uint256 numAssets = assets.length;
+        prices = new uint256[](numAssets);
+        errorCodes = new uint256[](numAssets);
+        IOracleManager om = _getOracleManager();
+        for (uint256 i; i < numAssets; ++i) {
+            (prices[i], errorCodes[i]) = om.getPrice(
+                assets[i],
+                inUSD,
+                getLower
+            );
+            if (errorCodes[i] == BAD_SOURCE) {
+                prices[i] = 0;
+            }
+        }
+    }
+
     function getBalancesOf(
         address[] calldata tokens,
         address account
