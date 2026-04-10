@@ -261,47 +261,11 @@ contract OptimizerReader {
         apy = weightedRate * 31_536_000;
     }
 
-    /// @notice Computes defensive rebalance actions for a LendingOptimizer.
-    /// @dev Withdraws all assets from bad markets (as identified by isBad())
-    ///      and optimally redistributes them across the remaining good markets
-    ///      using the same chunked greedy algorithm as optimalRebalance.
-    ///      Bad markets are forced to maxAllocation = 0, so the greedy
-    ///      allocator naturally excludes them.
-    /// @param optimizer The LendingOptimizer address.
-    /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
-    function defensiveRebalance(
-        address optimizer,
-        uint256 slippageBps
-    ) external view returns (
-        LendingOptimizer.ReallocationAction[] memory actions,
-        LendingOptimizer.AllocationBound[] memory bounds
-    ) {
-        address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
-
-        actions = new LendingOptimizer.ReallocationAction[](markets.length);
-        bounds = new LendingOptimizer.AllocationBound[](markets.length);
-
-        if (markets.length == 0) return (actions, bounds);
-
-        // Identify bad markets.
-        address[] memory badMarkets = this.isBad(optimizer);
-
-        uint256[] memory idealAssets;
-        uint256[] memory currentAssets;
-        (idealAssets, currentAssets,) =
-            _computeIdealAllocation(optimizer, markets, badMarkets);
-
-        uint256 ta = ILendingOptimizer(optimizer).totalAssets();
-        _buildActionsAndBounds(markets, idealAssets, currentAssets, ta, slippageBps, actions, bounds);
-    }
-
-    /// @notice Computes the optimal rebalance actions for a LendingOptimizer.
-    /// @dev Uses a chunked greedy algorithm (20 chunks) to determine ideal
-    ///      allocation across markets, respecting allocation caps. Returns
-    ///      ReallocationAction[] and AllocationBound[] that can be passed
-    ///      directly to LendingOptimizer.rebalance().
-    ///      Bounds are set to [idealBps - slippageBps, idealBps + slippageBps],
-    ///      clamped to [0, 10000].
+    /// @notice Computes optimal rebalance actions, automatically excluding
+    ///         any markets flagged by isBad(). In normal conditions (no bad
+    ///         markets), this is a pure yield-optimization. When bad markets
+    ///         exist, it withdraws everything from them and optimally
+    ///         redistributes across the remaining good markets.
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
@@ -321,10 +285,13 @@ contract OptimizerReader {
 
         if (markets.length == 0) return (actions, bounds);
 
+        // Automatically exclude bad markets from allocation.
+        address[] memory badMarkets = this.isBad(optimizer);
+
         uint256[] memory idealAssets;
         uint256[] memory currentAssets;
         (idealAssets, currentAssets,) =
-            _computeIdealAllocation(optimizer, markets, new address[](0));
+            _computeIdealAllocation(optimizer, markets, badMarkets);
 
         uint256 ta = ILendingOptimizer(optimizer).totalAssets();
         _buildActionsAndBounds(markets, idealAssets, currentAssets, ta, slippageBps, actions, bounds);
