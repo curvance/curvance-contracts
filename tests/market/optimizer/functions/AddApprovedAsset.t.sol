@@ -66,7 +66,7 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         // Mock market permissions to return false.
         vm.mockCall(
             address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encodeWithSelector(ICentralRegistry.hasElevatedPermissions.selector, address(this)),
             abi.encode(false)
         );
 
