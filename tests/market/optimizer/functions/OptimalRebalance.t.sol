@@ -19,7 +19,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     function setUp() public override {
         super.setUp();
-        reader = new OptimizerReader();
+        reader = new OptimizerReader(new OptimizerReader.CollateralGuardConfig[](0));
     }
 
     // ============ Basic Return Shape ============
