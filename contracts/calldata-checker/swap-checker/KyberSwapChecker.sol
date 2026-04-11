@@ -10,12 +10,23 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @notice Inspects the calldata for a KyberSwap related swap action.
 /// @dev NOTE: Currently built for MetaAggregationRouterV2.
+///      Fee validation: allows exactly one fee receiver which MUST be
+///      the DAO address from centralRegistry. Fee amount must be in BPS
+///      mode (isInBps=true on the API) and == FEE_BPS. Swaps with
+///      zero fee receivers are blocked.
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    
+
+    /// @notice Exact fee BPS that the SDK is configured to charge.
+    /// @dev    KyberSwap calldata with `isInBps=true` stores the BPS value
+    ///         directly in `feeAmounts[0]` (e.g. 4 for 4 bps). We enforce
+    ///         an exact match — any other value reverts. To change the fee,
+    ///         redeploy this checker with an updated constant.
+    uint256 public constant FEE_BPS = 4;
+
     /// STORAGE ///
 
     /// @notice Allowlist of Kyber executor addresses that may be used
@@ -33,7 +44,7 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__InvalidNativeTokenAddress();
     error KyberSwapChecker__InvalidFlags();
     error KyberSwapChecker__InvalidTargetData();
-    error KyberSwapChecker__InvalidFeeReceivers();
+    error KyberSwapChecker__InvalidFeeConfig();
     error KyberSwapChecker__InvalidPermit();
     error KyberSwapChecker__UnsupportedChain();
     error KyberSwapChecker__Unauthorized();
@@ -91,7 +102,8 @@ contract KyberSwapChecker is BaseSwapChecker {
         address outputToken;
         address executor;
         bytes memory targetData;
-        uint256 numFeeReceivers;
+        address[] memory feeReceivers;
+        uint256[] memory feeAmounts;
         uint256 flags;
         bytes memory permit;
         if (funcSigHash == IMetaAggregationRouterV2.swap.selector) {
@@ -110,7 +122,8 @@ contract KyberSwapChecker is BaseSwapChecker {
             outputToken = address(execution.desc.dstToken);
             executor = execution.callTarget;
             targetData = execution.targetData;
-            numFeeReceivers = execution.desc.feeReceivers.length;
+            feeReceivers = execution.desc.feeReceivers;
+            feeAmounts = execution.desc.feeAmounts;
             flags = execution.desc.flags;
             permit = execution.desc.permit;
             minOutAmount = execution.desc.minReturnAmount;
@@ -152,9 +165,11 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidTargetData();
         }
 
-        if (numFeeReceivers != 0) {
-            revert KyberSwapChecker__InvalidFeeReceivers();
-        }
+        // Validate fee configuration.
+        // Allowed: zero fee receivers (no-fee path), or exactly one
+        // receiver which must be the protocol DAO address with fee
+        // amount == FEE_BPS.
+        _validateFeeConfig(feeReceivers, feeAmounts);
 
         // Extract _REQUIRES_EXTRA_ETH flag.
         bool requiresExtraEth = (flags & 0x02) != 0;
@@ -182,6 +197,44 @@ contract KyberSwapChecker is BaseSwapChecker {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Validates fee receiver and amount configuration.
+    /// @dev    Zero fee receivers: always allowed (no-fee swap).
+    ///         One fee receiver: must be centralRegistry.daoAddress(),
+    ///         feeAmounts must have exactly one entry == FEE_BPS.
+    ///         Multiple fee receivers: always rejected.
+    ///
+    ///         ENCODING: KyberSwap calldata built with isInBps=true stores
+    ///         the BPS value directly in feeAmounts[0].
+    function _validateFeeConfig(
+        address[] memory feeReceivers,
+        uint256[] memory feeAmounts
+    ) internal view {
+        uint256 numReceivers = feeReceivers.length;
+
+        // No fee — always allowed.
+        if (numReceivers == 0) return;
+
+        // Multiple fee receivers — never allowed.
+        if (numReceivers != 1) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+
+        // Exactly one receiver — must be the DAO.
+        if (feeReceivers[0] != centralRegistry.daoAddress()) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+
+        // feeAmounts must match feeReceivers in length.
+        if (feeAmounts.length != 1) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+
+        // Fee must be exactly the configured BPS value.
+        if (feeAmounts[0] != FEE_BPS) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+    }
 
     /// @notice Reverts unless the caller has DAO permissions in `centralRegistry`.
     /// @dev Used to restrict administrative functions (e.g. executor allowlist
