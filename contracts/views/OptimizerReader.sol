@@ -7,6 +7,7 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -79,28 +80,43 @@ contract OptimizerReader {
         uint256 guardType;
     }
 
-    /// CONSTANTS ///
+    /// ERRORS ///
+
+    error OptimizerReader__Unauthorized();
+    error OptimizerReader__GuardConfigAlreadyExists();
+    error OptimizerReader__GuardConfigDoesNotExist();
+
+    /// EVENTS ///
+
+    event GuardConfigAdded(address indexed cToken, uint256 guardType);
+    event GuardConfigRemoved(address indexed cToken);
+
+    /// IMMUTABLES ///
 
     /// @notice The OracleManager address.
-    IOracleManager public constant ORACLE_MANAGER =
-        IOracleManager(0x0000000000000000000000000000000000000000); // TODO: set address
+    IOracleManager public immutable ORACLE_MANAGER;
+
+    /// @notice Curvance Protocol Central Registry, used for permissioning.
+    ICentralRegistry public immutable centralRegistry;
 
     /// STORAGE ///
 
-    /// @notice Collateral guard configs, set once in constructor.
     CollateralGuardConfig[] public guardConfigs;
 
-    /// @notice Optimizer cToken => index in guardConfigs.
-    /// @dev Maps the optimizer's borrowable cToken (e.g., cAUSD) to
-    ///      its collateral guard config. Populated in constructor by
-    ///      walking each collateral cToken's market manager to find
-    ///      the corresponding optimizer cToken.
+    /// @notice Collateral cToken => index in guardConfigs.
+    /// @dev Maps a collateral cToken to its position in guardConfigs.
     mapping(address => uint256) internal _guardIndex;
     mapping(address => bool) internal _hasGuardConfig;
 
     /// CONSTRUCTOR ///
 
-    constructor(CollateralGuardConfig[] memory configs) {
+    constructor(
+        ICentralRegistry _centralRegistry,
+        CollateralGuardConfig[] memory configs
+    ) {
+        centralRegistry = _centralRegistry;
+        ORACLE_MANAGER = IOracleManager(_centralRegistry.oracleManager());
+
         for (uint256 i; i < configs.length; ++i) {
             guardConfigs.push(configs[i]);
             _guardIndex[configs[i].cToken] = i;
@@ -108,7 +124,73 @@ contract OptimizerReader {
         }
     }
 
+    /// PERMISSIONED FUNCTIONS ///
+
+    /// @notice Adds a collateral guard config for `cToken`.
+    /// @dev Only callable by an address with elevated permissions.
+    function addGuardConfig(
+        address cToken,
+        uint256 guardType
+    ) external {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            revert OptimizerReader__Unauthorized();
+        }
+        if (_hasGuardConfig[cToken]) {
+            revert OptimizerReader__GuardConfigAlreadyExists();
+        }
+
+        _guardIndex[cToken] = guardConfigs.length;
+        _hasGuardConfig[cToken] = true;
+        guardConfigs.push(
+            CollateralGuardConfig({ cToken: cToken, guardType: guardType })
+        );
+
+        emit GuardConfigAdded(cToken, guardType);
+    }
+
+    /// @notice Removes the collateral guard config for `cToken`.
+    /// @dev Only callable by an address with elevated permissions.
+    ///      Uses swap-and-pop to keep the array compact.
+    function removeGuardConfig(address cToken) external {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            revert OptimizerReader__Unauthorized();
+        }
+        if (!_hasGuardConfig[cToken]) {
+            revert OptimizerReader__GuardConfigDoesNotExist();
+        }
+
+        uint256 idx = _guardIndex[cToken];
+        uint256 lastIdx = guardConfigs.length - 1;
+
+        if (idx != lastIdx) {
+            CollateralGuardConfig memory last = guardConfigs[lastIdx];
+            guardConfigs[idx] = last;
+            _guardIndex[last.cToken] = idx;
+        }
+
+        guardConfigs.pop();
+        delete _guardIndex[cToken];
+        delete _hasGuardConfig[cToken];
+
+        emit GuardConfigRemoved(cToken);
+    }
+
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Checks multiple optimizers for bad markets in a single call.
+    /// @param optimizers The LendingOptimizer addresses.
+    /// @return badOptimizers An array of cToken arrays, where each inner array
+    ///         contains the bad markets for the corresponding optimizer.
+    function multiIsBadCheck(
+        address[] calldata optimizers
+    ) external view returns (address[][] memory badOptimizers) {
+        uint256 len = optimizers.length;
+        badOptimizers = new address[][](len);
+
+        for (uint256 i; i < len; ++i) {
+            badOptimizers[i] = this.isBad(optimizers[i]);
+        }
+    }
 
     /// @notice Checks whether any configured collateral asset's price
     ///         has breached its price guard floor.

@@ -18,7 +18,10 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
     function setUp() public override {
         super.setUp();
-        reader = new OptimizerReader(new OptimizerReader.CollateralGuardConfig[](0));
+        reader = new OptimizerReader(
+            ICentralRegistry(address(liveCentralRegistry)),
+            new OptimizerReader.CollateralGuardConfig[](0)
+        );
     }
 
     // ============ Basic Return Shape ============
