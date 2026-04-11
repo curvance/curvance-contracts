@@ -10,10 +10,10 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @notice Inspects the calldata for a KyberSwap related swap action.
 /// @dev NOTE: Currently built for MetaAggregationRouterV2.
-///      Fee validation: allows exactly one fee receiver which MUST be
-///      the DAO address from centralRegistry. Fee amount must be in BPS
-///      mode (isInBps=true on the API) and == FEE_BPS. Swaps with
-///      zero fee receivers are blocked.
+///      Fee validation: every swap must include exactly one fee receiver
+///      which MUST be the DAO address from centralRegistry, with fee
+///      amount == FEE_BPS (isInBps=true on the API). Zero fee receivers
+///      is rejected — all swaps must pay the protocol fee.
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
@@ -166,9 +166,7 @@ contract KyberSwapChecker is BaseSwapChecker {
         }
 
         // Validate fee configuration.
-        // Allowed: zero fee receivers (no-fee path), or exactly one
-        // receiver which must be the protocol DAO address with fee
-        // amount == FEE_BPS.
+        // Required: exactly one receiver == DAO address, fee == FEE_BPS.
         _validateFeeConfig(feeReceivers, feeAmounts);
 
         // Extract _REQUIRES_EXTRA_ETH flag.
@@ -199,28 +197,23 @@ contract KyberSwapChecker is BaseSwapChecker {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Validates fee receiver and amount configuration.
-    /// @dev    Zero fee receivers: always allowed (no-fee swap).
-    ///         One fee receiver: must be centralRegistry.daoAddress(),
-    ///         feeAmounts must have exactly one entry == FEE_BPS.
-    ///         Multiple fee receivers: always rejected.
+    /// @dev    Every swap must include exactly one fee receiver which is
+    ///         centralRegistry.daoAddress(), with feeAmounts[0] == FEE_BPS.
+    ///         No exceptions — zero fee receivers is rejected to ensure
+    ///         unified fee collection on all swaps.
     ///
     ///         ENCODING: KyberSwap calldata built with isInBps=true stores
-    ///         the BPS value directly in feeAmounts[0].
+    ///         the BPS value directly in feeAmounts[0] (confirmed via API).
     function _validateFeeConfig(
         address[] memory feeReceivers,
         uint256[] memory feeAmounts
     ) internal view {
-        uint256 numReceivers = feeReceivers.length;
-
-        // No fee — always allowed.
-        if (numReceivers == 0) return;
-
-        // Multiple fee receivers — never allowed.
-        if (numReceivers != 1) {
+        // Exactly one fee receiver required on every swap.
+        if (feeReceivers.length != 1) {
             revert KyberSwapChecker__InvalidFeeConfig();
         }
 
-        // Exactly one receiver — must be the DAO.
+        // Receiver must be the DAO.
         if (feeReceivers[0] != centralRegistry.daoAddress()) {
             revert KyberSwapChecker__InvalidFeeConfig();
         }
