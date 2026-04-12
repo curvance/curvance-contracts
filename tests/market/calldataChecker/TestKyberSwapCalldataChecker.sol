@@ -385,6 +385,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
         desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -452,6 +456,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
         desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -491,6 +499,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
         desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = newExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = newExecutor;
@@ -546,6 +558,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
         desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -848,6 +864,203 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
     }
 
     // -----------------------------------------------------------------------
+    // Defense-in-depth: approveTarget, srcReceivers, minReturnAmount
+    // -----------------------------------------------------------------------
+
+    /// @notice Non-zero approveTarget — unused by swap(), lock to zero.
+    function testKyberSwapChecker_fail_whenApproveTargetNonZero() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = makeAddr("nonZeroApproveTarget");
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidApproveTarget.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice Empty srcReceivers — no pool receives input tokens.
+    function testKyberSwapChecker_fail_whenEmptySrcReceivers() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        // srcReceivers intentionally left empty
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice srcReceivers/srcAmounts length mismatch.
+    function testKyberSwapChecker_fail_whenSrcLengthMismatch() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcReceivers[1] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1); // mismatch: 2 receivers, 1 amount
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice address(0) in srcReceivers — would burn input tokens.
+    function testKyberSwapChecker_fail_whenSrcReceiverIsZeroAddress() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = address(0); // burn address
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice minReturnAmount == 0 — router would reject, catch it earlier.
+    function testKyberSwapChecker_fail_whenMinReturnAmountIsZero() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 0; // zero — invalid
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidMinReturn.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -895,6 +1108,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
     }
 
     /// @dev Builds KyberSwap calldata with a single fee receiver and explicit flags.
+    ///      Includes a valid srcReceivers/srcAmounts config (executor receives
+    ///      full amount) so the calldata passes structural validation.
     function _buildKyberCalldataWithFee(
         address tokenIn,
         address tokenOut,
@@ -915,6 +1130,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = feeReceiver;
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = feeAmount;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = amount;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;

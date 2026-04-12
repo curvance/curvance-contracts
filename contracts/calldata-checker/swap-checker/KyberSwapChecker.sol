@@ -64,6 +64,9 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__InvalidPermit();
     error KyberSwapChecker__UnsupportedChain();
     error KyberSwapChecker__Unauthorized();
+    error KyberSwapChecker__InvalidApproveTarget();
+    error KyberSwapChecker__InvalidSrcConfig();
+    error KyberSwapChecker__InvalidMinReturn();
 
     /// CONSTRUCTOR ///
 
@@ -111,45 +114,30 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
-        address recipient;
-        address inputToken;
-        uint256 inputAmount;
-        address outputToken;
-        address executor;
-        bytes memory targetData;
-        address[] memory feeReceivers;
-        uint256[] memory feeAmounts;
-        uint256 flags;
-        bytes memory permit;
-        if (funcSigHash == IMetaAggregationRouterV2.swap.selector) {
-            IMetaAggregationRouterV2.SwapExecutionParams memory execution =
-                abi.decode(
-                    _getFuncParams(swapAction.call),
-                    (IMetaAggregationRouterV2.SwapExecutionParams)
-                );
-            // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
-            // as a shortcut for sending output to `msg.sender`.
-            recipient = execution.desc.dstReceiver == address(0)
-                ? msg.sender
-                : execution.desc.dstReceiver;
-            inputToken = address(execution.desc.srcToken);
-            inputAmount = execution.desc.amount;
-            outputToken = address(execution.desc.dstToken);
-            executor = execution.callTarget;
-            targetData = execution.targetData;
-            feeReceivers = execution.desc.feeReceivers;
-            feeAmounts = execution.desc.feeAmounts;
-            flags = execution.desc.flags;
-            permit = execution.desc.permit;
-            minOutAmount = execution.desc.minReturnAmount;
-        } else {
+        if (_getFuncSigHash(swapAction.call) != IMetaAggregationRouterV2.swap.selector) {
             revert CalldataChecker__InvalidFuncSig();
         }
 
+        // Decode the full execution params.
+        IMetaAggregationRouterV2.SwapExecutionParams memory execution =
+            abi.decode(
+                _getFuncParams(swapAction.call),
+                (IMetaAggregationRouterV2.SwapExecutionParams)
+            );
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc = execution.desc;
+
+        // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
+        // as a shortcut for sending output to `msg.sender`.
+        address recipient = desc.dstReceiver == address(0)
+            ? msg.sender
+            : desc.dstReceiver;
         if (recipient != expectedRecipient) {
             revert CalldataChecker__RecipientError();
         }
+
+        // Cache token addresses.
+        address inputToken = address(desc.srcToken);
+        address outputToken = address(desc.dstToken);
 
         if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
@@ -160,7 +148,7 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidNativeTokenAddress();
         }
 
-        if (inputAmount != swapAction.inputAmount) {
+        if (desc.amount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
@@ -173,28 +161,64 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidNativeTokenAddress();
         }
 
-        if (!isApprovedExecutor[executor]) {
+        if (!isApprovedExecutor[execution.callTarget]) {
             revert CalldataChecker__TargetError();
         }
 
-        if (targetData.length == 0) {
+        if (execution.targetData.length == 0) {
             revert KyberSwapChecker__InvalidTargetData();
         }
 
         // Validate fee configuration.
         // Required: exactly one receiver == DAO address, fee == FEE_BPS.
-        _validateFeeConfig(feeReceivers, feeAmounts);
+        _validateFeeConfig(desc.feeReceivers, desc.feeAmounts);
 
         // Exact flag match.  See REQUIRED_FLAGS documentation for rationale.
         // Critical: without _FEE_IN_BPS (0x80) the router interprets
         // feeAmounts[0]=4 as 4 wei instead of 4 basis points.
-        if (flags != REQUIRED_FLAGS) {
+        if (desc.flags != REQUIRED_FLAGS) {
             revert KyberSwapChecker__InvalidFlags();
         }
 
         // Prevent permit-based approvals.
-        if (permit.length != 0) {
+        if (desc.permit.length != 0) {
             revert KyberSwapChecker__InvalidPermit();
+        }
+
+        // approveTarget is unused by MetaAggregationRouterV2.swap() in the
+        // current deployment. Lock to address(0) to prevent activation if a
+        // future router version introduces _APPROVE_FUND or similar.
+        if (execution.approveTarget != address(0)) {
+            revert KyberSwapChecker__InvalidApproveTarget();
+        }
+
+        // Structural validity of srcReceivers/srcAmounts — the router's
+        // _transferFromToTarget sends input tokens (post-fee) to these
+        // addresses. Malformed arrays would revert in the router, but
+        // catching them here gives Curvance-specific errors and prevents
+        // malformed calldata from reaching external code.
+        uint256 srcReceiversLength = desc.srcReceivers.length;
+        if (srcReceiversLength == 0) {
+            revert KyberSwapChecker__InvalidSrcConfig();
+        }
+
+        if (srcReceiversLength != desc.srcAmounts.length) {
+            revert KyberSwapChecker__InvalidSrcConfig();
+        }
+
+        for (uint256 i; i < srcReceiversLength; ++i) {
+            // Prevent token burns via address(0) srcReceiver.
+            if (desc.srcReceivers[i] == address(0)) {
+                revert KyberSwapChecker__InvalidSrcConfig();
+            }
+        }
+
+        // Belt-and-suspenders: the router checks minReturnAmount > 0 but
+        // catching it here prevents execution from reaching external code
+        // with a guaranteed-revert configuration.
+        minOutAmount = desc.minReturnAmount;
+        if (minOutAmount == 0) {
+            revert KyberSwapChecker__InvalidMinReturn();
         }
     }
 
@@ -225,18 +249,13 @@ contract KyberSwapChecker is BaseSwapChecker {
         address[] memory feeReceivers,
         uint256[] memory feeAmounts
     ) internal view {
-        // Exactly one fee receiver required on every swap.
-        if (feeReceivers.length != 1) {
+        // Exactly one fee receiver and one fee amount required.
+        if (feeReceivers.length != 1 || feeAmounts.length != 1) {
             revert KyberSwapChecker__InvalidFeeConfig();
         }
 
         // Receiver must be the DAO.
         if (feeReceivers[0] != centralRegistry.daoAddress()) {
-            revert KyberSwapChecker__InvalidFeeConfig();
-        }
-
-        // feeAmounts must match feeReceivers in length.
-        if (feeAmounts.length != 1) {
             revert KyberSwapChecker__InvalidFeeConfig();
         }
 
