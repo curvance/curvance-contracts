@@ -112,14 +112,14 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCWMON), 1_000_000e18, 1_000_000e18);
     }
 
-    function testCheckCalldataRevert__TargetError() public {
+    function test_revert_wrongTarget() public {
         swapAction.target = address(0);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testCheckCalldataRevert__InvalidFuncSig() public {
+    function test_revert_wrongSelector() public {
         recipient = address(this);
         bytes memory invalidCallData = hex"d7ada2f3000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c542570100000000000000000000000000000000000000000000000014b292ba662a6b6d000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea00000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000004e02f817257fed379853cde0fa4f97ab987181b1e5ea01ffff04cd5455b24f3622a1cfece944615ae5bc8f36ee18010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000";
         recipient = address(simpleZapper);
@@ -133,7 +133,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, address(simpleZapper));
     }
 
-    function testSwapUnpackCheckCallDataRevert__InputTokenError() public {
+    function test_revert_inputTokenMismatch() public {
         recipient = address(this);
         swapAction.inputToken = address(0);
         swapAction.inputAmount = 5e6;
@@ -145,7 +145,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataRevert__InputAmountError() public {
+    function test_revert_inputAmountMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 0;
@@ -157,7 +157,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataRevert__OutputTokenError() public {
+    function test_revert_outputTokenMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -169,7 +169,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataSuccess() public {
+    function test_basicSuccess() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -180,12 +180,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    // -----------------------------------------------------------------------
-    // Fee validation tests
-    // -----------------------------------------------------------------------
+    // --- Fee validation ---
 
-    /// @notice DAO receiver with exactly FEE_BPS (4) — should pass.
-    function testKyberSwapChecker_success_whenDaoFeeReceiverWithExactFee() public {
+    function test_feeConfig_exactBps() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -202,8 +199,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Zero fee receivers — should revert (fees required on every swap).
-    function testKyberSwapChecker_fail_whenZeroFeeReceivers() public {
+    function test_revert_fee_noReceivers() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -215,8 +211,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Non-DAO fee receiver — should revert.
-    function testKyberSwapChecker_fail_whenNonDaoFeeReceiver() public {
+    function test_revert_fee_wrongReceiver() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -233,8 +228,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Fee above FEE_BPS — should revert (exact match required).
-    function testKyberSwapChecker_fail_whenFeeAboveExact() public {
+    function test_revert_fee_bpsTooHigh() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -251,8 +245,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Fee below FEE_BPS — should revert (exact match required).
-    function testKyberSwapChecker_fail_whenFeeBelowExact() public {
+    function test_revert_fee_bpsTooLow() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -269,8 +262,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Zero fee with a receiver — should revert (0 != FEE_BPS).
-    function testKyberSwapChecker_fail_whenZeroFeeWithReceiver() public {
+    function test_revert_fee_zeroBps() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -287,8 +279,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Multiple fee receivers — should revert even if both are DAO.
-    function testKyberSwapChecker_fail_whenMultipleFeeReceivers() public {
+    function test_revert_fee_multipleReceivers() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -325,8 +316,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice feeAmounts length mismatch — should revert.
-    function testKyberSwapChecker_fail_whenFeeAmountsLengthMismatch() public {
+    function test_revert_fee_amountsLengthMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -360,11 +350,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    // -----------------------------------------------------------------------
-    // Other existing tests (updated error name where applicable)
-    // -----------------------------------------------------------------------
+    // --- Recipient & executor ---
 
-    function testKyberSwapChecker_success_whenDstReceiverIsZero_addressDefaultsToMsgSender()
+    function test_recipientZero_resolvesToMsgSender()
         public
     {
         // Kyber interprets dstReceiver == address(0) as msg.sender.
@@ -405,7 +393,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenDstReceiverIsZero_butExpectedRecipientIsNotMsgSender()
+    function test_revert_recipientZero_mismatch()
         public
     {
         address expectedRecipient = makeAddr("expectedRecipient");
@@ -437,7 +425,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, expectedRecipient);
     }
 
-    function testKyberSwapChecker_success_whenDstReceiverIsZero_andExpectedRecipientIsMsgSender()
+    function test_recipientZero_matchesMsgSender()
         public
     {
         swapAction.inputToken = _USDC_ADDRESS;
@@ -477,7 +465,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, address(this));
     }
 
-    function testKyberSwapChecker_success_setExecutorApproval_allowsAndDisallowsExecutors()
+    function test_executorApproval_addRemove()
         public
     {
         address newExecutor = makeAddr("newExecutor");
@@ -531,7 +519,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_setExecutorApproval_whenMultipleExecutors() public {
+    function test_executorApproval_multipleExecutors() public {
         address otherExecutor = makeAddr("otherExecutor"); // second executor
         address[] memory multipleExecutors = new address[](2);
         multipleExecutors[0] = kyberSwapExecutor;
@@ -589,7 +577,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         multiChecker.checkCalldata(swapAction, address(this));
     }
 
-    function testKyberSwapChecker_fail_whenEmptyPath() public {
+    function test_revert_emptyTargetData() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -618,7 +606,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenInvalidFlags() public {
+    function test_revert_flags_requiresExtraEth() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -652,14 +640,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    // -----------------------------------------------------------------------
-    // Flag attack vector tests — exact match against REQUIRED_FLAGS (0x80)
-    // -----------------------------------------------------------------------
+    // --- Flag validation (exact match: REQUIRED_FLAGS = 0x80) ---
 
-    /// @notice CRITICAL: flags=0 means _FEE_IN_BPS is NOT set.
-    ///         Router interprets feeAmounts[0]=4 as 4 wei, not 4 BPS.
-    ///         User pays ~$0 fee instead of 0.04%.
-    function testKyberSwapChecker_fail_whenFeeInBpsNotSet() public {
+    /// flags=0: router treats feeAmounts[0]=4 as 4 wei, not 4 BPS.
+    function test_revert_flags_noFeeInBps() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -675,9 +659,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice _FEE_ON_DST (0x40) — fee taken from output instead of input.
-    ///         Changes fee economics. Must be blocked.
-    function testKyberSwapChecker_fail_whenFeeOnDst() public {
+    function test_revert_flags_feeOnDst() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -693,8 +675,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice _SIMPLE_SWAP (0x20) — different execution path, not used by SDK.
-    function testKyberSwapChecker_fail_whenSimpleSwap() public {
+    function test_revert_flags_simpleSwap() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -710,8 +691,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice _BURN_FROM_MSG_SENDER (0x08) — not used by Curvance.
-    function testKyberSwapChecker_fail_whenBurnFromMsgSender() public {
+    function test_revert_flags_burnMsgSender() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -727,8 +707,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice _BURN_FROM_TX_ORIGIN (0x10) — not used by Curvance.
-    function testKyberSwapChecker_fail_whenBurnFromTxOrigin() public {
+    function test_revert_flags_burnTxOrigin() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -744,8 +723,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Unknown future flag (0x100) — rejected by exact match.
-    function testKyberSwapChecker_fail_whenUnknownFlag() public {
+    function test_revert_flags_unknownBit() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -761,8 +739,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Exactly REQUIRED_FLAGS (0x80) — should pass.
-    function testKyberSwapChecker_success_whenExactRequiredFlags() public {
+    function test_flags_exactMatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -777,7 +754,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenNonEmptyPermit() public {
+    function test_revert_nonEmptyPermit() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -812,7 +789,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenExecutorMismatch() public {
+    function test_revert_unapprovedExecutor() public {
         address wrongExecutor = makeAddr("wrongExecutor");
         address[] memory wrongExecutors = new address[](1);
         wrongExecutors[0] = wrongExecutor;
@@ -830,19 +807,203 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         badChecker.checkCalldata(swapAction, recipient);
     }
 
-    // -----------------------------------------------------------------------
-    // Integration test with real KyberSwap calldata
-    // -----------------------------------------------------------------------
+    // --- Native address guards, recipient mismatch, srcReceiver loop ---
 
-    // Hardcoded calldata from KyberSwap API at block 59224721.
-    // Swap: 5 USDC -> WMON via simpleZapper (0x15cF58144EF33af1e14b5208015d11F9143E27b9).
-    //
-    // TODO: Re-capture calldata with fee params (feeAmount=4, isInBps=true,
-    // chargeFeeBy=currency_in, feeReceiver=DAO). The hardcoded calldata below
-    // was captured without fees and will fail KyberSwapChecker__InvalidFeeConfig.
-    // To re-capture: call KyberSwap API with fee params at a recent block,
-    // paste the encoded calldata here, and update the fork block.
-    function testSwapWithSimpleZapper() public {
+    function test_revert_recipientMismatch() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address wrongRecipient = makeAddr("wrongRecipient");
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = wrongRecipient; // non-zero, doesn't match recipient
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__RecipientError.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_inputTokenNativeZero() public {
+        recipient = address(this);
+        swapAction.inputToken = address(0);
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            address(0), WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4, 0x80
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_outputTokenNativeZero() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = address(0);
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, address(0), 5e6, recipient,
+            centralRegistry.daoAddress(), 4, 0x80
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_zeroAtIndex1() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = kyberSwapExecutor; // valid
+        desc.srcReceivers[1] = address(0);        // burn address — loop must catch
+        desc.srcAmounts = new uint256[](2);
+        desc.srcAmounts[0] = 3e6;
+        desc.srcAmounts[1] = 2e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_src_multipleValid() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address pool1 = makeAddr("pool1");
+        address pool2 = makeAddr("pool2");
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = pool1;
+        desc.srcReceivers[1] = pool2;
+        desc.srcAmounts = new uint256[](2);
+        desc.srcAmounts[0] = 3e6;
+        desc.srcAmounts[1] = 2e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_returnsMinOutAmount() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 123456789;
+        desc.flags = 0x80;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        uint256 minOut = checker.checkCalldata(swapAction, recipient);
+        assertEq(minOut, 123456789);
+    }
+
+    // --- Integration (requires re-captured calldata with fees) ---
+
+    // TODO: Re-capture with feeAmount=4, isInBps=true, chargeFeeBy=currency_in,
+    // feeReceiver=DAO. Current calldata was captured without fees.
+    function test_integration_zapperSwap() public {
         vm.skip(true);
         recipient = address(simpleZapper);
         swapAction.inputToken = _USDC_ADDRESS;
@@ -863,12 +1024,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
     }
 
-    // -----------------------------------------------------------------------
-    // Defense-in-depth: approveTarget, srcReceivers, minReturnAmount
-    // -----------------------------------------------------------------------
+    // --- Defense-in-depth: approveTarget, srcReceivers, minReturn ---
 
-    /// @notice Non-zero approveTarget — unused by swap(), lock to zero.
-    function testKyberSwapChecker_fail_whenApproveTargetNonZero() public {
+    function test_revert_nonZeroApproveTarget() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -906,8 +1064,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice Empty srcReceivers — no pool receives input tokens.
-    function testKyberSwapChecker_fail_whenEmptySrcReceivers() public {
+    function test_revert_src_noReceivers() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -942,8 +1099,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice srcReceivers/srcAmounts length mismatch.
-    function testKyberSwapChecker_fail_whenSrcLengthMismatch() public {
+    function test_revert_src_lengthMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -982,8 +1138,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice address(0) in srcReceivers — would burn input tokens.
-    function testKyberSwapChecker_fail_whenSrcReceiverIsZeroAddress() public {
+    function test_revert_src_zeroAddress() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -1021,8 +1176,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @notice minReturnAmount == 0 — router would reject, catch it earlier.
-    function testKyberSwapChecker_fail_whenMinReturnAmountIsZero() public {
+    function test_revert_zeroMinReturn() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -1060,11 +1214,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
+    // --- Helpers ---
 
-    /// @dev Builds KyberSwap calldata with DAO fee (required by checker).
+    /// @dev Default calldata: DAO fee + correct flags.
     function _buildKyberCalldata(
         address tokenIn,
         address tokenOut,
@@ -1078,9 +1230,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         );
     }
 
-    /// @dev Builds KyberSwap calldata with no fee (for fee-rejection tests).
-    ///      Still sets flags = REQUIRED_FLAGS so the test isolates the fee
-    ///      check without tripping the flags check first.
+    /// @dev No fee receivers. Flags still valid so fee-rejection tests don't trip the flags check.
     function _buildKyberCalldataNoFee(
         address tokenIn,
         address tokenOut,
@@ -1107,9 +1257,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         );
     }
 
-    /// @dev Builds KyberSwap calldata with a single fee receiver and explicit flags.
-    ///      Includes a valid srcReceivers/srcAmounts config (executor receives
-    ///      full amount) so the calldata passes structural validation.
+    /// @dev Configurable fee + flags. Includes valid srcReceivers.
     function _buildKyberCalldataWithFee(
         address tokenIn,
         address tokenOut,
