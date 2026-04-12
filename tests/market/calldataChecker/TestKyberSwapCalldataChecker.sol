@@ -192,7 +192,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         address daoAddress = centralRegistry.daoAddress();
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
-            daoAddress, 4 // exactly FEE_BPS
+            daoAddress, 4, // exactly FEE_BPS
+            0x80 // REQUIRED_FLAGS
         );
 
         // Should not revert — DAO receiver with exact fee match.
@@ -221,7 +222,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         address nonDao = makeAddr("attacker");
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
-            nonDao, 4
+            nonDao, 4,
+            0x80 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -238,7 +240,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         address daoAddress = centralRegistry.daoAddress();
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
-            daoAddress, 5 // 5 != FEE_BPS (4)
+            daoAddress, 5, // 5 != FEE_BPS (4)
+            0x80 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -255,7 +258,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         address daoAddress = centralRegistry.daoAddress();
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
-            daoAddress, 3 // 3 != FEE_BPS (4)
+            daoAddress, 3, // 3 != FEE_BPS (4)
+            0x80 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -272,7 +276,8 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         address daoAddress = centralRegistry.daoAddress();
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
-            daoAddress, 0
+            daoAddress, 0,
+            0x80 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
