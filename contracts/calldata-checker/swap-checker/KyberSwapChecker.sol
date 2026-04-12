@@ -27,6 +27,22 @@ contract KyberSwapChecker is BaseSwapChecker {
     ///         redeploy this checker with an updated constant.
     uint256 public constant FEE_BPS = 4;
 
+    /// @notice The only permitted value for `desc.flags`.
+    /// @dev    _FEE_IN_BPS (0x80) MUST be set so that `feeAmounts[0]` is
+    ///         interpreted as basis points, not as an absolute token amount.
+    ///
+    ///         All other flag bits are explicitly rejected:
+    ///           0x02 _REQUIRES_EXTRA_ETH — unnecessary, opens msg.value attack surface.
+    ///           0x08 _BURN_FROM_MSG_SENDER — not used by Curvance.
+    ///           0x10 _BURN_FROM_TX_ORIGIN — not used by Curvance.
+    ///           0x20 _SIMPLE_SWAP — different execution path, not used by SDK.
+    ///           0x40 _FEE_ON_DST — fee must be on input (currency_in) so
+    ///                the deducted amount is deterministic before the swap.
+    ///
+    ///         Exact match (not a bitmask) so any future KyberSwap flags are
+    ///         also rejected by default until explicitly reviewed and allowed.
+    uint256 public constant REQUIRED_FLAGS = 0x80;
+
     /// STORAGE ///
 
     /// @notice Allowlist of Kyber executor addresses that may be used
@@ -169,9 +185,10 @@ contract KyberSwapChecker is BaseSwapChecker {
         // Required: exactly one receiver == DAO address, fee == FEE_BPS.
         _validateFeeConfig(feeReceivers, feeAmounts);
 
-        // Extract _REQUIRES_EXTRA_ETH flag.
-        bool requiresExtraEth = (flags & 0x02) != 0;
-        if (requiresExtraEth) {
+        // Exact flag match.  See REQUIRED_FLAGS documentation for rationale.
+        // Critical: without _FEE_IN_BPS (0x80) the router interprets
+        // feeAmounts[0]=4 as 4 wei instead of 4 basis points.
+        if (flags != REQUIRED_FLAGS) {
             revert KyberSwapChecker__InvalidFlags();
         }
 

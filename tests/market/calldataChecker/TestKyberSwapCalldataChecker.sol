@@ -384,6 +384,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
+        desc.flags = 0x80; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -450,6 +451,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
+        desc.flags = 0x80; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -488,6 +490,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
+        desc.flags = 0x80; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = newExecutor;
@@ -542,6 +545,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
+        desc.flags = 0x80; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -632,6 +636,131 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
+    // -----------------------------------------------------------------------
+    // Flag attack vector tests — exact match against REQUIRED_FLAGS (0x80)
+    // -----------------------------------------------------------------------
+
+    /// @notice CRITICAL: flags=0 means _FEE_IN_BPS is NOT set.
+    ///         Router interprets feeAmounts[0]=4 as 4 wei, not 4 BPS.
+    ///         User pays ~$0 fee instead of 0.04%.
+    function testKyberSwapChecker_fail_whenFeeInBpsNotSet() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0 // no _FEE_IN_BPS — the attack
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice _FEE_ON_DST (0x40) — fee taken from output instead of input.
+    ///         Changes fee economics. Must be blocked.
+    function testKyberSwapChecker_fail_whenFeeOnDst() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 | 0x40 // _FEE_IN_BPS | _FEE_ON_DST
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice _SIMPLE_SWAP (0x20) — different execution path, not used by SDK.
+    function testKyberSwapChecker_fail_whenSimpleSwap() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 | 0x20 // _FEE_IN_BPS | _SIMPLE_SWAP
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice _BURN_FROM_MSG_SENDER (0x08) — not used by Curvance.
+    function testKyberSwapChecker_fail_whenBurnFromMsgSender() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 | 0x08 // _FEE_IN_BPS | _BURN_FROM_MSG_SENDER
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice _BURN_FROM_TX_ORIGIN (0x10) — not used by Curvance.
+    function testKyberSwapChecker_fail_whenBurnFromTxOrigin() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 | 0x10 // _FEE_IN_BPS | _BURN_FROM_TX_ORIGIN
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice Unknown future flag (0x100) — rejected by exact match.
+    function testKyberSwapChecker_fail_whenUnknownFlag() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 | 0x100 // _FEE_IN_BPS | unknown flag
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    /// @notice Exactly REQUIRED_FLAGS (0x80) — should pass.
+    function testKyberSwapChecker_success_whenExactRequiredFlags() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x80 // exactly REQUIRED_FLAGS
+        );
+
+        checker.checkCalldata(swapAction, recipient);
+    }
+
     function testKyberSwapChecker_fail_whenNonEmptyPermit() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
@@ -649,6 +778,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
+        desc.flags = 0x80; // REQUIRED_FLAGS — must pass flags to reach permit check
         desc.permit = hex"01";
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
@@ -730,11 +860,14 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
     ) internal view returns (bytes memory) {
         return _buildKyberCalldataWithFee(
             tokenIn, tokenOut, amount, dstReceiver,
-            centralRegistry.daoAddress(), 4 // FEE_BPS
+            centralRegistry.daoAddress(), 4, // FEE_BPS
+            0x80 // REQUIRED_FLAGS (_FEE_IN_BPS)
         );
     }
 
-    /// @dev Builds KyberSwap calldata with no fee (for rejection tests).
+    /// @dev Builds KyberSwap calldata with no fee (for fee-rejection tests).
+    ///      Still sets flags = REQUIRED_FLAGS so the test isolates the fee
+    ///      check without tripping the flags check first.
     function _buildKyberCalldataNoFee(
         address tokenIn,
         address tokenOut,
@@ -747,6 +880,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = dstReceiver;
         desc.amount = amount;
         desc.minReturnAmount = 1;
+        desc.flags = 0x80; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -760,14 +894,15 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         );
     }
 
-    /// @dev Builds KyberSwap calldata with a single fee receiver.
+    /// @dev Builds KyberSwap calldata with a single fee receiver and explicit flags.
     function _buildKyberCalldataWithFee(
         address tokenIn,
         address tokenOut,
         uint256 amount,
         address dstReceiver,
         address feeReceiver,
-        uint256 feeAmount
+        uint256 feeAmount,
+        uint256 flags
     ) internal view returns (bytes memory) {
         IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
         desc.srcToken = IERC20(tokenIn);
@@ -775,6 +910,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = dstReceiver;
         desc.amount = amount;
         desc.minReturnAmount = 1;
+        desc.flags = flags;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = feeReceiver;
         desc.feeAmounts = new uint256[](1);
