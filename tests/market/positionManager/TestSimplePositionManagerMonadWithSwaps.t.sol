@@ -150,9 +150,9 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
         leverageAction.swapAction.target = kyberSwapRouter;
         leverageAction.swapAction.call = _leverageCalldata();
-        leverageAction.swapAction.slippage = 0.5e18;
+        leverageAction.swapAction.slippage = 0.02e18; // 2%
 
-        positionManager.leverage(leverageAction, 0.5e18);
+        positionManager.leverage(leverageAction, 0.02e18); // 2%
         vm.stopPrank();
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
@@ -187,10 +187,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = kyberSwapRouter;
         deleverageAction.swapActions[0].call = _deleverageCalldata();
-        deleverageAction.swapActions[0].slippage = 0.5e18;
+        deleverageAction.swapActions[0].slippage = 0.02e18; // 2%
 
         vm.startPrank(user1);
-        positionManager.deleverage(deleverageAction, 0.5e18);
+        positionManager.deleverage(deleverageAction, 0.02e18); // 2%
         vm.stopPrank();
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
@@ -233,6 +233,9 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = kyberSwapRouter;
         deleverageAction.swapActions[0].call = _deleverageCalldata();
+        // High slippage tolerance is intentional — oracle prices are
+        // distorted above, so the oracle-based and position-level slippage
+        // checks need room to pass. The test targets InsufficientLoanSize.
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
         vm.startPrank(user1);
