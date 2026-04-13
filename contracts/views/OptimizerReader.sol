@@ -348,11 +348,15 @@ contract OptimizerReader {
     ///         markets), this is a pure yield-optimization. When bad markets
     ///         exist, it withdraws everything from them and optimally
     ///         redistributes across the remaining good markets.
+    ///         Returns empty arrays when no actionable rebalance exists
+    ///         (all deltas are zero or dust).
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
-    /// @return actions The rebalance actions array matching approvedCTokensList order.
-    /// @return bounds The allocation bounds array matching approvedCTokensList order.
+    /// @return actions The rebalance actions array matching approvedCTokensList order,
+    ///                 or empty if no rebalance is needed.
+    /// @return bounds The allocation bounds array matching approvedCTokensList order,
+    ///                or empty if no rebalance is needed.
     function optimalRebalance(
         address optimizer,
         uint256 slippageBps
@@ -361,9 +365,6 @@ contract OptimizerReader {
         LendingOptimizer.AllocationBound[] memory bounds
     ) {
         address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
-
-        actions = new LendingOptimizer.ReallocationAction[](markets.length);
-        bounds = new LendingOptimizer.AllocationBound[](markets.length);
 
         if (markets.length == 0) return (actions, bounds);
 
@@ -374,6 +375,16 @@ contract OptimizerReader {
         uint256[] memory currentAssets;
         (idealAssets, currentAssets,) =
             _computeIdealAllocation(optimizer, markets, badMarkets);
+
+        // Remove dust actions that would revert at the cToken level
+        // (convertToShares == 0) and rebalance to maintain zero-sum.
+        // Returns empty arrays if no actionable rebalance remains.
+        if (!_removeDustActions(markets, idealAssets, currentAssets)) {
+            return (actions, bounds);
+        }
+
+        actions = new LendingOptimizer.ReallocationAction[](markets.length);
+        bounds = new LendingOptimizer.AllocationBound[](markets.length);
 
         uint256 ta = ILendingOptimizer(optimizer).totalAssets();
         _buildActionsAndBounds(markets, idealAssets, currentAssets, ta, slippageBps, actions, bounds);
@@ -536,6 +547,117 @@ contract OptimizerReader {
                 bounds[i] = LendingOptimizer.AllocationBound(markets[i], 0, 10000);
             }
         }
+    }
+
+    /// @dev Removes dust rebalance deltas — entries whose absolute value
+    ///      converts to zero cToken shares (and would revert on-chain).
+    ///      Maintains the zero-sum invariant by trimming the smallest
+    ///      action on the opposing side. If trimming creates new dust the
+    ///      direction flips and the loop continues.
+    ///      Modifies `idealAssets` in place.
+    /// @return hasActions True if at least one non-zero delta remains.
+    function _removeDustActions(
+        address[] memory markets,
+        uint256[] memory idealAssets,
+        uint256[] memory currentAssets
+    ) internal view returns (bool hasActions) {
+        uint256 numMarkets = markets.length;
+
+        // Phase 1: Zero dust entries and compute signed imbalance.
+        // Positive imbalance → excess deposits → must reduce deposits.
+        // Negative imbalance → excess withdrawals → must reduce withdrawals.
+        int256 imbalance;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            if (idealAssets[i] == currentAssets[i]) continue;
+
+            bool isDeposit = idealAssets[i] > currentAssets[i];
+            uint256 absDelta = isDeposit
+                ? idealAssets[i] - currentAssets[i]
+                : currentAssets[i] - idealAssets[i];
+
+            if (IBorrowableCToken(markets[i]).convertToShares(absDelta) == 0) {
+                imbalance += isDeposit
+                    ? -int256(absDelta)
+                    : int256(absDelta);
+                idealAssets[i] = currentAssets[i];
+            }
+        }
+
+        // Phase 2: Rebalance by trimming the smallest entry on the
+        // over-represented side. If trimming creates new dust the
+        // excess flips direction and the loop continues.
+        if (imbalance != 0) {
+            uint256 excess = imbalance > 0
+                ? uint256(imbalance)
+                : uint256(-imbalance);
+            bool reduceDeposits = imbalance > 0;
+
+            while (excess > 0) {
+                uint256 bestIdx;
+                uint256 bestAmt = type(uint256).max;
+                bool found;
+
+                for (uint256 i; i < numMarkets; ++i) {
+                    if (idealAssets[i] == currentAssets[i]) continue;
+
+                    bool isDeposit = idealAssets[i] > currentAssets[i];
+                    if (isDeposit != reduceDeposits) continue;
+
+                    uint256 amt = isDeposit
+                        ? idealAssets[i] - currentAssets[i]
+                        : currentAssets[i] - idealAssets[i];
+
+                    if (amt < bestAmt) {
+                        bestAmt = amt;
+                        bestIdx = i;
+                        found = true;
+                    }
+                }
+
+                if (!found) {
+                    // Cannot balance — zero all remaining actions.
+                    for (uint256 i; i < numMarkets; ++i) {
+                        idealAssets[i] = currentAssets[i];
+                    }
+                    break;
+                }
+
+                if (excess >= bestAmt) {
+                    // Zero this entry entirely.
+                    idealAssets[bestIdx] = currentAssets[bestIdx];
+                    excess -= bestAmt;
+                } else {
+                    // Partially reduce.
+                    if (reduceDeposits) {
+                        idealAssets[bestIdx] -= excess;
+                    } else {
+                        idealAssets[bestIdx] += excess;
+                    }
+
+                    // Check if the remainder is now dust.
+                    uint256 remaining = reduceDeposits
+                        ? idealAssets[bestIdx] - currentAssets[bestIdx]
+                        : currentAssets[bestIdx] - idealAssets[bestIdx];
+
+                    if (IBorrowableCToken(markets[bestIdx]).convertToShares(remaining) == 0) {
+                        // Over-reduced: remainder is dust. Zero it
+                        // and flip direction with the leftover.
+                        idealAssets[bestIdx] = currentAssets[bestIdx];
+                        excess = remaining;
+                        reduceDeposits = !reduceDeposits;
+                    } else {
+                        excess = 0;
+                    }
+                }
+            }
+        }
+
+        // Phase 3: Return true if any non-zero delta remains.
+        for (uint256 i; i < numMarkets; ++i) {
+            if (idealAssets[i] != currentAssets[i]) return true;
+        }
+        return false;
     }
 
     /// @dev Returns true if `market` is in the `badMarkets` array.
