@@ -31,6 +31,10 @@ contract KyberSwapChecker is BaseSwapChecker {
     /// @dev    _FEE_IN_BPS (0x80) MUST be set so that `feeAmounts[0]` is
     ///         interpreted as basis points, not as an absolute token amount.
     ///
+    ///         0x200 is KyberSwap's executor v3 indicator — always present in
+    ///         API-generated calldata on Monad. Router-inert (not in the
+    ///         router's flag constants), consumed only by the executor contract.
+    ///
     ///         All other flag bits are explicitly rejected:
     ///           0x02 _REQUIRES_EXTRA_ETH — unnecessary, opens msg.value attack surface.
     ///           0x08 _BURN_FROM_MSG_SENDER — not used by Curvance.
@@ -41,7 +45,7 @@ contract KyberSwapChecker is BaseSwapChecker {
     ///
     ///         Exact match (not a bitmask) so any future KyberSwap flags are
     ///         also rejected by default until explicitly reviewed and allowed.
-    uint256 public constant REQUIRED_FLAGS = 0x80;
+    uint256 public constant REQUIRED_FLAGS = 0x280;
 
     /// STORAGE ///
 
