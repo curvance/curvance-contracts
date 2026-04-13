@@ -1772,7 +1772,23 @@ contract TestBaseMarketIsolated is TestBase {
         address swapperAddress,
         uint256 slippageBps
     ) public returns (bytes memory) {
-        string[] memory args = new string[](8);
+        return _getKyberCalldata(
+            chainId, tokenIn, tokenOut, amount, swapperAddress, slippageBps,
+            centralRegistry.daoAddress(), 4
+        );
+    }
+
+    function _getKyberCalldata(
+        uint256 chainId,
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address swapperAddress,
+        uint256 slippageBps,
+        address feeReceiver,
+        uint256 feeBps
+    ) public returns (bytes memory) {
+        string[] memory args = new string[](10);
         args[0] = "node";
         args[1] = "getKyberSwapData.js";
         args[2] = vm.toString(chainId);
@@ -1781,6 +1797,8 @@ contract TestBaseMarketIsolated is TestBase {
         args[5] = vm.toString(amount);
         args[6] = vm.toString(swapperAddress);
         args[7] = vm.toString(slippageBps);
+        args[8] = vm.toString(feeReceiver);
+        args[9] = vm.toString(feeBps);
 
         return vm.ffi(args);
     }
@@ -1793,7 +1811,23 @@ contract TestBaseMarketIsolated is TestBase {
         address swapperAddress,
         uint256 slippageBps
     ) public returns (uint256) {
-        string[] memory args = new string[](9);
+        return _getKyberAmountOut(
+            chainId, tokenIn, tokenOut, amount, swapperAddress, slippageBps,
+            centralRegistry.daoAddress(), 4
+        );
+    }
+
+    function _getKyberAmountOut(
+        uint256 chainId,
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address swapperAddress,
+        uint256 slippageBps,
+        address feeReceiver,
+        uint256 feeBps
+    ) public returns (uint256) {
+        string[] memory args = new string[](11);
         args[0] = "node";
         args[1] = "getKyberSwapData.js";
         args[2] = vm.toString(chainId);
@@ -1802,7 +1836,9 @@ contract TestBaseMarketIsolated is TestBase {
         args[5] = vm.toString(amount);
         args[6] = vm.toString(swapperAddress);
         args[7] = vm.toString(slippageBps);
-        args[8] = "amountOut";
+        args[8] = vm.toString(feeReceiver);
+        args[9] = vm.toString(feeBps);
+        args[10] = "amountOut";
 
         bytes memory out = vm.ffi(args);
         return abi.decode(out, (uint256));

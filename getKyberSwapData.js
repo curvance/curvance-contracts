@@ -15,6 +15,8 @@ async function main() {
         amount,
         swapperAddress,
         slippageBps,
+        feeReceiver,
+        feeBps,
         mode,
     } = loadArgs();
 
@@ -30,7 +32,10 @@ async function main() {
         amountIn: amount,
         gasInclude: "true",
         onlySinglePath: "true",
-        // do not request fees
+        chargeFeeBy: "currency_in",
+        feeReceiver: feeReceiver,
+        isInBps: "true",
+        feeAmount: feeBps,
     });
 
     let response = await fetch(
@@ -174,7 +179,9 @@ function loadArgs() {
     const amount = args[3];
     const swapperAddress = args[4];
     const slippageBps = args[5];
-    const mode = args[6] || "calldata";
+    const feeReceiver = args[6];
+    const feeBps = args[7];
+    const mode = args[8] || "calldata";
 
     return {
         chainId,
@@ -183,6 +190,8 @@ function loadArgs() {
         amount,
         swapperAddress,
         slippageBps,
+        feeReceiver,
+        feeBps,
         mode,
     };
 }
