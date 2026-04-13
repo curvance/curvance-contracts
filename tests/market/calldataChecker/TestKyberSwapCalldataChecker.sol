@@ -193,7 +193,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             daoAddress, 4, // exactly FEE_BPS
-            0x80 // REQUIRED_FLAGS
+            0x280 // REQUIRED_FLAGS
         );
 
         // Should not revert — DAO receiver with exact fee match.
@@ -223,7 +223,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             nonDao, 4,
-            0x80 // REQUIRED_FLAGS
+            0x280 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -241,7 +241,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             daoAddress, 5, // 5 != FEE_BPS (4)
-            0x80 // REQUIRED_FLAGS
+            0x280 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -259,7 +259,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             daoAddress, 3, // 3 != FEE_BPS (4)
-            0x80 // REQUIRED_FLAGS
+            0x280 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -277,7 +277,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             daoAddress, 0,
-            0x80 // REQUIRED_FLAGS
+            0x280 // REQUIRED_FLAGS
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
@@ -377,7 +377,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
-        desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.flags = 0x280; // REQUIRED_FLAGS
         desc.srcReceivers = new address[](1);
         desc.srcReceivers[0] = kyberSwapExecutor;
         desc.srcAmounts = new uint256[](1);
@@ -448,7 +448,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
-        desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.flags = 0x280; // REQUIRED_FLAGS
         desc.srcReceivers = new address[](1);
         desc.srcReceivers[0] = kyberSwapExecutor;
         desc.srcAmounts = new uint256[](1);
@@ -491,7 +491,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
-        desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.flags = 0x280; // REQUIRED_FLAGS
         desc.srcReceivers = new address[](1);
         desc.srcReceivers[0] = newExecutor;
         desc.srcAmounts = new uint256[](1);
@@ -550,7 +550,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
-        desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.flags = 0x280; // REQUIRED_FLAGS
         desc.srcReceivers = new address[](1);
         desc.srcReceivers[0] = kyberSwapExecutor;
         desc.srcAmounts = new uint256[](1);
@@ -645,7 +645,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    // --- Flag validation (exact match: REQUIRED_FLAGS = 0x80) ---
+    // --- Flag validation (exact match: REQUIRED_FLAGS = 0x280) ---
 
     /// flags=0: router treats feeAmounts[0]=4 as 4 wei, not 4 BPS.
     function test_revert_flags_noFeeInBps() public {
@@ -673,7 +673,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 | 0x40 // _FEE_IN_BPS | _FEE_ON_DST
+            0x280 | 0x40 // REQUIRED_FLAGS | _FEE_ON_DST
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
@@ -689,7 +689,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 | 0x20 // _FEE_IN_BPS | _SIMPLE_SWAP
+            0x280 | 0x20 // REQUIRED_FLAGS | _SIMPLE_SWAP
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
@@ -705,7 +705,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 | 0x08 // _FEE_IN_BPS | _BURN_FROM_MSG_SENDER
+            0x280 | 0x08 // REQUIRED_FLAGS | _BURN_FROM_MSG_SENDER
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
@@ -721,7 +721,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 | 0x10 // _FEE_IN_BPS | _BURN_FROM_TX_ORIGIN
+            0x280 | 0x10 // REQUIRED_FLAGS | _BURN_FROM_TX_ORIGIN
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
@@ -737,7 +737,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 | 0x100 // _FEE_IN_BPS | unknown flag
+            0x280 | 0x100 // REQUIRED_FLAGS | unknown flag
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
@@ -753,7 +753,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
             centralRegistry.daoAddress(), 4,
-            0x80 // exactly REQUIRED_FLAGS
+            0x280 // exactly REQUIRED_FLAGS
         );
 
         checker.checkCalldata(swapAction, recipient);
@@ -776,7 +776,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
-        desc.flags = 0x80; // REQUIRED_FLAGS — must pass flags to reach permit check
+        desc.flags = 0x280; // REQUIRED_FLAGS — must pass flags to reach permit check
         desc.permit = hex"01";
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
@@ -829,7 +829,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = wrongRecipient; // non-zero, doesn't match recipient
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -862,7 +862,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.target = kyberSwapRouter;
         swapAction.call = _buildKyberCalldataWithFee(
             address(0), WMON_ADDRESS, 5e6, recipient,
-            centralRegistry.daoAddress(), 4, 0x80
+            centralRegistry.daoAddress(), 4, 0x280
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
@@ -877,7 +877,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.target = kyberSwapRouter;
         swapAction.call = _buildKyberCalldataWithFee(
             _USDC_ADDRESS, address(0), 5e6, recipient,
-            centralRegistry.daoAddress(), 4, 0x80
+            centralRegistry.daoAddress(), 4, 0x280
         );
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
@@ -897,7 +897,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -940,7 +940,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -979,7 +979,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 123456789;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1042,7 +1042,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1080,7 +1080,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1115,7 +1115,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1154,7 +1154,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1192,7 +1192,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 0; // zero — invalid
-        desc.flags = 0x80;
+        desc.flags = 0x280;
         desc.feeReceivers = new address[](1);
         desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
@@ -1229,7 +1229,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         return _buildKyberCalldataWithFee(
             tokenIn, tokenOut, amount, dstReceiver,
             centralRegistry.daoAddress(), 4, // FEE_BPS
-            0x80 // REQUIRED_FLAGS (_FEE_IN_BPS)
+            0x280 // REQUIRED_FLAGS (_FEE_IN_BPS | executor v3)
         );
     }
 
@@ -1246,7 +1246,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = dstReceiver;
         desc.amount = amount;
         desc.minReturnAmount = 1;
-        desc.flags = 0x80; // REQUIRED_FLAGS
+        desc.flags = 0x280; // REQUIRED_FLAGS
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
