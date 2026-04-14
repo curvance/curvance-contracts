@@ -27,12 +27,13 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     // ============ Basic Return Shape ============
 
-    function test_optimalRebalance_success_returnsCorrectArrayLengths_oneMarket() public {
+    function test_optimalRebalance_success_returnsEmptyArrays_oneMarket() public {
         _setUpOneMarket();
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
-        assertEq(actions.length, 1, "Should have 1 market");
+        // Single market: ideal == current, all deltas are zero → dust filter returns empty.
+        assertEq(actions.length, 0, "Single market should return empty arrays (no rebalance needed)");
     }
 
     function test_optimalRebalance_success_returnsCorrectArrayLengths_twoMarkets() public {
@@ -154,8 +155,8 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
-        // With one market, ideal == current, so no actions needed.
-        assertEq(actions[0].assetsOrBps, 0, "No action needed for single market");
+        // With one market, ideal == current, all deltas are zero → empty arrays.
+        assertEq(actions.length, 0, "No actions needed for single market");
     }
 
     // ============ Integration: Actions Can Execute Rebalance ============
@@ -1037,7 +1038,11 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         // optimalRebalance should NOT suggest withdrawing from the paused market.
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
-        assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused market");
+        // Empty arrays are fine — no withdrawal from paused market.
+        // If non-empty, verify market 0 (paused) has no withdrawal.
+        if (actions.length > 0) {
+            assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused market");
+        }
 
         // Execute and let yield accrue.
         optimizer.accrueIfNeeded();
@@ -1270,7 +1275,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function _executeOptimalRebalance() internal {
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
-        optimizer.rebalance(actions, bounds);
+        if (actions.length > 0) optimizer.rebalance(actions, bounds);
     }
 
     // ============ Allocation Bounds from OptimizerReader ============
