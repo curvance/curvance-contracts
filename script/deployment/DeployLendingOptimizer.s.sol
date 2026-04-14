@@ -16,7 +16,8 @@ contract DeployLendingOptimizer is DeployScript {
         uint256[] memory caps,
         uint256 feeInBps,
         bool deployReader,
-        OptimizerReader.CollateralGuardConfig[] memory guardTypes
+        OptimizerReader.CollateralGuardConfig[] memory guardTypes,
+        uint256 stalenessMultiplier
     ) external recordEvents {
         IERC20 asset = IERC20(depositAsset);
         ICentralRegistry icr = ICentralRegistry(centralRegistryAddress);
@@ -28,7 +29,7 @@ contract DeployLendingOptimizer is DeployScript {
         );
 
         if(deployReader) {
-            OptimizerReader reader = new OptimizerReader(icr, guardTypes);
+            OptimizerReader reader = new OptimizerReader(icr, guardTypes, stalenessMultiplier);
             emit ContractDeployed(
                 address(reader),
                 string.concat("OptimizerReader")

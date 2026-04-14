@@ -16,6 +16,7 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICombinedAggregator } from "contracts/interfaces/ICombinedAggregator.sol";
+import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 
 interface IChainlinkAdaptor {
@@ -83,6 +84,7 @@ contract OptimizerReader {
     /// ERRORS ///
 
     error OptimizerReader__Unauthorized();
+    error OptimizerReader__InvalidMultiplier();
     error OptimizerReader__GuardConfigAlreadyExists();
     error OptimizerReader__GuardConfigDoesNotExist();
 
@@ -90,6 +92,7 @@ contract OptimizerReader {
 
     event GuardConfigAdded(address indexed cToken, uint256 guardType);
     event GuardConfigRemoved(address indexed cToken);
+    event StalenessMultiplierUpdated(uint256 oldMultiplier, uint256 newMultiplier);
 
     /// IMMUTABLES ///
 
@@ -108,14 +111,21 @@ contract OptimizerReader {
     mapping(address => uint256) internal _guardIndex;
     mapping(address => bool) internal _hasGuardConfig;
 
+    /// @notice Multiplier in BPS applied to each oracle's configured heartbeat
+    ///         to determine the staleness threshold. 0 = staleness check disabled.
+    ///         e.g., 15000 (1.5x) means a feed with a 1h heartbeat is stale after 1.5h.
+    uint256 public stalenessMultiplierBps;
+
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry _centralRegistry,
-        CollateralGuardConfig[] memory configs
+        CollateralGuardConfig[] memory configs,
+        uint256 _stalenessMultiplier
     ) {
         centralRegistry = _centralRegistry;
         ORACLE_MANAGER = IOracleManager(_centralRegistry.oracleManager());
+        stalenessMultiplierBps = _stalenessMultiplier;
 
         for (uint256 i; i < configs.length; ++i) {
             guardConfigs.push(configs[i]);
@@ -175,6 +185,25 @@ contract OptimizerReader {
         emit GuardConfigRemoved(cToken);
     }
 
+    /// @notice Updates the global staleness multiplier.
+    /// @dev Only callable by an address with elevated permissions.
+    ///      Set to 0 to disable staleness checking.
+    /// @param newMultiplierBps The new multiplier in BPS (e.g., 15000 = 1.5x heartbeat).
+    function setStalenessMultiplier(uint256 newMultiplierBps) external {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            revert OptimizerReader__Unauthorized();
+        }
+
+        if (newMultiplierBps != 0 && newMultiplierBps < 10_000) {
+            revert OptimizerReader__InvalidMultiplier();
+        }
+
+        uint256 oldMultiplier = stalenessMultiplierBps;
+        stalenessMultiplierBps = newMultiplierBps;
+
+        emit StalenessMultiplierUpdated(oldMultiplier, newMultiplierBps);
+    }
+
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Checks multiple optimizers for bad markets in a single call.
@@ -192,16 +221,18 @@ contract OptimizerReader {
         }
     }
 
-    /// @notice Checks whether any configured collateral asset's price
-    ///         has breached its price guard floor.
-    /// @dev For each approved market in the optimizer, looks up the
-    ///      collateral guard config. If a guard exists (type 1 or 2),
-    ///      reads the guard parameters and current price. If the price
-    ///      has breached the effective minimum, the optimizer's cToken
-    ///      is added to the flagged array.
+    /// @notice Checks whether any approved market should be considered
+    ///         unsafe due to a collateral price guard breach or a stale
+    ///         oracle feed.
+    /// @dev For each approved market in the optimizer:
+    ///      1. Checks if the collateral's oracle feed is stale (if
+    ///         stalenessMultiplier > 0).
+    ///      2. Checks if the collateral's price has breached its
+    ///         configured price guard floor (if a guard config exists).
+    ///      A market is flagged if either condition is met.
     /// @param optimizer The LendingOptimizer address.
     /// @return bad Array of optimizer cToken addresses whose
-    ///         collateral has breached its price guard.
+    ///         collateral has a stale oracle or breached price guard.
     function isBad(
         address optimizer
     ) external view returns (address[] memory bad) {
@@ -212,11 +243,15 @@ contract OptimizerReader {
         address[] memory temp = new address[](numMarkets);
         uint256 flagCount;
 
+        uint256 _stalenessMultiplierBps = stalenessMultiplierBps;
+
         for (uint256 i; i < numMarkets; ++i) {
             // Find the collateral cToken for this market by walking
             // the market manager's listed tokens.
             IMarketManager mm = _marketManager(markets[i]);
             address[] memory listed = mm.queryTokensListed();
+
+            bool flagged;
 
             for (uint256 j; j < listed.length; ++j) {
                 // Skip the optimizer's own cToken — the other token
@@ -224,8 +259,17 @@ contract OptimizerReader {
                 if (listed[j] == markets[i]) continue;
 
                 address collateralCToken = listed[j];
+                address collateralAsset = ICToken(collateralCToken).asset();
 
-                // Check if we have a guard config for this collateral.
+                // Check oracle staleness (applies to all markets).
+                if (_stalenessMultiplierBps > 0 &&
+                    _isOracleStale(collateralAsset, _stalenessMultiplierBps)
+                ) {
+                    flagged = true;
+                    break;
+                }
+
+                // Check price guard breach (only if configured).
                 if (!_hasGuardConfig[collateralCToken]) continue;
 
                 CollateralGuardConfig storage cfg =
@@ -234,12 +278,14 @@ contract OptimizerReader {
                 // guardType: 0 = none, 1 = adaptor, 2 = aggregator.
                 if (cfg.guardType == 0) continue;
 
-                address collateralAsset = ICToken(collateralCToken).asset();
-
                 if (_isGuardBreached(collateralAsset, cfg.guardType)) {
-                    temp[flagCount++] = markets[i];
+                    flagged = true;
                     break;
                 }
+            }
+
+            if (flagged) {
+                temp[flagCount++] = markets[i];
             }
         }
 
@@ -719,6 +765,29 @@ contract OptimizerReader {
         IBorrowableCToken token
     ) internal view returns (uint256 result) {
         result = token.interestFee();
+    }
+
+    /// @dev Checks whether a collateral asset's oracle feed is stale.
+    ///      Compares the time since the last oracle update against the
+    ///      feed's configured heartbeat scaled by `multiplierBps`.
+    /// @param collateralAsset The underlying collateral asset address.
+    /// @param multiplierBps The staleness multiplier in BPS (e.g., 15000 = 1.5x).
+    /// @return True if the oracle feed is stale.
+    function _isOracleStale(
+        address collateralAsset,
+        uint256 multiplierBps
+    ) internal view returns (bool) {
+        address[] memory adaptors = ORACLE_MANAGER.getPricingAdaptors(
+            collateralAsset
+        );
+
+        (, address aggregatorProxy,, uint24 heartbeat) =
+            IChainlinkAdaptor(adaptors[0]).assetConfig(collateralAsset, true);
+
+        (,,, uint256 updatedAt,) = IChainlink(aggregatorProxy).latestRoundData();
+
+        return block.timestamp - updatedAt >
+            uint256(heartbeat) * multiplierBps / 10000;
     }
 
     /// @dev Checks whether a collateral asset's price has breached its

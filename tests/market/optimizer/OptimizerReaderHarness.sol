@@ -12,7 +12,8 @@ contract OptimizerReaderHarness is OptimizerReader {
         ICentralRegistry _centralRegistry
     ) OptimizerReader(
         _centralRegistry,
-        new CollateralGuardConfig[](0)
+        new CollateralGuardConfig[](0),
+        0
     ) {}
 
     /// @notice Exposes _removeDustActions for direct testing.

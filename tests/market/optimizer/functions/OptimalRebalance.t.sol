@@ -21,7 +21,8 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         super.setUp();
         reader = new OptimizerReader(
             ICentralRegistry(address(liveCentralRegistry)),
-            new OptimizerReader.CollateralGuardConfig[](0)
+            new OptimizerReader.CollateralGuardConfig[](0),
+            0
         );
     }
 
