@@ -531,7 +531,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
     ) public {
         _setUpUnconstrainedOptimizer();
 
-        depositAmount = bound(depositAmount, 1e6, 200_000e6);
+        depositAmount = bound(depositAmount, 10_000e6, 200_000e6);
         badIndex = bound(badIndex, 0, 2);
 
         // Deposit evenly.

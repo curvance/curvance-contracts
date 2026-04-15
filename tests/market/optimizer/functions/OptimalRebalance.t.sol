@@ -40,6 +40,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     function test_optimalRebalance_success_returnsCorrectArrayLengths_twoMarkets() public {
         _setUpTwoMarkets();
 
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        optimizer.deposit(50_000e6, address(this));
+
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
         assertEq(actions.length, 2, "Should have 2 markets");
@@ -47,6 +51,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     function test_optimalRebalance_success_returnsCorrectArrayLengths_threeMarkets() public {
         _setUpThreeMarkets();
+        _depositToAllMarkets(50_000e6);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
@@ -55,6 +60,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     function test_optimalRebalance_success_marketsMatchApprovedList() public {
         _setUpThreeMarkets();
+        _depositToAllMarkets(50_000e6);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
@@ -255,18 +261,10 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
 
         // Only dead shares exist (77777 wei from initialization).
+        // Total value is well under USD_THRESHOLD, so reader returns empty.
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500);
 
-        assertEq(actions.length, 3, "Should still return 3 markets");
-
-        // With tiny totalAssets, chunks are tiny. Results should be valid.
-        // Mutual exclusivity is inherent with the single int256 assets field.
-        for (uint256 i; i < actions.length; ++i) {
-            assertTrue(
-                actions[i].assetsOrBps >= 0 || actions[i].assetsOrBps < 0,
-                "Mutual exclusivity violated"
-            );
-        }
+        assertEq(actions.length, 0, "Sub-threshold rebalance should return empty arrays");
     }
 
     function test_optimalRebalance_success_afterTimePassesYieldAccrues() public {
@@ -280,8 +278,13 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actionsAfter, ) = reader.optimalRebalance(address(optimizer), 500);
 
-        // Both should produce valid results; arrays may differ.
-        assertEq(actionsBefore.length, actionsAfter.length, "Array length mismatch");
+        // Both should produce valid results. After yield accrual the rebalance
+        // delta may fall below USD_THRESHOLD, returning empty arrays.
+        assertTrue(actionsBefore.length > 0, "Before should have actions");
+        assertTrue(
+            actionsAfter.length == actionsBefore.length || actionsAfter.length == 0,
+            "After should either match or be empty (sub-threshold)"
+        );
     }
 
     // ============ Large Deposits / Concentration ============
@@ -445,7 +448,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     ) public {
         _setUpThreeMarkets();
 
-        depositAmount = bound(depositAmount, 1e6, 1_000_000e6);
+        depositAmount = bound(depositAmount, 10_000e6, 1_000_000e6);
 
         deal(USDC_MONAD, address(this), depositAmount);
         IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
@@ -1468,5 +1471,66 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
          LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
 
         optimizer.rebalance(actions, bounds);
+    }
+
+    // ============ USD Threshold ============
+
+    /// @notice A deposit small enough that the rebalance value is under
+    ///         USD_THRESHOLD ($100) should return empty arrays.
+    function test_optimalRebalance_success_belowUsdThreshold_returnsEmpty() public {
+        _setUpThreeMarkets();
+
+        // Deposit a tiny amount — rebalance deltas will be well under $100.
+        deal(USDC_MONAD, address(this), 50e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50e6);
+        optimizer.deposit(50e6, address(this));
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(actions.length, 0, "Sub-threshold rebalance should return empty");
+    }
+
+    /// @notice A deposit large enough that the rebalance value exceeds
+    ///         USD_THRESHOLD ($1) should return non-empty arrays.
+    function test_optimalRebalance_success_aboveUsdThreshold_returnsActions() public {
+        _setUpThreeMarkets();
+
+        // Deposit enough that rebalance deltas exceed $1.
+        deal(USDC_MONAD, address(this), 50_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 50_000e6);
+        optimizer.deposit(50_000e6, address(this));
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertGt(actions.length, 0, "Above-threshold rebalance should return actions");
+    }
+
+    /// @notice After a successful rebalance, the residual drift should be
+    ///         under the USD threshold, so a second call returns empty.
+    function test_optimalRebalance_success_afterRebalance_belowThreshold() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(50_000e6);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        // First call: rebalance needed.
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertGt(actions.length, 0, "First call should have actions");
+        optimizer.rebalance(actions, bounds);
+
+        // Second call: residual drift under $1.
+        (LendingOptimizer.ReallocationAction[] memory actions2, ) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(actions2.length, 0, "Post-rebalance should be under threshold");
     }
 }

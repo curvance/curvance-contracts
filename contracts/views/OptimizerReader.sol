@@ -12,6 +12,7 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -93,6 +94,12 @@ contract OptimizerReader {
     event GuardConfigAdded(address indexed cToken, uint256 guardType);
     event GuardConfigRemoved(address indexed cToken);
     event StalenessMultiplierUpdated(uint256 oldMultiplier, uint256 newMultiplier);
+
+    /// CONSTANTS ///
+
+    /// @notice Minimum total rebalance value in USD (WAD) below which
+    ///         optimalRebalance returns empty arrays. 1e18 = $1.
+    uint256 public constant USD_THRESHOLD = 100e18;
 
     /// IMMUTABLES ///
 
@@ -434,6 +441,34 @@ contract OptimizerReader {
 
         uint256 ta = ILendingOptimizer(optimizer).totalAssets();
         _buildActionsAndBounds(markets, idealAssets, currentAssets, ta, slippageBps, actions, bounds);
+
+        {
+            address underlying = ILendingOptimizer(optimizer).asset();
+            (uint256 price, uint256 errorCode) = ORACLE_MANAGER.getPrice(underlying, true, true);
+
+            // Only apply threshold if price is reliable.
+            if (errorCode == 0 && price > 0) {
+                uint256 assetDecimals = IERC20(underlying).decimals();
+
+                uint256 totalAbsAssets;
+                for (uint256 i; i < actions.length; ++i) {
+                    int256 v = actions[i].assetsOrBps;
+                    totalAbsAssets += v > 0 ? uint256(v) : uint256(-v);
+                }
+
+                // Only half matters (deposits == withdrawals), so divide by 2.
+                uint256 usdValue = FixedPointMathLib.mulDiv(
+                    totalAbsAssets / 2, price, 10 ** assetDecimals
+                );
+
+                if (usdValue < USD_THRESHOLD) {
+                    return (
+                        new LendingOptimizer.ReallocationAction[](0),
+                        new LendingOptimizer.AllocationBound[](0)
+                    );
+                }
+            }
+        }
     }
 
     /// @dev Chunked greedy allocation: computes the ideal per-market asset
