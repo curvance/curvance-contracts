@@ -838,7 +838,6 @@ contract OptimizerReader {
         address[] memory adaptors = ORACLE_MANAGER.getPricingAdaptors(
             collateralAsset
         );
-        if (adaptors.length == 0) return false;
 
         address adaptor = adaptors[0];
 
