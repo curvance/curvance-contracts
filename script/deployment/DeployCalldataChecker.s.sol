@@ -3,20 +3,32 @@ pragma solidity 0.8.28;
 
 import { DeployScript } from "../utils/DeployScript.sol";
 
-import { KuruCalldataChecker } from "contracts/calldata-checker/swap-checker/KuruCalldataChecker.sol";
+import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract DeployCalldataChecker is DeployScript {
     struct AvailableCheckers {
-        address kuruRouter;
+        address router;
     }
+
+    address KYBER_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+
+    address[] EXECUTORS = [
+        0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0, // current
+        0x4a16958D2041044C67c8F33017a75693Cc58F7CC // new
+    ];
+
 
     function run(address registry, AvailableCheckers calldata checkerSelection) external recordEvents {
         CentralRegistry cr = CentralRegistry(registry);
 
-        if(checkerSelection.kuruRouter != address(0)) {
-            KuruCalldataChecker checker = new KuruCalldataChecker(checkerSelection.kuruRouter, 0x62eE1b8D1EFdF8f73c78dB87b888406b194e266a, cr.daoAddress());
-            cr.setExternalCalldataChecker(checkerSelection.kuruRouter, address(checker));
+        if(checkerSelection.router != address(0)) {
+            KyberSwapChecker checker = new KyberSwapChecker(
+                checkerSelection.router, 
+                EXECUTORS, 
+                cr.daoAddress()
+            );
+            cr.setExternalCalldataChecker(checkerSelection.router, address(checker));
         }
     }
 }

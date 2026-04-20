@@ -15,7 +15,11 @@ async function main() {
         amount,
         swapperAddress,
         slippageBps,
+        feeReceiver,
+        feeBps,
         mode,
+        chargeFeeBy,
+        isInBps,
     } = loadArgs();
 
     const chain = mapChainIdToKyberChain(chainId);
@@ -30,8 +34,15 @@ async function main() {
         amountIn: amount,
         gasInclude: "true",
         onlySinglePath: "true",
-        // do not request fees
     });
+
+    // Only include fee params if feeReceiver is provided (allows no-fee calldata).
+    if (feeReceiver) {
+        routeParams.set("chargeFeeBy", chargeFeeBy);
+        routeParams.set("feeReceiver", feeReceiver);
+        routeParams.set("isInBps", isInBps);
+        routeParams.set("feeAmount", feeBps);
+    }
 
     let response = await fetch(
         `${routesUrl}?${routeParams.toString()}`,
@@ -174,7 +185,11 @@ function loadArgs() {
     const amount = args[3];
     const swapperAddress = args[4];
     const slippageBps = args[5];
-    const mode = args[6] || "calldata";
+    const feeReceiver = args[6] || "";
+    const feeBps = args[7] || "0";
+    const mode = args[8] || "calldata";
+    const chargeFeeBy = args[9] || "currency_in";
+    const isInBps = args[10] || "true";
 
     return {
         chainId,
@@ -183,7 +198,11 @@ function loadArgs() {
         amount,
         swapperAddress,
         slippageBps,
+        feeReceiver,
+        feeBps,
         mode,
+        chargeFeeBy,
+        isInBps,
     };
 }
 

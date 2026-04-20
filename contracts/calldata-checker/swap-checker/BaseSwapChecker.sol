@@ -54,7 +54,7 @@ abstract contract BaseSwapChecker is
     /// STORAGE ///
     
     /// @notice The address of the target swap contract
-    address public target;
+    address public immutable target;
 
     /// CONSTRUCTOR ///
 

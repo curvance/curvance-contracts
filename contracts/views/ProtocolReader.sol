@@ -405,6 +405,25 @@ contract ProtocolReader {
         price = (long == marginExceedsDebt) ? currPrice - LHS : currPrice + LHS;
     }
 
+    function getMarketStates(
+        address[] calldata markets,
+        address account
+    ) external view returns (
+        DynamicMarketData[] memory dynamicMarkets,
+        UserMarket[] memory userMarkets
+    ) {
+        uint256 numMarkets = markets.length;
+        dynamicMarkets = new DynamicMarketData[](numMarkets);
+        userMarkets = new UserMarket[](numMarkets);
+
+        for (uint256 i; i < numMarkets; ++i) {
+            MarketManagerIsolated mm = MarketManagerIsolated(markets[i]);
+
+            dynamicMarkets[i] = _buildDynamicMarketData(mm);
+            userMarkets[i] = _buildUserMarket(mm, account);
+        }
+    }
+
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
