@@ -52,6 +52,9 @@ contract OptimizerReader {
         uint256 sharePrice;
         /// @notice Performance fee in BPS.
         uint256 performanceFee;
+        /// @notice Annualized weighted-average supply APY in WAD (1e18 = 100%),
+        ///         pre-performance-fee. Matches getOptimizerAPY() semantics.
+        uint256 apy;
     }
 
     struct OptimizerUserData {
@@ -308,7 +311,7 @@ contract OptimizerReader {
     /// @return data The market data for each optimizer.
     function getOptimizerMarketData(
         address[] calldata optimizers
-    ) external returns (OptimizerMarketData[] memory data) {
+    ) external view returns (OptimizerMarketData[] memory data) {
         uint256 len = optimizers.length;
         data = new OptimizerMarketData[](len);
 
@@ -318,8 +321,13 @@ contract OptimizerReader {
             data[i]._address = optimizers[i];
             data[i].asset = opt.asset();
             data[i].totalAssets = opt.totalAssets();
-            data[i].sharePrice = opt.exchangeRateUpdated();
+            // View-only exchange rate. Stale relative to unclaimed cToken
+            // accruals; drift is wei-scale over seconds and acceptable for
+            // display. Callers needing post-accrual precision should call
+            // opt.exchangeRateUpdated() directly.
+            data[i].sharePrice = opt.exchangeRate();
             data[i].performanceFee = opt.fee();
+            data[i].apy = getOptimizerAPY(optimizers[i]);
 
             address[] memory cTokens = opt.getApprovedMarkets();
             uint256 l = cTokens.length;
@@ -370,7 +378,7 @@ contract OptimizerReader {
     /// @return apy The annualized supply APY in WAD.
     function getOptimizerAPY(
         address optimizer
-    ) external view returns (uint256 apy) {
+    ) public view returns (uint256 apy) {
         ILendingOptimizer opt = ILendingOptimizer(optimizer);
         uint256 ta = opt.totalAssets();
         if (ta == 0) return 0;

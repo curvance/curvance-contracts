@@ -138,6 +138,12 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         assertEq(data[0]._address, address(optimizer), "Address mismatch");
         assertEq(data[0].asset, USDC_MONAD, "Asset mismatch");
         assertEq(data[0].markets.length, 3, "Should have 3 markets");
+        // apy matches the standalone getOptimizerAPY path (merged in-loop).
+        assertEq(
+            data[0].apy,
+            reader.getOptimizerAPY(address(optimizer)),
+            "apy field should match getOptimizerAPY"
+        );
     }
 
     /// @notice totalAssets in market data matches optimizer.totalAssets().
@@ -145,7 +151,7 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         _setUpThreeMarketsUnconstrained();
         _depositToAllMarketsUnconstrained(50_000e6);
 
-        // Accrue first so exchangeRateUpdated doesn't change state.
+        // Accrue first so both reads observe the same post-accrual state.
         optimizer.accrueIfNeeded();
 
         address[] memory optimizers = new address[](1);
@@ -154,12 +160,12 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         OptimizerReader.OptimizerMarketData[] memory data =
             reader.getOptimizerMarketData(optimizers);
 
-        // After exchangeRateUpdated call in getOptimizerMarketData,
-        // totalAssets may have accrued slightly. Use approx check.
+        // Reader is now view and does not accrue, so both reads are taken
+        // from identical state. Tolerance retained for defensive margin.
         assertApproxEqAbs(
             data[0].totalAssets,
             optimizer.totalAssets(),
-            3, // small rounding from accrual
+            3,
             "totalAssets should match optimizer"
         );
     }
