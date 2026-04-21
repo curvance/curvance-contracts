@@ -534,28 +534,30 @@ contract OptimizerReader {
                     ta, opt.allocationCaps(markets[i]), WAD
                 );
 
-                // Force bad markets to zero allocation.
-                if (_isBadMarket(markets[i], badMarkets)) {
-                    m[i].maxAllocation = 0;
-                    continue;
-                }
-
                 MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
+                // Two orthogonal constraints drive allocation policy:
+                //  - cannotAddMore: bad or mint-paused — no new deposits.
+                //  - cannotWithdraw: redeem-paused — must keep current position.
+                bool cannotAddMore = _isBadMarket(markets[i], badMarkets)
+                    || _isMintPaused(markets[i], IMarketManager(address(mm)));
+                bool cannotWithdraw = mm.redeemPaused() == 2;
 
-                if (mm.redeemPaused() == 2) {
+                if (cannotWithdraw) {
+                    // Position is locked; exclude from distributable pool.
                     m[i].simAssetsHeld += current;
                     lockedAssets += current;
                     idealAssets[i] = current;
-                    if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
+                    // If also cannot add, freeze at current; otherwise floor at current.
+                    if (cannotAddMore) {
                         m[i].maxAllocation = current;
                     } else if (m[i].maxAllocation < current) {
                         m[i].maxAllocation = current;
                     }
-                } else {
-                    if (_isMintPaused(markets[i], IMarketManager(address(mm)))) {
-                        m[i].maxAllocation = 0;
-                    }
+                } else if (cannotAddMore) {
+                    // Can withdraw, cannot add → drain to 0.
+                    m[i].maxAllocation = 0;
                 }
+                // else: normal greedy allocation at cap-based maxAllocation.
             }
         }
 
