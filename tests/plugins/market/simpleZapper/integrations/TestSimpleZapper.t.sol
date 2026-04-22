@@ -224,6 +224,64 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.debtBalance(user1), 0, "Debt should be fully repaid");
     }
 
+    function testSwapAndRepay_doesNotGuaranteeReceiverMinCredit() external {
+        testSwapAndDeposit();
+        vm.startPrank(user1);
+        simpleCUSDC.postCollateral(2e9);
+        borrowableCDAI.borrow(500 ether, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+
+        uint256 receiverDebtBefore = borrowableCDAI.debtBalanceUpdated(user1);
+        uint256 repayAssets = receiverDebtBefore + 1;
+        uint256 user1DaiBalanceBefore = dai.balanceOf(user1);
+        uint256 user2DaiBalanceBefore = dai.balanceOf(user2);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 505e6;
+        swapAction.outputToken = _DAI_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _USDC_ADDRESS;
+        params.tokenOut = _DAI_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 505e6;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        _prepareUSDC(user2, 505e6);
+        vm.startPrank(user2);
+        usdc.approve(address(simpleZapper), 505e6);
+        uint256 returnedToCaller = simpleZapper.swapAndRepay(
+            address(borrowableCDAI),
+            false,
+            swapAction,
+            repayAssets,
+            user1
+        );
+        vm.stopPrank();
+
+        uint256 user2DaiBalanceAfter = dai.balanceOf(user2);
+
+        assertLt(receiverDebtBefore, repayAssets, "precondition: repay floor should exceed live debt");
+        assertEq(borrowableCDAI.debtBalance(user1), 0, "Debt should be fully repaid");
+        assertEq(dai.balanceOf(user1), user1DaiBalanceBefore, "receiver should not get direct transfer");
+        assertEq(
+            user2DaiBalanceAfter - user2DaiBalanceBefore,
+            returnedToCaller,
+            "caller should receive leftover debt asset"
+        );
+        assertGt(returnedToCaller, 0, "caller should receive leftover debt asset");
+    }
+
     function testRedeemAndSwapCToken() public {
         testSwapAndDeposit();
 

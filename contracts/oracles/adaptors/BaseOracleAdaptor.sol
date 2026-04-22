@@ -154,14 +154,17 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate the higher feed did not return an error.
+        // Reject guard writes that only "work" by pricing through the
+        // opposite denomination. Those guards would be stored on the requested
+        // side but never bind runtime pricing for that denomination.
         PricingResult memory result = this.getPrice(asset, inUSD, false);
-        if (result.hadError) {
+        if (result.hadError || result.inUSD != inUSD) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
-        // Validate the lower feed did not return an error.
+        // Validate the lower feed did not return an error for the requested
+        // denomination either.
         result = this.getPrice(asset, inUSD, true);
-        if (result.hadError) {
+        if (result.hadError || result.inUSD != inUSD) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
