@@ -107,9 +107,15 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         }
 
         // Multiply the quote asset price by the lpRate
-        // to get the Lp Token fair value.
-        result.price = (price * lpRate) / WAD;
+        // to get the Lp Token fair value, then route through _adjustPrice
+        // so any configured PriceGuard for (asset, inUSD) fires.
+        // _adjustPrice returns 0 on guard-clamp-to-zero; bubble that as
+        // a hadError signal.
         result.inUSD = inUSD;
+        result.price = _adjustPrice(asset, inUSD, (price * lpRate) / WAD, 18);
+        if (result.price == 0) {
+            result.hadError = true;
+        }
     }
 
     /// @notice Adds pricing support for `asset`, a pendle lp token.

@@ -108,9 +108,17 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         }
 
         // Multiply the quote asset price by the ptRate
-        // to get the Principal Token fair value.
-        result.price = (price * ptRate) / WAD;
+        // to get the Principal Token fair value, then route through
+        // _adjustPrice so any configured PriceGuard for (asset, inUSD)
+        // fires. _adjustPrice returns 0 when the composed price falls
+        // below the configured guard minimum; bubble that as a hadError
+        // signal so consumers route to BAD_SOURCE rather than read a
+        // zero price.
         result.inUSD = inUSD;
+        result.price = _adjustPrice(asset, inUSD, (price * ptRate) / WAD, 18);
+        if (result.price == 0) {
+            result.hadError = true;
+        }
     }
 
     /// @notice Adds pricing support for `asset`, a Pendle principal token.
