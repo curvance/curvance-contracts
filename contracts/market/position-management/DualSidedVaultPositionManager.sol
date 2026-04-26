@@ -79,10 +79,11 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
             revert BasePositionManager__InvalidAmount();
         }
 
-        SwapperLib.
-            _approveIfNeeded(underlying, vault, action.collateralAssets);
-        uint256 assets = _vaultRedeem(vault, action.collateralAssets);
-        SwapperLib._removeApprovalIfNeeded(underlying, vault);
+        // Redeem vault shares into `underlying`. ERC4626 self-redeem
+        // (msg.sender == owner == this) needs no allowance, and the vault
+        // does not pull `underlying` from the caller, so no approval step
+        // is required here.
+        _vaultRedeem(vault, action.collateralAssets);
 
         // If the `debtAsset` already matches the vault underlying, we can
         // skip swapping.
@@ -96,19 +97,21 @@ contract DualSidedVaultPositionManager is SingleSidedVaultPositionManager {
             // Load the one swap action.
             SwapperLib.Swap memory swapAction = action.swapActions[0];
 
+            // The caller is responsible for encoding `swapAction.inputAmount`
+            // (and the matching `desc.amount` inside `swapAction.call`) to
+            // the post-redeem underlying amount, i.e. `previewRedeem(
+            // action.collateralAssets)`. Mutating `inputAmount` here would
+            // desync from the calldata bytes and trip the calldata-checker.
+            // See `BasePositionManager` natspec for the protocol-wide
+            // router-style residue semantic.
             if (
                 swapAction.call.length == 0 ||
                 swapAction.target == address(0) ||
                 swapAction.inputToken != underlying ||
-                swapAction.outputToken != debtAsset ||
-                swapAction.inputAmount != action.collateralAssets
+                swapAction.outputToken != debtAsset
             ) {
                 revert BasePositionManager__InvalidParam();
             }
-
-            // If we got more assets than anticipated, swap the full amount
-            // to receive more `debtAssets`.
-            swapAction.inputAmount = assets;
 
             // Swap `underlying` to vault `debtAsset`.
             SwapperLib._swapSafe(centralRegistry, swapAction);

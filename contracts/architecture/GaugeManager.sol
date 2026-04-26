@@ -209,35 +209,42 @@ contract GaugeManager is
 
         Epoch storage info = _epochInfo[epoch];
         address priorAddress;
-        bool poolUpdated;
 
+        // Pass 1: settle every affected pool under the existing weights so
+        // any reward accrual for an interval ending at the current
+        // block reads the pre-mutation `totalWeights`. For newly-enabled
+        // gauges (no prior `tokenWeight`), `updatePool`'s zero-init branch
+        // sets `lastRewardTimestamp = block.timestamp` on first call, so
+        // they do not claim back-rewards for time before activation.
+        //
+        // Pools NOT included in `tokens` are not settled here; their
+        // accrual will use the new `totalWeights` for any interval since
+        // their last settle. Callers wishing to fully isolate this
+        // governance change from unrelated pools should include the full
+        // set of active gauges in `tokens`.
         for (uint256 i; i < numTokens; ) {
             address token = tokens[i];
 
-            // We sort the token addresses offchain from smallest to largest
-            // to validate there are no duplicates.
+            // We sort the token addresses offchain from smallest to
+            // largest to validate there are no duplicates.
             if (priorAddress >= token) {
                 revert GaugeManager__InvalidToken();
             }
 
-            if (info.tokenWeight[token] > 0) {
-                poolUpdated = true;
-                updatePool(token);
-            } else {
-                poolUpdated = false;
-            }
-
-            info.totalWeights = info.totalWeights + weights[i];
-            info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
-
-            if (!poolUpdated) {
-                updatePool(token);
-            }
+            updatePool(token);
 
             unchecked {
                 /// Update prior to current token, then increment i.
                 priorAddress = tokens[i++];
             }
+        }
+
+        // Pass 2: apply weight changes only after every affected pool has
+        // checkpointed against the old `totalWeights`.
+        for (uint256 i; i < numTokens; ++i) {
+            address token = tokens[i];
+            info.totalWeights = info.totalWeights + weights[i];
+            info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
         }
 
         emit GaugeWeightsSet(epoch, tokens, weights);

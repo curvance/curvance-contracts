@@ -110,11 +110,14 @@ contract RewardsDistribution is ReentrancyGuard {
             revert RewardDistribution__ParametersAreInvalid();
         }
 
-        RewardsConfig memory config;
         bytes32 root;
         for (uint256 i; i < numRoots; ++i) {
             root = roots[i];
-            config = rewardsConfig[root];
+            // Storage reference so the `rewardAmount` decrement below
+            // persists to `rewardsConfig[root]`. A `memory` copy would
+            // mutate only the local copy and leave per-root accounting
+            // permanently stale.
+            RewardsConfig storage config = rewardsConfig[root];
             // Validate that the claim data is correct and that there is not
             // somehow insufficient tokens to distribute, or that claim value
             // is equal to 0.
@@ -242,8 +245,8 @@ contract RewardsDistribution is ReentrancyGuard {
                 root == bytes32(0) ||
                 rewardToken[i] == address(0) ||
                 rewardAmount[i] == 0 ||
-                claimEndTimestamp[i] > block.timestamp + MINIMUM_CLAIM_WINDOW ||
-                claimEndTimestamp[i] < block.timestamp + MAXIMUM_CLAIM_WINDOW
+                claimEndTimestamp[i] < block.timestamp + MINIMUM_CLAIM_WINDOW ||
+                claimEndTimestamp[i] > block.timestamp + MAXIMUM_CLAIM_WINDOW
             ) {
                 revert RewardDistribution__ParametersAreInvalid();
             }
