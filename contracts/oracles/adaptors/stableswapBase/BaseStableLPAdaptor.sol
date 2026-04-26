@@ -79,6 +79,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         bool getLower
     ) external view virtual override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
+        result.inUSD = inUSD;
 
         // Read Adaptor storage and grab pool tokens.
         AssetConfig memory config = assetConfig[asset];
@@ -118,14 +119,19 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        result.price = _getFairPrice(
-            reserve0,
-            reserve1,
-            price0,
-            price1,
-            totalSupply
+        uint256 adjustedPrice = _adjustPrice(
+            asset,
+            inUSD,
+            _getFairPrice(reserve0, reserve1, price0, price1, totalSupply),
+            18
         );
-        result.inUSD = inUSD;
+
+        if (adjustedPrice == 0) {
+            result.hadError = true;
+            return result;
+        }
+
+        result.price = adjustedPrice;
     }
 
     /// @notice Adds pricing support for `asset`, an lp token for

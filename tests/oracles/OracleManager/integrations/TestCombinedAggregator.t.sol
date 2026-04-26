@@ -289,6 +289,40 @@ contract TestCombinedAggregator is Test {
         assertEq(uint256(adjusted), expected, "dynamic guard clamp after time advance mismatch");
     }
 
+    function test_primaryDepegCanHideInsideCombinedPrice() public {
+        // Model a wrapped-asset price where the primary feed depegs lower while
+        // the secondary exchange-rate style feed rises enough to offset it.
+        MockV3Aggregator primaryMock = new MockV3Aggregator(8, int256(1e8));
+        MockV3Aggregator secondaryMock = new MockV3Aggregator(8, int256(1e8));
+
+        CombinedAggregator combined2 = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryMock),
+            address(secondaryMock),
+            0,
+            "WRAPPED/USD"
+        );
+
+        // The secondary guard is configured to allow a modest positive drift in
+        // the wrapped exchange rate.
+        combined2.setGuardedPriceConfig(
+            0,
+            0,
+            1.3e8,
+            1e8
+        );
+
+        // Primary depegs from 1.00 -> 0.80 while the secondary rate rises from
+        // 1.00 -> 1.25. The combined output still looks nominal at 1.00.
+        primaryMock.updateAnswer(int256(0.8e8));
+        secondaryMock.updateAnswer(int256(1.25e8));
+
+        (, int256 answer,, uint256 updatedAt,) = combined2.latestRoundData();
+
+        assertTrue(updatedAt != 0, "unexpected stale updatedAt");
+        assertEq(uint256(answer), 1e8, "combined price should still look nominal");
+    }
+
     function test_priceGuard_setGuardedPriceConfig_fail_sanityChecks() public {
 
         MockV3Aggregator ETH_USDC_Mock = new MockV3Aggregator(8, int256(4000e8));

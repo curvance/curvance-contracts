@@ -151,11 +151,8 @@ contract LBP {
         // Validate that LBP is active.
         _canCommit();
 
-        uint256 remaining = hardCap() - saleCommitted;
-        if (amount > remaining) {
-            // users can commit for only remaining amount
-            amount = remaining;
-        }
+        // Users can only commit up to the remaining sale capacity.
+        amount = _capCommitAmount(amount);
 
         // Take commitment.
         SafeTransferLib.safeTransferFrom(
@@ -178,6 +175,9 @@ contract LBP {
     function commitFor(uint256 amount, address recipient) external {
         // Validate that LBP is active.
         _canCommit();
+
+        // Users can only commit up to the remaining sale capacity.
+        amount = _capCommitAmount(amount);
 
         // Take commitment.
         SafeTransferLib.safeTransferFrom(
@@ -219,6 +219,9 @@ contract LBP {
 
         // Execute swap into eToken underlying.
         uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapperData);
+
+        // Users can only commit up to the remaining sale capacity.
+        commitAmount = _capCommitAmount(commitAmount);
 
         if (amount < commitAmount) {
             revert LBP__InvalidSwapOutput();
@@ -303,7 +306,8 @@ contract LBP {
             revert LBP__InSale();
         }
 
-        if (saleCommitted >= softCap()) {
+        uint256 adjustedCommitted = _adjustedSaleCommitted();
+        if (adjustedCommitted >= softCap()) {
             revert LBP__Success();
         }
 
@@ -311,14 +315,9 @@ contract LBP {
             revert LBP__Unauthorized();
         }
 
-        uint256 adjustedAmount = _adjustDecimals(
-            saleCommitted,
-            paymentTokenDecimals,
-            18
-        );
         uint256 price = currentPrice();
         uint256 soldAmount = FixedPointMathLib.mulDivUp(
-            adjustedAmount,
+            adjustedCommitted,
             WAD,
             price
         );
@@ -383,7 +382,7 @@ contract LBP {
 
         if (
             block.timestamp < startTime + SALE_PERIOD &&
-            saleCommitted < hardCap()
+            _remainingCommitCapacity() != 0
         ) {
             return SaleStatus.InSale;
         }
@@ -414,6 +413,40 @@ contract LBP {
         saleCommitted += amount;
 
         emit Committed(recipient, amount);
+    }
+
+    /// @notice Returns the commitment amount capped to the remaining sale
+    ///         capacity, in raw `paymentToken` units.
+    function _capCommitAmount(uint256 amount) internal view returns (uint256) {
+        uint256 remaining = _remainingCommitCapacity();
+        if (amount > remaining) {
+            return remaining;
+        }
+
+        return amount;
+    }
+
+    /// @notice Returns the amount of `paymentToken` already committed,
+    ///         normalized to 18 decimals for pricing math.
+    function _adjustedSaleCommitted() internal view returns (uint256) {
+        return _adjustDecimals(saleCommitted, paymentTokenDecimals, 18);
+    }
+
+    /// @notice Returns the remaining sale capacity in raw `paymentToken`
+    ///         units after reconciling stored commitments with the
+    ///         18-decimal hard cap math.
+    function _remainingCommitCapacity() internal view returns (uint256) {
+        uint256 adjustedCommitted = _adjustedSaleCommitted();
+        uint256 saleHardCap = hardCap();
+        if (adjustedCommitted >= saleHardCap) {
+            return 0;
+        }
+
+        return _adjustDecimals(
+            saleHardCap - adjustedCommitted,
+            18,
+            paymentTokenDecimals
+        );
     }
 
     /// @dev Converting `amount` into proper form between potentially two

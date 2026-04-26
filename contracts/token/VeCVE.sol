@@ -481,7 +481,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         );
 
         if (isFreshLock) {
-            _lock(msg.sender, amount, isContinuousLock);
+            _lock(recipient, amount, isContinuousLock);
         } else {
             _increaseAmountAndExtendLockFor(
                 recipient,
@@ -1171,7 +1171,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes memory params,
         uint256 aux
     ) internal {
-        if (userLocks[msg.sender].length == 0) {
+        if (userLocks[user].length == 0) {
             return;
         }
 

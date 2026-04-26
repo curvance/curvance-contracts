@@ -460,6 +460,77 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertEq(result.price, 150e18);
     }
 
+    function testNativeGuardConfigRevertsWhenOnlyUsdFeedIsConfigured()
+        public
+    {
+        snxUsdPriceFeed.updateAnswer(150e8);
+        snxUsdPriceFeed.updateRoundData(1, 150e8, block.timestamp, block.timestamp);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(chainlinkAdaptor),
+            180,
+            50,
+            180,
+            50
+        );
+
+        oracleManager.addAssetPricingAdaptor(
+            SNX_ADDRESS,
+            address(chainlinkAdaptor),
+            180,
+            50,
+            180,
+            50
+        );
+
+        IOracleAdaptor.PricingResult memory directResult = chainlinkAdaptor.getPrice(
+            SNX_ADDRESS,
+            false,
+            false
+        );
+        assertFalse(directResult.hadError, "expected adaptor fallback price");
+        assertTrue(
+            directResult.inUSD,
+            "expected requested native price to resolve through usd feed"
+        );
+
+        (uint256 nativePriceBefore, uint256 errorBefore) = oracleManager.getPrice(
+            SNX_ADDRESS,
+            false,
+            false
+        );
+        assertEq(errorBefore, 0, "expected clean native price");
+        assertGt(nativePriceBefore, 0, "missing native price");
+
+        uint256 guardCap = nativePriceBefore / 2;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            false,
+            0,
+            0,
+            guardCap,
+            0
+        );
+
+        IOracleAdaptor.PriceGuard memory storedGuard = chainlinkAdaptor.getPriceGuard(
+            SNX_ADDRESS,
+            false
+        );
+        assertEq(
+            storedGuard.basePrice,
+            0,
+            "expected invalid native guard write to be rejected"
+        );
+    }
+
     function test_success_GetPricePreferConfiguredFeed() public {
 
         snxUsdPriceFeed.updateAnswer(150e8);

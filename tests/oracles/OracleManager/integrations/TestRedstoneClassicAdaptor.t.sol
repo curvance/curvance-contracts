@@ -14,6 +14,35 @@ import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol"
 import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
 import { MockRedstoneClassicFeed } from "contracts/mocks/MockRedstoneClassicFeed.sol";
 
+contract RedstoneClassicNativeUsdOracle {
+    address internal constant _ETH_ADDRESS =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    function isSupportedAsset(address asset) external pure returns (bool) {
+        return asset == _ETH_ADDRESS;
+    }
+
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) external pure returns (IOracleAdaptor.PricingResult memory result) {
+        if (asset != _ETH_ADDRESS) {
+            return IOracleAdaptor.PricingResult(0, true, true);
+        }
+
+        if (!inUSD) {
+            return IOracleAdaptor.PricingResult(1e18, false, false);
+        }
+
+        if (getLower) {
+            return IOracleAdaptor.PricingResult(3900e18, true, false);
+        }
+
+        return IOracleAdaptor.PricingResult(4000e18, true, false);
+    }
+}
+
 contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
     address constant ETHX_ETH_PRICEFEED = 0xc799194cAa24E2874Efa89b4Bf5c92a530B047FF;
@@ -23,6 +52,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
     RedstoneClassicAdaptor internal redstoneClassicAdaptor;
     MockRedstoneClassicFeed internal mockEthxUsdPriceFeed;
+    RedstoneClassicNativeUsdOracle internal nativeOracle;
 
     event AssetAdded(
         address asset,
@@ -48,6 +78,17 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
         redstoneClassicAdaptor = new RedstoneClassicAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(redstoneClassicAdaptor));
+
+        nativeOracle = new RedstoneClassicNativeUsdOracle();
+        oracleManager.addApprovedAdaptor(address(nativeOracle));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(nativeOracle),
+            100,
+            50,
+            100,
+            50
+        );
 
         mockEthxUsdPriceFeed = new MockRedstoneClassicFeed(8, 483704167727, "ETHx");
     }
@@ -334,6 +375,67 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         assertFalse(result.hadError);
         assertTrue(result.inUSD);
         assertEq(result.price, 4837041677270000000000); // $4837.04167727
+    }
+
+    function testNativeGuardConfigRevertsWhenOnlyUsdFeedIsConfigured()
+        public
+    {
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            ETHX_USD_PRICEFEED,
+            0,
+            "ETHx"
+        );
+
+        oracleManager.addAssetPricingAdaptor(
+            ETHX_ADDRESS,
+            address(redstoneClassicAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+
+        IOracleAdaptor.PricingResult memory directResult = redstoneClassicAdaptor.getPrice(
+            ETHX_ADDRESS,
+            false,
+            false
+        );
+        assertFalse(directResult.hadError, "expected adaptor fallback price");
+        assertTrue(
+            directResult.inUSD,
+            "expected requested native price to resolve through usd feed"
+        );
+
+        (uint256 nativePriceBefore, uint256 errorBefore) = oracleManager.getPrice(
+            ETHX_ADDRESS,
+            false,
+            false
+        );
+        assertEq(errorBefore, 0, "expected clean native price");
+        assertGt(nativePriceBefore, 0, "missing native price");
+
+        uint256 guardCap = nativePriceBefore / 2;
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        redstoneClassicAdaptor.setGuardedPriceConfig(
+            ETHX_ADDRESS,
+            false,
+            0,
+            0,
+            guardCap,
+            0
+        );
+
+        IOracleAdaptor.PriceGuard memory storedGuard = redstoneClassicAdaptor.getPriceGuard(
+            ETHX_ADDRESS,
+            false
+        );
+        assertEq(
+            storedGuard.basePrice,
+            0,
+            "expected invalid native guard write to be rejected"
+        );
     }
 
     function test_success_GetPricePreferConfiguredFeed() public {
