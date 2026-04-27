@@ -101,7 +101,6 @@ contract OEVWrappedAggregator is IChainlink, IRedstone {
 
     error OEVWrappedAggregator__Unauthorized();
     error OEVWrappedAggregator__InvalidConfig();
-    error OEVWrappedAggregator__InvalidRoundData();
 
     /// CONSTRUCTOR ///
 
@@ -216,9 +215,12 @@ contract OEVWrappedAggregator is IChainlink, IRedstone {
             try _assetAggregator.getRoundData(uint80(startRoundId)) returns (
                 uint80 r, int256 a, uint256 s, uint256 u, uint80 ar
             ) {
-                // Validate this round is safe, otherwise can keep looking.
+                // Validate this round is safe, otherwise keep looking.
+                // Skip via `continue` (not revert) so the loop falls
+                // through to the live `latestRoundData` if every
+                // historical round in the decrement window is malformed.
                 if (a <= 0 || u == 0) {
-                    revert OEVWrappedAggregator__InvalidRoundData();
+                    continue;
                 }
 
                 roundId = r;

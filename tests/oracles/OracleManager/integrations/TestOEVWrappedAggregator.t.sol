@@ -151,4 +151,109 @@ contract TestOEVWrappedAggregator is Test {
         );
         assertEq(roundId, 1, "expected initial cached roundId");
     }
+
+    /// @notice Pre-fix: inner `revert` in the try-success-block propagated
+    ///         past `catch {}`, DoSing every price read. Post-fix: malformed
+    ///         historical rounds (`updatedAt == 0`) are skipped via `continue`.
+    function test_latestRoundData_skipsHistoricalRoundWithUpdatedAtZero()
+        public
+    {
+        OEVWrappedAggregator wrapper = _deployWrapper();
+
+        // Round 1 valid (cached). Round 2 malformed (updatedAt=0). Round 3 valid latest.
+        underlying.updateRoundData(uint80(2), int256(3000e8), 0, block.timestamp);
+        underlying.updateRoundData(uint80(3), int256(4500e8), block.timestamp, block.timestamp);
+
+        // Decrement walks 3 → 2 (skip) → 1 (return).
+        (uint80 roundId, int256 answer, , uint256 updatedAt, ) =
+            wrapper.latestRoundData();
+
+        assertEq(roundId, uint80(1), "expected fall-back to earlier valid round");
+        assertEq(answer, int256(4000e8), "expected answer from valid round 1");
+        assertGt(updatedAt, 0, "expected non-zero updatedAt from valid round");
+    }
+
+    /// @notice Sibling regression: same fix mechanism for `answer <= 0`
+    ///         (other half of the `if (a <= 0 || u == 0)` predicate).
+    function test_latestRoundData_skipsHistoricalRoundWithNonPositiveAnswer()
+        public
+    {
+        OEVWrappedAggregator wrapper = _deployWrapper();
+
+        underlying.updateRoundData(uint80(2), int256(-1), block.timestamp, block.timestamp);
+        underlying.updateRoundData(uint80(3), int256(4500e8), block.timestamp, block.timestamp);
+
+        (uint80 roundId, int256 answer, , , ) = wrapper.latestRoundData();
+
+        assertEq(roundId, uint80(1), "expected fall-back to earlier valid round");
+        assertEq(answer, int256(4000e8), "expected answer from valid round 1");
+    }
+
+    /// @notice When every round in the decrement window is malformed,
+    ///         fall through to live latest per the natspec contract
+    ///         ("defaults to the latest round data"). Pre-fix the first
+    ///         malformed round would have reverted.
+    function test_latestRoundData_fallsThroughToLiveWhenAllHistoryMalformed()
+        public
+    {
+        OEVWrappedAggregator wrapper = _deployWrapper();
+
+        // Rounds 1-3 each malformed differently; round 4 is the valid live.
+        underlying.updateRoundData(uint80(1), int256(0), 0, 0);
+        underlying.updateRoundData(uint80(2), int256(-1), block.timestamp, block.timestamp);
+        underlying.updateRoundData(uint80(3), int256(2000e8), 0, block.timestamp);
+        underlying.updateRoundData(uint80(4), int256(4500e8), block.timestamp, block.timestamp);
+
+        // Loop walks 4 → 3 → 2 → 1 (all skipped), exits, falls through to live.
+        (uint80 roundId, int256 answer, , uint256 updatedAt, ) =
+            wrapper.latestRoundData();
+
+        assertEq(roundId, uint80(4), "expected fall-through to live latestRoundData");
+        assertEq(answer, int256(4500e8), "expected live answer from round 4");
+        assertEq(updatedAt, block.timestamp, "expected live updatedAt from round 4");
+    }
+
+    /// @notice Existing protection: `maxRoundDecrements = 0` would
+    ///         silently disable OEV traversal. The constructor enforces
+    ///         `MIN_DECREMENTS_LIMIT (=1)` to prevent this misconfig. Pin
+    ///         the rejection so a future loosening of the bound surfaces
+    ///         immediately.
+    function test_constructor_revertsOnZeroMaxDecrements() public {
+        vm.expectRevert(
+            OEVWrappedAggregator.OEVWrappedAggregator__InvalidConfig.selector
+        );
+        new OEVWrappedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(underlying),
+            DEFAULT_MAX_ROUND_DELAY,
+            0,
+            ASSET_ID
+        );
+    }
+
+    /// @notice Sibling check: `maxRoundDelay = 0` is also rejected.
+    function test_constructor_revertsOnZeroMaxRoundDelay() public {
+        vm.expectRevert(
+            OEVWrappedAggregator.OEVWrappedAggregator__InvalidConfig.selector
+        );
+        new OEVWrappedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(underlying),
+            0,
+            DEFAULT_MAX_ROUND_DECREMENTS,
+            ASSET_ID
+        );
+    }
+
+    /// INTERNAL HELPERS ///
+
+    function _deployWrapper() internal returns (OEVWrappedAggregator) {
+        return new OEVWrappedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(underlying),
+            DEFAULT_MAX_ROUND_DELAY,
+            DEFAULT_MAX_ROUND_DECREMENTS,
+            ASSET_ID
+        );
+    }
 }

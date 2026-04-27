@@ -132,7 +132,7 @@ contract RewardsDistribution is ReentrancyGuard {
 
             // Validate that this is a supported Merkle Root for claiming,
             // and that the claim period has not ended.
-            if (_checkTimestamp(config.claimEndTimestamp)) {
+            if (!_isClaimWindowActive(config.claimEndTimestamp)) {
                 revert RewardDistribution__NotEligible();
             }
 
@@ -188,9 +188,9 @@ contract RewardsDistribution is ReentrancyGuard {
         if (!rewardsClaimed[msg.sender][root]) {
             // Validate that this is a supported Merkle Root for claiming,
             // and that the claim period has not ended.
-            if (_checkTimestamp(config.claimEndTimestamp)) {
+            if (_isClaimWindowActive(config.claimEndTimestamp)) {
                 // Compute the leaf and verify the merkle proof.
-                return 
+                return
                     _verify(
                         proof,
                         root,
@@ -354,13 +354,14 @@ contract RewardsDistribution is ReentrancyGuard {
         }
     }
 
-    /// @dev Checks based on `endClaimTimestamp` if the merkle root can be
-    ///      claimed from.
-    function _checkTimestamp(
+    /// @dev Returns true if the merkle root's claim window is currently
+    ///      active (configured and not yet expired). Returns false if
+    ///      `endClaimTimestamp == 0` (unconfigured root) or if the
+    ///      claim window has already ended.
+    function _isClaimWindowActive(
         uint256 endClaimTimestamp
     ) internal view returns (bool result) {
-        result = endClaimTimestamp == 0 || block.timestamp >= endClaimTimestamp ?
-            false : true;
+        result = endClaimTimestamp != 0 && block.timestamp < endClaimTimestamp;
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

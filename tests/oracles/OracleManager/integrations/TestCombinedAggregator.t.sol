@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { Test } from "forge-std/Test.sol";
 
 import { CombinedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/CombinedAggregator.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -90,6 +91,25 @@ contract TestCombinedAggregator is Test {
         assertEq(updatedAt, 0, "updatedAt should be zero when secondary is stale");
     }
 
+    function test_combinedAggregator_futureDatedSecondaryBubblesUpdatedAtZeroWithoutPanicking() public {
+        // Pre-fix: future-dated secondaryUpdatedAt underflows in checked
+        // arithmetic, panicking the whole call. Post-fix: unchecked wrap
+        // exceeds heartbeat → same updatedAt=0 path as stale data.
+        uint256 futureTimestamp = block.timestamp + 1 hours;
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1.5e8), uint256(0), futureTimestamp, uint80(1))
+        );
+
+        (,,,uint256 updatedAt,) = combined.latestRoundData();
+        assertEq(updatedAt, 0, "updatedAt should be zero when secondary is future-dated");
+
+        // Same shape on getAdjustedAnswer.
+        int256 adjusted = combined.getAdjustedAnswer(int256(4000e8));
+        assertEq(adjusted, 0, "getAdjustedAnswer should return 0 when secondary is future-dated");
+    }
+
     function test_combinedAggregator_setSecondaryHeartbeat_fail_invalidHeartbeat() public {
         uint256 HEARTBEAT_GRACE_PERIOD = 120;
         uint256 DEFAULT_HEARTBEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
@@ -119,6 +139,192 @@ contract TestCombinedAggregator is Test {
         // heartbeat = heartbeat != 0 ?
         //    heartbeat + HEARTBEAT_GRACE_PERIOD : DEFAULT_HEARTBEAT;
         assertEq(combined.secondaryHeartbeat(), customHeartbeat + HEARTBEAT_GRACE_PERIOD, "secondary heartbeat mismatch");
+    }
+
+    /// @notice Pre-fix: future-dated secondary `updatedAt` panicked the
+    ///         setter via underflow. Post-fix: unchecked wrap reverts with
+    ///         the typed `InvalidHeartbeat` error.
+    function test_combinedAggregator_setSecondaryHeartbeat_revertsOnFutureDatedSecondary() public {
+        uint256 futureTimestamp = block.timestamp + 1 hours;
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1.5e8), uint256(0), futureTimestamp, uint80(1))
+        );
+
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
+        combined.setSecondaryHeartbeat(1 hours);
+    }
+
+    /// @notice End-to-end multi-step chain (Parallax TC-002 shape):
+    ///         CombinedAggregator wrapped by ChainlinkAdaptor → consumer.
+    ///         Future-dated secondary in the wrapper must propagate as
+    ///         `hadError = true` through the outer adaptor without
+    ///         panicking. Pins the cross-layer contract: each layer
+    ///         handles BAD_SOURCE-shaped data; composition stays graceful.
+    function test_chainlinkAdaptor_wrappingCombinedAggregator_futureDatedBubblesHadErrorEndToEnd()
+        public
+    {
+        // Wire ChainlinkAdaptor over the CombinedAggregator instance.
+        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        address asset = makeAddr("wrappedAsset");
+        adaptor.addAsset(asset, true, address(combined), 0);
+
+        // Make the secondary aggregator future-dated.
+        uint256 futureTimestamp = block.timestamp + 1 hours;
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1.5e8), uint256(0), futureTimestamp, uint80(1))
+        );
+
+        // CombinedAggregator returns updatedAt=0 → ChainlinkAdaptor's
+        // `_verifyData(price, 0, heartbeat)` returns hadError=true.
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(asset, true, false);
+
+        assertTrue(
+            result.hadError,
+            "expected hadError=true to bubble through the wrapping chain"
+        );
+    }
+
+    /// @notice End-to-end multi-hop composition: stale primary with
+    ///         fresh secondary MUST bubble `hadError = true` through the
+    ///         wrapping `ChainlinkAdaptor`. Pins the responsibility split
+    ///         in the multi-hop oracle composition: secondary heartbeat
+    ///         is checked INSIDE `CombinedAggregator` (bubbles
+    ///         `updatedAt = 0`), primary heartbeat is checked OUTSIDE in
+    ///         the wrapping adaptor's `_verifyData` against primary's
+    ///         own `updatedAt`. This test forces only the primary-stale
+    ///         leg of the matrix; the secondary-only-stale leg is
+    ///         already covered by the existing future-dated test.
+    function test_chainlinkAdaptor_wrappingCombinedAggregator_stalePrimaryFreshSecondaryBubblesHadError()
+        public
+    {
+        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        address asset = makeAddr("stalePrimaryAsset");
+        adaptor.addAsset(asset, true, address(combined), 0);
+
+        // Primary stale (2 days old, well past the default
+        // 1-day + grace heartbeat). Secondary left fresh — its
+        // `latestRoundData` is unchanged so the in-aggregator
+        // heartbeat check does NOT fire on this path. The outer
+        // adaptor's `_verifyData` against primary's `updatedAt`
+        // is the only check that catches it.
+        uint256 staleTimestamp = block.timestamp - 2 days;
+        vm.mockCall(
+            address(primaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(4000e8),
+                uint256(0),
+                staleTimestamp,
+                uint80(1)
+            )
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(asset, true, false);
+
+        assertTrue(
+            result.hadError,
+            "expected hadError=true when primary feed is stale"
+        );
+    }
+
+    /// @notice End-to-end multi-hop composition: when BOTH primary and
+    ///         secondary feeds are stale simultaneously, the wrapping
+    ///         `ChainlinkAdaptor` MUST still surface `hadError = true`.
+    ///         Both independent checks fire (secondary inside the
+    ///         aggregator → `updatedAt = 0`; primary outside the
+    ///         aggregator → outer `_verifyData` returns true). Either
+    ///         alone would suffice; this pins that the composition is
+    ///         robust to either-or-both feed failure modes — a future
+    ///         refactor that breaks the independence (e.g., outer
+    ///         adaptor short-circuiting on non-zero `updatedAt` without
+    ///         re-checking primary's heartbeat) is caught here.
+    function test_chainlinkAdaptor_wrappingCombinedAggregator_dualStaleBubblesHadError()
+        public
+    {
+        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        address asset = makeAddr("dualStaleAsset");
+        adaptor.addAsset(asset, true, address(combined), 0);
+
+        // Both feeds mocked stale (2 days old).
+        uint256 staleTimestamp = block.timestamp - 2 days;
+        vm.mockCall(
+            address(primaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(4000e8),
+                uint256(0),
+                staleTimestamp,
+                uint80(1)
+            )
+        );
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(1.5e8),
+                uint256(0),
+                staleTimestamp,
+                uint80(1)
+            )
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(asset, true, false);
+
+        assertTrue(
+            result.hadError,
+            "expected hadError=true when both feeds stale"
+        );
+    }
+
+    /// @notice Pre-fix: future-dated secondary `updatedAt` panicked the
+    ///         guard config setter. Post-fix: typed revert.
+    function test_combinedAggregator_setGuardedPriceConfig_revertsOnFutureDatedSecondary() public {
+        uint256 futureTimestamp = block.timestamp + 1 hours;
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1.5e8), uint256(0), futureTimestamp, uint80(1))
+        );
+
+        // Static guard params (ips == 0, timestampStart == 0).
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
+        combined.setGuardedPriceConfig(0, 0, 1e10, 0);
+    }
+
+    /// @notice Pre-fix: future-dated secondary `updatedAt` panicked the
+    ///         constructor. Post-fix: typed revert during deployment.
+    function test_combinedAggregator_constructor_revertsOnFutureDatedSecondary() public {
+        uint256 futureTimestamp = block.timestamp + 1 hours;
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1.5e8), uint256(0), futureTimestamp, uint80(1))
+        );
+
+        vm.expectRevert(CombinedAggregator.CombinedAggregator__InvalidHeartbeat.selector);
+        new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAgg),
+            address(secondaryAgg),
+            0,
+            ASSET_ID
+        );
     }
 
     function test_combinedAggregator_constructor_fail_invalidHeartbeat() public {
