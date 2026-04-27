@@ -6,6 +6,7 @@ import { Test } from "forge-std/Test.sol";
 import { OEVWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/OEVWrappedAggregator.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
@@ -245,6 +246,41 @@ contract TestOEVWrappedAggregator is Test {
         );
     }
 
+    /// @notice Empty `catch {}` arm must swallow `getRoundData` reverts (real
+    ///         Chainlink reverts on deprecated rounds with "No data present").
+    ///         If a future refactor flips the arm to `revert`, every reverting
+    ///         historical round would DoS production reads.
+    function test_latestRoundData_fallsThroughToLiveWhenAllHistoryReverts()
+        public
+    {
+        _RevertingAggregator reverting = new _RevertingAggregator(8);
+        // Round 1 is valid for the constructor's latest-data probe.
+        reverting.setRound(uint80(1), int256(4000e8), block.timestamp, false);
+
+        OEVWrappedAggregator wrapper = new OEVWrappedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(reverting),
+            DEFAULT_MAX_ROUND_DELAY,
+            DEFAULT_MAX_ROUND_DECREMENTS,
+            ASSET_ID
+        );
+
+        // Make every historical round in the decrement window revert. Push
+        // a fresh live round so the loop traverses (cache-equality + delay
+        // early-returns are skipped).
+        for (uint80 r = 1; r <= 5; r++) {
+            reverting.setRound(r, int256(2000e8), block.timestamp, true);
+        }
+        reverting.setRound(uint80(6), int256(4500e8), block.timestamp, false);
+
+        (uint80 roundId, int256 answer, , uint256 updatedAt, ) =
+            wrapper.latestRoundData();
+
+        assertEq(roundId, uint80(6), "expected fall-through to live");
+        assertEq(answer, int256(4500e8), "expected live answer");
+        assertEq(updatedAt, block.timestamp, "expected live updatedAt");
+    }
+
     /// INTERNAL HELPERS ///
 
     function _deployWrapper() internal returns (OEVWrappedAggregator) {
@@ -255,5 +291,55 @@ contract TestOEVWrappedAggregator is Test {
             DEFAULT_MAX_ROUND_DECREMENTS,
             ASSET_ID
         );
+    }
+}
+
+/// @dev Test-local mock that can be configured to revert on `getRoundData`
+///      for specific roundIds. Mirrors how Chainlink reverts on deprecated
+///      historical rounds rather than returning malformed data.
+contract _RevertingAggregator is IChainlink {
+    struct Round { int256 answer; uint256 timestamp; bool shouldRevert; }
+
+    uint8 public override decimals;
+    uint80 public latest;
+    mapping(uint80 => Round) public rounds;
+
+    constructor(uint8 _decimals) {
+        decimals = _decimals;
+    }
+
+    function setRound(
+        uint80 id,
+        int256 answer,
+        uint256 timestamp,
+        bool shouldRevert
+    ) external {
+        rounds[id] = Round(answer, timestamp, shouldRevert);
+        if (id > latest) latest = id;
+    }
+
+    function latestRound() external view override returns (uint256) {
+        return latest;
+    }
+
+    function getRoundData(uint80 id)
+        external
+        view
+        override
+        returns (uint80, int256, uint256, uint256, uint80)
+    {
+        if (rounds[id].shouldRevert) revert("No data present");
+        Round memory r = rounds[id];
+        return (id, r.answer, r.timestamp, r.timestamp, id);
+    }
+
+    function latestRoundData()
+        external
+        view
+        override
+        returns (uint80, int256, uint256, uint256, uint80)
+    {
+        Round memory r = rounds[latest];
+        return (latest, r.answer, r.timestamp, r.timestamp, latest);
     }
 }

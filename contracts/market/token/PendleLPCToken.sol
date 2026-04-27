@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { StrategyCToken, ICentralRegistry, IERC20 } from "contracts/market/token/StrategyCToken.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
@@ -139,6 +140,14 @@ contract PendleLPCToken is StrategyCToken {
             // Claim pending Pendle rewards.
             sd.lp.redeemRewards(address(this));
 
+            // Post-expiry, `addLiquiditySingleSy` reverts. Sweep claimed
+            // reward balances to DAO. When emissions truly stop,
+            // calls become harmless no-ops (loop skips zero balances).
+            if (sd.lp.isExpired()) {
+                _processRewardBalances(sd.rewardTokens, true);
+                return 0;
+            }
+
             (
                 SwapperLib.Swap[] memory swapActions,
                 uint256 minLPAmount,
@@ -149,37 +158,8 @@ contract PendleLPCToken is StrategyCToken {
                     (SwapperLib.Swap[], uint256, ApproxParams, LimitOrderData)
                 );
 
-            {
-                // Use scoping to avoid stack too deep.
-                uint256 numRewardTokens = sd.rewardTokens.length;
-                address rewardToken;
-                uint256 rewardAmount;
-                // Cache DAO Central Registry values to minimize runtime
-                // gas costs.
-                address feeManager = centralRegistry.feeManager();
-                uint256 feePct = centralRegistry.protocolHarvestFee();
-
-                for (uint256 i; i < numRewardTokens; ++i) {
-                    rewardToken = sd.rewardTokens[i];
-                    rewardAmount = IERC20(rewardToken).balanceOf(
-                        address(this)
-                    );
-
-                    // If there are no pending rewards for this token,
-                    // can skip to next reward token.
-                    if (rewardAmount == 0) {
-                        continue;
-                    }
-
-                    // Take protocol fee for token lockers and strategy bot.
-                    rewardAmount = _applyFee(
-                        rewardAmount,
-                        rewardToken,
-                        feePct,
-                        feeManager
-                    );
-                }
-            }
+            // Apply protocol harvest fee per non-zero reward balance.
+            _processRewardBalances(sd.rewardTokens, false);
 
             {
                 uint256 numSwapActions = swapActions.length;
@@ -263,6 +243,40 @@ contract PendleLPCToken is StrategyCToken {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @dev Shared iterator over `rewards` that handles both harvest
+    ///      destinations: when `toDao` is false the function applies the
+    ///      protocol harvest fee per token (normal harvest path); when
+    ///      `toDao` is true the function forwards the full balance to
+    ///      `daoAddress` (post-expiry sweep path). Both call sites share
+    ///      one function body — call dispatch + balanceOf + amount==0
+    ///      skip + tokens-array load are emitted once instead of inlined
+    ///      per call site.
+    function _processRewardBalances(
+        address[] memory rewards,
+        bool toDao
+    ) internal {
+        address dest;
+        uint256 feePct;
+        if (toDao) {
+            dest = centralRegistry.daoAddress();
+        } else {
+            dest = centralRegistry.feeManager();
+            feePct = centralRegistry.protocolHarvestFee();
+        }
+
+        uint256 numRewards = rewards.length;
+        for (uint256 i; i < numRewards; ++i) {
+            address rt = rewards[i];
+            uint256 amount = IERC20(rt).balanceOf(address(this));
+            if (amount == 0) continue;
+            if (toDao) {
+                SafeTransferLib.safeTransfer(rt, dest, amount);
+            } else {
+                _applyFee(amount, rt, feePct, dest);
+            }
+        }
+    }
 
     /// @notice Queries reward and underlying tokens directly from
     ///         Pendle's smart contracts, then populates storage values.

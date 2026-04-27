@@ -7,6 +7,7 @@ import { ChainsightAdaptor } from "contracts/oracles/adaptors/chainsight/Chainsi
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract TestChainsightAdaptor is Test {
     address internal _ASSET = makeAddr("asset");
@@ -110,5 +111,93 @@ contract TestChainsightAdaptor is Test {
             ChainsightAdaptor.ChainsightAdaptor__InvalidPriceConfiguration.selector
         );
         adaptor.addAsset(_ASSET, true, _SENDER, 18, 0, _FEED_KEY);
+    }
+
+    /// @notice Runtime happy path: fresh feed, valid price, no error.
+    function test_getPrice_returnsRawPriceWhenFresh() public {
+        _addHappyPathAsset();
+
+        // Mock runtime read with a different price than addAsset's seed.
+        _mockRuntimeRead(int256(2e18), uint64(block.timestamp));
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(_ASSET, true, false);
+
+        assertFalse(result.hadError, "expected no error on fresh valid feed");
+        assertEq(result.price, 2e18, "expected raw price (no guard)");
+        assertTrue(result.inUSD, "expected inUSD passed through");
+    }
+
+    /// @notice Runtime zero-price path: early-return at line 187 in
+    ///         `_getPrice` bubbles `hadError=true, price=0`.
+    function test_getPrice_signalsErrorOnZeroPrice() public {
+        _addHappyPathAsset();
+
+        _mockRuntimeRead(int256(0), uint64(block.timestamp));
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(_ASSET, true, false);
+
+        assertTrue(result.hadError, "expected hadError on zero price");
+        assertEq(result.price, 0, "expected price=0");
+    }
+
+    /// @notice Runtime stale path: timestamp older than DEFAULT_HEARTBEAT
+    ///         triggers `_verifyData` → `hadError=true`. Price still
+    ///         reported (post-`_adjustPrice`) per existing `_verifyData`
+    ///         contract.
+    function test_getPrice_signalsErrorOnStaleTimestamp() public {
+        _addHappyPathAsset();
+
+        // 2 days > 1 day + grace heartbeat.
+        _mockRuntimeRead(int256(1e18), uint64(block.timestamp - 2 days));
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(_ASSET, true, false);
+
+        assertTrue(result.hadError, "expected hadError on stale feed");
+    }
+
+    /// @notice Runtime future-dated path: unchecked wrap in `_verifyData`
+    ///         turns negative subtraction into huge unsigned exceeding
+    ///         heartbeat → `hadError=true` instead of arithmetic panic.
+    function test_getPrice_signalsErrorOnFutureDatedTimestamp() public {
+        _addHappyPathAsset();
+
+        _mockRuntimeRead(int256(1e18), uint64(block.timestamp + 1 hours));
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(_ASSET, true, false);
+
+        assertTrue(result.hadError, "expected hadError on future-dated feed");
+    }
+
+    /// INTERNAL HELPERS ///
+
+    function _addHappyPathAsset() internal {
+        // Seed addAsset with a fresh, matching uint/int price.
+        _mockRuntimeRead(int256(1e18), uint64(block.timestamp));
+        vm.mockCall(
+            _PROXY,
+            abi.encodeWithSelector(
+                IManagementOracle.readAsUint256WithTimestamp.selector,
+                _SENDER,
+                _FEED_KEY
+            ),
+            abi.encode(uint256(1e18), uint64(block.timestamp))
+        );
+        adaptor.addAsset(_ASSET, true, _SENDER, 18, 0, _FEED_KEY);
+    }
+
+    function _mockRuntimeRead(int256 price, uint64 timestamp) internal {
+        vm.mockCall(
+            _PROXY,
+            abi.encodeWithSelector(
+                IManagementOracle.readAsInt256WithTimestamp.selector,
+                _SENDER,
+                _FEED_KEY
+            ),
+            abi.encode(price, timestamp)
+        );
     }
 }
