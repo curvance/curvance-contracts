@@ -18,6 +18,10 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 ///      inherit the base ProtocolManager since it needs no period-limit
 ///      tracking or managed-address accounting.
 ///
+///      Trust model: `owner` is expected to be an untrusted deployer hot
+///      wallet. Its authority should be limited to deployment-phase setup
+///      and any still-pending one-time unpause allowances.
+///
 ///      Requires `hasMarketPermissions` in the CentralRegistry to call
 ///      `listTokens`, `setMintPaused`, and `updateTokenConfig` on the
 ///      MarketManagerIsolated.
@@ -188,5 +192,21 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
         for (uint256 i; i < numTokens; ++i) {
             mm.setMintPaused(tokens[i], false);
         }
+    }
+
+    /// @notice Revokes a market's pending one-time unpause allowance.
+    /// @dev Callable by the deployment owner or any address with market
+    ///      permissions. This is idempotent and may be called even when no
+    ///      allowance is pending.
+    /// @param marketManager The MarketManagerIsolated whose allowance is cleared.
+    function revokeUnpause(address marketManager) external nonReentrant {
+        if (
+            msg.sender != owner &&
+            !centralRegistry.hasMarketPermissions(msg.sender)
+        ) {
+            revert ProtocolManagerDeployment__Unauthorized();
+        }
+
+        delete pendingUnpause[marketManager];
     }
 }
