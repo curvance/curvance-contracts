@@ -359,8 +359,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
         }
 
-        // Track recoverable value so exchange rate accurately reflects
-        // what can be withdrawn. Any excess corrects at next _accrueIfNeeded().
+        // Track recoverable value only; rounding excess from the per-market
+        // roundtrip stays as idle balance, recoverable by DAO via `skim()`.
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -423,8 +423,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         _checkRedeemPaused();
         _accrueIfNeeded();
 
-        // Compute gross assets from shares before any state changes.
-        uint256 taBefore = _totalAssets;
+        // Convert shares to assets before state changes.
         assets = convertToAssets(shares);
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
 
@@ -630,8 +629,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                     // Skip deposit if dust amount rounds to zero cToken shares.
                     if (IBorrowableCToken(cTokenAddress).convertToShares(depositAmount) > 0) {
                         _depositToMarket(cTokenAddress, depositAmount);
-                    } else {
+                    } else if (i != lastAction) {
                         // Use the dust in a later deposit if it's not the last.
+                        // Last-iteration dust stays idle on the optimizer
+                        // (recoverable via skim).
                         totalDeposited -= depositAmount;
                     }
                 }

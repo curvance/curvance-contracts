@@ -133,7 +133,12 @@ contract PythAdaptor is BaseOracleAdaptor {
         bytes[] calldata priceUpdateData,
         address user
     ) public {
-        IPluginDelegable(nativeUniversalBalance).isDelegate(user, msg.sender);
+        if (
+            msg.sender != user &&
+            !IPluginDelegable(nativeUniversalBalance).isDelegate(user, msg.sender)
+        ) {
+            revert BaseOracleAdaptor__Unauthorized();
+        }
 
         // Update the prices to the latest available values and pay the
         // required fee for it. The `priceUpdateData` data should be retrieved

@@ -10,12 +10,43 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @notice Inspects the calldata for a KyberSwap related swap action.
 /// @dev NOTE: Currently built for MetaAggregationRouterV2.
+///      Fee validation: every swap must include exactly one fee receiver
+///      which MUST be the DAO address from centralRegistry, with fee
+///      amount == FEE_BPS (isInBps=true on the API). Zero fee receivers
+///      is rejected — all swaps must pay the protocol fee.
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    
+
+    /// @notice Exact fee BPS that the SDK is configured to charge.
+    /// @dev    KyberSwap calldata with `isInBps=true` stores the BPS value
+    ///         directly in `feeAmounts[0]` (e.g. 4 for 4 bps). We enforce
+    ///         an exact match — any other value reverts. To change the fee,
+    ///         redeploy this checker with an updated constant.
+    uint256 public constant FEE_BPS = 4;
+
+    /// @notice The only permitted value for `desc.flags`.
+    /// @dev    _FEE_IN_BPS (0x80) MUST be set so that `feeAmounts[0]` is
+    ///         interpreted as basis points, not as an absolute token amount.
+    ///
+    ///         0x200 is KyberSwap's executor v3 indicator — always present in
+    ///         API-generated calldata on Monad. Router-inert (not in the
+    ///         router's flag constants), consumed only by the executor contract.
+    ///
+    ///         All other flag bits are explicitly rejected:
+    ///           0x02 _REQUIRES_EXTRA_ETH — unnecessary, opens msg.value attack surface.
+    ///           0x08 _BURN_FROM_MSG_SENDER — not used by Curvance.
+    ///           0x10 _BURN_FROM_TX_ORIGIN — not used by Curvance.
+    ///           0x20 _SIMPLE_SWAP — different execution path, not used by SDK.
+    ///           0x40 _FEE_ON_DST — fee must be on input (currency_in) so
+    ///                the deducted amount is deterministic before the swap.
+    ///
+    ///         Exact match (not a bitmask) so any future KyberSwap flags are
+    ///         also rejected by default until explicitly reviewed and allowed.
+    uint256 public constant REQUIRED_FLAGS = 0x280;
+
     /// STORAGE ///
 
     /// @notice Allowlist of Kyber executor addresses that may be used
@@ -33,10 +64,13 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__InvalidNativeTokenAddress();
     error KyberSwapChecker__InvalidFlags();
     error KyberSwapChecker__InvalidTargetData();
-    error KyberSwapChecker__InvalidFeeReceivers();
+    error KyberSwapChecker__InvalidFeeConfig();
     error KyberSwapChecker__InvalidPermit();
     error KyberSwapChecker__UnsupportedChain();
     error KyberSwapChecker__Unauthorized();
+    error KyberSwapChecker__InvalidApproveTarget();
+    error KyberSwapChecker__InvalidSrcConfig();
+    error KyberSwapChecker__InvalidMinReturn();
 
     /// CONSTRUCTOR ///
 
@@ -84,43 +118,30 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
-        address recipient;
-        address inputToken;
-        uint256 inputAmount;
-        address outputToken;
-        address executor;
-        bytes memory targetData;
-        uint256 numFeeReceivers;
-        uint256 flags;
-        bytes memory permit;
-        if (funcSigHash == IMetaAggregationRouterV2.swap.selector) {
-            IMetaAggregationRouterV2.SwapExecutionParams memory execution =
-                abi.decode(
-                    _getFuncParams(swapAction.call),
-                    (IMetaAggregationRouterV2.SwapExecutionParams)
-                );
-            // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
-            // as a shortcut for sending output to `msg.sender`.
-            recipient = execution.desc.dstReceiver == address(0)
-                ? msg.sender
-                : execution.desc.dstReceiver;
-            inputToken = address(execution.desc.srcToken);
-            inputAmount = execution.desc.amount;
-            outputToken = address(execution.desc.dstToken);
-            executor = execution.callTarget;
-            targetData = execution.targetData;
-            numFeeReceivers = execution.desc.feeReceivers.length;
-            flags = execution.desc.flags;
-            permit = execution.desc.permit;
-            minOutAmount = execution.desc.minReturnAmount;
-        } else {
+        if (_getFuncSigHash(swapAction.call) != IMetaAggregationRouterV2.swap.selector) {
             revert CalldataChecker__InvalidFuncSig();
         }
 
+        // Decode the full execution params.
+        IMetaAggregationRouterV2.SwapExecutionParams memory execution =
+            abi.decode(
+                _getFuncParams(swapAction.call),
+                (IMetaAggregationRouterV2.SwapExecutionParams)
+            );
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc = execution.desc;
+
+        // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
+        // as a shortcut for sending output to `msg.sender`.
+        address recipient = desc.dstReceiver == address(0)
+            ? msg.sender
+            : desc.dstReceiver;
         if (recipient != expectedRecipient) {
             revert CalldataChecker__RecipientError();
         }
+
+        // Cache token addresses.
+        address inputToken = address(desc.srcToken);
+        address outputToken = address(desc.dstToken);
 
         if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
@@ -131,7 +152,7 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidNativeTokenAddress();
         }
 
-        if (inputAmount != swapAction.inputAmount) {
+        if (desc.amount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
@@ -144,27 +165,64 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidNativeTokenAddress();
         }
 
-        if (!isApprovedExecutor[executor]) {
+        if (!isApprovedExecutor[execution.callTarget]) {
             revert CalldataChecker__TargetError();
         }
 
-        if (targetData.length == 0) {
+        if (execution.targetData.length == 0) {
             revert KyberSwapChecker__InvalidTargetData();
         }
 
-        if (numFeeReceivers != 0) {
-            revert KyberSwapChecker__InvalidFeeReceivers();
-        }
+        // Validate fee configuration.
+        // Required: exactly one receiver == DAO address, fee == FEE_BPS.
+        _validateFeeConfig(desc.feeReceivers, desc.feeAmounts);
 
-        // Extract _REQUIRES_EXTRA_ETH flag.
-        bool requiresExtraEth = (flags & 0x02) != 0;
-        if (requiresExtraEth) {
+        // Exact flag match.  See REQUIRED_FLAGS documentation for rationale.
+        // Critical: without _FEE_IN_BPS (0x80) the router interprets
+        // feeAmounts[0]=4 as 4 wei instead of 4 basis points.
+        if (desc.flags != REQUIRED_FLAGS) {
             revert KyberSwapChecker__InvalidFlags();
         }
 
         // Prevent permit-based approvals.
-        if (permit.length != 0) {
+        if (desc.permit.length != 0) {
             revert KyberSwapChecker__InvalidPermit();
+        }
+
+        // approveTarget is unused by MetaAggregationRouterV2.swap() in the
+        // current deployment. Lock to address(0) to prevent activation if a
+        // future router version introduces _APPROVE_FUND or similar.
+        if (execution.approveTarget != address(0)) {
+            revert KyberSwapChecker__InvalidApproveTarget();
+        }
+
+        // Structural validity of srcReceivers/srcAmounts — the router's
+        // _transferFromToTarget sends input tokens (post-fee) to these
+        // addresses. Malformed arrays would revert in the router, but
+        // catching them here gives Curvance-specific errors and prevents
+        // malformed calldata from reaching external code.
+        uint256 srcReceiversLength = desc.srcReceivers.length;
+        if (srcReceiversLength == 0) {
+            revert KyberSwapChecker__InvalidSrcConfig();
+        }
+
+        if (srcReceiversLength != desc.srcAmounts.length) {
+            revert KyberSwapChecker__InvalidSrcConfig();
+        }
+
+        for (uint256 i; i < srcReceiversLength; ++i) {
+            // Prevent token burns via address(0) srcReceiver.
+            if (desc.srcReceivers[i] == address(0)) {
+                revert KyberSwapChecker__InvalidSrcConfig();
+            }
+        }
+
+        // Belt-and-suspenders: the router checks minReturnAmount > 0 but
+        // catching it here prevents execution from reaching external code
+        // with a guaranteed-revert configuration.
+        minOutAmount = desc.minReturnAmount;
+        if (minOutAmount == 0) {
+            revert KyberSwapChecker__InvalidMinReturn();
         }
     }
 
@@ -182,6 +240,34 @@ contract KyberSwapChecker is BaseSwapChecker {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Validates fee receiver and amount configuration.
+    /// @dev    Every swap must include exactly one fee receiver which is
+    ///         centralRegistry.daoAddress(), with feeAmounts[0] == FEE_BPS.
+    ///         No exceptions — zero fee receivers is rejected to ensure
+    ///         unified fee collection on all swaps.
+    ///
+    ///         ENCODING: KyberSwap calldata built with isInBps=true stores
+    ///         the BPS value directly in feeAmounts[0] (confirmed via API).
+    function _validateFeeConfig(
+        address[] memory feeReceivers,
+        uint256[] memory feeAmounts
+    ) internal view {
+        // Exactly one fee receiver and one fee amount required.
+        if (feeReceivers.length != 1 || feeAmounts.length != 1) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+
+        // Receiver must be the DAO.
+        if (feeReceivers[0] != centralRegistry.daoAddress()) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+
+        // Fee must be exactly the configured BPS value.
+        if (feeAmounts[0] != FEE_BPS) {
+            revert KyberSwapChecker__InvalidFeeConfig();
+        }
+    }
 
     /// @notice Reverts unless the caller has DAO permissions in `centralRegistry`.
     /// @dev Used to restrict administrative functions (e.g. executor allowlist

@@ -156,9 +156,19 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             }
 
             // We have a route to USD pricing so we can convert
-            // the quote token price to USD and return.
-            result.price = (twapPrice * quoteTokenDenominator) /
-                (10 ** config.quoteDecimals);
+            // the quote token price to USD and return. Route through
+            // _adjustPrice so any configured PriceGuard for
+            // (asset, inUSD=true) fires.
+            result.price = _adjustPrice(
+                asset,
+                inUSD,
+                (twapPrice * quoteTokenDenominator) /
+                    (10 ** config.quoteDecimals),
+                18
+            );
+            if (result.price == 0) {
+                result.hadError = true;
+            }
             return result;
         }
 
@@ -180,13 +190,28 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             }
 
             // We have a route to ETH pricing so we can convert
-            // the quote token price to ETH and return.
-            result.price = (twapPrice * quoteTokenDenominator) /
-                (10 ** config.quoteDecimals);
+            // the quote token price to ETH and return. Route through
+            // _adjustPrice so any configured PriceGuard for
+            // (asset, inUSD=false) fires.
+            result.price = _adjustPrice(
+                asset,
+                inUSD,
+                (twapPrice * quoteTokenDenominator) /
+                    (10 ** config.quoteDecimals),
+                18
+            );
+            if (result.price == 0) {
+                result.hadError = true;
+            }
             return result;
         }
 
-        result.price = twapPrice;
+        // Native-denominated direct twap: quoteToken == wrappedNative.
+        // Route through _adjustPrice for the (asset, inUSD=false) guard.
+        result.price = _adjustPrice(asset, inUSD, twapPrice, 18);
+        if (result.price == 0) {
+            result.hadError = true;
+        }
     }
 
     /// @notice Adds pricing support for `asset`, a token inside a Univ3 lp.

@@ -222,4 +222,200 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         adaptor.addAsset(address(0), assetConfig);
     }
+
+    function testPriceGuard_finalUsdQuoteClampsThroughBaseAdjustPrice()
+        public
+    {
+        (uint256 priceBefore, uint256 errorBefore) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorBefore, 0, "expected clean WBTC USD price");
+        assertGt(priceBefore, 0, "missing WBTC USD price");
+
+        uint256 guardCap = priceBefore / 2;
+        adaptor.setGuardedPriceConfig(_WBTC_ADDRESS, true, 0, 0, guardCap, 0);
+
+        BaseOracleAdaptor.PriceGuard memory storedGuard = adaptor
+            .getPriceGuard(_WBTC_ADDRESS, true);
+        assertEq(
+            storedGuard.basePrice,
+            guardCap,
+            "expected WBTC USD guard to be stored"
+        );
+
+        uint256 expectedPostFixQuote = _expectedStaticGuardedPrice(
+            priceBefore,
+            storedGuard
+        );
+        assertEq(
+            expectedPostFixQuote,
+            guardCap,
+            "post-fix WBTC quote should clamp to stored guard cap"
+        );
+
+        (uint256 priceAfter, uint256 errorAfter) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorAfter, 0, "expected clean WBTC USD price after guard");
+        assertEq(
+            priceAfter,
+            expectedPostFixQuote,
+            "expected final WBTC USD quote to clamp through BaseOracleAdaptor._adjustPrice"
+        );
+        assertEq(
+            priceAfter,
+            guardCap,
+            "expected final WBTC USD quote to equal the stored guard cap"
+        );
+        assertLt(
+            priceAfter,
+            priceBefore,
+            "expected final WBTC USD quote to clamp below the pre-guard quote"
+        );
+    }
+
+    function testPriceGuard_finalNativeQuoteClampsThroughBaseAdjustPrice()
+        public
+    {
+        (uint256 priceBefore, uint256 errorBefore) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            false,
+            false
+        );
+        assertEq(errorBefore, 0, "expected clean WBTC native price");
+        assertGt(priceBefore, 0, "missing WBTC native price");
+
+        uint256 guardCap = priceBefore / 2;
+        adaptor.setGuardedPriceConfig(_WBTC_ADDRESS, false, 0, 0, guardCap, 0);
+
+        BaseOracleAdaptor.PriceGuard memory storedGuard = adaptor
+            .getPriceGuard(_WBTC_ADDRESS, false);
+        assertEq(
+            storedGuard.basePrice,
+            guardCap,
+            "expected WBTC native guard to be stored"
+        );
+
+        uint256 expectedPostFixQuote = _expectedStaticGuardedPrice(
+            priceBefore,
+            storedGuard
+        );
+        assertEq(
+            expectedPostFixQuote,
+            guardCap,
+            "post-fix WBTC native quote should clamp to stored guard cap"
+        );
+
+        (uint256 priceAfter, uint256 errorAfter) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            false,
+            false
+        );
+        assertEq(
+            errorAfter,
+            0,
+            "expected clean WBTC native price after guard"
+        );
+        assertEq(
+            priceAfter,
+            expectedPostFixQuote,
+            "expected final WBTC native quote to clamp through BaseOracleAdaptor._adjustPrice"
+        );
+        assertEq(
+            priceAfter,
+            guardCap,
+            "expected final WBTC native quote to equal the stored guard cap"
+        );
+        assertLt(
+            priceAfter,
+            priceBefore,
+            "expected final WBTC native quote to clamp below the pre-guard quote"
+        );
+    }
+
+    function testPriceGuard_finalUsdQuoteReturnsErrorWhenGuardMinExceedsComposedQuote()
+        public
+    {
+        (uint256 wbtcPriceBefore, uint256 wbtcErrorBefore) = oracleManager
+            .getPrice(_WBTC_ADDRESS, true, false);
+        assertEq(wbtcErrorBefore, 0, "expected clean WBTC USD price");
+        assertGt(wbtcPriceBefore, 0, "missing WBTC USD price");
+
+        // Pin WBTC USD guard floor at the current quote so any composed drop
+        // below it must trigger the `_adjustPrice == 0 -> hadError` bubble.
+        adaptor.setGuardedPriceConfig(
+            _WBTC_ADDRESS,
+            true,
+            0,
+            0,
+            wbtcPriceBefore,
+            wbtcPriceBefore
+        );
+
+        // Halve WETH USD via a guard on the quote token to drag the composed
+        // WBTC quote below the WBTC min guard. WBTC's USD route prices via
+        // WBTC/WETH twap then the OracleManager WETH USD price.
+        (uint256 wethPriceBefore, uint256 wethErrorBefore) = oracleManager
+            .getPrice(_WETH_ADDRESS, true, false);
+        assertEq(wethErrorBefore, 0, "expected clean WETH USD price");
+        assertGt(wethPriceBefore, 0, "missing WETH USD price");
+
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _WETH_ADDRESS,
+            true,
+            0,
+            0,
+            wethPriceBefore / 2,
+            0
+        );
+
+        IOracleAdaptor.PricingResult memory adaptorResult = adaptor.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertTrue(
+            adaptorResult.hadError,
+            "expected WBTC adaptor call to signal an error"
+        );
+        assertTrue(
+            adaptorResult.inUSD,
+            "expected WBTC adaptor call to stay in usd mode"
+        );
+        assertEq(
+            adaptorResult.price,
+            0,
+            "expected WBTC adaptor call to return zero after guard rejection"
+        );
+
+        (uint256 wbtcPriceAfter, uint256 wbtcErrorAfter) = oracleManager
+            .getPrice(_WBTC_ADDRESS, true, false);
+        assertEq(
+            wbtcPriceAfter,
+            0,
+            "expected oracle manager WBTC price to zero when adaptor errors"
+        );
+        assertGt(
+            wbtcErrorAfter,
+            0,
+            "expected oracle manager to bubble WBTC adaptor error"
+        );
+    }
+
+    function _expectedStaticGuardedPrice(
+        uint256 rawPrice,
+        BaseOracleAdaptor.PriceGuard memory guard
+    ) internal pure returns (uint256) {
+        if (guard.basePrice == 0) {
+            return rawPrice;
+        }
+        if (rawPrice < guard.minPrice) {
+            return 0;
+        }
+        return rawPrice > guard.basePrice ? guard.basePrice : rawPrice;
+    }
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 import { PendlePTPositionManager } from "contracts/market/position-management/PendlePTPositionManager.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -13,9 +14,15 @@ import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRoute
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
+import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
+import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
+import { TokenOutput } from "contracts/interfaces/external/pendle/IPAllActionTypeV3.sol";
+import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import { IWstETH } from "contracts/interfaces/external/lido/IWstETH.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract TestPendlePTPositionManager is TestBaseMarketIsolated {
     address internal _CHAINLINK_STETH_USD =
@@ -40,6 +47,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
     // Hardcoded for extra coverage. If we change the fork or calldata, update.
     uint256 internal constant _EXPECTED_DELEVERAGE_REPAID_DAI =
         3141481703902328073404;
+
+    /// @dev Post-expiry yield index is locked at PT.expiry(); on this fork
+    ///      block (21163719) + warp to PT.expiry() + 1 hours, redeeming
+    ///      1 PT-stETH-26DEC24 via Pendle's `redeemPyToToken` → wstETH
+    ///      (no aggregator swap) yields exactly this many wei. Captured
+    ///      via pilot run; if fork or warp offset changes, update.
+    uint256 internal constant _EXPECTED_POST_EXPIRY_WSTETH_OUT =
+        844304281893446704;
 
     receive() external payable {}
 
@@ -496,6 +511,795 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
     function _preparePT(address _user, uint256 _amount) internal {
         deal(_PT_STETH, _user, _amount);
+    }
+
+    /// @dev Refreshes Chainlink-shaped oracles to the current block.timestamp
+    ///      so post-warp `_verifyData` heartbeat checks pass. Required after
+    ///      any `vm.warp` that exceeds the configured heartbeat (~1 day).
+    function _refreshChainlinkOracles() internal {
+        (
+            uint80 chRoundId,
+            int256 chAnswer,
+            ,
+            ,
+            uint80 chAnsweredInRound
+        ) = IChainlink(_CHAINLINK_STETH_USD).latestRoundData();
+        vm.mockCall(
+            _CHAINLINK_STETH_USD,
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                chRoundId,
+                chAnswer,
+                block.timestamp,
+                block.timestamp,
+                chAnsweredInRound
+            )
+        );
+        chainlinkDaiUsd.updateAnswer(chainlinkDaiUsd.latestAnswer());
+        chainlinkEthUsd.updateAnswer(chainlinkEthUsd.latestAnswer());
+        chainlinkUsdcUsd.updateAnswer(chainlinkUsdcUsd.latestAnswer());
+    }
+
+    /// @dev Builds the standard post-expiry deleverage action used across
+    ///      the new tests: exit to wstETH (no aggregator swap chain), no
+    ///      `swapActions` follow-up. The wstETH residue stays on the PM
+    ///      per the router-residue doctrine.
+    function _buildPostExpiryDeleverageAction(uint256 collateralAssets, uint256 repayAssets)
+        internal
+        view
+        returns (PendlePTPositionManager.DeleverageAction memory deleverageAction)
+    {
+        deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
+        deleverageAction.collateralAssets = collateralAssets;
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.repayAssets = repayAssets;
+
+        PendleLib.PendleAction memory action;
+        action.output.tokenOut = _WSTETH;
+        action.output.minTokenOut = 1;
+        action.output.tokenRedeemSy = _WSTETH;
+        deleverageAction.auxData = abi.encode(_LP_STETH, action);
+    }
+
+    /// @notice Empirical: post-expiry, calling Pendle's `redeemPyToToken`
+    ///         against the live mainnet PT-stETH-26DEC24 + YT + SY contracts
+    ///         redeems PT to wstETH WITHOUT requiring YT (Curvance never
+    ///         holds YT). Validates the full Pendle V2 redemption stack on
+    ///         a static fork block past PT.expiry().
+    /// @dev Asserts strict equality on netTokenOut; the post-expiry yield
+    ///      index is locked at expiry, so the conversion is deterministic
+    ///      on this fork block. Pin updated on first run.
+    function test_EMPIRICAL_redeemPyToTokenPostExpiry_deliversWstEth() public {
+        // Pre-expiry sanity: PT not yet matured at fork block 21163719.
+        assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
+
+        // Warp past PT expiry. PT-stETH-26DEC24 expires at the timestamp
+        // configured at PT deployment.
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+        assertTrue(IPPrincipalToken(_PT_STETH).isExpired());
+
+        // Holder: this contract. Funded with 1 PT.
+        address holder = address(this);
+        uint256 ptAmount = 1 ether;
+        _preparePT(holder, ptAmount);
+
+        // Approve PT to the Pendle router. This is exactly the approval
+        // pattern the proposed `_exitPendle` post-expiry branch issues.
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+
+        // Build TokenOutput for direct wstETH redemption (no aggregator
+        // swap). Isolates the Pendle redemption side from any time-
+        // sensitive off-chain swap calldata.
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        output.minTokenOut = 1;
+        output.tokenRedeemSy = _WSTETH;
+        // pendleSwap stays address(0); swapData.swapType defaults to NONE.
+
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+
+        // Sanity: holder has zero YT — the post-expiry path must not need it.
+        assertEq(IERC20(yt).balanceOf(holder), 0, "holder should not hold YT");
+
+        uint256 wstethBefore = IERC20(_WSTETH).balanceOf(holder);
+        uint256 ptBefore = IERC20(_PT_STETH).balanceOf(holder);
+        assertEq(ptBefore, ptAmount);
+
+        (uint256 netTokenOut, uint256 netSyInterm) = _ROUTER.redeemPyToToken(
+            holder,
+            yt,
+            ptAmount,
+            output
+        );
+
+        // Strict pin: post-expiry yield index locks at PT.expiry(), so on
+        // this fork block + warp the conversion is deterministic. Equality
+        // (not bound) verifies the redemption produces the exact expected
+        // amount, catching any future Pendle contract behavior drift, SY
+        // exchange-rate change, or unintended fee insertion.
+        assertEq(
+            netTokenOut,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "post-expiry netTokenOut wstETH MUST equal pinned value"
+        );
+
+        // Semantic cross-check: the pinned value MUST be the wstETH form
+        // of "1 stETH-worth at the warp moment." 1 PT redeems to 1 stETH-
+        // worth at expiry per Pendle PT semantics; expressed in wstETH
+        // units that's `1 stETH × 1e18 / wstETH.stEthPerToken`. Tying the
+        // pin to this Lido-side identity makes any future drift in the
+        // pinned value auditable rather than mysterious.
+        // `getStETHByWstETH(1e18)` returns stETH per 1 wstETH, equivalent
+        // to `stEthPerToken`.
+        uint256 stEthPerToken = IWstETH(_WSTETH).getStETHByWstETH(1e18);
+        // 1e36 / stEthPerToken = 1 stETH expressed in wstETH wei.
+        assertApproxEqAbs(
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            1e36 / stEthPerToken,
+            2,
+            "pinned wstETH MUST equal 1 stETH at live wstETH:stETH ratio"
+        );
+        // For PT-stETH-26DEC24, SY's underlying is wstETH so the SY:wstETH
+        // exchange rate is 1:1 — netSyInterm equals netTokenOut here. For
+        // SYs whose underlying differs from `tokenRedeemSy` this would not
+        // hold; the pin is specific to this PT/market.
+        assertEq(
+            netSyInterm,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "netSyInterm == netTokenOut for SY-wstETH 1:1 redemption"
+        );
+
+        // Strict invariants on the call.
+        assertEq(
+            IERC20(_WSTETH).balanceOf(holder) - wstethBefore,
+            netTokenOut,
+            "wstETH balance delta MUST equal netTokenOut"
+        );
+        // PT fully consumed by the redemption.
+        assertEq(IERC20(_PT_STETH).balanceOf(holder), 0, "PT fully consumed");
+        // Holder MUST still have zero YT — proves the post-expiry path
+        // does not require YT custody, which is the whole reason this
+        // path is needed for our PT-only flow.
+        assertEq(
+            IERC20(yt).balanceOf(holder),
+            0,
+            "holder MUST NOT have received YT post-redemption"
+        );
+    }
+
+    /// @notice Slippage protection: post-expiry redemption MUST revert
+    ///         if `output.minTokenOut` exceeds the achievable amount.
+    function test_EMPIRICAL_redeemPyToTokenPostExpiry_revertsOnSlippage()
+        public
+    {
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        address holder = address(this);
+        uint256 ptAmount = 1 ether;
+        _preparePT(holder, ptAmount);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        // Set an unachievable floor: 1 PT cannot redeem to 1e30 wstETH.
+        output.minTokenOut = type(uint256).max;
+        output.tokenRedeemSy = _WSTETH;
+
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+
+        vm.expectRevert(); // Pendle reverts with "Slippage: INSUFFICIENT_TOKEN_OUT"
+        _ROUTER.redeemPyToToken(holder, yt, ptAmount, output);
+    }
+
+    /// @notice Integration: post-expiry, the full PM-routed deleverage
+    ///         flow (cToken.withdrawByPositionManager → PM.onRedeem →
+    ///         PendleLib._exitPendle (post-expiry branch) → repay →
+    ///         residue refund) completes WITHOUT reverting AND delivers
+    ///         the redeemed wstETH back to the position owner.
+    /// @dev Pre-fix: PendleLib._exitPendle's `isPt=true` branch only calls
+    ///      `swapExactPtForToken`, which reverts post-expiry with
+    ///      `Errors.MarketExpired` (vendored Pendle math). This test
+    ///      MUST fail before the fix lands, and pass after.
+    /// @dev Repay leg uses a pre-funded DAI balance on the PM rather than
+    ///      a wstETH→DAI swap, so the test is decoupled from time-
+    ///      sensitive aggregator calldata. The Pendle exit path is the
+    ///      load-bearing piece under test; the swap-chain leg is exercised
+    ///      by the existing `testDeLeverage`.
+    function test_DeLeverage_PostExpiry_routesViaRedeemPyToToken() public {
+        // 1. Set up the leveraged PT position (pre-expiry).
+        testLeverage();
+
+        // Cooldown + accrue, mirroring `testDeLeverage`.
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        // 2. Warp past PT expiry. PT-stETH-26DEC24 expiry locks the post-
+        //    expiry yield index on the first redemption call.
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+        assertTrue(IPPrincipalToken(_PT_STETH).isExpired());
+
+        // Snapshot AFTER the warp + accrue so the assertions compare
+        // post-warp interest-accrued balances cleanly.
+        AccountSnapshot memory borrowBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory ptBefore = cPendlePTSTETH.getSnapshot(user);
+
+        // 3. Pre-fund the PM with enough DAI to fully repay user's debt.
+        //    This keeps the post-deleverage LTV at 0% (no debt vs.
+        //    remaining collateral), passing `MarketManager`'s
+        //    `canRedeemWithCollateralRemoval` check. In production the
+        //    wstETH from the Pendle exit would be swapped to DAI for
+        //    the repay; here we decouple the test from time-sensitive
+        //    aggregator calldata by sourcing the DAI directly.
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        // 4. Build deleverage action via helper (exit to wstETH, no
+        //    aggregator swap, no swapActions chain).
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        uint256 pmWstethBefore =
+            IERC20(_WSTETH).balanceOf(address(positionManager));
+
+        // 5. Execute deleverage. Generous slippage tolerance (100%)
+        //    because the protocol-tracked valueOut differs from valueIn
+        //    in this test setup (we sourced repay DAI externally rather
+        //    than via a wstETH→DAI swap). In production the wstETH
+        //    would be swapped to DAI for repay, keeping protocol-tracked
+        //    value balanced.
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+
+        // 6. Strict invariants on the outcome.
+
+        // Collateral: 1 PT worth of cToken shares burned.
+        AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
+        assertEq(
+            ptAfter.collateralPosted,
+            ptBefore.collateralPosted - deleverageAction.collateralAssets,
+            "cToken collateral MUST decrease by collateralAssets"
+        );
+
+        // Debt: fully cleared by the prefunded DAI.
+        AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
+        assertEq(
+            borrowAfter.debtBalance,
+            0,
+            "debt MUST be fully cleared after prefund-funded repay"
+        );
+        assertEq(
+            borrowBefore.debtBalance - borrowAfter.debtBalance,
+            fullDebt,
+            "repay MUST equal pre-deleverage debt balance"
+        );
+
+        // Underlying delivery (full proof): the post-expiry redemption
+        // produced exactly the empirically-pinned amount of wstETH AND
+        // it landed on the PM. `onRedeem`'s residue refund leg only
+        // covers debtAsset (DAI), collateralAsset (PT — already burned),
+        // and `swapActions` outputs; wstETH is none of these on this
+        // test path, so it stays on the PM as router residue per the
+        // doctrine block at `BasePositionManager.sol:56-84`. In
+        // production flow the user includes a `swapActions` chain
+        // converting wstETH→debtAsset which both repays debt AND
+        // refunds residue via the swap-residue leg (`onRedeem:526-539`).
+        uint256 pmWstethAfter =
+            IERC20(_WSTETH).balanceOf(address(positionManager));
+        assertEq(
+            pmWstethAfter - pmWstethBefore,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "PM MUST receive exactly the post-expiry redemption amount"
+        );
+    }
+
+    /// @notice Drift sentinel: redeeming the same PT amount at two
+    ///         different post-expiry timestamps MUST yield IDENTICAL
+    ///         wstETH amounts on a static fork.
+    ///
+    ///         Two factors govern the post-expiry PT→wstETH conversion:
+    ///           (a) `firstPYIndex` (PT→SY) is LOCKED at the first
+    ///               post-expiry redemption per `_setPostExpiryData` —
+    ///               same for both redemptions in this test (since the
+    ///               first call captures it).
+    ///           (b) `SY.exchangeRate()` (SY→wstETH) reads from Lido's
+    ///               wstETH contract state. In production this drifts
+    ///               as stETH rebases (via Lido oracle reports, ~daily).
+    ///               In a static fork, `vm.warp` advances block.timestamp
+    ///               but does NOT trigger Lido rebasing — Lido state is
+    ///               frozen at fork-block, so SY.exchangeRate is constant
+    ///               regardless of warp distance.
+    ///
+    ///         Result: under static-fork semantics, the wstETH per PT
+    ///         is FULLY DETERMINISTIC post-expiry — neither time-warp
+    ///         nor block ordering changes the output. Asserting strict
+    ///         equality between the two redemptions both pins this
+    ///         determinism AND serves as a regression sentinel for any
+    ///         future Pendle change that would introduce time-sensitive
+    ///         post-expiry logic (e.g., a fee-accrual hook).
+    ///
+    ///         Production note: on a live chain, Lido's daily oracle
+    ///         reports DO drift `stEthPerToken`, so the wstETH-per-PT
+    ///         amount changes step-wise across rebase events. The drift
+    ///         per rebase is ~Lido APR / 365 ≈ ~10 bps/day at 3.6% APR.
+    ///         Calldata-encoded swap input on the wstETH→debtAsset leg
+    ///         should use slippage tolerance of at least one Lido rebase
+    ///         step (well under standard ~50 bps tolerances) to absorb
+    ///         the drift between calldata build and tx land.
+    function test_EMPIRICAL_redeemPyToTokenPostExpiry_amountIsDeterministic()
+        public
+    {
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+        uint256 ptAmount = 1 ether;
+
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        output.minTokenOut = 1;
+        output.tokenRedeemSy = _WSTETH;
+
+        // First redemption at expiry + 1 hour. Triggers
+        // `_setPostExpiryData` which captures `firstPYIndex` once.
+        vm.warp(expiry + 1 hours);
+        address holder1 = makeAddr("holderEarly");
+        _preparePT(holder1, ptAmount);
+        vm.startPrank(holder1);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+        (uint256 outAtOneHour, ) = _ROUTER.redeemPyToToken(
+            holder1,
+            yt,
+            ptAmount,
+            output
+        );
+        vm.stopPrank();
+
+        // Second redemption at expiry + 1 day. `firstPYIndex` is already
+        // locked; SY.exchangeRate's underlying Lido state hasn't changed
+        // (no rebase simulated). Output MUST be identical.
+        vm.warp(expiry + 1 days);
+        address holder2 = makeAddr("holderLate");
+        _preparePT(holder2, ptAmount);
+        vm.startPrank(holder2);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+        (uint256 outAtOneDay, ) = _ROUTER.redeemPyToToken(
+            holder2,
+            yt,
+            ptAmount,
+            output
+        );
+        vm.stopPrank();
+
+        // Both redemptions deliver positive wstETH.
+        assertGt(outAtOneHour, 0, "expected non-zero wstETH at +1 hour");
+        assertGt(outAtOneDay, 0, "expected non-zero wstETH at +1 day");
+
+        // Strict equality: post-expiry redemption is deterministic on a
+        // static fork. Pinning to the same value as the happy-path test
+        // ties this regression sentinel to the same semantic constant.
+        assertEq(
+            outAtOneHour,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "early redemption MUST match pinned constant"
+        );
+        assertEq(
+            outAtOneDay,
+            outAtOneHour,
+            "later redemption MUST equal earlier - no drift on static fork"
+        );
+    }
+
+    /// @notice Boundary: deleverage at EXACTLY `block.timestamp ==
+    ///         PT.expiry()`. Both `IPPrincipalToken.isExpired()` and
+    ///         `MarketMathCore.isExpired()` use `>=`, so the AMM swap
+    ///         path reverts at exactly the boundary, but our fix's
+    ///         `if (isExpired())` check also returns true at the
+    ///         boundary, routing through `redeemPyToToken` cleanly.
+    ///         Verifies no off-by-one between the two `isExpired()`
+    ///         predicates.
+    function test_DeLeverage_AtExpiryBoundary_routesViaRedeem() public {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        // Warp to EXACTLY the expiry block.
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry);
+
+        assertTrue(
+            IPPrincipalToken(_PT_STETH).isExpired(),
+            "isExpired() MUST be true at exactly expiry block"
+        );
+
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+
+        AccountSnapshot memory borrowBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory ptBefore = cPendlePTSTETH.getSnapshot(user);
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        uint256 pmWstethBefore =
+            IERC20(_WSTETH).balanceOf(address(positionManager));
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+
+        // Despite `block.timestamp == expiry` (the AMM-revert boundary),
+        // the redeem path executed cleanly.
+        AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
+        assertEq(
+            ptAfter.collateralPosted,
+            ptBefore.collateralPosted - 1 ether,
+            "cToken collateral MUST decrease by collateralAssets"
+        );
+
+        AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowAfter.debtBalance, 0, "debt cleared");
+        assertEq(
+            borrowBefore.debtBalance - borrowAfter.debtBalance,
+            fullDebt,
+            "repay MUST equal pre-deleverage debt balance"
+        );
+
+        // wstETH from redemption landed on the PM (router-residue doctrine).
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(positionManager)) - pmWstethBefore,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "PM MUST receive exactly the post-expiry redemption amount"
+        );
+    }
+
+    /// @notice Liquidator's post-liquidation recovery path post-expiry.
+    ///         A liquidator does NOT call our `PendleLib` — they receive
+    ///         seized cToken shares via `MarketManagerIsolated.liquidate`,
+    ///         redeem them through `cToken.redeem` to obtain raw PT, then
+    ///         interact with Pendle's contracts directly to convert PT to
+    ///         underlying. This test exercises the full recovery chain
+    ///         (cToken-redeem → raw PT → Pendle.redeemPyToToken) on a
+    ///         post-expiry fork. We use a non-leveraged depositor to
+    ///         avoid having to manufacture a real shortfall — the cToken
+    ///         redemption mechanics tested here are identical to what a
+    ///         liquidator-with-seized-shares would execute.
+    function test_LiquidatorRecoveryPath_PostExpiry() public {
+        // 1. Set up a non-leveraged PT-cToken position. This represents
+        //    "liquidator holding seized cToken shares" — same mechanics
+        //    minus the shortfall trigger.
+        address actor = makeAddr("liquidator");
+        _preparePT(actor, 1 ether);
+
+        vm.startPrank(actor);
+        IERC20(_PT_STETH).approve(address(cPendlePTSTETH), 1 ether);
+        uint256 shares = cPendlePTSTETH.deposit(1 ether, actor);
+        vm.stopPrank();
+        assertGt(shares, 0, "shares minted");
+
+        // 2. Warp past PT expiry.
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+        _refreshChainlinkOracles();
+        assertTrue(IPPrincipalToken(_PT_STETH).isExpired());
+
+        // 3. Liquidator redeems cToken shares → receives raw PT. The
+        //    cToken redemption path itself does NOT rely on the post-
+        //    expiry fix (it just transfers the underlying PT out).
+        vm.startPrank(actor);
+        uint256 ptOut = cPendlePTSTETH.redeem(shares, actor, actor);
+        vm.stopPrank();
+
+        assertGt(ptOut, 0, "cToken.redeem MUST deliver raw PT");
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(actor),
+            ptOut,
+            "PT delivered to actor (the liquidator)"
+        );
+
+        // 4. Liquidator approves PT to Pendle's router and redeems
+        //    directly via Pendle's `redeemPyToToken`. This is the same
+        //    canonical post-expiry path our PM-side fix uses, but
+        //    invoked by an EOA on Pendle's contracts directly — no
+        //    Curvance-side infrastructure required.
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        output.minTokenOut = 1;
+        output.tokenRedeemSy = _WSTETH;
+
+        uint256 wstethBefore = IERC20(_WSTETH).balanceOf(actor);
+
+        vm.startPrank(actor);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptOut);
+        (uint256 wstethOut, ) = _ROUTER.redeemPyToToken(
+            actor,
+            yt,
+            ptOut,
+            output
+        );
+        vm.stopPrank();
+
+        // 5. Assert: liquidator successfully recovered wstETH.
+        assertGt(wstethOut, 0, "liquidator MUST recover wstETH");
+        assertEq(
+            IERC20(_WSTETH).balanceOf(actor) - wstethBefore,
+            wstethOut,
+            "wstETH balance delta MUST equal redemption output"
+        );
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(actor),
+            0,
+            "PT MUST be fully consumed"
+        );
+    }
+
+    /// @notice Same-block consistency: two redemptions of the same PT
+    ///         amount in the SAME block MUST yield identical wstETH out.
+    ///         `_setPostExpiryData` captures `firstPYIndex` once on the
+    ///         first call; subsequent redemptions in the same block use
+    ///         the same locked index AND the same SY.exchangeRate.
+    ///         Catches any race where the first redeemer could capture
+    ///         an unfair index that subsequent redeemers in the same
+    ///         block see differently.
+    function test_FirstPYIndex_ConsistentInSameBlock() public {
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+        uint256 ptAmount = 1 ether;
+
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        output.minTokenOut = 1;
+        output.tokenRedeemSy = _WSTETH;
+
+        // Two distinct holders, fund both, redeem both in same block.
+        address holderA = makeAddr("holderA");
+        address holderB = makeAddr("holderB");
+
+        _preparePT(holderA, ptAmount);
+        _preparePT(holderB, ptAmount);
+
+        // First redemption — triggers `_setPostExpiryData` capture.
+        vm.startPrank(holderA);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+        (uint256 outA, ) = _ROUTER.redeemPyToToken(
+            holderA,
+            yt,
+            ptAmount,
+            output
+        );
+        vm.stopPrank();
+
+        // Second redemption in the SAME block — `firstPYIndex` is
+        // already locked, no further capture should occur.
+        vm.startPrank(holderB);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+        (uint256 outB, ) = _ROUTER.redeemPyToToken(
+            holderB,
+            yt,
+            ptAmount,
+            output
+        );
+        vm.stopPrank();
+
+        // Strict equality: both holders MUST receive identical amounts.
+        assertEq(outA, outB, "same-block redemptions MUST be identical");
+        // And both equal the pinned constant.
+        assertEq(
+            outA,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "same-block redemptions MUST equal pinned value"
+        );
+    }
+
+    /// @notice Atomicity: when post-expiry redemption succeeds but the
+    ///         downstream slippage check fails, MarketManager state MUST
+    ///         remain unchanged (transaction-atomic revert). Verifies
+    ///         no partial state mutation: cToken collateral preserved,
+    ///         debt unchanged, no PT or wstETH escapes.
+    function test_DeLeverage_PostExpiry_RevertOnSlippage_StateAtomic() public {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+
+        AccountSnapshot memory borrowBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory ptBefore = cPendlePTSTETH.getSnapshot(user);
+        uint256 userPtBalanceBefore = IERC20(_PT_STETH).balanceOf(user);
+        uint256 userWstethBefore = IERC20(_WSTETH).balanceOf(user);
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        // Build deleverage with an UNACHIEVABLE `minTokenOut` so the
+        // Pendle redemption itself reverts via Pendle's slippage check.
+        PendlePTPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
+        deleverageAction.collateralAssets = 1 ether;
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.repayAssets = fullDebt;
+
+        PendleLib.PendleAction memory action;
+        action.output.tokenOut = _WSTETH;
+        // Set unachievable floor: 1 PT cannot redeem to type(uint256).max.
+        action.output.minTokenOut = type(uint256).max;
+        action.output.tokenRedeemSy = _WSTETH;
+        deleverageAction.auxData = abi.encode(_LP_STETH, action);
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectRevert(); // Pendle "Slippage: INSUFFICIENT_TOKEN_OUT"
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+
+        // Atomicity: cToken collateral, debt, and external balances MUST
+        // be exactly as they were before the failed call.
+        AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
+        assertEq(
+            ptAfter.collateralPosted,
+            ptBefore.collateralPosted,
+            "collateral MUST be unchanged after revert"
+        );
+
+        AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
+        assertEq(
+            borrowAfter.debtBalance,
+            borrowBefore.debtBalance,
+            "debt balance MUST be unchanged after revert"
+        );
+
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(user),
+            userPtBalanceBefore,
+            "user PT balance MUST be unchanged"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(user),
+            userWstethBefore,
+            "user wstETH balance MUST be unchanged"
+        );
+
+        // PM state: holds the prefunded DAI but no wstETH (Pendle reverted
+        // before its redemption path completed).
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(positionManager)),
+            0,
+            "PM MUST hold no wstETH after reverted deleverage"
+        );
+    }
+
+    /// @notice PendleZapper post-expiry parity: the same `PendleLib._exitPendle`
+    ///         post-expiry branch is reached through `PendleZapper.exitPendle`
+    ///         (a different caller from PendlePTPositionManager). Validates
+    ///         that the library-level fix correctly applies when the zapper
+    ///         is the entry point — covering the second production code path
+    ///         that calls `PendleLib._exitPendle(isPt=true, ...)`.
+    function test_PendleZapper_ExitPendle_PostExpiry_RoutesViaRedeem() public {
+        // Deploy a PendleZapper using the existing CentralRegistry. No
+        // protocol-level registration needed: `exitPendle` doesn't
+        // require the zapper to be a registered plugin (no
+        // `_checkAddresses` for this entry point), only that the user
+        // has approved their PT to the zapper.
+        PendleZapper zapper = new PendleZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+
+        // Warp past PT expiry FIRST. PendleZapper's exit path produces
+        // wstETH off the same `PendleLib._exitPendle` library entry, so
+        // the post-expiry branch must fire here too.
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+        _refreshChainlinkOracles();
+        assertTrue(IPPrincipalToken(_PT_STETH).isExpired());
+
+        address holder = makeAddr("zapperUser");
+        uint256 ptAmount = 1 ether;
+        _preparePT(holder, ptAmount);
+
+        // Build PendleAction for output to wstETH (no aggregator swap).
+        PendleLib.PendleAction memory action;
+        action.output.tokenOut = _WSTETH;
+        action.output.minTokenOut = 1;
+        action.output.tokenRedeemSy = _WSTETH;
+
+        // ZapAction: PT in, wstETH out. inputToken is the PT itself
+        // (zapper transferFrom's it), outputToken is what `_exitPendle`
+        // measures balance-of for delivery.
+        PendleZapper.ZapAction memory zapAction;
+        zapAction.inputToken = _PT_STETH;
+        zapAction.inputAmount = ptAmount;
+        zapAction.outputToken = _WSTETH;
+        zapAction.minimumOut = 1;
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](0);
+
+        uint256 holderWstethBefore = IERC20(_WSTETH).balanceOf(holder);
+
+        vm.startPrank(holder);
+        IERC20(_PT_STETH).approve(address(zapper), ptAmount);
+        uint256 outAmount = zapper.exitPendle(
+            _PT_STETH,
+            address(_ROUTER),
+            true, // isPt
+            action,
+            zapAction,
+            swapActions,
+            holder
+        );
+        vm.stopPrank();
+
+        // Strict invariants on the zapper-routed redemption.
+        assertEq(
+            outAmount,
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "PendleZapper.exitPendle MUST deliver pinned post-expiry amount"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(holder) - holderWstethBefore,
+            outAmount,
+            "wstETH delivered to receiver"
+        );
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(holder),
+            0,
+            "PT MUST be fully consumed"
+        );
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no residual PT"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no residual wstETH"
+        );
+    }
+
+    /// @notice Pre-expiry, calling `redeemPyToToken` from a holder with PT
+    ///         only (no YT) MUST revert — confirms the post-expiry pathway
+    ///         is the ONLY safe path for our PT-only custody pattern, and
+    ///         that wrapping in `if (isExpired())` is load-bearing.
+    function test_EMPIRICAL_redeemPyToTokenPreExpiry_revertsWithoutYT() public {
+        // No warp — fork block has PT pre-expiry.
+        assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
+
+        address holder = address(this);
+        uint256 ptAmount = 1 ether;
+        _preparePT(holder, ptAmount);
+        IERC20(_PT_STETH).approve(address(_ROUTER), ptAmount);
+
+        TokenOutput memory output;
+        output.tokenOut = _WSTETH;
+        output.minTokenOut = 1;
+        output.tokenRedeemSy = _WSTETH;
+
+        address yt = IPPrincipalToken(_PT_STETH).YT();
+        // Holder has zero YT.
+        assertEq(IERC20(yt).balanceOf(holder), 0);
+
+        // Pre-expiry, _redeemPyToSy attempts to pull both PT AND YT.
+        // Holder has no YT → ERC20 transferFrom reverts.
+        vm.expectRevert();
+        _ROUTER.redeemPyToToken(holder, yt, ptAmount, output);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

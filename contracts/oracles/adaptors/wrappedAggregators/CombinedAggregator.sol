@@ -134,9 +134,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
 
         secondaryHeartbeat = _setSecondaryHeartbeat(_secondaryHeartbeat);
 
-        // Check if the secondary heartbeat is stale.
-        if (block.timestamp - updatedAt > secondaryHeartbeat) {
-            revert CombinedAggregator__InvalidHeartbeat();
+        // Stale or future-dated. Future timestamps underflow-wrap past
+        // any sane heartbeat under unchecked, hitting the same revert.
+        unchecked {
+            if (block.timestamp - updatedAt > secondaryHeartbeat) {
+                revert CombinedAggregator__InvalidHeartbeat();
+            }
         }
 
         secondaryAggregator = IChainlink(_secondaryAggregator);
@@ -206,9 +209,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
             revert CombinedAggregator__InvalidConfig();
         }
 
-        // Check if the secondary heartbeat is stale.
-        if (block.timestamp - updatedAt > secondaryHeartbeat) {
-            revert CombinedAggregator__InvalidHeartbeat();
+        // Stale or future-dated. Future timestamps underflow-wrap past
+        // any sane heartbeat under unchecked, hitting the same revert.
+        unchecked {
+            if (block.timestamp - updatedAt > secondaryHeartbeat) {
+                revert CombinedAggregator__InvalidHeartbeat();
+            }
         }
 
         // Having a minimum price above the current price does not make sense,
@@ -255,9 +261,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
         (,,,uint256 updatedAt,) =
             IChainlink(secondaryAggregator).latestRoundData();
 
-        // Check if the secondary heartbeat is stale.
-        if (block.timestamp - updatedAt > secondaryHeartbeat) {
-            revert CombinedAggregator__InvalidHeartbeat();
+        // Stale or future-dated. Future timestamps underflow-wrap past
+        // any sane heartbeat under unchecked, hitting the same revert.
+        unchecked {
+            if (block.timestamp - updatedAt > secondaryHeartbeat) {
+                revert CombinedAggregator__InvalidHeartbeat();
+            }
         }
     }
 
@@ -293,10 +302,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
         (, int256 secondaryAnswer,, uint256 secondaryUpdatedAt, ) = 
             secondaryAggregator.latestRoundData();
 
-        // If the second heartbeat is stale we can bubble up timestamp of 0
-        // to cause a _verifyData error code.
-        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
-            updatedAt = 0;
+        // Stale or future-dated: bubble updatedAt = 0 so _verifyData
+        // returns hadError. Future-dated underflow-wraps under unchecked.
+        unchecked {
+            if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
+                updatedAt = 0;
+            }
         }
 
         // Adjust `answer` by secondary answer to combine and divide by
@@ -319,9 +330,12 @@ contract CombinedAggregator is BaseWrappedAggregator {
         (, int256 secondaryAnswer,, uint256 secondaryUpdatedAt,) =
             secondaryAggregator.latestRoundData();
 
-        // Bubble up a pricing error if the secondary heartbeat is stale.
-        if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
-            return 0;
+        // Stale or future-dated: return 0 to bubble a pricing error.
+        // Future-dated underflow-wraps under unchecked.
+        unchecked {
+            if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
+                return 0;
+            }
         }
 
         // Adjust `answer` by secondary answer to combine and divide by

@@ -73,8 +73,8 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     function previewWithdraw(
         uint256 assets
     ) public view override returns (uint256 shares) {
-        // Exit fee is base WAD so we can substract apples to apples to get
-        // how many shares need to be withdrawn to receive `assets`.
+        // Gross `assets` up by `WAD / (WAD - exitFee)` so the share count
+        // covers both the assets delivered and the fee burn (ERC4626).
         assets = FixedPointMathLib.mulDivUp(assets, WAD, WAD - exitFee);
         shares = super.previewWithdraw(assets);
     }
@@ -86,7 +86,35 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
         assets = _removeExitFeeFromAssets(assets);
     }
 
+    /// @notice Maximum assets withdrawable by `owner` via `withdraw(...)`.
+    /// @dev Net of `exitFee`. Default ERC4626 returns the gross value,
+    ///      which would gross up past `owner`'s balance in `_withdraw`.
+    function maxWithdraw(
+        address owner
+    ) public view override returns (uint256) {
+        return previewRedeem(balanceOf(owner));
+    }
+
     /// INTERNAL FUNCTIONS ///
+
+    /// @dev Grosses `assets` up so receiver gets exactly `assets` after
+    ///      `_processWithdraw` removes the fee. ERC4626 contract requires
+    ///      `withdraw(assets)` to deliver exactly `assets`; fee is paid
+    ///      in extra shares burned. `_redeem` and `withdrawByPositionManager`
+    ///      keep their existing net-of-fee semantics.
+    function _withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        bool forceRedeemCollateral
+    ) internal override returns (uint256 shares) {
+        return super._withdraw(
+            FixedPointMathLib.mulDivUp(assets, WAD, WAD - exitFee),
+            receiver,
+            owner,
+            forceRedeemCollateral
+        );
+    }
 
     /// @notice Used by a Position Manager contract to redeem assets from
     ///         collateralized shares by `account` to perform a complex

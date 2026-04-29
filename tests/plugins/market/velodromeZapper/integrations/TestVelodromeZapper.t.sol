@@ -16,6 +16,7 @@ import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 import { console2 } from "forge-std/console2.sol";
@@ -35,6 +36,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
     VelodromeVolatileCToken public veloCTokenWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
+    MockVelodromePostSwapTarget internal postSwapTarget;
 
     receive() external payable {}
 
@@ -55,6 +57,13 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         _deployVelodromeZapper();
 
         console2.log("velodromeZapper address:", address(velodromeZapper));
+
+        postSwapTarget = new MockVelodromePostSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(postSwapTarget),
+            address(new MockCalldataChecker(address(postSwapTarget)))
+        );
+        _prepareUSDC(address(postSwapTarget), 1_000_000e6);
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -172,6 +181,46 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0, "user1 eth balance is not 0");
         assertGt(IERC20(address(veloCTokenWETHUSDC)).balanceOf(user1), 0, "user1 veloCTokenWETHUSDC balance is not greater than 0");
+    }
+
+    function testEnterVelodrome_fail_PreVelodromeSwapSafeSlippage() public {
+        uint256 ethAmount = 0.001 ether;
+        vm.deal(user1, ethAmount);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = address(0);
+        swapActions[0].inputAmount = ethAmount;
+        swapActions[0].outputToken = _USDC;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockVelodromePostSwapTarget.swap.selector,
+            _WETH,
+            _USDC,
+            ethAmount,
+            1_000
+        );
+
+        vm.startPrank(user1);
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        velodromeZapper.enterVelodrome{ value: ethAmount }(
+            address(veloCTokenWETHUSDC),
+            VelodromeZapper.ZapAction(
+                address(0),
+                ethAmount,
+                _VELODROME_WETH_USDC,
+                1,
+                true
+            ),
+            swapActions,
+            _VELODROME_ROUTER,
+            _VELODROME_FACTORY,
+            1,
+            false,
+            user1
+        );
+        vm.stopPrank();
     }
 
     function testExitVelodrome() public {
@@ -347,5 +396,58 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         assertGt(IERC20(_WETH).balanceOf(user1), 0);
         assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
+    }
+
+    function testExitVelodrome_fail_PostVelodromeSwapSafeSlippage() public {
+        deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
+
+        uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user1);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = _WETH;
+        swapActions[0].inputAmount = 0.001 ether;
+        swapActions[0].outputToken = _USDC;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockVelodromePostSwapTarget.swap.selector,
+            _WETH,
+            _USDC,
+            0.001 ether,
+            1_000
+        );
+
+        vm.startPrank(user1);
+        IERC20(_VELODROME_WETH_USDC).approve(
+            address(velodromeZapper),
+            withdrawAmount
+        );
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        velodromeZapper.exitVelodrome(
+            _VELODROME_ROUTER,
+            VelodromeZapper.ZapAction(
+                _VELODROME_WETH_USDC,
+                withdrawAmount,
+                _USDC,
+                1,
+                false
+            ),
+            swapActions,
+            user1
+        );
+        vm.stopPrank();
+    }
+}
+
+contract MockVelodromePostSwapTarget {
+    function swap(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external {
+        IERC20(inputToken).transferFrom(msg.sender, address(this), inputAmount);
+        IERC20(outputToken).transfer(msg.sender, outputAmount);
     }
 }

@@ -12,6 +12,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/PythAdaptorMulticallChecker.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
@@ -144,9 +145,11 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             marketManagerIsolated.addPositionManager(address(positionManager));
         }
 
+        vm.startPrank(user1);
         nativeUniversalBalance.setDelegateApproval(address(cWBTC), true);
         nativeUniversalBalance.setDelegateApproval(address(positionManager), true);
         nativeUniversalBalance.setDelegateApproval(address(borrowableCWETH), true);
+        vm.stopPrank();
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
@@ -340,6 +343,51 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
                 priceUpdateData
             )
         );
+    }
+
+    function testUpdateFeedsFromUniversalBalance_allowsApprovedDelegate()
+        public
+    {
+        bytes[] memory priceUpdateData = new bytes[](1);
+        priceUpdateData[
+            0
+        ] = hex"504e41550100000003b801000000040d00e2e37a06095835540c9d2c497b1cd04f41edb5692ea2d72c2ab5d0ea46ffc0033b068424f6fc5e0a8fad5c981020d8821e9c27913cea0818b241187b0053ce0c0002351c706803e32b16496f0d8e3f629bf1b8b65c08d573408dd278eca2175ec0993cc6f91c6244004e1a73e484106f91fa008c3b1560f9d4f7a891723b9631cac2010368add62a17ed655b90e27f6fce90793a63ac35a872dbd9c0bc5be9e4633a84d070ea7da70732516307fe617119b6d930362e8d83265968b98dbd879533af2e2301043bca9b8eeda235e131498bd6e833a050be27c5fc942c690a5950af95020a4e3462cfd2e2b06c1472fe5de8bf9f34819feab775749482744cf561dec57eda21d600064e3320e9980dc91ea21e3ae94ea595e8013be8b4ba007d0ad5d88944a6e3d65f53b4e716e1f1d19db945f7972448f9a60323d50769615d6ca6bbe2bf55d0aaf50008933cd880fa3f9c16ccd2b00b646372bf74e2b0815ecd629a27bc741f17e21c6326056db33b2979632eb3293a7f63b54d44989ffd7fc1ad8cc036254733d7ed4c000a2c41eb3991fe3df870bc83d321998e325bcfb6869eee439fa8872f9e1f70305d5c0f61e575d528e68dc2971aa9411b19db96fde8b9b9461d64514c25fc468182000bd2807c7eb44685b8bb52828b2897d34f7c387e85978ea2d102b6e161fb16753d1821a057ba53c12e3bdad8680428d0409c0d74740badefdb365ba0ff96955897000ccf19a53d005f3064b5342e18edaf9c8412cfdf2a210f744140878cf2d0b2f7100ce12587d1b13ae2964705bb33760777c8ce2fe703728cffc09964ff0c8637aa010d9a81a187dc1f5d6b543aec4055e9db7d1c873f884c39e14f13e04b2693e221831b54be1e8168c75eda551f21032d7df8c9361b7479f6aaee987d6fb88773e256000e700e6921eaab26171a20520164f5f4ceab6537e7215d6cec7daabc32198ed2b2404bc8772b8b3259b46a074312dc8bbe04cc363c382930bb65b58fb4bcfcb7ac01102a405b93b434c5fc377f34b37756d0361bc549c37db80627927ef3a5eba9b49272904a9640c84fb1f62d6fbe95a54aea8d7b192ed270db113d29c861378e208a001184dfb3642d013d9ec3233257b8b25b0598fd7a0d8dd93f89e7df9fc19a437d6e339d164ed2e81e865abf4d8a124688d185032c78174669fce74fd4171b894f370168ba2adc00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa7100000000094a5bd4014155575600000000000e57f0a0000027101efe27efe3de4e5f6bc14a76209e1eea7549c37501005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b4300000a0ebde0ceab00000000c2bb02f3fffffff80000000068ba2adc0000000068ba2adb00000a13f1dc410000000000cf1b27840de1bfe3a773c7994d01bf6f7adf9efe5dbe3999ead1b8c70063cfb7825801b67291cb0c4c588c8ff8e99c09de2caede93ddbac6290dbddbbe01bb4b9c83aa6069da6a733142fb87209d61a8a335f45ce9cedbcf82f11182b771cecb8b58a040d98bfa0b1c7fd24ba0cf49148cc11f59a7d6b81af84577541c986f71f1016f2fe63b199b2d1a53930bb02d3712e03a69c4f58fcb816e7376ecf1732aa5653d6537d6d3795a6e011f17d9e094794b774c7674e0ed3cfe366a130542a84c092227585c32033b0f85d5e1d25d568b9b1679f01eadb7ed1c91207e52e1cf768476e5999de18e01c2b8fff0197833c95b59c5e8a7962ed733c6ee6d014c7593df70b6ab26bd5e73";
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        nativeUniversalBalance.depositNative{ value: 1 ether }(false);
+        vm.prank(user1);
+        nativeUniversalBalance.setDelegateApproval(user2, true);
+
+        (uint256 sittingBefore, uint256 lentBefore) =
+            nativeUniversalBalance.userBalances(user1);
+
+        vm.prank(user2);
+        pythAdaptor.updateFeedsFromUniversalBalance(priceUpdateData, user1);
+
+        (uint256 sittingAfter, uint256 lentAfter) =
+            nativeUniversalBalance.userBalances(user1);
+
+        assertLt(sittingAfter + lentAfter, sittingBefore + lentBefore);
+    }
+
+    function testUpdateFeedsFromUniversalBalance_revertsForNonDelegate()
+        public
+    {
+        bytes[] memory priceUpdateData = new bytes[](1);
+        priceUpdateData[
+            0
+        ] = hex"504e41550100000003b801000000040d00e2e37a06095835540c9d2c497b1cd04f41edb5692ea2d72c2ab5d0ea46ffc0033b068424f6fc5e0a8fad5c981020d8821e9c27913cea0818b241187b0053ce0c0002351c706803e32b16496f0d8e3f629bf1b8b65c08d573408dd278eca2175ec0993cc6f91c6244004e1a73e484106f91fa008c3b1560f9d4f7a891723b9631cac2010368add62a17ed655b90e27f6fce90793a63ac35a872dbd9c0bc5be9e4633a84d070ea7da70732516307fe617119b6d930362e8d83265968b98dbd879533af2e2301043bca9b8eeda235e131498bd6e833a050be27c5fc942c690a5950af95020a4e3462cfd2e2b06c1472fe5de8bf9f34819feab775749482744cf561dec57eda21d600064e3320e9980dc91ea21e3ae94ea595e8013be8b4ba007d0ad5d88944a6e3d65f53b4e716e1f1d19db945f7972448f9a60323d50769615d6ca6bbe2bf55d0aaf50008933cd880fa3f9c16ccd2b00b646372bf74e2b0815ecd629a27bc741f17e21c6326056db33b2979632eb3293a7f63b54d44989ffd7fc1ad8cc036254733d7ed4c000a2c41eb3991fe3df870bc83d321998e325bcfb6869eee439fa8872f9e1f70305d5c0f61e575d528e68dc2971aa9411b19db96fde8b9b9461d64514c25fc468182000bd2807c7eb44685b8bb52828b2897d34f7c387e85978ea2d102b6e161fb16753d1821a057ba53c12e3bdad8680428d0409c0d74740badefdb365ba0ff96955897000ccf19a53d005f3064b5342e18edaf9c8412cfdf2a210f744140878cf2d0b2f7100ce12587d1b13ae2964705bb33760777c8ce2fe703728cffc09964ff0c8637aa010d9a81a187dc1f5d6b543aec4055e9db7d1c873f884c39e14f13e04b2693e221831b54be1e8168c75eda551f21032d7df8c9361b7479f6aaee987d6fb88773e256000e700e6921eaab26171a20520164f5f4ceab6537e7215d6cec7daabc32198ed2b2404bc8772b8b3259b46a074312dc8bbe04cc363c382930bb65b58fb4bcfcb7ac01102a405b93b434c5fc377f34b37756d0361bc549c37db80627927ef3a5eba9b49272904a9640c84fb1f62d6fbe95a54aea8d7b192ed270db113d29c861378e208a001184dfb3642d013d9ec3233257b8b25b0598fd7a0d8dd93f89e7df9fc19a437d6e339d164ed2e81e865abf4d8a124688d185032c78174669fce74fd4171b894f370168ba2adc00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa7100000000094a5bd4014155575600000000000e57f0a0000027101efe27efe3de4e5f6bc14a76209e1eea7549c37501005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b4300000a0ebde0ceab00000000c2bb02f3fffffff80000000068ba2adc0000000068ba2adb00000a13f1dc410000000000cf1b27840de1bfe3a773c7994d01bf6f7adf9efe5dbe3999ead1b8c70063cfb7825801b67291cb0c4c588c8ff8e99c09de2caede93ddbac6290dbddbbe01bb4b9c83aa6069da6a733142fb87209d61a8a335f45ce9cedbcf82f11182b771cecb8b58a040d98bfa0b1c7fd24ba0cf49148cc11f59a7d6b81af84577541c986f71f1016f2fe63b199b2d1a53930bb02d3712e03a69c4f58fcb816e7376ecf1732aa5653d6537d6d3795a6e011f17d9e094794b774c7674e0ed3cfe366a130542a84c092227585c32033b0f85d5e1d25d568b9b1679f01eadb7ed1c91207e52e1cf768476e5999de18e01c2b8fff0197833c95b59c5e8a7962ed733c6ee6d014c7593df70b6ab26bd5e73";
+
+        vm.deal(user1, 1 ether);
+        vm.prank(user1);
+        nativeUniversalBalance.depositNative{ value: 1 ether }(false);
+
+        vm.expectRevert(
+            BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
+        );
+        vm.prank(user2);
+        pythAdaptor.updateFeedsFromUniversalBalance(priceUpdateData, user1);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

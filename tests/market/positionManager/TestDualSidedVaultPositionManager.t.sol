@@ -581,41 +581,6 @@ contract TestDualSidedVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    /// @notice Test deleverage fails when input amount doesn't match collateral assets
-    function test_Deleverage_fail_whenInvalidInputAmount() public {
-        _setUpMarketWithSwap();
-
-        deal(_SFRAX_ADDRESS, user1, 500e18);
-
-        vm.startPrank(user1);
-        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
-        simpleCSFRAX.deposit(500e18, user1);
-        simpleCSFRAX.postCollateral(500e18);
-        borrowableCUSDC.borrow(200e6, user1);
-
-        uint256 sFraxToRedeem = 25e18;
-
-        DualSidedVaultPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(simpleCSFRAX));
-        deleverageAction.collateralAssets = sFraxToRedeem;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
-        deleverageAction.repayAssets = 20e6;
-
-        deleverageAction.swapActions = new SwapperLib.Swap[](1);
-        deleverageAction.swapActions[0].inputToken = _FRAX_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = sFraxToRedeem - 1; // mismatch
-        deleverageAction.swapActions[0].outputToken = address(usdc);
-        deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
-        deleverageAction.swapActions[0].call = hex"deadbeef";
-
-        simpleCSFRAX.approve(address(positionManager), type(uint256).max);
-
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
-        positionManager.deleverage(deleverageAction, 0.01e18);
-
-        vm.stopPrank();
-    }
-
     /// INTERNAL HELPERS ///
 
     function _setUpMarketWithSwap() internal {

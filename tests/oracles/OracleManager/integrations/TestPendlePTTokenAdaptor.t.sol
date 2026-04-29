@@ -7,6 +7,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
@@ -48,63 +49,128 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     }
 
     function testReturnsCorrectPrice() public {
-        chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+        _setUpPriceablePrincipalToken();
+
+        (uint256 price, uint256 errorCode) = _getPtUsdQuote();
+        assertEq(errorCode, 0);
+        assertGt(price, 0);
+    }
+
+    function testPriceGuard_finalPtUsdQuoteClampsThroughBaseAdjustPrice()
+        public
+    {
+        _setUpPriceablePrincipalToken();
+
+        (uint256 priceBefore, uint256 errorBefore) = _getPtUsdQuote();
+        assertEq(errorBefore, 0, "expected clean PT USD price");
+        assertGt(priceBefore, 0, "missing PT USD price");
+
+        uint256 guardCap = priceBefore / 2;
+        adapter.setGuardedPriceConfig(_PT_STETH, true, 0, 0, guardCap, 0);
+
+        BaseOracleAdaptor.PriceGuard memory storedGuard = adapter
+            .getPriceGuard(_PT_STETH, true);
+        assertEq(
+            storedGuard.basePrice,
+            guardCap,
+            "expected PT USD guard to be stored"
         );
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        chainlinkAdaptor.addAsset(
-            _ETH_ADDRESS,
+
+        uint256 expectedPostFixQuote = _expectedStaticGuardedPrice(
+            priceBefore,
+            storedGuard
+        );
+        assertEq(
+            expectedPostFixQuote,
+            guardCap,
+            "post-fix PT quote should clamp to stored guard cap"
+        );
+
+        (uint256 priceAfter, uint256 errorAfter) = _getPtUsdQuote();
+        assertEq(errorAfter, 0, "expected clean PT USD price after guard");
+        assertEq(
+            priceAfter,
+            expectedPostFixQuote,
+            "expected final PT USD quote to clamp through BaseOracleAdaptor._adjustPrice"
+        );
+        assertEq(
+            priceAfter,
+            guardCap,
+            "expected final PT USD quote to equal the stored guard cap"
+        );
+        assertLt(
+            priceAfter,
+            priceBefore,
+            "expected final PT USD quote to clamp below the pre-guard quote"
+        );
+    }
+
+    function testPriceGuard_finalPtUsdQuoteReturnsErrorWhenGuardMinExceedsComposedQuote()
+        public
+    {
+        _setUpPriceablePrincipalToken();
+
+        (uint256 ptPriceBefore, uint256 ptErrorBefore) = _getPtUsdQuote();
+        assertEq(ptErrorBefore, 0, "expected clean PT USD price");
+        assertGt(ptPriceBefore, 0, "missing PT USD price");
+
+        // Pin the PT guard floor at the current quote so any composed drop
+        // below it must trigger the `_adjustPrice == 0 -> hadError` bubble.
+        adapter.setGuardedPriceConfig(
+            _PT_STETH,
             true,
-            _CHAINLINK_ETH_USD,
-            0
+            0,
+            0,
+            ptPriceBefore,
+            ptPriceBefore
         );
-        chainlinkAdaptor.addAsset(
+
+        // Halve stETH USD via a guard on the quote asset to drag the composed
+        // PT quote below the PT min guard.
+        (uint256 stethPriceBefore, uint256 stethErrorBefore) = oracleManager
+            .getPrice(_STETH, true, false);
+        assertEq(stethErrorBefore, 0, "expected clean stETH USD price");
+        assertGt(stethPriceBefore, 0, "missing stETH USD price");
+
+        chainlinkAdaptor.setGuardedPriceConfig(
             _STETH,
             true,
-            _CHAINLINK_ETH_USD,
+            0,
+            0,
+            stethPriceBefore / 2,
             0
         );
-        oracleManager.addAssetPricingAdaptor(
-            _ETH_ADDRESS,
-            address(chainlinkAdaptor),
-            100,
-            50,
-            100,
-            50
-        );
-        oracleManager.addAssetPricingAdaptor(
-            _STETH, 
-            address(chainlinkAdaptor),
-            100, 
-            50,
-            100,
-            50
-            );
 
-        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
-        assetConfig.market = IPMarket(_LP_STETH);
-        assetConfig.twapDuration = 12;
-        assetConfig.quoteAsset = _STETH;
-        assetConfig.quoteAssetDecimals = 18;
-        adapter.addAsset(_PT_STETH, assetConfig);
-
-        oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPricingAdaptor(
-            _PT_STETH, 
-            address(adapter), 
-            100, 
-            50,
-            100,
-            50
-            );
-
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+        IOracleAdaptor.PricingResult memory adaptorResult = adapter.getPrice(
             _PT_STETH,
             true,
             false
         );
-        assertEq(errorCode, 0);
-        assertGt(price, 0);
+        assertTrue(
+            adaptorResult.hadError,
+            "expected PT adaptor call to signal an error"
+        );
+        assertTrue(
+            adaptorResult.inUSD,
+            "expected PT adaptor call to stay in usd mode"
+        );
+        assertEq(
+            adaptorResult.price,
+            0,
+            "expected PT adaptor call to return zero after guard rejection"
+        );
+
+        (uint256 ptPriceAfter, uint256 ptErrorAfter) = _getPtUsdQuote();
+        assertEq(
+            ptPriceAfter,
+            0,
+            "expected oracle manager PT price to zero when adaptor errors"
+        );
+        assertGt(
+            ptErrorAfter,
+            0,
+            "expected oracle manager to bubble PT adaptor error"
+        );
     }
 
     function testRevertAfterAssetRemove() public {
@@ -234,5 +300,78 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         assetConfig.quoteAssetDecimals = 18;
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         adapter.addAsset(address(0), assetConfig);
+    }
+
+    function _setUpPriceablePrincipalToken() internal {
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _STETH,
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adapter.addAsset(_PT_STETH, assetConfig);
+
+        oracleManager.addApprovedAdaptor(address(adapter));
+        oracleManager.addAssetPricingAdaptor(
+            _PT_STETH,
+            address(adapter),
+            100,
+            50,
+            100,
+            50
+        );
+    }
+
+    function _getPtUsdQuote()
+        internal
+        view
+        returns (uint256 price, uint256 errorCode)
+    {
+        (price, errorCode) = oracleManager.getPrice(_PT_STETH, true, false);
+    }
+
+    function _expectedStaticGuardedPrice(
+        uint256 rawPrice,
+        BaseOracleAdaptor.PriceGuard memory guard
+    ) internal pure returns (uint256) {
+        if (guard.basePrice == 0) {
+            return rawPrice;
+        }
+        if (rawPrice < guard.minPrice) {
+            return 0;
+        }
+        return rawPrice > guard.basePrice ? guard.basePrice : rawPrice;
     }
 }

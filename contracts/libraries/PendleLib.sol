@@ -5,6 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IPendleRouter, ApproxParams, TokenInput, TokenOutput, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
+import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Pendle Library.
@@ -169,13 +170,34 @@ library PendleLib {
         if (isPt) {
             SwapperLib._approveIfNeeded(pendleToken, router, amount);
 
-            IPendleRouter(router).swapExactPtForToken(
-                address(this),
-                lpToken,
-                amount,
-                action.output,
-                action.limit
-            );
+            if (IPPrincipalToken(pendleToken).isExpired()) {
+                // Post-expiry, Pendle's AMM swap (`swapExactPtForToken`)
+                // reverts with `Errors.MarketExpired` per the vendored
+                // `MarketMathCore`. Route through `redeemPyToToken`
+                // instead: the canonical Pendle V2 post-expiry path,
+                // which only requires PT (no YT) — see `_redeemPyToSy`'s
+                // `needToBurnYt = !isExpired()` branch in
+                // `lib/pendle-core-v2-public/.../router/base/ActionBase.sol`.
+                // Curvance custody is PT-only (entry uses
+                // `swapExactTokenForPt`), so this works post-expiry
+                // without YT. The same `action.output` `TokenOutput`
+                // carries `minTokenOut` slippage and an optional
+                // aggregator swap leg, identical to the pre-expiry path.
+                IPendleRouter(router).redeemPyToToken(
+                    address(this),
+                    IPPrincipalToken(pendleToken).YT(),
+                    amount,
+                    action.output
+                );
+            } else {
+                IPendleRouter(router).swapExactPtForToken(
+                    address(this),
+                    lpToken,
+                    amount,
+                    action.output,
+                    action.limit
+                );
+            }
         } else {
             SwapperLib._approveIfNeeded(lpToken, router, amount);
 

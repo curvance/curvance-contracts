@@ -23,6 +23,8 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint256 internal constant _TEST_SWAP_SLIPPAGE = 0.01e18;
+    uint256 internal constant _TEST_DEEP_ROUTE_SLIPPAGE = 0.999e18;
 
     address internal _SFRAX_ADDRESS = 0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
 
@@ -43,6 +45,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = 100e6;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.slippage = _TEST_DEEP_ROUTE_SLIPPAGE;
 
         // multi-hop swap USDC -> WETH -> FRAX
         IUniswapV3Router.ExactInputParams memory params;
@@ -79,6 +82,52 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
     }
 
+    function test_vaultZapper_fail_swapAndDeposit_TightSwapSafeSlippage() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        _prepareUSDC(user1, 100e6);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = address(usdc);
+        swapAction.inputAmount = 100e6;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(
+            address(usdc),
+            uint24(500),
+            _WETH_ADDRESS,
+            uint24(3000),
+            _FRAX_ADDRESS
+        );
+        params.recipient = address(vaultZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 100e6;
+        params.amountOutMinimum = 0;
+
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector,
+            params
+        );
+
+        vm.startPrank(user1);
+        usdc.approve(address(vaultZapper), 100e6);
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        vaultZapper.swapAndDeposit(
+            address(simpleCSFRAX),
+            false,
+            swapAction,
+            0,
+            false,
+            user1
+        );
+
+        vm.stopPrank();
+    }
+
     function test_vaultZapper_success_swapAndDeposit_withETH() public {
 
         _setUpSimpleCSFRAX_borrowableCUSDC();
@@ -91,6 +140,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = ethAmount;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.slippage = _TEST_DEEP_ROUTE_SLIPPAGE;
 
         // swap ETH -> FRAX
         IUniswapV3Router.ExactInputParams memory params;
@@ -138,6 +188,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = ethAmount;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.slippage = _TEST_DEEP_ROUTE_SLIPPAGE;
 
         // swap ETH -> FRAX
         IUniswapV3Router.ExactInputParams memory params;
@@ -203,6 +254,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = 500e6;
         swapAction.outputToken = _DAI_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
@@ -261,6 +313,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = shares;
         swapAction.outputToken = _WETH_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
@@ -304,6 +357,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = 10 ether;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -348,6 +402,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         swapAction.inputAmount = 100 ether;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -458,6 +513,21 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)), 
             IERC20(_SFRAX_ADDRESS), 
             address(marketManagerIsolated));
+
+        chainlinkAdaptor.addAsset(
+            _FRAX_ADDRESS,
+            true,
+            _CHAINLINK_FRAX_USD,
+            0
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _FRAX_ADDRESS,
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
 
         chainlinkAdaptor.addAsset(
             _SFRAX_ADDRESS,

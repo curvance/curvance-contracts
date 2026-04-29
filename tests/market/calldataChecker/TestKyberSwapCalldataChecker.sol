@@ -15,7 +15,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
-    uint256 constant FORK_BLOCK = 59224721;
+    uint256 constant FORK_BLOCK = 67860000;
 
     address public kyberSwapRouter   = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address public kyberSwapExecutor = 0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
@@ -36,7 +36,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("MON_NODE_URI_MONAD_MAINNET", FORK_BLOCK);
+        _fork("MON_NODE_URI_MONAD_ARCHIVE", FORK_BLOCK);
 
         _initMainConstantVariables();
 
@@ -112,14 +112,23 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCWMON), 1_000_000e18, 1_000_000e18);
     }
 
-    function testCheckCalldataRevert__TargetError() public {
+    function test_revert_constructor_unsupportedChain() public {
+        address[] memory executors = new address[](1);
+        executors[0] = kyberSwapExecutor;
+
+        vm.chainId(1); // Ethereum mainnet, not Monad (143)
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__UnsupportedChain.selector);
+        new KyberSwapChecker(kyberSwapRouter, executors, address(centralRegistry));
+    }
+
+    function test_revert_wrongTarget() public {
         swapAction.target = address(0);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testCheckCalldataRevert__InvalidFuncSig() public {
+    function test_revert_wrongSelector() public {
         recipient = address(this);
         bytes memory invalidCallData = hex"d7ada2f3000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c542570100000000000000000000000000000000000000000000000014b292ba662a6b6d000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea00000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000004e02f817257fed379853cde0fa4f97ab987181b1e5ea01ffff04cd5455b24f3622a1cfece944615ae5bc8f36ee18010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000";
         recipient = address(simpleZapper);
@@ -133,7 +142,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, address(simpleZapper));
     }
 
-    function testSwapUnpackCheckCallDataRevert__InputTokenError() public {
+    function test_revert_inputTokenMismatch() public {
         recipient = address(this);
         swapAction.inputToken = address(0);
         swapAction.inputAmount = 5e6;
@@ -145,7 +154,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataRevert__InputAmountError() public {
+    function test_revert_inputAmountMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 0;
@@ -157,7 +166,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataRevert__OutputTokenError() public {
+    function test_revert_outputTokenMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -169,7 +178,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testSwapUnpackCheckCallDataSuccess() public {
+    function test_basicSuccess() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -177,18 +186,259 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         swapAction.target = kyberSwapRouter;
         swapAction.call = _buildKyberCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6, address(this));
 
-        deal(_USDC_ADDRESS, address(this), 5e6);
-        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
-
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_success_whenDstReceiverIsZero_addressDefaultsToMsgSender()
+    // --- Fee validation ---
+
+    function test_feeConfig_exactBps() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            daoAddress, 4, // exactly FEE_BPS
+            0x280 // REQUIRED_FLAGS
+        );
+
+        // Should not revert — DAO receiver with exact fee match.
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_noReceivers() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataNoFee(_USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient);
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_wrongReceiver() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address nonDao = makeAddr("attacker");
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            nonDao, 4,
+            0x280 // REQUIRED_FLAGS
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_bpsTooHigh() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            daoAddress, 5, // 5 != FEE_BPS (4)
+            0x280 // REQUIRED_FLAGS
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_bpsTooLow() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            daoAddress, 3, // 3 != FEE_BPS (4)
+            0x280 // REQUIRED_FLAGS
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_zeroBps() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            daoAddress, 0,
+            0x280 // REQUIRED_FLAGS
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_multipleReceivers() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](2);
+        desc.feeReceivers[0] = daoAddress;
+        desc.feeReceivers[1] = daoAddress;
+        desc.feeAmounts = new uint256[](2);
+        desc.feeAmounts[0] = 2;
+        desc.feeAmounts[1] = 2;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_amountsLengthMismatch() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = daoAddress;
+        // feeAmounts intentionally left empty (length 0, mismatched)
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_receiversZero_amountsOne() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        // feeReceivers intentionally left empty (length 0)
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_fee_receiversOne_amountsTwo() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address daoAddress = centralRegistry.daoAddress();
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = daoAddress;
+        desc.feeAmounts = new uint256[](2); // mismatched: 1 receiver, 2 amounts
+        desc.feeAmounts[0] = 2;
+        desc.feeAmounts[1] = 2;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    // --- Recipient & executor ---
+
+    function test_recipientZero_resolvesToMsgSender()
         public
     {
-        // Kyber interprets dstReceiver == address(0) msg.sender.
+        // Kyber interprets dstReceiver == address(0) as msg.sender.
         recipient = address(this);
-
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
@@ -200,6 +450,15 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = address(0);
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.flags = 0x280; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -216,7 +475,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenDstReceiverIsZero_butExpectedRecipientIsNotMsgSender()
+    function test_revert_recipientZero_mismatch()
         public
     {
         address expectedRecipient = makeAddr("expectedRecipient");
@@ -248,10 +507,9 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, expectedRecipient);
     }
 
-    function testKyberSwapChecker_success_whenDstReceiverIsZero_andExpectedRecipientIsMsgSender()
+    function test_recipientZero_matchesMsgSender()
         public
     {
-
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
@@ -263,6 +521,15 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = address(0); // zero address defaults to msg.sender
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.flags = 0x280; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -280,7 +547,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, address(this));
     }
 
-    function testKyberSwapChecker_success_setExecutorApproval_allowsAndDisallowsExecutors()
+    function test_executorApproval_addRemove()
         public
     {
         address newExecutor = makeAddr("newExecutor");
@@ -297,6 +564,15 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.flags = 0x280; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = newExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = newExecutor;
@@ -325,19 +601,17 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-
-    function testKyberSwapChecker_setExecutorApproval_whenMultipleExecutors() public {
+    function test_executorApproval_multipleExecutors() public {
         address otherExecutor = makeAddr("otherExecutor"); // second executor
         address[] memory multipleExecutors = new address[](2);
         multipleExecutors[0] = kyberSwapExecutor;
         multipleExecutors[1] = otherExecutor;
-        KyberSwapChecker checker =
+        KyberSwapChecker multiChecker =
             new KyberSwapChecker(kyberSwapRouter, multipleExecutors, address(centralRegistry));
 
-        assertEq(checker.isApprovedExecutor(kyberSwapExecutor), true);
-        assertEq(checker.isApprovedExecutor(otherExecutor), true);
+        assertEq(multiChecker.isApprovedExecutor(kyberSwapExecutor), true);
+        assertEq(multiChecker.isApprovedExecutor(otherExecutor), true);
 
-        // build calldata
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
@@ -349,6 +623,15 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = address(0);
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.flags = 0x280; // REQUIRED_FLAGS
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -361,10 +644,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
             exec
         );
 
-        checker.checkCalldata(swapAction, address(this));
+        multiChecker.checkCalldata(swapAction, address(this));
 
-        checker.setExecutorApproval(otherExecutor, false);
-        assertEq(checker.isApprovedExecutor(otherExecutor), false);
+        multiChecker.setExecutorApproval(otherExecutor, false);
+        assertEq(multiChecker.isApprovedExecutor(otherExecutor), false);
 
         exec.callTarget = otherExecutor;
         swapAction.call = abi.encodeWithSelector(
@@ -373,32 +656,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         );
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
-        checker.checkCalldata(swapAction, address(this));
+        multiChecker.checkCalldata(swapAction, address(this));
     }
 
-    // Hardcoded calldata from KyberSwap API at block 59224721.
-    // Swap: 5 USDC -> WMON via simpleZapper (0x15cF58144EF33af1e14b5208015d11F9143E27b9).
-    function testSwapWithSimpleZapper() public {
-        recipient = address(simpleZapper);
-        swapAction.inputToken = _USDC_ADDRESS;
-        swapAction.inputAmount = 5e6;
-        swapAction.outputToken = WMON_ADDRESS;
-        swapAction.target = kyberSwapRouter;
-        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000b600000000000000000000000000000000000000000000000000000000000000da00000000000000000000000000000000000000000000000000000000000000aa0000000000000000000000000004c4b40000000000000000000000000004c4b40000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000041415fbaa07307905b70ccfa0482ae3a973204e7a6a35a7fb14732f225c716451f24a1aede29bc59da8cd74c4f8aeae1982a598a4e397d2011d172136b02e8479d1b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009a000000000000000000000000015cf58144ef33af1e14b5208015d11f9143e27b9000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000487ab000000000000000000000000000501bd0000000000000000000000000004c4b40000000000000000c409ba916d41280000000000000000000000000000000000000cd8f8cfd7b640000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069a8468e0000000000000000000000000000000000000000000000000000000000000980000000000000000000000000000000000000000000000000000000000000000261f598cd00000000000000002c93e1ebe3a3e3f53efe9efb15304ed37750face91dd734600000000000000002c93e1ebe3a3e3f53efe9efb15304ed37750face0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000740000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000005000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4b40736e774d0000000000000001d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000360000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000efe302beaa2b3e6e1b18d08d69a9012a000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000004445520306c9c70952bdfec28f3989f53d9f80c400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000100000000000000010020c649300be3bb0e87ea76000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000005b8d8000000000000000000000000000000000000000000000000100060425ff6e09c9000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069a8429200000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000041869dc5cc050357e831d22dbe8f0e62773b9d2ca36b20dab25dde4004f1d1b58764813acb7217245d363d8a7203e133a5e970f6017fa041288fd6e8707e9cabb91b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000efe302beaa2b3e6e1b18d08d69a9012a80000000000000000000000000000005000000000000000000000000004c4d3800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4d388bc041a80000000000000002d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000100000000000000000000000000ed6a1a43d5d6ec164e6e236e4be3341102364d424000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000044a9b318f100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000015cf58144ef33af1e14b5208015d11f9143e27b900000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000ba3c713d5afde600000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000220000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22352e313635383636222c22416d6f756e744f7574555344223a22342e393935383235222c22416d6f756e744f7574223a22323236303136343239343339383434353135383430222c22526f7574654944223a2236303866396331334a4c5647614c7a353a3863613437323165595835496d5a7948222c2254696d657374616d70223a313737323633343539307d00000000000000";
-
-        deal(_USDC_ADDRESS, address(this), 5e6);
-        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
-
-        borrowableCWMON.setDelegateApproval(address(simpleZapper), true);
-
-        uint256 cWMONBalanceBefore = borrowableCWMON.balanceOf(address(this));
-
-        simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
-
-        assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
-    }
-
-    function testKyberSwapChecker_fail_whenEmptyPath() public {
+    function test_revert_emptyTargetData() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -411,7 +672,6 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        // feeReceivers, srcReceivers, flags, permit all left empty/zero
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -428,7 +688,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenInvalidFlags() public {
+    function test_revert_flags_requiresExtraEth() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -441,6 +701,10 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -456,10 +720,123 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
 
         vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
         checker.checkCalldata(swapAction, recipient);
-
     }
 
-    function testKyberSwapChecker_fail_whenNonEmptyPermit() public {
+    // --- Flag validation (exact match: REQUIRED_FLAGS = 0x280) ---
+
+    /// flags=0: router treats feeAmounts[0]=4 as 4 wei, not 4 BPS.
+    function test_revert_flags_noFeeInBps() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0 // no _FEE_IN_BPS — the attack
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_flags_feeOnDst() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 | 0x40 // REQUIRED_FLAGS | _FEE_ON_DST
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_flags_simpleSwap() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 | 0x20 // REQUIRED_FLAGS | _SIMPLE_SWAP
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_flags_burnMsgSender() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 | 0x08 // REQUIRED_FLAGS | _BURN_FROM_MSG_SENDER
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_flags_burnTxOrigin() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 | 0x10 // REQUIRED_FLAGS | _BURN_FROM_TX_ORIGIN
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_flags_unknownBit() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 | 0x100 // REQUIRED_FLAGS | unknown flag
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_flags_exactMatch() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4,
+            0x280 // exactly REQUIRED_FLAGS
+        );
+
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_nonEmptyPermit() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
@@ -472,6 +849,11 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = recipient;
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.flags = 0x280; // REQUIRED_FLAGS — must pass flags to reach permit check
         desc.permit = hex"01";
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
@@ -489,7 +871,7 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenExecutorMismatch() public {
+    function test_revert_unapprovedExecutor() public {
         address wrongExecutor = makeAddr("wrongExecutor");
         address[] memory wrongExecutors = new address[](1);
         wrongExecutors[0] = wrongExecutor;
@@ -507,23 +889,32 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         badChecker.checkCalldata(swapAction, recipient);
     }
 
-    function testKyberSwapChecker_fail_whenFeeReceiversPresent() public {
+    // --- Native address guards, recipient mismatch, srcReceiver loop ---
+
+    function test_revert_recipientMismatch() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kyberSwapRouter;
 
+        address wrongRecipient = makeAddr("wrongRecipient");
+
         IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
         desc.srcToken = IERC20(_USDC_ADDRESS);
         desc.dstToken = IERC20(WMON_ADDRESS);
-        desc.dstReceiver = recipient;
+        desc.dstReceiver = wrongRecipient; // non-zero, doesn't match recipient
         desc.amount = 5e6;
         desc.minReturnAmount = 1;
-        desc.feeReceivers = new address[](1); // non-empty feeReceivers
-        desc.feeReceivers[0] = address(this);
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
         desc.feeAmounts = new uint256[](1);
-        desc.feeAmounts[0] = 1;
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;
@@ -536,12 +927,503 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
             exec
         );
 
-        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeReceivers.selector);
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__RecipientError.selector);
         checker.checkCalldata(swapAction, recipient);
     }
 
-    /// @dev Builds KyberSwap calldata for validation tests.
+    function test_revert_inputTokenNativeZero() public {
+        recipient = address(this);
+        swapAction.inputToken = address(0);
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            address(0), WMON_ADDRESS, 5e6, recipient,
+            centralRegistry.daoAddress(), 4, 0x280
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_outputTokenNativeZero() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = address(0);
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = _buildKyberCalldataWithFee(
+            _USDC_ADDRESS, address(0), 5e6, recipient,
+            centralRegistry.daoAddress(), 4, 0x280
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidNativeTokenAddress.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_zeroAtIndex0_multiElement() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = address(0);        // burn address at index 0
+        desc.srcReceivers[1] = kyberSwapExecutor; // valid
+        desc.srcAmounts = new uint256[](2);
+        desc.srcAmounts[0] = 3e6;
+        desc.srcAmounts[1] = 2e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_zeroAtIndex1() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = kyberSwapExecutor; // valid
+        desc.srcReceivers[1] = address(0);        // burn address — loop must catch
+        desc.srcAmounts = new uint256[](2);
+        desc.srcAmounts[0] = 3e6;
+        desc.srcAmounts[1] = 2e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_src_multipleValid() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        address pool1 = makeAddr("pool1");
+        address pool2 = makeAddr("pool2");
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = pool1;
+        desc.srcReceivers[1] = pool2;
+        desc.srcAmounts = new uint256[](2);
+        desc.srcAmounts[0] = 3e6;
+        desc.srcAmounts[1] = 2e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_returnsMinOutAmount() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 123456789;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        uint256 minOut = checker.checkCalldata(swapAction, recipient);
+        assertEq(minOut, 123456789);
+    }
+
+    // --- API-sourced fail cases (real KyberSwap API calldata, hardcoded) ---
+
+    /// @dev Calldata from KyberSwap API at block ~67926499 with
+    ///      feeReceiver=0x...dEaD instead of the DAO address.
+    function test_revert_api_wrongFeeReceiver() public {
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000005c000000000000000000000000000000000000000000000000000000000000008400000000000000000000000000000000000000000000000000000000000000500000000000000000000000000004c4370000000000000000000000000004c4370000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000416265f5d9d1398ddeb5d0071f62991ee44920958a4074fc9423f843835a3f2e30264f33e87d9a2c4b5e060743e4ee7a4551bf7924f50a45448eeac0671b85e84a1b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000180000000000000000000000000004873440000000000000000000000000050139c000000000000000000000000004c43700000000000000007d741458ad63c40000000000000000000000000000000000000838c26708c210000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069dd652d00000000000000000000000000000000000000000000000000000000000003e0000000000000000000000000000000000000000000000000000000000000000161f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000004000000000000000000000000004c437000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c43706efd106f0000000000000001c28883c9da855e34a75d002bddb4c823dfda2807000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb000000000000000000000000000000000000000000000000000000000000000400000000000000000000000004538053fc57d72eb70c6f822a3275531760bc7fd000000000000000000000000ff53611968f1e5ca45cfca7918447e7f5776f6d40000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007c32eb2ed49da5e1400000000000000000000000000000000000000000000000000000000000002800000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c43700000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000dead00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393934343131222c22416d6f756e744f7574555344223a22342e393932303239222c22416d6f756e744f7574223a22313434363337393633353730323039363336333532222c22526f7574654944223a22646237376436643975686c46767053483a3930323066376132673346506e4a5a57222c2254696d657374616d70223a313737363131353833377d00000000000000";
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    /// @dev Calldata from KyberSwap API at block ~67926499 with
+    ///      feeBps=10 instead of the required 4.
+    function test_revert_api_feeBpsTooHigh() public {
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000008800000000000000000000000000000000000000000000000000000000000000540000000000000000000000000004c37b8000000000000000000000000004c37b8000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000041ed3bc26fd2eba8abf4ca19deecbdccfe220c7f4f2f04c56c98585e4df65834fa50278c421172ba938f745e32081283dba43dca2983059e945090ad1544b5eb761c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004400000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000004868220000000000000000000000000050074e000000000000000000000000004c37b80000000000000007d129b10e9681800000000000000000000000000000000000008325f1075cb70000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069dd67600000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000000000000000000000000000000261f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b2164c94f000000000000000029443467522688c0d201d27e37a32f56c83d107b0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000004000000000000000000000000004c37b800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c37b8a357fd2d0000000000000001fe25d210dfe5cdff81917aa7067bac446ecac27c000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000060000000000000000000000000fa32f9ec28787d1f9c5ba5c39e54e59984fef3f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000147efb7defd39b49af7dacf914c0000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007bd26b6f766ebb99900000000000000000000000000000000000000000000000000000000000002800000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c37b800000000000000000000000000000000000000000000000000000000000000010000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e14960000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393833393239222c22416d6f756e744f7574555344223a22342e393932303333222c22416d6f756e744f7574223a22313434313938393830383230313531363634363430222c22526f7574654944223a226239633730616631714c354b4b4a4d483a39313064373565336e6b31444c4b596c222c2254696d657374616d70223a313737363131363430317d00000000000000";
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    /// @dev Calldata from KyberSwap API at block ~67926499 with
+    ///      no fee params at all (feeReceiver omitted).
+    function test_revert_api_noFee() public {
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000009200000000000000000000000000000000000000000000000000000000000000b600000000000000000000000000000000000000000000000000000000000000860000000000000000000000000004c4b40000000000000000000000000004c4b40000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000041492df14071f60b8a576b7d4b66f65df332a78188477d8ed2794efa400b558d225bbacad19ac80a71b36c6f0e54e420dfde044838aa4171adf26114ea6fa655d71b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007600000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000487ab000000000000000000000000000501bd0000000000000000000000000004c4b400000000000000007cf789518309f4000000000000000000000000000000000000083098ea963e60000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069dd67be0000000000000000000000000000000000000000000000000000000000000740000000000000000000000000000000000000000000000000000000000000000261f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b91dd7346000000000000000029443467522688c0d201d27e37a32f56c83d107b0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003c00000000000000000000000000000000000000000000000000000000000000500000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000005000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4b40736e774d0000000000000001d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000220000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f3000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000003429ffc2104685d16c70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee8000000000000000000083098ea963e60000000000000007cf789518309f4000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000007cf789518309f400000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002000000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007bb79efc377d0db8500000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000220000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393838333632222c22416d6f756e744f7574555344223a22342e393838313531222c22416d6f756e744f7574223a22313434303737303731343130313530373139343838222c22526f7574654944223a2239333465316137304e4146433834516f3a6662663363396139475a5643425a6c74222c2254696d657374616d70223a313737363131363439357d00000000000000";
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFeeConfig.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    /// @dev Calldata from KyberSwap API at block ~67926499 with
+    ///      chargeFeeBy=currency_out. Sets _FEE_ON_DST flag (0x40),
+    ///      making flags 0x2C0 instead of required 0x280.
+    function test_revert_api_feeOnOutput() public {
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000009200000000000000000000000000000000000000000000000000000000000000ba00000000000000000000000000000000000000000000000000000000000000860000000000000000000000000004c4b40000000000000000000000000004c4b40000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000004173a9bf0f614739651f79621b38b48b481347e4d3fc9980eb134d6d01dbddab56002ed16249424a06f6193f06090360e8a797ed3889eb114a3edf6fb5284813c71b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007600000000000000000000000006131b5fae19ea4f9d964eac0408e4408b66337b5000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000487ab000000000000000000000000000501bd0000000000000000000000000004c4b400000000000000007cd3dee6f152c4000000000000000000000000000000000000082e428b9ee590000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069dd68150000000000000000000000000000000000000000000000000000000000000740000000000000000000000000000000000000000000000000000000000000000261f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b91dd7346000000000000000029443467522688c0d201d27e37a32f56c83d107b0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003c00000000000000000000000000000000000000000000000000000000000000500000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000005000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4b40736e774d0000000000000001d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000220000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f3000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000003429ffc2104685d16c70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee8000000000000000000082e428b9ee590000000000000007cd3dee6f152c4000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000007cd3dee6f152c400000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007b87a850936a107e300000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000010000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393831393135222c22416d6f756e744f7574555344223a22342e393832353036222c22416d6f756e744f7574223a22313433383538383830383439323134313636303830222c22526f7574654944223a22636464323836303359785244727063463a343636656338353043486c4274356f6d222c2254696d657374616d70223a313737363131363538317d00000000000000";
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    /// @dev Calldata from KyberSwap API at block ~67926499 with
+    ///      isInBps=false. The _FEE_IN_BPS flag (0x80) is missing,
+    ///      making flags 0x200 instead of required 0x280.
+    ///      NOTE: With isInBps=false the API treats feeAmount=4 as 4 wei
+    ///      (not 4 BPS). The fee deduction appears in srcAmounts, not
+    ///      desc.amount, so desc.amount remains 5e6.
+    function test_revert_api_isInBpsFalse() public {
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000d800000000000000000000000000000000000000000000000000000000000000a40000000000000000000000000004c4b3c000000000000000000000000004c4b3c000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000041515588c3e162e5c7ff54ff5b65cda0b9a9608969cb7d97b4abb153c631f6d96041b0d26ac25fdf256bb4b97a13a8965868f943ac080c19843a39e5dede5a038a1b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009400000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000487aac00000000000000000000000000501bcb000000000000000000000000004c4b3c0000000000000007c8cad164c59d8000000000000000000000000000000000000082998192f7460000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000069dd687d0000000000000000000000000000000000000000000000000000000000000920000000000000000000000000000000000000000000000000000000000000000361f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b2164c94f000000000000000029443467522688c0d201d27e37a32f56c83d107b91dd7346000000000000000029443467522688c0d201d27e37a32f56c83d107b000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000220000000000000000000000000000000000000000000000000000000000000058000000000000000000000000000000000000000000000000000000000000006c0000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000004000000000000000000000000004c4b3c00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4b3ca357fd2d0000000000000001fe25d210dfe5cdff81917aa7067bac446ecac27c000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb000000000000000000000000000000000000000000000000000000000000000600000000000000000000000002d82ac42334b394a9a8d8f097d61dc1c6b065fd8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000045f4796d25f930000000000000000000000000555e30da8f98308edb960aa94c0db47230d2b9c8000000000000000000000000000000100000000000000000000000000001ab50000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000001ab5736e774d0000000000000002d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000220000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000555e30da8f98308edb960aa94c0db47230d2b9c0000000000000000000000000000000000000000000000000000000000001ab5000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000fffd8963efd1fc6a506488495d951d5263988d250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee8000000000000000000082998192f7460000000000000007c8cad164c59d8000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000007c8cad164c59d800000000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007b4dd450f48c2533300000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c4b3c00000000000000000000000000000000000000000000000000000000000000010000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b97b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393833383334222c22416d6f756e744f7574555344223a22342e393733333934222c22416d6f756e744f7574223a22313433353935383135343939353930333639323830222c22526f7574654944223a223761376463626135356b6c435636587a3a3063653461616363686e70484a49354f222c2254696d657374616d70223a313737363131363638357d00000000000000";
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidFlags.selector);
+        checker.checkCalldata(swapAction, address(this));
+    }
+
+    // --- Integration (calldata captured with feeAmount=4, isInBps=true,
+    // chargeFeeBy=currency_in, feeReceiver=DAO at block ~67860000) ---
+
+    function test_integration_zapperSwap() public {
+        recipient = address(simpleZapper);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+        swapAction.call = hex"e21fd0e9000000000000000000000000000000000000000000000000000000000000002000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000009200000000000000000000000000000000000000000000000000000000000000ba00000000000000000000000000000000000000000000000000000000000000860000000000000000000000000004c4370000000000000000000000000004c4370000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000410080ccb9fa6feca12636a0c079bb58d752ceaf11d6bb9aa377458eabd77136270711b54142b60aca95e0aeba258f09a42f68e603bb28d0dbe844977276d84a761b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000076000000000000000000000000015cf58144ef33af1e14b5208015d11f9143e27b9000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000004873440000000000000000000000000050139c000000000000000000000000004c43700000000000000007fcb8f952799a800000000000000000000000000000000000008600c08016a60000000f42400000000000000000000000000000004f82e73edb06d29ff62c91ec8f5ff06571bdeb29000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000740000000000000000000000000000000000000000000000000000000000000000261f598cd000000000000000029443467522688c0d201d27e37a32f56c83d107b91dd7346000000000000000029443467522688c0d201d27e37a32f56c83d107b0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003c00000000000000000000000000000000000000000000000000000000000000500000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60380000000000000000000000000000004000000000000000000000000004c437000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000004c4370736e774d0000000000000001d1877a31a73c7cb31c02b9e7d7c336531562b21e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb00000000000000000000000000000000000000000000000000000000000000220000000000000000000000000188d586ddcf52439676ca21a244753fa19f9ea8e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb60300000000000000000000000000000000000000000000000000000000004c4370000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001f3000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000033560bba8611b4a6c4f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee800000000000000000008600c08016a60000000000000007fcb8f952799a8000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000007fcb8f952799a800000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a8000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb6030000000000000000000000003bd359c1119da7da1d913d1c4d2b7c461115433a000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000022000000000000000000000000015cf58144ef33af1e14b5208015d11f9143e27b900000000000000000000000000000000000000000000000000000000004c4b40000000000000000000000000000000000000000000000007d3d3fe9362b1028f00000000000000000000000000000000000000000000000000000000000002800000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000000000000000000000000000100000000000000000000000063242a4ea82847b20e506b63b0e2e2eff0cc6cb0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000004c437000000000000000000000000000000000000000000000000000000000000000010000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149600000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b87b22536f75726365223a2243757276616e636550726f746f636f6c222c22416d6f756e74496e555344223a22342e393838313733222c22416d6f756e744f7574555344223a22342e3938373439222c22416d6f756e744f7574223a22313437333337373837373431383632323634383332222c22526f7574654944223a22343164316432353669695644324a66343a3432356561376166714d6c4a306f6d52222c2254696d657374616d70223a313737363038393630387d0000000000000000";
+
+        deal(_USDC_ADDRESS, address(this), 5e6);
+        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 5e6);
+
+        borrowableCWMON.setDelegateApproval(address(simpleZapper), true);
+
+        uint256 cWMONBalanceBefore = borrowableCWMON.balanceOf(address(this));
+
+        simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
+
+        assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
+    }
+
+    // --- Defense-in-depth: approveTarget, srcReceivers, minReturn ---
+
+    function test_revert_nonZeroApproveTarget() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = makeAddr("nonZeroApproveTarget");
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidApproveTarget.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_noReceivers() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        // srcReceivers intentionally left empty
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_lengthMismatch() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](2);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcReceivers[1] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1); // mismatch: 2 receivers, 1 amount
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_src_zeroAddress() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 1;
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = address(0); // burn address
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidSrcConfig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function test_revert_zeroMinReturn() public {
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kyberSwapRouter;
+
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(_USDC_ADDRESS);
+        desc.dstToken = IERC20(WMON_ADDRESS);
+        desc.dstReceiver = recipient;
+        desc.amount = 5e6;
+        desc.minReturnAmount = 0; // zero — invalid
+        desc.flags = 0x280;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = centralRegistry.daoAddress();
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = 4;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = 5e6;
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        swapAction.call = abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+
+        vm.expectRevert(KyberSwapChecker.KyberSwapChecker__InvalidMinReturn.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    // --- Helpers ---
+
+    /// @dev Default calldata: DAO fee + correct flags.
     function _buildKyberCalldata(
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address dstReceiver
+    ) internal view returns (bytes memory) {
+        return _buildKyberCalldataWithFee(
+            tokenIn, tokenOut, amount, dstReceiver,
+            centralRegistry.daoAddress(), 4, // FEE_BPS
+            0x280 // REQUIRED_FLAGS (_FEE_IN_BPS | executor v3)
+        );
+    }
+
+    /// @dev No fee receivers. Flags still valid so fee-rejection tests don't trip the flags check.
+    function _buildKyberCalldataNoFee(
         address tokenIn,
         address tokenOut,
         uint256 amount,
@@ -553,6 +1435,45 @@ contract TestKyberSwapCalldataChecker is TestBaseMarketIsolated {
         desc.dstReceiver = dstReceiver;
         desc.amount = amount;
         desc.minReturnAmount = 1;
+        desc.flags = 0x280; // REQUIRED_FLAGS
+
+        IMetaAggregationRouterV2.SwapExecutionParams memory exec;
+        exec.callTarget = kyberSwapExecutor;
+        exec.approveTarget = address(0);
+        exec.targetData = hex"01";
+        exec.desc = desc;
+
+        return abi.encodeWithSelector(
+            IMetaAggregationRouterV2.swap.selector,
+            exec
+        );
+    }
+
+    /// @dev Configurable fee + flags. Includes valid srcReceivers.
+    function _buildKyberCalldataWithFee(
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address dstReceiver,
+        address feeReceiver,
+        uint256 feeAmount,
+        uint256 flags
+    ) internal view returns (bytes memory) {
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(tokenIn);
+        desc.dstToken = IERC20(tokenOut);
+        desc.dstReceiver = dstReceiver;
+        desc.amount = amount;
+        desc.minReturnAmount = 1;
+        desc.flags = flags;
+        desc.feeReceivers = new address[](1);
+        desc.feeReceivers[0] = feeReceiver;
+        desc.feeAmounts = new uint256[](1);
+        desc.feeAmounts[0] = feeAmount;
+        desc.srcReceivers = new address[](1);
+        desc.srcReceivers[0] = kyberSwapExecutor;
+        desc.srcAmounts = new uint256[](1);
+        desc.srcAmounts[0] = amount;
 
         IMetaAggregationRouterV2.SwapExecutionParams memory exec;
         exec.callTarget = kyberSwapExecutor;

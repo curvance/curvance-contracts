@@ -188,7 +188,11 @@ contract PendleLPPositionManager is BasePositionManager {
                 revert BasePositionManager__InvalidParam();
             }
 
-            // Swap sy output token for debt asset.
+            // Swap sy output token for debt asset. Intermediate steps are
+            // not chain-validated: per the router-style residue semantic
+            // documented on BasePositionManager, this contract is treated
+            // as a router and any leftover balance is sweepable by the
+            // next caller's approval. See `BasePositionManager` natspec.
             for (uint256 i; i < numSwaps; ++i) {
                 SwapperLib._swapSafe(centralRegistry, swapActions[i]);
             }

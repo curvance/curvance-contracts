@@ -15,6 +15,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 contract TestSimpleZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint256 internal constant _TEST_SWAP_SLIPPAGE = 0.01e18;
 
     SimpleZapper public simpleZapper;
 
@@ -124,6 +125,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         swapAction.inputAmount = 505e6; // Buffer so we dont end up with lower than min loan.
         swapAction.outputToken = _DAI_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _DAI_ADDRESS;
@@ -191,6 +193,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         swapAction.inputAmount = 505e6; // buffer for interest + swap fee
         swapAction.outputToken = _DAI_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _DAI_ADDRESS;
@@ -224,6 +227,65 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.debtBalance(user1), 0, "Debt should be fully repaid");
     }
 
+    function testSwapAndRepay_doesNotGuaranteeReceiverMinCredit() external {
+        testSwapAndDeposit();
+        vm.startPrank(user1);
+        simpleCUSDC.postCollateral(2e9);
+        borrowableCDAI.borrow(500 ether, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+
+        uint256 receiverDebtBefore = borrowableCDAI.debtBalanceUpdated(user1);
+        uint256 repayAssets = receiverDebtBefore + 1;
+        uint256 user1DaiBalanceBefore = dai.balanceOf(user1);
+        uint256 user2DaiBalanceBefore = dai.balanceOf(user2);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 505e6;
+        swapAction.outputToken = _DAI_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _USDC_ADDRESS;
+        params.tokenOut = _DAI_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 505e6;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        _prepareUSDC(user2, 505e6);
+        vm.startPrank(user2);
+        usdc.approve(address(simpleZapper), 505e6);
+        uint256 returnedToCaller = simpleZapper.swapAndRepay(
+            address(borrowableCDAI),
+            false,
+            swapAction,
+            repayAssets,
+            user1
+        );
+        vm.stopPrank();
+
+        uint256 user2DaiBalanceAfter = dai.balanceOf(user2);
+
+        assertLt(receiverDebtBefore, repayAssets, "precondition: repay floor should exceed live debt");
+        assertEq(borrowableCDAI.debtBalance(user1), 0, "Debt should be fully repaid");
+        assertEq(dai.balanceOf(user1), user1DaiBalanceBefore, "receiver should not get direct transfer");
+        assertEq(
+            user2DaiBalanceAfter - user2DaiBalanceBefore,
+            returnedToCaller,
+            "caller should receive leftover debt asset"
+        );
+        assertGt(returnedToCaller, 0, "caller should receive leftover debt asset");
+    }
+
     function testRedeemAndSwapCToken() public {
         testSwapAndDeposit();
 
@@ -242,6 +304,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         swapAction.inputAmount = shares;
         swapAction.outputToken = _WETH_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
@@ -283,6 +346,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         swapAction.inputAmount = 10 ether;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -300,6 +364,46 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         simpleZapper.redeemAndSwap(redeemAction, swapAction, user1);
 
         assertGt(usdc.balanceOf(user1), 9.99e6); // 10e6 - fees
+
+        vm.stopPrank();
+    }
+
+    function testRedeemAndSwapBorrowableCToken_fail_TightSwapSafeSlippage() public {
+        vm.startPrank(user1);
+
+        _prepareDAI(user1, 10 ether);
+        dai.approve(address(borrowableCDAI), 10 ether);
+        borrowableCDAI.deposit(10 ether, user1);
+
+        borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
+
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(borrowableCDAI);
+        redeemAction.shares = 10 ether;
+        redeemAction.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 10 ether;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = 0;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 10 ether;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        simpleZapper.redeemAndSwap(redeemAction, swapAction, user1);
 
         vm.stopPrank();
     }
@@ -325,6 +429,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         swapAction.inputAmount = 100 ether;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;

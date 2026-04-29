@@ -10,7 +10,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 /// @title Curvance Lending Optimizer Zapper.
@@ -22,9 +21,8 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      Flow:
 ///      1. Pull input token (ERC20) or receive native gas token.
 ///      2. Swap into the optimizer's underlying asset (skip if already matching).
-///      3. Approve optimizer, call `deposit(assets, receiver, targetMarket)`.
+///      3. Approve optimizer, call `deposit(assets, receiver)`.
 ///      4. Verify minimum shares received.
-///      5. Refund any dust remaining in the zapper to the caller.
 ///
 contract OptimizerZapper is ReentrancyGuard {
 
@@ -51,9 +49,6 @@ contract OptimizerZapper is ReentrancyGuard {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Allows contract to receive native tokens.
-    receive() external payable {}
 
     /// @notice Swaps `swapAction.inputToken` into the optimizer's underlying
     ///         asset and deposits into a LendingOptimizer vault.
@@ -90,6 +85,13 @@ contract OptimizerZapper is ReentrancyGuard {
             swapAction.inputToken = wrappedNative;
         }
 
+        // Validate swap output matches the optimizer's underlying asset
+        // before executing an external swap.
+        address underlying = ILendingOptimizer(optimizer).asset();
+        if (swapAction.outputToken != underlying) {
+            revert OptimizerZapper__AssetMismatch();
+        }
+
         uint256 assets;
         if (
             CommonLib._isMatchingToken(
@@ -99,13 +101,7 @@ contract OptimizerZapper is ReentrancyGuard {
         ) {
             assets = swapAction.inputAmount;
         } else {
-            assets = SwapperLib._swapUnsafe(centralRegistry, swapAction);
-        }
-
-        // Validate swap output matches the optimizer's underlying asset.
-        address underlying = ILendingOptimizer(optimizer).asset();
-        if (swapAction.outputToken != underlying) {
-            revert OptimizerZapper__AssetMismatch();
+            assets = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Approve optimizer to pull underlying, deposit, clean up approval.
@@ -119,13 +115,6 @@ contract OptimizerZapper is ReentrancyGuard {
         // Slippage guard.
         if (shares < expectedShares) {
             revert OptimizerZapper__ExecutionError();
-        }
-
-        // Refund any underlying dust left in the zapper (e.g. from swap
-        // over-delivery). Input token dust is consumed by the aggregator.
-        uint256 dust = IERC20(underlying).balanceOf(address(this));
-        if (dust > 0) {
-            SafeTransferLib.safeTransfer(underlying, msg.sender, dust);
         }
     }
 

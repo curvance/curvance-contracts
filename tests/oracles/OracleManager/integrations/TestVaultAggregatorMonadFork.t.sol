@@ -47,7 +47,7 @@ contract TestVaultAggregatorMonadFork is Test {
 
     function setUp() public {
         fork = vm.createSelectFork(
-            "https://monad-mainnet.g.alchemy.com/v2/u_ATHTPBg1ETCDTkMa3jyqVulHKpOKzr"
+            vm.envString("MON_NODE_URI_MONAD_MAINNET")
         );
 
         vaultAgg = IVaultAggregator(VAULT_AGGREGATOR);

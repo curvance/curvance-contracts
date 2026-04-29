@@ -49,7 +49,7 @@ contract TestEarnAUSDPositionManager is TestBaseMarketIsolated {
     uint256 public user1EarnAUSDBalance;
 
     function setUp() public override {
-        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_MAINNET"), FORK_BLOCK);
+        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_ARCHIVE"), FORK_BLOCK);
 
         positionManager = new EarnAUSDVaultPositionManager(
             ICentralRegistry(liveCentralRegistry),

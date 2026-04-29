@@ -58,7 +58,7 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
 
     function setUp() public override {
         // Fork Monad at pinned block for deterministic execution.
-        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_MAINNET"), FORK_BLOCK);
+        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_ARCHIVE"), FORK_BLOCK);
 
         address emergencyCouncil = liveCentralRegistry.emergencyCouncil();
 

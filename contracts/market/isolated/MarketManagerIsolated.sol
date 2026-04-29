@@ -1522,8 +1522,11 @@ contract MarketManagerIsolated is
             // Calculate total debt necessary to compensate liquidators
             // in full based on `sharesNeeded` vs `sharesPosted`.
             // `sharesPosted` = `sharesNeeded` / 2 means 50%
-            // of debt should be recognized as bad debt, so this 
+            // of debt should be recognized as bad debt, so this
             // intermediary step for `badDebt` would be 2x `debtAmount`.
+            // Invariant: `sharesPosted > 0` here. Any liquidation that
+            // zeroes shares also zeroes debt via the clamp below, so a
+            // follow-up call cannot enter this branch with sharesPosted=0.
             badDebt = FixedPointMathLib
                 .fullMulDivUp(debtAmount, sharesNeeded, sharesPosted);
 
