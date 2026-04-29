@@ -119,6 +119,10 @@ contract PendleZapper is BaseZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
+        if (receiver == address(0) || expectedShares == 0) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapAction.inputToken,
@@ -198,6 +202,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Transfer the Pendle position to the Zapper.
         SafeTransferLib.safeTransferFrom(
             zapAction.inputToken,
@@ -278,6 +286,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Exit Curvance position.
         _exitCurvance(
             redeemAction.cToken,
@@ -353,6 +365,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
+        if (swapActions.length == 0 && zapAction.minimumOut == 0) {
+            revert PendleZapper__SlippageError();
+        }
+
         // Exit Pendle position.
         PendleLib._exitPendle(
             router,

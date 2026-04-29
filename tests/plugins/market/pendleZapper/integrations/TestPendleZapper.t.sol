@@ -155,7 +155,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 false
             ),
             new SwapperLib.Swap[](0),
-            0,
+            1,
             false,
             user1
         );
@@ -191,7 +191,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 _PENDLE_LP_STETH,
                 withdrawAmount,
                 _STETH,
-                0,
+                1,
                 false
             ),
             new SwapperLib.Swap[](0),
@@ -202,6 +202,44 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assertGt(IERC20(_STETH).balanceOf(user1), 0);
         // assertGt(IERC20(_USDC).balanceOf(user1), 0);
         assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+    }
+
+    function testExitPendle_fail_TerminalMinimumOutIsZero() public {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+
+        PendleLib.PendleAction memory action;
+
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(
+            address(pendleZapper),
+            withdrawAmount
+        );
+
+        vm.expectRevert(PendleZapper.PendleZapper__SlippageError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
+            PendleZapper.ZapAction(
+                _PENDLE_LP_STETH,
+                withdrawAmount,
+                _STETH,
+                0,
+                false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
     }
 
     function testEnterPendleWithCToken() public {
@@ -372,7 +410,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 _PENDLE_LP_STETH,
                 1.24 ether,
                 _STETH,
-                0,
+                1,
                 false
             ),
             new SwapperLib.Swap[](0),
