@@ -6,7 +6,6 @@ import {DeployScript} from "../../utils/DeployScript.sol";
 import {DynamicIRM} from "contracts/market/DynamicIRM.sol";
 import {MarketManagerIsolated} from "contracts/market/isolated/MarketManagerIsolated.sol";
 import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
-import {SimpleCToken} from "contracts/market/token/SimpleCToken.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
 
@@ -15,6 +14,9 @@ import {IERC20} from "contracts/interfaces/IERC20.sol";
 /// @dev This script intentionally does not call privileged setup functions:
 ///      `DynamicIRM.setLinkedToken` and `OracleManager.addCTokenSupport`
 ///      should be queued in the Safe batch after these addresses are known.
+///      The `canBorrow` ListConfig field is retained for DeployMarkets
+///      compatibility, but PMD market deployment follows the current
+///      production convention of always deploying BorrowableCToken + DynamicIRM.
 contract DeployPMDMarketContracts is DeployScript {
     struct DynamicInterestRateConfig {
         uint256 baseRatePerYear;
@@ -59,27 +61,19 @@ contract DeployPMDMarketContracts is DeployScript {
         IERC20 asset = IERC20(config.asset);
         string memory symbol = asset.symbol();
 
-        if (config.canBorrow) {
-            DynamicIRM irm = new DynamicIRM(
-                cr,
-                config.interestConfig.baseRatePerYear,
-                config.interestConfig.vertexRatePerYear,
-                config.interestConfig.vertexStart,
-                config.interestConfig.adjustmentVelocity,
-                config.interestConfig.decayPerAdjustment,
-                config.interestConfig.vertexMultiplierMax
-            );
+        DynamicIRM irm = new DynamicIRM(
+            cr,
+            config.interestConfig.baseRatePerYear,
+            config.interestConfig.vertexRatePerYear,
+            config.interestConfig.vertexStart,
+            config.interestConfig.adjustmentVelocity,
+            config.interestConfig.decayPerAdjustment,
+            config.interestConfig.vertexMultiplierMax
+        );
 
-            emit ContractDeployed(address(irm), string.concat(outputKey, ".irms.", symbol));
+        emit ContractDeployed(address(irm), string.concat(outputKey, ".irms.", symbol));
 
-            BorrowableCToken cToken = new BorrowableCToken(cr, asset, marketManager, address(irm));
-
-            emit ContractDeployed(address(cToken), string.concat(outputKey, ".tokens.", symbol));
-
-            return;
-        }
-
-        SimpleCToken cToken = new SimpleCToken(cr, asset, marketManager);
+        BorrowableCToken cToken = new BorrowableCToken(cr, asset, marketManager, address(irm));
 
         emit ContractDeployed(address(cToken), string.concat(outputKey, ".tokens.", symbol));
     }
