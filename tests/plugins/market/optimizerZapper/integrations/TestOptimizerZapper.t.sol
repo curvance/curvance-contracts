@@ -257,6 +257,45 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testSwapAndDeposit_fail_TightSwapSafeSlippage() public {
+        uint256 amount = 1000e18;
+        _prepareDAI(user1, amount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = 0;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(optimizerZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = amount;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        vm.startPrank(user1);
+        dai.approve(address(optimizerZapper), amount);
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        optimizerZapper.swapAndDeposit(
+            address(optimizer),
+            false,
+            swapAction,
+            0,
+            user1
+        );
+        vm.stopPrank();
+    }
+
     function testSwapAndDeposit_fail_MsgValueWithERC20() public {
         uint256 amount = 1000e6;
         _prepareUSDC(user1, amount);

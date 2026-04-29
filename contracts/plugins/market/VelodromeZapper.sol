@@ -258,7 +258,7 @@ contract VelodromeZapper is BaseZapper {
         // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapAction.outputToken`.
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
 
         outAmount = CommonLib._balanceOf(zapAction.outputToken);
@@ -329,7 +329,7 @@ contract VelodromeZapper is BaseZapper {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
     }
 }

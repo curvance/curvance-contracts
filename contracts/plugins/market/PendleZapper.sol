@@ -367,7 +367,7 @@ contract PendleZapper is BaseZapper {
         uint256 numTokenSwaps = swapActions.length;
         // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
 
         outAmount = CommonLib._balanceOf(zapAction.outputToken);
@@ -416,7 +416,7 @@ contract PendleZapper is BaseZapper {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
     }
 }

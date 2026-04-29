@@ -97,7 +97,7 @@ contract VaultZapper is SimpleZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Approve `swapAction.outputToken` transfer to `vault` contract,

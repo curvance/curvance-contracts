@@ -89,7 +89,7 @@ contract SimpleRewardZapper is BaseZapper {
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -157,7 +157,7 @@ contract SimpleRewardZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance cToken position.
@@ -238,7 +238,7 @@ contract SimpleRewardZapper is BaseZapper {
             }
 
             // Swap from `rewardToken` into `debtAsset`.
-            swapAction.inputAmount = SwapperLib._swapUnsafe(
+                swapAction.inputAmount = SwapperLib._swapSafe(
                 centralRegistry,
                 swapAction
             );
