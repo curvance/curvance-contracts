@@ -359,8 +359,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
         }
 
-        // Track recoverable value so exchange rate accurately reflects
-        // what can be withdrawn. Any excess corrects at next _accrueIfNeeded().
+        // Track recoverable value only; rounding excess from the per-market
+        // roundtrip stays as idle balance, recoverable by DAO via `skim()`.
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);

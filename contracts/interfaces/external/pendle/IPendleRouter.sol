@@ -50,4 +50,19 @@ interface IPendleRouter {
     )
         external
         returns (uint256 netTokenOut, uint256 netSyFee, uint256 netSyInterm);
+
+    /// @notice Post-expiry path: redeem PT (and YT, if pre-expiry) to a
+    ///         token via the YT contract + SY redemption + optional
+    ///         aggregator swap. Mirrors the canonical
+    ///         `ActionMiscV3.redeemPyToToken` in the vendored Pendle
+    ///         router source. Pre-expiry the call requires both PT and
+    ///         YT in equal amounts; post-expiry only PT is required
+    ///         (see `_redeemPyToSy` in `lib/pendle-core-v2-public/.../
+    ///         router/base/ActionBase.sol`).
+    function redeemPyToToken(
+        address receiver,
+        address YT,
+        uint256 netPyIn,
+        TokenOutput calldata output
+    ) external returns (uint256 netTokenOut, uint256 netSyInterm);
 }

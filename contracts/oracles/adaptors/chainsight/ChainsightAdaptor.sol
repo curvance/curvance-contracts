@@ -124,8 +124,12 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
                 revert ChainsightAdaptor__InvalidPriceConfiguration();
             }
 
-            if (block.timestamp - readTimestampSigned > heartbeat) {
-                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            // Stale or future-dated. Future timestamps underflow-wrap past
+            // any sane heartbeat under unchecked, hitting the same revert.
+            unchecked {
+                if (block.timestamp - readTimestampSigned > heartbeat) {
+                    revert ChainsightAdaptor__InvalidPriceConfiguration();
+                }
             }
         }
         

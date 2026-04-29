@@ -346,15 +346,53 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Test stale price
         snxUsdPriceFeed.updateAnswer(150e8);
         snxUsdPriceFeed.updateRoundData(
-            1, 
-            150e8, 
+            1,
+            150e8,
             block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1
             , block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1);
-        
+
         IOracleAdaptor.PricingResult memory result =
             chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(result.hadError);
+    }
+
+    function test_fail_FutureDatedTimestampBubblesHadErrorWithoutPanicking()
+        public
+    {
+        // Regression: pre-fix `_verifyData` performed `block.timestamp -
+        // timestamp` outside an unchecked block, so a future-dated feed
+        // timestamp would revert the entire price read with an arithmetic
+        // panic. Post-fix the same path wraps via `unchecked`, so the
+        // wrapped value exceeds any sane heartbeat and the adaptor returns
+        // `hadError = true` instead of bricking the read.
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+
+        uint256 futureTimestamp = block.timestamp + 1 days;
+        snxUsdPriceFeed.updateAnswer(150e8);
+        snxUsdPriceFeed.updateRoundData(
+            1,
+            150e8,
+            futureTimestamp,
+            futureTimestamp
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+
+        assertTrue(
+            result.hadError,
+            "expected future-dated feed timestamp to bubble hadError"
+        );
+        assertTrue(
+            result.inUSD,
+            "expected adaptor to keep the requested denomination flag"
+        );
     }
 
     function test_fail_ZeroPrice() public {

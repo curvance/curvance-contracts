@@ -9,6 +9,7 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
@@ -54,50 +55,127 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
     }
 
     function testReturnsCorrectPrice() public {
-        chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+        _setUpPriceableLpToken();
+
+        (uint256 price, uint256 errorCode) = _getLpUsdQuote();
+        assertEq(errorCode, 0);
+        assertGt(price, 0);
+    }
+
+    function testPriceGuard_finalLpUsdQuoteClampsThroughBaseAdjustPrice()
+        public
+    {
+        _setUpPriceableLpToken();
+
+        (uint256 priceBefore, uint256 errorBefore) = _getLpUsdQuote();
+        assertEq(errorBefore, 0, "expected clean LP USD price");
+        assertGt(priceBefore, 0, "missing LP USD price");
+
+        uint256 guardCap = priceBefore / 2;
+        adapter.setGuardedPriceConfig(_LP_STETH, true, 0, 0, guardCap, 0);
+
+        BaseOracleAdaptor.PriceGuard memory storedGuard = adapter
+            .getPriceGuard(_LP_STETH, true);
+        assertEq(
+            storedGuard.basePrice,
+            guardCap,
+            "expected LP USD guard to be stored"
         );
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        chainlinkAdaptor.addAsset(
-            _ETH_ADDRESS,
+
+        uint256 expectedPostFixQuote = _expectedStaticGuardedPrice(
+            priceBefore,
+            storedGuard
+        );
+        assertEq(
+            expectedPostFixQuote,
+            guardCap,
+            "post-fix LP quote should clamp to stored guard cap"
+        );
+
+        (uint256 priceAfter, uint256 errorAfter) = _getLpUsdQuote();
+        assertEq(errorAfter, 0, "expected clean LP USD price after guard");
+        assertEq(
+            priceAfter,
+            expectedPostFixQuote,
+            "expected final LP USD quote to clamp through BaseOracleAdaptor._adjustPrice"
+        );
+        assertEq(
+            priceAfter,
+            guardCap,
+            "expected final LP USD quote to equal the stored guard cap"
+        );
+        assertLt(
+            priceAfter,
+            priceBefore,
+            "expected final LP USD quote to clamp below the pre-guard quote"
+        );
+    }
+
+    function testPriceGuard_finalLpUsdQuoteReturnsErrorWhenGuardMinExceedsComposedQuote()
+        public
+    {
+        _setUpPriceableLpToken();
+
+        (uint256 lpPriceBefore, uint256 lpErrorBefore) = _getLpUsdQuote();
+        assertEq(lpErrorBefore, 0, "expected clean LP USD price");
+        assertGt(lpPriceBefore, 0, "missing LP USD price");
+
+        // Pin LP guard floor at the current quote so any composed drop below
+        // it must trigger the `_adjustPrice == 0 -> hadError` bubble.
+        adapter.setGuardedPriceConfig(
+            _LP_STETH,
             true,
-            _CHAINLINK_ETH_USD,
-            0
+            0,
+            0,
+            lpPriceBefore,
+            lpPriceBefore
         );
-        chainlinkAdaptor.addAsset(
+
+        // Halve stETH USD to drag the composed LP quote below the LP min guard.
+        (uint256 stethPriceBefore, uint256 stethErrorBefore) = oracleManager
+            .getPrice(_STETH, true, false);
+        assertEq(stethErrorBefore, 0, "expected clean stETH USD price");
+        assertGt(stethPriceBefore, 0, "missing stETH USD price");
+
+        chainlinkAdaptor.setGuardedPriceConfig(
             _STETH,
             true,
-            _CHAINLINK_STETH_USD,
+            0,
+            0,
+            stethPriceBefore / 2,
             0
         );
 
-        oracleManager.addAssetPricingAdaptor(
-            _ETH_ADDRESS,
-            address(chainlinkAdaptor),
-            100,
-            50,
-            100,
-            50
-        );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
-
-        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
-        assetConfig.twapDuration = 12;
-        assetConfig.quoteAsset = _STETH;
-        assetConfig.pt = _PT_STETH;
-        assetConfig.quoteAssetDecimals = 18;
-        adapter.addAsset(_LP_STETH, assetConfig);
-
-        oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), 100, 50, 100, 50);
-
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+        IOracleAdaptor.PricingResult memory adaptorResult = adapter.getPrice(
             _LP_STETH,
             true,
             false
         );
-        assertEq(errorCode, 0);
-        assertGt(price, 0);
+        assertTrue(
+            adaptorResult.hadError,
+            "expected LP adaptor call to signal an error"
+        );
+        assertTrue(
+            adaptorResult.inUSD,
+            "expected LP adaptor call to stay in usd mode"
+        );
+        assertEq(
+            adaptorResult.price,
+            0,
+            "expected LP adaptor call to return zero after guard rejection"
+        );
+
+        (uint256 lpPriceAfter, uint256 lpErrorAfter) = _getLpUsdQuote();
+        assertEq(
+            lpPriceAfter,
+            0,
+            "expected oracle manager LP price to zero when adaptor errors"
+        );
+        assertGt(
+            lpErrorAfter,
+            0,
+            "expected oracle manager to bubble LP adaptor error"
+        );
     }
 
     function testReturnsCorrectPriceAfterLargeSwap() public {
@@ -317,5 +395,65 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
         assetConfig.quoteAssetDecimals = 18;
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         adapter.addAsset(address(0), assetConfig);
+    }
+
+    function _setUpPriceableLpToken() internal {
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_STETH_USD,
+            0
+        );
+
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
+
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adapter.addAsset(_LP_STETH, assetConfig);
+
+        oracleManager.addApprovedAdaptor(address(adapter));
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adapter), 100, 50, 100, 50);
+    }
+
+    function _getLpUsdQuote()
+        internal
+        view
+        returns (uint256 price, uint256 errorCode)
+    {
+        (price, errorCode) = oracleManager.getPrice(_LP_STETH, true, false);
+    }
+
+    function _expectedStaticGuardedPrice(
+        uint256 rawPrice,
+        BaseOracleAdaptor.PriceGuard memory guard
+    ) internal pure returns (uint256) {
+        if (guard.basePrice == 0) {
+            return rawPrice;
+        }
+        if (rawPrice < guard.minPrice) {
+            return 0;
+        }
+        return rawPrice > guard.basePrice ? guard.basePrice : rawPrice;
     }
 }

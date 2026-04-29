@@ -8,10 +8,13 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestPendleLPTokenAdaptor } from "tests/oracles/OracleManager/integrations/TestPendleLPTokenAdaptor.t.sol";
 
+/// @title TC008 — Pendle LP guard-binding regression
+/// @notice Originally a PoC for the `PendleLPTokenAdaptor.getPrice`
+///         direct-override bypass; now a regression sentinel pinning the
+///         post-fix clamp behavior. See TC007 file natspec for the full
+///         provenance note.
 contract TC008PendleLpGuardBypassPoC is TestPendleLPTokenAdaptor {
-    function test_tc008_pendleLpUsdGuardCanBeStoredYetStayInertWhenAdaptorOverridesGetPrice()
-        public
-    {
+    function test_tc008_pendleLpUsdGuard_clampsRuntimePrice() public {
         _configurePendleLpUsdPricing();
 
         (uint256 priceBefore, uint256 errorBefore) = oracleManager.getPrice(
@@ -22,6 +25,9 @@ contract TC008PendleLpGuardBypassPoC is TestPendleLPTokenAdaptor {
         assertEq(errorBefore, 0, "tc008:expected-clean-usd-price");
         assertGt(priceBefore, 0, "tc008:missing-lp-price");
 
+        // Configure a guard cap at half the current price. Pre-fix the
+        // guard storage would succeed but be silently inert at runtime;
+        // post-fix `_adjustPrice` clamps the returned price to basePrice.
         uint256 guardCap = priceBefore / 2;
         adapter.setGuardedPriceConfig(
             _LP_STETH,
@@ -48,15 +54,19 @@ contract TC008PendleLpGuardBypassPoC is TestPendleLPTokenAdaptor {
             false
         );
         assertEq(errorAfter, 0, "tc008:expected-clean-usd-price-after-guard");
+
+        // Post-fix invariants: priceAfter MUST equal `guardCap` (clamp
+        // bound the price to basePrice) and MUST be strictly less than
+        // `priceBefore` (clamp actually reduced the value, not just no-op).
         assertEq(
             priceAfter,
-            priceBefore,
-            "tc008:price-changed-even-though-direct-getPrice-bypasses-base-adjustment"
-        );
-        assertGt(
-            priceAfter,
             guardCap,
-            "tc008:guard-cap-should-have-clamped-if-it-bound-runtime"
+            "tc008:guard-MUST-clamp-price-to-basePrice"
+        );
+        assertLt(
+            priceAfter,
+            priceBefore,
+            "tc008:clamp-MUST-have-reduced-price-from-raw-to-cap"
         );
     }
 

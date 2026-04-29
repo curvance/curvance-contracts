@@ -89,7 +89,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
                 revert CCTPBorrowZapper__InvalidSwapAction();
             }
 
-            SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        SwapperLib._swapSafe(centralRegistry, swapAction);
         } else if (swapAction.target != address(0)) {
             revert CCTPBorrowZapper__InvalidSwapAction();
         }

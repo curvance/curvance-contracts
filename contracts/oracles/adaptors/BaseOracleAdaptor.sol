@@ -257,9 +257,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             return true;
         }
 
-        // Validate the price returned is not stale.
-        if (block.timestamp - timestamp > heartbeat) {
-            return true;
+        // Validate the price returned is not stale. Underflow on a
+        // future-dated timestamp is intentional: the wrap produces a value
+        // larger than any sane heartbeat, so the same hadError path that
+        // catches stale data also catches future-dated data without
+        // reverting the whole price read on an arithmetic panic.
+        unchecked {
+            if (block.timestamp - timestamp > heartbeat) {
+                return true;
+            }
         }
 
         return false;

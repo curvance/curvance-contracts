@@ -18,6 +18,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 contract TestBorrowAndBridge is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint256 internal constant _TEST_SWAP_SLIPPAGE = 0.999e18;
 
     CCTPBorrowZapper public CCTPZapper;
 
@@ -140,6 +141,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         swapAction.inputAmount = 500e18;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;

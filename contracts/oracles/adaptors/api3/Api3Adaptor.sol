@@ -146,8 +146,13 @@ contract Api3Adaptor is BaseOracleAdaptor {
             return result;
         }
 
-        result.hadError = _verifyData(uint256(price), updatedAt, c.heartbeat);
-        result.price = uint256(price);
+        // Route through `_adjustPrice` so PriceGuard binds at runtime
+        // (matches ChainlinkAdaptor). API3 dAPIs are 18-decimal so the
+        // decimal-normalization side is a no-op.
+        uint256 adjustedPrice = _adjustPrice(asset, inUSD, uint256(price), 18);
+
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

@@ -18,6 +18,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint256 internal constant _TEST_SWAP_SLIPPAGE = 0.999e18;
 
     CCTPBorrowZapper public CCTPZapper;
 
@@ -139,6 +140,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         swapAction.inputAmount = 500e18;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
@@ -208,6 +210,25 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
                 .selector
         );
         CCTPZapper.borrowAndBridge{ value: messageFee - 1 }(
+            address(borrowableCDAI),
+            500e18,
+            swapAction,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_fail_TightSwapSafeSlippage() public {
+        swapAction.slippage = 0;
+
+        vm.startPrank(user1);
+
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(borrowableCDAI),
             500e18,
             swapAction,

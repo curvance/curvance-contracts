@@ -242,6 +242,11 @@ contract VelodromeZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
+        // Resolve LP legs before exit so we can refund any residue that
+        // is not converted to `zapAction.outputToken`.
+        address token0 = IVeloPair(zapAction.inputToken).token0();
+        address token1 = IVeloPair(zapAction.inputToken).token1();
+
         // Exit Velodrome position.
         VelodromeLib._exitVelodrome(
             router,
@@ -253,7 +258,7 @@ contract VelodromeZapper is BaseZapper {
         // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapAction.outputToken`.
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
 
         outAmount = CommonLib._balanceOf(zapAction.outputToken);
@@ -264,6 +269,28 @@ contract VelodromeZapper is BaseZapper {
 
         // Transfer output tokens to `receiver`.
         _transferToRecipient(zapAction.outputToken, receiver, outAmount);
+
+        // Refund any unconverted LP leg residue back to `receiver` so a
+        // zero-swap or partial-swap exit cannot strand value on the zapper.
+        _refundLegResidue(token0, zapAction.outputToken, receiver);
+        _refundLegResidue(token1, zapAction.outputToken, receiver);
+    }
+
+    /// @notice Refund any non-zero `legToken` balance held by the zapper to
+    ///         `receiver`, skipping the leg already delivered as
+    ///         `outputToken` to avoid double-spending.
+    function _refundLegResidue(
+        address legToken,
+        address outputToken,
+        address receiver
+    ) internal {
+        if (legToken == outputToken) {
+            return;
+        }
+        uint256 residue = CommonLib._balanceOf(legToken);
+        if (residue > 0) {
+            _transferToRecipient(legToken, receiver, residue);
+        }
     }
 
     /// @notice Swap `inputToken` into desired underlying tokens.
@@ -302,7 +329,7 @@ contract VelodromeZapper is BaseZapper {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
     }
 }

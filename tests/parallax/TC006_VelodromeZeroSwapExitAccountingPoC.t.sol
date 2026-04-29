@@ -18,7 +18,7 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
         uint256 receiverLpAfter;
     }
 
-    function test_tc006_exitVelodrome_zeroSwapTransfersOnlySelectedOutputAndLeavesSiblingLegOnZapper()
+    function test_tc006_exitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
         public
     {
         deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
@@ -27,17 +27,17 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
             IERC20(_VELODROME_WETH_USDC).balanceOf(user1)
         );
 
-        _assertZeroSwapAccounting(observation, "tc006:direct-exit");
+        _assertZeroSwapRefundAccounting(observation, "tc006:direct-exit");
     }
 
-    function test_tc006_redeemAndExitVelodrome_zeroSwapTransfersOnlySelectedOutputAndLeavesSiblingLegOnZapper()
+    function test_tc006_redeemAndExitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
         public
     {
         _seedVelodromeCTokenPosition();
 
         ExitObservation memory observation = _runRedeemZeroSwapExit();
 
-        _assertZeroSwapAccounting(observation, "tc006:redeem-exit");
+        _assertZeroSwapRefundAccounting(observation, "tc006:redeem-exit");
     }
 
     function _runDirectZeroSwapExit(
@@ -153,7 +153,7 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
         assertEq(user1.balance, 0, "tc006:expected-entered-position");
     }
 
-    function _assertZeroSwapAccounting(
+    function _assertZeroSwapRefundAccounting(
         ExitObservation memory observation,
         string memory branchLabel
     ) internal {
@@ -167,15 +167,17 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
             observation.outAmount,
             string.concat(branchLabel, ":reported-output-mismatch")
         );
-        assertEq(
+        // Sibling LP leg should be refunded back to the receiver instead of
+        // stranded on the zapper.
+        assertGt(
             observation.receiverUsdcDelta,
             0,
-            string.concat(branchLabel, ":receiver-should-not-get-unswapped-usdc")
+            string.concat(branchLabel, ":receiver-should-be-refunded-sibling-leg")
         );
-        assertGt(
+        assertEq(
             observation.zapperUsdcDelta,
             0,
-            string.concat(branchLabel, ":expected-usdc-residue-on-zapper")
+            string.concat(branchLabel, ":zapper-should-not-strand-sibling-leg")
         );
         assertEq(
             observation.zapperWethAfter,

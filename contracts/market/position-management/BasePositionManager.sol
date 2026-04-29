@@ -53,6 +53,36 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 ///      The "base" contract is the basis on which all position manager are
 ///      built on top of.
 ///
+///      ROUTER-STYLE RESIDUE SEMANTIC (PROTOCOL-WIDE):
+///      Position Manager contracts are treated as routers. Any leftover
+///      ERC20 balance held on a Position Manager between calls is
+///      sweepable by the next caller's swap approval, identical to the
+///      way Uniswap V2 Router02, Uniswap V3 SwapRouter, UniversalRouter,
+///      and 0x Exchange handle stranded balance.
+///
+///      This design choice has been reviewed across every Position
+///      Manager implementation (Simple, SingleSidedVault, DualSidedVault,
+///      EarnAUSD, NativeVault, Velodrome, Aerodrome, PendleLP, PendlePT)
+///      and is intentional. Implementation consequences:
+///
+///      1. Callers (frontends/integrators) MUST encode `swapAction` input
+///         amounts to match what the deleverage flow actually produces
+///         (e.g. for vault PMs, `previewRedeem(collateralAssets)`); under-
+///         encoding silently transfers the difference to whoever calls
+///         next, exactly as with any aggregator router.
+///
+///      2. Intermediate steps in a multi-hop swap chain are not chain-
+///         validated for token contiguity or amount continuity beyond the
+///         first/last endpoint check. A caller can craft a chain that
+///         consumes residue of unrelated tokens; the resulting debtAsset
+///         output simply funds that caller's debt repayment. `_swapSafe`
+///         still enforces oracle-priced slippage on each individual
+///         step, bounding any single-step value-loss.
+///
+///      3. Position Managers therefore should not be relied upon to
+///         retain user-specific balances between calls; treat them as
+///         stateless routers from a token-custody perspective.
+///
 abstract contract BasePositionManager is
     IPositionManager,
     PluginDelegable,
