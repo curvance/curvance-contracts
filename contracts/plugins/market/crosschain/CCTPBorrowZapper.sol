@@ -17,7 +17,6 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 
 contract CCTPBorrowZapper is ReentrancyGuard {
     /// CONSTANTS ///
-
     /// @notice Gas limit with which to call `targetAddress` crosschain.
     uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
     /// @notice Curvance DAO hub.
@@ -26,6 +25,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// ERRORS ///
 
     error CCTPBorrowZapper__InvalidSwapAction();
+    error CCTPBorrowZapper__InvalidDestinationReceiver();
     error CCTPBorrowZapper__InsufficientGasToken();
     error CCTPBorrowZapper__CCTPIsNotConfigured();
 
@@ -59,46 +59,46 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     ///                   call Swap instruction calldata.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
+    /// @param destinationReceiver Contract on the destination chain that
+    ///                            finalizes the CCTP transfer and forwards
+    ///                            funds to the encoded recipient.
     function borrowAndBridge(
         address borrowableCToken,
         uint256 borrowAmount,
         SwapperLib.Swap memory swapAction,
         uint256 dstChainId,
-        uint256 gasLimit
+        uint256 gasLimit,
+        address destinationReceiver
     ) external payable nonReentrant {
+        if (destinationReceiver == address(0)) {
+            revert CCTPBorrowZapper__InvalidDestinationReceiver();
+        }
+
         address feeToken = centralRegistry.feeToken();
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
         // Borrow on behalf of caller.
-        IBorrowableCToken(borrowableCToken).borrowFor(
-            borrowAmount,
-            address(this),
-            msg.sender
-        );
+        IBorrowableCToken(borrowableCToken).borrowFor(borrowAmount, address(this), msg.sender);
 
         address asset = IBorrowableCToken(borrowableCToken).asset();
 
         // Check if swapping is necessary.
         if (asset != feeToken) {
             if (
-                swapAction.target == address(0) ||
-                swapAction.inputToken != asset ||
-                swapAction.outputToken != feeToken ||
-                swapAction.inputAmount != borrowAmount
+                swapAction.target == address(0) || swapAction.inputToken != asset || swapAction.outputToken != feeToken
+                    || swapAction.inputAmount != borrowAmount
             ) {
                 revert CCTPBorrowZapper__InvalidSwapAction();
             }
 
-        SwapperLib._swapSafe(centralRegistry, swapAction);
+            SwapperLib._swapSafe(centralRegistry, swapAction);
         } else if (swapAction.target != address(0)) {
             revert CCTPBorrowZapper__InvalidSwapAction();
         }
 
         // Bridge the fee token to `dstChainId` via Wormhole.
         _sendFeeToken(
-            dstChainId,
-            IERC20(feeToken).balanceOf(address(this)) - balancePrior,
-            gasLimit
+            dstChainId, IERC20(feeToken).balanceOf(address(this)) - balancePrior, gasLimit, destinationReceiver
         );
     }
 
@@ -107,10 +107,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Total gas cost to send a message to `dstChainId`.
-    function quoteMessageFee(
-        uint256 dstChainId,
-        uint256 gasLimit
-    ) external view returns (uint256) {
+    function quoteMessageFee(uint256 dstChainId, uint256 gasLimit) external view returns (uint256) {
         return _quoteMessageFee(dstChainId, gasLimit);
     }
 
@@ -120,27 +117,16 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param amount The amount of token to transfer.
     /// @param gasLimit Gas limit with which to call on destination chain.
-    function _sendFeeToken(
-        uint256 dstChainId,
-        uint256 amount,
-        uint256 gasLimit
-    ) internal {
-        ITokenMessenger tokenMessager = ITokenMessenger(
-            centralRegistry.tokenMessager()
-        );
+    /// @param destinationReceiver Contract on the destination chain that
+    ///                            finalizes the CCTP transfer.
+    function _sendFeeToken(uint256 dstChainId, uint256 amount, uint256 gasLimit, address destinationReceiver) internal {
+        ITokenMessenger tokenMessager = ITokenMessenger(centralRegistry.tokenMessager());
 
         if (
-            address(tokenMessager) != address(0) &&
-            tokenMessager.remoteTokenMessengers(
-                _chainConfig(dstChainId).domain
-            ) != bytes32(0)
+            address(tokenMessager) != address(0)
+                && tokenMessager.remoteTokenMessengers(_chainConfig(dstChainId).domain) != bytes32(0)
         ) {
-            _transferFeeTokenViaCCTP(
-                tokenMessager,
-                dstChainId,
-                amount,
-                gasLimit
-            );
+            _transferFeeTokenViaCCTP(tokenMessager, dstChainId, amount, gasLimit, destinationReceiver);
         } else {
             revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
@@ -152,11 +138,14 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param amount The amount of token to transfer.
     /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @param destinationReceiver Contract on the destination chain that
+    ///                            finalizes the CCTP transfer.
     function _transferFeeTokenViaCCTP(
         ITokenMessenger tokenMessager,
         uint256 dstChainId,
         uint256 amount,
-        uint256 gasLimit
+        uint256 gasLimit,
+        address destinationReceiver
     ) internal {
         uint256 wormholeFee = _quoteMessageFee(dstChainId, gasLimit);
 
@@ -165,55 +154,31 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             revert CCTPBorrowZapper__InsufficientGasToken();
         }
 
-        IWormholeRelayer crosschainRelayer = _crosschainRelayer();
         ChainConfig memory config = _chainConfig(dstChainId);
 
         address feeToken = centralRegistry.feeToken();
 
         // Approve `feeToken` transfer to `tokenMessager` contract, if needed.
-        SwapperLib._approveIfNeeded(
-            feeToken,
-            address(tokenMessager),
-            amount
-        );
+        SwapperLib._approveIfNeeded(feeToken, address(tokenMessager), amount);
 
         uint64 nonce = tokenMessager.depositForBurnWithCaller(
             amount,
             config.domain,
-            bytes32(uint256(uint160(msg.sender))),
+            _addressToBytes32(destinationReceiver),
             feeToken,
-            bytes32(uint256(uint160(config.crosschainRelayer)))
+            _addressToBytes32(destinationReceiver)
         );
 
         // Remove any leftover approval, if any.
-        SwapperLib._removeApprovalIfNeeded(
-            feeToken,
-            address(tokenMessager)
-        );
+        SwapperLib._removeApprovalIfNeeded(feeToken, address(tokenMessager));
 
-        IWormholeRelayer.MessageKey[]
-            memory messageKeys = new IWormholeRelayer.MessageKey[](1);
+        IWormholeRelayer.MessageKey[] memory messageKeys = new IWormholeRelayer.MessageKey[](1);
         messageKeys[0] = IWormholeRelayer.MessageKey(
             2, // CCTP_KEY_TYPE
             abi.encodePacked(centralRegistry.domain(), nonce)
         );
 
-        address defaultDeliveryProvider = crosschainRelayer
-            .getDefaultDeliveryProvider();
-
-        crosschainRelayer.sendToEvm{ value: wormholeFee }(
-            config.messagingChainId,
-            msg.sender,
-            "",
-            0,
-            0,
-            gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT,
-            config.messagingChainId,
-            address(0),
-            defaultDeliveryProvider,
-            messageKeys,
-            15
-        );
+        _sendWormholeDelivery(config.messagingChainId, wormholeFee, gasLimit, destinationReceiver, messageKeys);
 
         // Refund any remaining unused native token attached to transaction.
         uint256 remaining = msg.value - wormholeFee;
@@ -227,26 +192,48 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost.
-    function _quoteMessageFee(
-        uint256 dstChainId,
-        uint256 gasLimit
-    ) internal view returns (uint256 nativeFee) {
-        (nativeFee, ) = _crosschainRelayer().quoteEVMDeliveryPrice(
-            _chainConfig(dstChainId).messagingChainId,
-            0,
-            gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
-        );
+    function _quoteMessageFee(uint256 dstChainId, uint256 gasLimit) internal view returns (uint256 nativeFee) {
+        (nativeFee,) = _crosschainRelayer()
+            .quoteEVMDeliveryPrice(_chainConfig(dstChainId).messagingChainId, 0, _gasLimit(gasLimit));
 
         // Add cost of publishing the 'sending token' crosschain message.
         nativeFee += IWormhole(centralRegistry.crosschainCore()).messageFee();
     }
 
+    /// @notice Sends the Wormhole delivery instruction for a CCTP transfer.
+    /// @param messagingChainId Destination Wormhole chain ID.
+    /// @param wormholeFee Native fee for delivery.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @param destinationReceiver Contract on the destination chain that
+    ///                            finalizes the CCTP transfer.
+    /// @param messageKeys CCTP message keys to deliver with the callback.
+    function _sendWormholeDelivery(
+        uint16 messagingChainId,
+        uint256 wormholeFee,
+        uint256 gasLimit,
+        address destinationReceiver,
+        IWormholeRelayer.MessageKey[] memory messageKeys
+    ) internal {
+        IWormholeRelayer crosschainRelayer = _crosschainRelayer();
+        crosschainRelayer.sendToEvm{value: wormholeFee}(
+            messagingChainId,
+            destinationReceiver,
+            abi.encode(msg.sender),
+            0,
+            0,
+            _gasLimit(gasLimit),
+            messagingChainId,
+            destinationReceiver,
+            crosschainRelayer.getDefaultDeliveryProvider(),
+            messageKeys,
+            15
+        );
+    }
+
     /// @dev Returns ChainConfig struct for `chainId`.
     /// @param chainId The chain ID to get chain configuration of.
     /// @return config The ChainConfig struct for the given chain ID.
-    function _chainConfig(
-        uint256 chainId
-    ) internal view returns (ChainConfig memory config) {
+    function _chainConfig(uint256 chainId) internal view returns (ChainConfig memory config) {
         config = centralRegistry.chainConfig(chainId);
         // Validate that `chainId` is actually a supported chain.
         if (!config.isSupported) {
@@ -258,5 +245,17 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @return The current Crosschain Relayer contract.
     function _crosschainRelayer() internal view returns (IWormholeRelayer) {
         return IWormholeRelayer(centralRegistry.crosschainRelayer());
+    }
+
+    /// @dev Converts an address to a bytes32 value.
+    /// @param addr The address to convert.
+    /// @return The bytes32 value of the address.
+    function _addressToBytes32(address addr) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(addr)));
+    }
+
+    /// @dev Returns the greater of `gasLimit` and `_DEFAULT_GAS_LIMIT`.
+    function _gasLimit(uint256 gasLimit) internal pure returns (uint256) {
+        return gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT;
     }
 }
