@@ -88,6 +88,11 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         // Support chainId 42161.
         centralRegistry.addChain(42161, config);
+        CCTPZapper.setCCTPDeliveryProvider(
+            42161,
+            IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider(),
+            true
+        );
 
         deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
@@ -212,6 +217,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
         centralRegistry.setTokenMessager(address(tokenMessenger));
         centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, relayer.getDefaultDeliveryProvider(), true);
 
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
 
@@ -233,12 +239,35 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         assertEq(relayer.lastRefundAddress(), destinationReceiver);
     }
 
+    function test_borrowAndBridge_doesNotBridgePreExistingFeeTokenResidue() public {
+        MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
+        MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
+        centralRegistry.setTokenMessager(address(tokenMessenger));
+        centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, relayer.getDefaultDeliveryProvider(), true);
+
+        _prepareUSDC(address(CCTPZapper), 123e6);
+        uint256 balancePrior = usdc.balanceOf(address(CCTPZapper));
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+
+        vm.startPrank(user1);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, swapAction, 42161, 0, destinationReceiver
+        );
+        vm.stopPrank();
+
+        assertEq(usdc.balanceOf(address(CCTPZapper)), balancePrior + tokenMessenger.lastAmount());
+        assertGt(tokenMessenger.lastAmount(), 0);
+    }
+
     function test_borrowAndBridge_destinationDeliveryToReceiverFinalizesCCTP() public {
         MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
         MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
         MockMessageTransmitterForCCTPBorrowZapper transmitter = new MockMessageTransmitterForCCTPBorrowZapper();
         centralRegistry.setTokenMessager(address(tokenMessenger));
         centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, relayer.getDefaultDeliveryProvider(), true);
 
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
         MockCCTPReceiverForCCTPBorrowZapper receiver = new MockCCTPReceiverForCCTPBorrowZapper(transmitter);
@@ -260,6 +289,31 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         assertEq(transmitter.receiveMessageCalls(), 1);
     }
 
+    function test_borrowAndBridge_fail_beforeDebtWhenCCTPDeliveryProviderIsUnsupported() public {
+        MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
+        MockUnsupportedCCTPRelayerForCCTPBorrowZapper relayer = new MockUnsupportedCCTPRelayerForCCTPBorrowZapper();
+        MockMessageTransmitterForCCTPBorrowZapper transmitter = new MockMessageTransmitterForCCTPBorrowZapper();
+        centralRegistry.setTokenMessager(address(tokenMessenger));
+        centralRegistry.setCrosschainRelayer(address(relayer));
+
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+        MockCCTPReceiverForCCTPBorrowZapper receiver = new MockCCTPReceiverForCCTPBorrowZapper(transmitter);
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+
+        vm.startPrank(user1);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+        vm.expectRevert(CCTPBorrowZapper.CCTPBorrowZapper__InvalidDeliveryProvider.selector);
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, swapAction, 42161, 0, address(receiver)
+        );
+        vm.stopPrank();
+
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore);
+        assertEq(tokenMessenger.lastAmount(), 0);
+        assertEq(relayer.lastMessageKeyType(), 0);
+        assertEq(transmitter.receiveMessageCalls(), 0);
+    }
+
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
@@ -277,13 +331,15 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
 contract MockTokenMessengerForCCTPBorrowZapper is ITokenMessenger {
     uint64 public nextNonce = 123;
+    uint256 public lastAmount;
     bytes32 public lastMintRecipient;
     bytes32 public lastDestinationCaller;
 
-    function depositForBurnWithCaller(uint256, uint32, bytes32 mintRecipient, address, bytes32 destinationCaller)
+    function depositForBurnWithCaller(uint256 amount, uint32, bytes32 mintRecipient, address, bytes32 destinationCaller)
         external
         returns (uint64 nonce)
     {
+        lastAmount = amount;
         lastMintRecipient = mintRecipient;
         lastDestinationCaller = destinationCaller;
         return nextNonce;
@@ -300,6 +356,7 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
     bytes public lastPayload;
     uint16 public lastRefundChain;
     address public lastRefundAddress;
+    uint8 public lastMessageKeyType;
 
     function sendToEvm(
         uint16 targetChain,
@@ -311,7 +368,7 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         uint16 refundChain,
         address refundAddress,
         address,
-        MessageKey[] memory,
+        MessageKey[] memory messageKeys,
         uint8
     ) external payable returns (uint64 sequence) {
         lastTargetChain = targetChain;
@@ -319,10 +376,13 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         lastPayload = payload;
         lastRefundChain = refundChain;
         lastRefundAddress = refundAddress;
+        if (messageKeys.length > 0) {
+            lastMessageKeyType = messageKeys[0].keyType;
+        }
         return 456;
     }
 
-    function deliverToLastTarget(bytes[] memory additionalVaas) external {
+    function deliverToLastTarget(bytes[] memory additionalVaas) public virtual {
         _deliverTo(lastTargetAddress, additionalVaas);
     }
 
@@ -371,6 +431,16 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused)
     {
         return (0.01 ether, 0);
+    }
+}
+
+contract MockUnsupportedCCTPRelayerForCCTPBorrowZapper is MockWormholeRelayerForCCTPBorrowZapper {
+    error UnsupportedCCTPKeyType();
+
+    function deliverToLastTarget(bytes[] memory) public override {
+        if (lastMessageKeyType == 2) {
+            revert UnsupportedCCTPKeyType();
+        }
     }
 }
 

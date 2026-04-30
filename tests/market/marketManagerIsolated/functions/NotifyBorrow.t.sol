@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -21,6 +22,21 @@ contract NotifyBorrowTest is TestBaseMarketIsolated {
     function test_notifyBorrow_fail_whenCallerIsNotCToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
+    }
+
+    function test_notifyBorrow_fail_whenUserMulticallsAsMarketManager() public {
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](1);
+        calls[0].target = address(marketManagerIsolated);
+        calls[0].data = abi.encodeCall(
+            MarketManagerIsolated.notifyBorrow,
+            (address(borrowableCUSDC), user1)
+        );
+
+        vm.prank(user2);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
+        marketManagerIsolated.multicall(calls);
+
+        assertEq(marketManagerIsolated.accountAssets(user1), 0);
     }
 
     function test_notifyBorrow_success() public {
