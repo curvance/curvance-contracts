@@ -134,6 +134,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
         address receiver
     ) internal returns (uint256 shares) {
         _checkAddresses(cToken, asset);
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
 
         // Approve `cToken` to take `asset`.
         SwapperLib._approveIfNeeded(asset, cToken, assets);

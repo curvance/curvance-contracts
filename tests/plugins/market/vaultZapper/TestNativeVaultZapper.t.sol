@@ -141,6 +141,30 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
         assertEq(address(vaultZapper).balance, 0, "Zapper should not hold any ETH after operation");
     }
 
+    function test_vaultZapper_fail_swapAndDeposit_zeroReceiver() public {
+        deal(user1, 100 ether);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        vm.startPrank(user1);
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        vaultZapper.swapAndDeposit{value: 100 ether}
+        (
+            address(simpleCSHMON),
+            false,
+            swapAction,
+            0,
+            false,
+            address(0)
+        );
+
+        vm.stopPrank();
+    }
+
     function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative_WithCollateral() public {
         // No swap in this test
         deal(user1, 100 ether);
