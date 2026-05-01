@@ -96,7 +96,8 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             revert CCTPBorrowZapper__InvalidSwapAction();
         }
 
-        _checkCCTPPreconditions(dstChainId, gasLimit);
+        (IWormholeRelayer crosschainRelayer, address deliveryProvider) =
+            _checkCCTPPreconditions(dstChainId, gasLimit);
 
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
@@ -109,7 +110,12 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
         // Bridge the fee token to `dstChainId` via Wormhole.
         _sendFeeToken(
-            dstChainId, IERC20(feeToken).balanceOf(address(this)) - balancePrior, gasLimit, destinationReceiver
+            dstChainId,
+            IERC20(feeToken).balanceOf(address(this)) - balancePrior,
+            gasLimit,
+            destinationReceiver,
+            crosschainRelayer,
+            deliveryProvider
         );
     }
 
@@ -123,7 +129,10 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     function setCCTPDeliveryProvider(uint256 dstChainId, address provider, bool isSupported) external {
         _checkElevatedPermissions();
 
-        if (!_chainConfig(dstChainId).isSupported || provider == address(0)) {
+        if (
+            provider == address(0) ||
+            (isSupported && !_chainConfig(dstChainId).isSupported)
+        ) {
             revert CCTPBorrowZapper__InvalidDeliveryProvider();
         }
 
@@ -147,14 +156,29 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param destinationReceiver Contract on the destination chain that
     ///                            finalizes the CCTP transfer.
-    function _sendFeeToken(uint256 dstChainId, uint256 amount, uint256 gasLimit, address destinationReceiver) internal {
+    function _sendFeeToken(
+        uint256 dstChainId,
+        uint256 amount,
+        uint256 gasLimit,
+        address destinationReceiver,
+        IWormholeRelayer crosschainRelayer,
+        address deliveryProvider
+    ) internal {
         ITokenMessenger tokenMessager = ITokenMessenger(centralRegistry.tokenMessager());
 
         if (
             address(tokenMessager) != address(0)
                 && tokenMessager.remoteTokenMessengers(_chainConfig(dstChainId).domain) != bytes32(0)
         ) {
-            _transferFeeTokenViaCCTP(tokenMessager, dstChainId, amount, gasLimit, destinationReceiver);
+            _transferFeeTokenViaCCTP(
+                tokenMessager,
+                dstChainId,
+                amount,
+                gasLimit,
+                destinationReceiver,
+                crosschainRelayer,
+                deliveryProvider
+            );
         } else {
             revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
@@ -173,9 +197,11 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         uint256 dstChainId,
         uint256 amount,
         uint256 gasLimit,
-        address destinationReceiver
+        address destinationReceiver,
+        IWormholeRelayer crosschainRelayer,
+        address deliveryProvider
     ) internal {
-        uint256 wormholeFee = _quoteMessageFee(dstChainId, gasLimit);
+        uint256 wormholeFee = _quoteMessageFee(crosschainRelayer, dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (msg.value < wormholeFee) {
@@ -206,7 +232,15 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             abi.encodePacked(centralRegistry.domain(), nonce)
         );
 
-        _sendWormholeDelivery(config.messagingChainId, wormholeFee, gasLimit, destinationReceiver, messageKeys);
+        _sendWormholeDelivery(
+            crosschainRelayer,
+            config.messagingChainId,
+            wormholeFee,
+            gasLimit,
+            destinationReceiver,
+            deliveryProvider,
+            messageKeys
+        );
 
         // Refund any remaining unused native token attached to transaction.
         uint256 remaining = msg.value - wormholeFee;
@@ -221,7 +255,20 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost.
     function _quoteMessageFee(uint256 dstChainId, uint256 gasLimit) internal view returns (uint256 nativeFee) {
-        (nativeFee,) = _crosschainRelayer()
+        nativeFee = _quoteMessageFee(_crosschainRelayer(), dstChainId, gasLimit);
+    }
+
+    /// @notice Quotes gas cost and token fee against `crosschainRelayer`.
+    /// @param crosschainRelayer Wormhole relayer contract to quote against.
+    /// @param dstChainId GETH destination chain ID.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @return nativeFee Total gas cost.
+    function _quoteMessageFee(
+        IWormholeRelayer crosschainRelayer,
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) internal view returns (uint256 nativeFee) {
+        (nativeFee,) = crosschainRelayer
             .quoteEVMDeliveryPrice(_chainConfig(dstChainId).messagingChainId, 0, _gasLimit(gasLimit));
 
         // Add cost of publishing the 'sending token' crosschain message.
@@ -234,15 +281,17 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param destinationReceiver Contract on the destination chain that
     ///                            finalizes the CCTP transfer.
+    /// @param deliveryProvider Checked Wormhole delivery provider.
     /// @param messageKeys CCTP message keys to deliver with the callback.
     function _sendWormholeDelivery(
+        IWormholeRelayer crosschainRelayer,
         uint16 messagingChainId,
         uint256 wormholeFee,
         uint256 gasLimit,
         address destinationReceiver,
+        address deliveryProvider,
         IWormholeRelayer.MessageKey[] memory messageKeys
     ) internal {
-        IWormholeRelayer crosschainRelayer = _crosschainRelayer();
         crosschainRelayer.sendToEvm{value: wormholeFee}(
             messagingChainId,
             destinationReceiver,
@@ -252,7 +301,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             _gasLimit(gasLimit),
             messagingChainId,
             destinationReceiver,
-            crosschainRelayer.getDefaultDeliveryProvider(),
+            deliveryProvider,
             messageKeys,
             15
         );
@@ -277,21 +326,27 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
     /// @dev Checks whether the current default delivery provider has been
     ///      approved for CCTP message-key delivery before debt is created.
-    function _checkCCTPDeliveryProvider(uint256 dstChainId) internal view {
+    function _checkCCTPDeliveryProvider(
+        uint256 dstChainId
+    ) internal view returns (IWormholeRelayer crosschainRelayer, address deliveryProvider) {
         address relayer = centralRegistry.crosschainRelayer();
         if (relayer == address(0)) {
             revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
 
-        address provider = IWormholeRelayer(relayer).getDefaultDeliveryProvider();
-        if (!isCCTPDeliveryProvider[dstChainId][provider]) {
+        crosschainRelayer = IWormholeRelayer(relayer);
+        deliveryProvider = crosschainRelayer.getDefaultDeliveryProvider();
+        if (!isCCTPDeliveryProvider[dstChainId][deliveryProvider]) {
             revert CCTPBorrowZapper__InvalidDeliveryProvider();
         }
     }
 
     /// @dev Validates all CCTP and Wormhole delivery preconditions before
     ///      debt is created.
-    function _checkCCTPPreconditions(uint256 dstChainId, uint256 gasLimit) internal view {
+    function _checkCCTPPreconditions(
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) internal view returns (IWormholeRelayer crosschainRelayer, address deliveryProvider) {
         ITokenMessenger tokenMessager = ITokenMessenger(centralRegistry.tokenMessager());
         if (
             address(tokenMessager) == address(0)
@@ -300,9 +355,9 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
 
-        _checkCCTPDeliveryProvider(dstChainId);
+        (crosschainRelayer, deliveryProvider) = _checkCCTPDeliveryProvider(dstChainId);
 
-        if (msg.value < _quoteMessageFee(dstChainId, gasLimit)) {
+        if (msg.value < _quoteMessageFee(crosschainRelayer, dstChainId, gasLimit)) {
             revert CCTPBorrowZapper__InsufficientGasToken();
         }
     }

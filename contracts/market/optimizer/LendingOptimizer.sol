@@ -1086,6 +1086,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             totalMarketAssets += marketAssets[i];
             if (marketAssets[i] > 0) lastNonZero = i;
         }
+        if (totalMarketAssets == 0) revert LendingOptimizer__ZeroAmount();
 
         // Split the deposit proportionally by current allocation.
         // No liquidity cap needed for deposits — last non-zero market
@@ -1270,7 +1271,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 // Check caller-specified bounds (BPS-based) if provided.
                 if (checkBounds) {
                     uint256 allocationBps = FixedPointMathLib.fullMulDiv(allocations[i], BPS, ta);
-                    if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
+                    if (allocationBps < bounds[i].minBps) {
+                        revert LendingOptimizer__AllocationOutOfBounds();
+                    }
+                    allocationBps = FixedPointMathLib.fullMulDivUp(allocations[i], BPS, ta);
+                    if (allocationBps > bounds[i].maxBps) {
                         revert LendingOptimizer__AllocationOutOfBounds();
                     }
                 }

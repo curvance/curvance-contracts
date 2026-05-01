@@ -237,6 +237,31 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         assertEq(abi.decode(relayer.lastPayload(), (address)), user1);
         assertEq(relayer.lastRefundChain(), 23);
         assertEq(relayer.lastRefundAddress(), destinationReceiver);
+        assertEq(relayer.lastDeliveryProvider(), relayer.getDefaultDeliveryProvider());
+    }
+
+    function test_borrowAndBridge_usesCheckedDeliveryProviderIfDefaultChangesDuringBurn() public {
+        MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
+        MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
+        address checkedProvider = makeAddr("checked provider");
+        address mutatedProvider = makeAddr("mutated provider");
+        relayer.setDefaultDeliveryProvider(checkedProvider);
+        tokenMessenger.setProviderMutation(relayer, mutatedProvider);
+        centralRegistry.setTokenMessager(address(tokenMessenger));
+        centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, checkedProvider, true);
+
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+
+        vm.startPrank(user1);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, swapAction, 42161, 0, destinationReceiver
+        );
+        vm.stopPrank();
+
+        assertEq(relayer.getDefaultDeliveryProvider(), mutatedProvider);
+        assertEq(relayer.lastDeliveryProvider(), checkedProvider);
     }
 
     function test_borrowAndBridge_doesNotBridgePreExistingFeeTokenResidue() public {
@@ -314,6 +339,28 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         assertEq(transmitter.receiveMessageCalls(), 0);
     }
 
+    function test_setCCTPDeliveryProvider_canRevokeAfterChainRemoval() public {
+        address provider = IWormholeRelayer(centralRegistry.crosschainRelayer())
+            .getDefaultDeliveryProvider();
+
+        assertTrue(CCTPZapper.isCCTPDeliveryProvider(42161, provider));
+
+        centralRegistry.removeChain(
+            42161,
+            address(messagingHub),
+            address(votingHub)
+        );
+
+        CCTPZapper.setCCTPDeliveryProvider(42161, provider, false);
+
+        assertFalse(CCTPZapper.isCCTPDeliveryProvider(42161, provider));
+
+        vm.expectRevert(
+            CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector
+        );
+        CCTPZapper.setCCTPDeliveryProvider(42161, provider, true);
+    }
+
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
@@ -334,6 +381,13 @@ contract MockTokenMessengerForCCTPBorrowZapper is ITokenMessenger {
     uint256 public lastAmount;
     bytes32 public lastMintRecipient;
     bytes32 public lastDestinationCaller;
+    MockWormholeRelayerForCCTPBorrowZapper public relayerToMutate;
+    address public providerAfterBurn;
+
+    function setProviderMutation(MockWormholeRelayerForCCTPBorrowZapper relayer, address provider) external {
+        relayerToMutate = relayer;
+        providerAfterBurn = provider;
+    }
 
     function depositForBurnWithCaller(uint256 amount, uint32, bytes32 mintRecipient, address, bytes32 destinationCaller)
         external
@@ -342,6 +396,9 @@ contract MockTokenMessengerForCCTPBorrowZapper is ITokenMessenger {
         lastAmount = amount;
         lastMintRecipient = mintRecipient;
         lastDestinationCaller = destinationCaller;
+        if (address(relayerToMutate) != address(0)) {
+            relayerToMutate.setDefaultDeliveryProvider(providerAfterBurn);
+        }
         return nextNonce;
     }
 
@@ -356,7 +413,9 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
     bytes public lastPayload;
     uint16 public lastRefundChain;
     address public lastRefundAddress;
+    address public lastDeliveryProvider;
     uint8 public lastMessageKeyType;
+    address public defaultDeliveryProvider = address(this);
 
     function sendToEvm(
         uint16 targetChain,
@@ -367,7 +426,7 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         uint256,
         uint16 refundChain,
         address refundAddress,
-        address,
+        address deliveryProvider,
         MessageKey[] memory messageKeys,
         uint8
     ) external payable returns (uint64 sequence) {
@@ -376,10 +435,15 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         lastPayload = payload;
         lastRefundChain = refundChain;
         lastRefundAddress = refundAddress;
+        lastDeliveryProvider = deliveryProvider;
         if (messageKeys.length > 0) {
             lastMessageKeyType = messageKeys[0].keyType;
         }
         return 456;
+    }
+
+    function setDefaultDeliveryProvider(address provider) external {
+        defaultDeliveryProvider = provider;
     }
 
     function deliverToLastTarget(bytes[] memory additionalVaas) public virtual {
@@ -422,7 +486,7 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
     }
 
     function getDefaultDeliveryProvider() external view returns (address) {
-        return address(this);
+        return defaultDeliveryProvider;
     }
 
     function quoteEVMDeliveryPrice(uint16, uint256, uint256)

@@ -233,7 +233,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     ///                    to `receiver` through repayment and/or direct
     ///                    transfer.
     /// @param receiver Address that should have outstanding debt repaid.
-    /// @return The amount of `debtAsset` that was returned to `receiver`.
+    /// @return The amount of `debtAsset` that was returned to caller.
     function _repayDebt(
         address borrowableCToken,
         address debtAsset,

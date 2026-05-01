@@ -39,6 +39,14 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return _accrueMarkets();
     }
 
+    /// @notice Exposes _calculateDepositProRata() for boundary tests.
+    function exposed_calculateDepositProRata(
+        uint256 assets,
+        bool conversionRoundtrip
+    ) external view returns (uint256[] memory) {
+        return _calculateDepositProRata(assets, conversionRoundtrip);
+    }
+
     /// @notice Returns shares using the original ERC4626 previewDeposit
     ///         (without the -2 adjustment) for comparison testing.
     function oldPreviewDeposit(uint256 assets) external view returns (uint256) {

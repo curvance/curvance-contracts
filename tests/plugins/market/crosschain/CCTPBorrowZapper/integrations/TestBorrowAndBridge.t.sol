@@ -8,6 +8,7 @@ import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {ChainConfig} from "contracts/interfaces/ICentralRegistry.sol";
+import {IWormholeRelayer} from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 
 import {IUniswapV3Router} from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
@@ -82,6 +83,11 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         // Support chainId 42161.
         centralRegistry.addChain(42161, config);
+        CCTPZapper.setCCTPDeliveryProvider(
+            42161,
+            IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider(),
+            true
+        );
     }
 
     function testETokenBorrowAndBridge() public {

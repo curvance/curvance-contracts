@@ -53,40 +53,6 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
             minOutAmount = tokenInfo.outputMin;
-        } else if (funcSigHash == IOBRouter.swapERC20Permit.selector) {
-            (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapAction.call),
-                (
-                    IOBRouter.erc20PermitInfo,
-                    IOBRouter.swapTokenInfo,
-                    bytes,
-                    address,
-                    uint32
-                )
-            );
-
-            recipient = tokenInfo.outputReceiver;
-            inputToken = tokenInfo.inputToken;
-            inputAmount = tokenInfo.inputAmount;
-            outputToken = tokenInfo.outputToken;
-            minOutAmount = tokenInfo.outputMin;
-        } else if (funcSigHash == IOBRouter.swapPermit2.selector) {
-            (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapAction.call),
-                (
-                    IOBRouter.permit2Info,
-                    IOBRouter.swapTokenInfo,
-                    bytes,
-                    address,
-                    uint32
-                )
-            );
-
-            recipient = tokenInfo.outputReceiver;
-            inputToken = tokenInfo.inputToken;
-            inputAmount = tokenInfo.inputAmount;
-            outputToken = tokenInfo.outputToken;
-            minOutAmount = tokenInfo.outputMin;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

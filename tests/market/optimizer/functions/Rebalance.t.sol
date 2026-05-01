@@ -19,6 +19,89 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         _setUpThreeMarkets();
     }
 
+    function test_lendingOptimizer_rebalance_fail_whenMaxBoundExceededByRoundingDust() public {
+        LendingOptimizerHarness localOptimizer = _deployTwoMarketOptimizer();
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(localOptimizer), initAssets);
+        localOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        _depositToLocalMarket(localOptimizer, 10_001e6, cUSDC_WMON_MARKET);
+        _depositToLocalMarket(localOptimizer, 20_000e6, cUSDC_WBTC_MARKET);
+
+        uint256 market0Assets = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(localOptimizer))
+        );
+        uint256 market1Assets = IBorrowableCToken(cUSDC_WBTC_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(localOptimizer))
+        );
+        uint256 totalAssets = market0Assets + market1Assets;
+        uint256 floorBps = (market0Assets * BPS) / totalAssets;
+        uint256 ceilBps = (market0Assets * BPS + totalAssets - 1) / totalAssets;
+        assertGt(ceilBps, floorBps, "test setup must create fractional bps allocation");
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WMON_MARKET), int256(0));
+        actions[1] = LendingOptimizer.ReallocationAction(IBorrowableCToken(cUSDC_WBTC_MARKET), int256(0));
+
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound({
+            cToken: cUSDC_WMON_MARKET,
+            minBps: 0,
+            maxBps: floorBps
+        });
+        bounds[1] = LendingOptimizer.AllocationBound({
+            cToken: cUSDC_WBTC_MARKET,
+            minBps: 0,
+            maxBps: BPS
+        });
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationOutOfBounds.selector);
+        localOptimizer.rebalance(actions, bounds);
+    }
+
+    function test_lendingOptimizer_calculateDepositProRata_revertsWhenAllMarketWeightsAreZero() public {
+        LendingOptimizerHarness localOptimizer = _deployTwoMarketOptimizer();
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__ZeroAmount.selector);
+        localOptimizer.exposed_calculateDepositProRata(1e6, false);
+    }
+
+    function _deployTwoMarketOptimizer() internal returns (LendingOptimizerHarness localOptimizer) {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](2);
+        allocationCapsBps[0] = BPS;
+        allocationCapsBps[1] = BPS;
+
+        localOptimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+    }
+
+    function _depositToLocalMarket(
+        LendingOptimizerHarness localOptimizer,
+        uint256 assets,
+        address market
+    ) internal {
+        deal(USDC_MONAD, address(this), assets);
+        IERC20(USDC_MONAD).approve(address(localOptimizer), assets);
+        localOptimizer.depositToMarket(assets, address(this), market);
+    }
+
     function test_lendingOptimizer_rebalance_success() public {
         // Deposit to all markets equally to create an imbalance in the allocation caps.
         // After this: each market has ~10,000e6 USDC (33% each).

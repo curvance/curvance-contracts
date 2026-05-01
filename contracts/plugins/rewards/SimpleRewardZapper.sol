@@ -173,7 +173,7 @@ contract SimpleRewardZapper is BaseZapper {
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         outstanding debt inside Curvance.
-    /// @dev Sends any excess debt token to `receiver`. Only needs to
+    /// @dev Sends any excess debt token to caller. Only needs to
     ///      swap if `rewardToken` != `borrowableCToken` asset.
     /// @param swapAction Optional instructions for executing a swap into debt
     ///                   asset.
@@ -192,7 +192,7 @@ contract SimpleRewardZapper is BaseZapper {
     ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
-    ///                   `receiver`.
+    ///                   caller.
     function claimSwapAndRepay(
         SwapperLib.Swap memory swapAction,
         address borrowableCToken,
