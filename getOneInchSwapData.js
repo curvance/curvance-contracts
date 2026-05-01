@@ -1,11 +1,17 @@
 // Doc Link: https://portal.1inch.dev/documentation/apis/swap/classic-swap/swagger?method=get&path=%2Fv6.0%2F1%2Fswap
 // Test success: node getOneInchSwapData.js 1 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 0x6b175474e89094c44da98b954eedeac495271d0f 10 0xe2165a834F93C39483123Ac31533780b9c679ed4 5
 // Test fail: node getOneInchSwapData.js 1 0x6b175474e89094c44da98b954eedeac495271d0f 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 10 0xe2165a834F93C39483123Ac31533780b9c679ed4 5
-const { appendFileSync } = require("fs");
 const { performance } = require("perf_hooks");
+const {
+  failFfi,
+  getJsonWithRetry,
+  logFfi,
+  writeFfiResult,
+} = require("./ffiHelpers");
 
 // Pulled this API Key from their example docs -- so not sure how long it will stay active.
 const API_KEY = "EHFRkJfBH4tEXkGJXkLMxYU9sqYVYyQB";
+const LOG_PATH = "./OneInch.log.txt";
 
 main().catch(err => {
   console.error(err);
@@ -27,13 +33,13 @@ async function main() {
 
   try {
     const oneInchUrl = url.toString() + '?' + params.toString();
-    console.log(oneInchUrl);
-    const call = await fetch(oneInchUrl, {
-      headers: {
+    const results = await getJsonWithRetry(
+      oneInchUrl,
+      {
         "Authorization": `Bearer ${API_KEY}`,
-      }
-    });
-    const results = await call.json();
+      },
+      { label: "1inch swap" }
+    );
 
     if ("error" in results) {
       exit(3, `Error (${results.error}): ` + results.description);
@@ -41,17 +47,18 @@ async function main() {
 
     // Return value to contract
     log("Results", JSON.stringify(results, null, 2));
-    process.stdout.write(results.tx.data);
+    writeFfiResult(results.tx.data);
   } catch (e) {
     console.error(e);
-    log(3, e);
+    log("Failed", e.stack || e.message || String(e));
+    exit(1, "Failed: " + (e.message || String(e)));
   }
 
   const endTime = performance.now();
   log(`--- End, Ran in: ${endTime - startTime}ms ---`);
 
 
-  process.exit(0);
+  process.exitCode = 0;
 }
 
 function loadArgs() {
@@ -67,8 +74,6 @@ function loadArgs() {
   const amount = args[3];
   const swapperAddress = args[4];
   const slippage = args[5];
-
-  console.log(amount);
 
   if (!chainId || !Number.isInteger(parseInt(chainId))) {
     exit(2, "Arg 0: chainId is not a valid number");
@@ -98,16 +103,9 @@ function loadArgs() {
 }
 
 function exit(code, message) {
-  process.stderr.write(message);
-  appendFileSync("./OneInch.log.txt", `***Exited (${code}) with message:***\n ${message}\n`);
-  process.exit(code);
+  failFfi(code, message, LOG_PATH);
 };
 
 function log(message, data = null) {
-  console.log(message, data);
-  if (data) {
-    appendFileSync("./OneInch.log.txt", `${message}:\n ${data}\n\n`);
-  } else {
-    appendFileSync("./OneInch.log.txt", `${message}\n\n`);
-  }
+  logFfi(LOG_PATH, message, data);
 }

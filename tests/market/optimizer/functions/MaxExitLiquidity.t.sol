@@ -21,7 +21,7 @@ contract TestLendingOptimizerMaxExitLiquidity is TestBaseLendingOptimizer {
         );
     }
 
-    function test_lendingOptimizer_maxExitViews_reportCachedAssetsWhenMarketsAreIlliquid() public {
+    function test_lendingOptimizer_maxExitViews_canOverreportCurrentMarketLiquidity() public {
         _deployThreeMarketHarness();
 
         _depositToHarness(user1, 30_000e6);
@@ -34,16 +34,8 @@ contract TestLendingOptimizerMaxExitLiquidity is TestBaseLendingOptimizer {
 
         _mockAllMarketsIlliquid();
 
-        assertEq(
-            harness.maxWithdraw(user1),
-            reportedMaxWithdraw,
-            "maxWithdraw ignores current market liquidity"
-        );
-        assertEq(
-            harness.maxRedeem(user1),
-            reportedMaxRedeem,
-            "maxRedeem ignores current market liquidity"
-        );
+        assertEq(harness.maxWithdraw(user1), reportedMaxWithdraw, "maxWithdraw is share-value based");
+        assertEq(harness.maxRedeem(user1), reportedMaxRedeem, "maxRedeem is share-balance based");
 
         vm.startPrank(user1);
         vm.expectRevert();

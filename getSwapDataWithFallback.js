@@ -1,5 +1,13 @@
-const { appendFileSync } = require("fs");
 const { AbiCoder, keccak256, toUtf8Bytes } = require("ethers");
+const {
+    failFfi,
+    getJsonWithRetry,
+    postJsonWithRetry,
+    sleep,
+    writeFfiResult,
+} = require("./ffiHelpers");
+
+const LOG_PATH = "./KyberSwap.log.txt";
 
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const KURU_ROUTER = "0xb3e6778480b2E488385E8205eA05E20060B813cb";
@@ -127,8 +135,7 @@ async function main() {
         [selectedCalldata, aggregatorCode]
     );
 
-    process.stdout.write(encoded);
-    process.exit(0);
+    writeFfiResult(encoded);
 }
 
 async function getKyberCalldata(
@@ -152,26 +159,14 @@ async function getKyberCalldata(
         onlySinglePath: "true",
     });
 
-    let response = await fetch(`${routesUrl}?${routeParams.toString()}`, {
-        method: "GET",
-        headers: {
+    const routesJson = await getJsonWithRetry(
+        `${routesUrl}?${routeParams.toString()}`,
+        {
             Accept: "application/json",
             "X-Client-Id": "CurvanceProtocol",
         },
-    });
-
-    if (!response.ok) {
-        const body = await response.json();
-        const requestId =
-            body.requestId ||
-            body.requestID ||
-            (body.data && (body.data.requestId || body.data.requestID));
-        throw new Error(
-            `Error in Kyber routes: ${response.status} ${response.statusText} (requestId=${requestId})`
-        );
-    }
-
-    const routesJson = await response.json();
+        { label: "Kyber routes" }
+    );
     const routeData = routesJson && routesJson.data;
     if (!routeData || !routeData.routeSummary) {
         throw new Error("Kyber routes response missing data.routeSummary");
@@ -190,28 +185,15 @@ async function getKyberCalldata(
         deadline: Math.floor(Date.now() / 1000) + 60 * 60,
     };
 
-    response = await fetch(buildUrl, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
+    const buildJson = await postJsonWithRetry(
+        buildUrl,
+        buildBody,
+        {
             Accept: "application/json",
             "X-Client-Id": "CurvanceProtocol",
         },
-        body: JSON.stringify(buildBody),
-    });
-
-    if (!response.ok) {
-        const body = await response.json();
-        const requestId =
-            body.requestId ||
-            body.requestID ||
-            (body.data && (body.data.requestId || body.data.requestID));
-        throw new Error(
-            `Error in Kyber build: ${response.status} ${response.statusText} (requestId=${requestId})`
-        );
-    }
-
-    const buildJson = await response.json();
+        { label: "Kyber build" }
+    );
     const buildData = buildJson && buildJson.data;
     if (!buildData) {
         throw new Error("Kyber build response missing data field");
@@ -234,22 +216,12 @@ async function getKuruCalldata(wallet, tokenIn, tokenOut, amount, daoAddress) {
     const api = process.env.KURU_API_BASE || "https://ws.kuru.io/api";
 
     async function getJwt(addr) {
-        const resp = await fetch(`${api}/generate-token`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                user_address: addr,
-            }),
-            keepalive: true,
-        });
-
-        if (!resp.ok) {
-            throw new Error(`Failed to fetch JWT: ${resp.status} ${resp.statusText}`);
-        }
-
-        const data = await resp.json();
+        const data = await postJsonWithRetry(
+            `${api}/generate-token`,
+            { user_address: addr },
+            {},
+            { label: "Kuru JWT" }
+        );
         return data.token;
     }
 
@@ -265,27 +237,18 @@ async function getKuruCalldata(wallet, tokenIn, tokenOut, amount, daoAddress) {
             referrerFeeBps: 10,
         };
 
-        const resp = await fetch(`${api}/quote`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${jwt}`,
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) {
-            throw new Error(`Failed to fetch Kuru quote: ${resp.status} ${resp.statusText}`);
-        }
-
-        const data = await resp.json();
-        return data;
+        return postJsonWithRetry(
+            `${api}/quote`,
+            payload,
+            { Authorization: `Bearer ${jwt}` },
+            { label: "Kuru quote" }
+        );
     }
 
     const response = await quote(wallet, tokenIn, tokenOut, amount, daoAddress);
 
     // Small delay to avoid rate limiting when tests hammer the API
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await sleep(1000);
 
     const calldata =
         response &&
@@ -349,14 +312,5 @@ function loadArgs() {
 }
 
 function exit(code, message) {
-    if (message) {
-        process.stderr.write(String(message));
-        appendFileSync(
-            "./KyberSwap.log.txt",
-            `***Exited (${code}) with message:***\n ${message}\n`
-        );
-    }
-    process.exit(code);
+    failFfi(code, message, LOG_PATH);
 }
-
-

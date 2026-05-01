@@ -1,4 +1,4 @@
-const { appendFileSync } = require("fs");
+const { failFfi, writeFfiResult } = require("./ffiHelpers");
 const {
   DataPackage,
   NumericDataPoint,
@@ -8,9 +8,7 @@ const {
 const args = process.argv.slice(2);
 
 const exit = (code, message) => {
-  process.stderr.write(message);
-  appendFileSync("./getRedstonePayload.log.txt", message);
-  process.exit(code);
+  failFfi(code, message, "./getRedstonePayload.log.txt");
 };
 
 if (args.length === 0) {
@@ -75,5 +73,4 @@ for (let i = 0; i < privateKeysLength; i++) {
 
 const payload = RedstonePayload.prepare(signedDataPackages, "");
 
-process.stdout.write("0x" + payload);
-process.exit(0);
+writeFfiResult("0x" + payload);

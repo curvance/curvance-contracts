@@ -25,6 +25,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      support, enabling users to deposit a single asset and have it
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
+///      Preview methods are estimates, not exact settlement guarantees:
+///      state-changing entrypoints accrue underlying markets before routing,
+///      so preview values can differ from actual results.
 ///
 ///      Deposits and withdrawals are routed pro-rata across approved
 ///      markets to maintain current allocation percentages. Only

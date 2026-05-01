@@ -8,7 +8,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { TestVelodromeZapper } from "tests/plugins/market/velodromeZapper/integrations/TestVelodromeZapper.t.sol";
 
-contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
+contract TestVelodromeZeroSwapExitAccounting is TestVelodromeZapper {
     struct ExitObservation {
         uint256 outAmount;
         uint256 receiverWethDelta;
@@ -18,7 +18,7 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
         uint256 receiverLpAfter;
     }
 
-    function test_tc006_exitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
+    function test_exitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
         public
     {
         deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
@@ -27,17 +27,17 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
             IERC20(_VELODROME_WETH_USDC).balanceOf(user1)
         );
 
-        _assertZeroSwapRefundAccounting(observation, "tc006:direct-exit");
+        _assertZeroSwapRefundAccounting(observation, "velodrome-zero-swap:direct-exit");
     }
 
-    function test_tc006_redeemAndExitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
+    function test_redeemAndExitVelodrome_zeroSwapRefundsSiblingLegToReceiver()
         public
     {
         _seedVelodromeCTokenPosition();
 
         ExitObservation memory observation = _runRedeemZeroSwapExit();
 
-        _assertZeroSwapRefundAccounting(observation, "tc006:redeem-exit");
+        _assertZeroSwapRefundAccounting(observation, "velodrome-zero-swap:redeem-exit");
     }
 
     function _runDirectZeroSwapExit(
@@ -150,7 +150,7 @@ contract TC006VelodromeZeroSwapExitAccountingPoC is TestVelodromeZapper {
             0.00006 ether,
             0.01 ether
         );
-        assertEq(user1.balance, 0, "tc006:expected-entered-position");
+        assertEq(user1.balance, 0, "velodrome-zero-swap:expected-entered-position");
     }
 
     function _assertZeroSwapRefundAccounting(
