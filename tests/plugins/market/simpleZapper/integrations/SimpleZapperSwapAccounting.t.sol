@@ -10,7 +10,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
+contract TestSimpleZapperSwapAccounting is TestBaseMarketIsolated {
     uint256 internal constant INPUT_ETH_AMOUNT = 3 ether;
     uint256 internal constant MIN_BORROW_PROBE = 100 ether;
     uint256 internal constant MAX_BORROW_PROBE = 2_000 ether;
@@ -70,7 +70,7 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         _setCTokenConfigHighValues(address(simpleCUSDC), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
-        address liquidityProvider = makeAddr("tc004LiquidityProvider");
+        address liquidityProvider = makeAddr("simpleZapperLiquidityProvider");
         _prepareDAI(liquidityProvider, 1_000 ether);
         _prepareUSDC(liquidityProvider, 100e6);
 
@@ -82,12 +82,12 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_tc004_simpleZapper_swapIngressAndRealizedOutputDirectBaselineReachEquivalentMarketState() public {
+    function test_simpleZapper_swapIngressAndRealizedOutputDirectBaselineReachEquivalentMarketState() public {
         uint256 baselineSnapshot = vm.snapshotState();
 
         BranchState memory swapBranch = _runSwapIngressBranch(INPUT_ETH_AMOUNT);
 
-        assertTrue(vm.revertToState(baselineSnapshot), "tc004:failed-to-revert-swap-branch");
+        assertTrue(vm.revertToState(baselineSnapshot), "simple-zapper:failed-to-revert-swap-branch");
 
         // Replay direct entry with the realized swap output so the comparison
         // isolates zapper/accounting behavior rather than router price movement.
@@ -102,7 +102,7 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         );
     }
 
-    function test_tc004_simpleZapper_unknownSwapTargetRevertsBeforeMarketMutation() public {
+    function test_simpleZapper_unknownSwapTargetRevertsBeforeMarketMutation() public {
         BranchState memory beforeState = _captureStaticState();
         vm.deal(user1, INPUT_ETH_AMOUNT);
         uint256 userEthBefore = user1.balance;
@@ -131,12 +131,12 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
 
         BranchState memory afterState = _captureStaticState();
 
-        assertEq(afterState.cTokenBalance, beforeState.cTokenBalance, "tc004:revert-ctoken-balance-drift");
-        assertEq(afterState.collateralPosted, beforeState.collateralPosted, "tc004:revert-collateral-drift");
-        assertEq(afterState.marketCollateralPosted, beforeState.marketCollateralPosted, "tc004:revert-market-collateral-drift");
-        assertEq(afterState.cTokenTotalAssets, beforeState.cTokenTotalAssets, "tc004:revert-total-assets-drift");
-        assertEq(afterState.debtBalance, beforeState.debtBalance, "tc004:revert-debt-drift");
-        assertEq(user1.balance, userEthBefore, "tc004:revert-user-eth-drift");
+        assertEq(afterState.cTokenBalance, beforeState.cTokenBalance, "simple-zapper:revert-ctoken-balance-drift");
+        assertEq(afterState.collateralPosted, beforeState.collateralPosted, "simple-zapper:revert-collateral-drift");
+        assertEq(afterState.marketCollateralPosted, beforeState.marketCollateralPosted, "simple-zapper:revert-market-collateral-drift");
+        assertEq(afterState.cTokenTotalAssets, beforeState.cTokenTotalAssets, "simple-zapper:revert-total-assets-drift");
+        assertEq(afterState.debtBalance, beforeState.debtBalance, "simple-zapper:revert-debt-drift");
+        assertEq(user1.balance, userEthBefore, "simple-zapper:revert-user-eth-drift");
     }
 
     function _runSwapIngressBranch(
@@ -161,7 +161,7 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         vm.stopPrank();
 
         uint256 deliveredAssets = simpleCUSDC.totalAssets() - totalAssetsBefore;
-        assertGt(deliveredAssets, 0, "tc004:missing-swap-output");
+        assertGt(deliveredAssets, 0, "simple-zapper:missing-swap-output");
 
         branch = _completeAccountingBranch(deliveredAssets, cTokenShares);
     }
@@ -196,12 +196,12 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         branch.marketCollateralPosted = simpleCUSDC.marketCollateralPosted();
         branch.cTokenTotalAssets = simpleCUSDC.totalAssets();
 
-        assertGt(branch.cTokenSharesReceived, 0, "tc004:missing-ctoken-shares");
-        assertEq(branch.cTokenBalance, branch.cTokenSharesReceived, "tc004:unexpected-ctoken-balance");
-        assertEq(branch.collateralPosted, branch.cTokenBalance, "tc004:unexpected-collateral-posted");
+        assertGt(branch.cTokenSharesReceived, 0, "simple-zapper:missing-ctoken-shares");
+        assertEq(branch.cTokenBalance, branch.cTokenSharesReceived, "simple-zapper:unexpected-ctoken-balance");
+        assertEq(branch.collateralPosted, branch.cTokenBalance, "simple-zapper:unexpected-collateral-posted");
 
         branch.maxBorrowCapacity = _maxBorrowCapacity();
-        assertGe(branch.maxBorrowCapacity, MIN_BORROW_PROBE, "tc004:insufficient-borrow-capacity");
+        assertGe(branch.maxBorrowCapacity, MIN_BORROW_PROBE, "simple-zapper:insufficient-borrow-capacity");
 
         branch.borrowAmount = branch.maxBorrowCapacity / 2;
 
@@ -340,82 +340,82 @@ contract TC004SimpleZapperSwapAccountingPoC is TestBaseMarketIsolated {
         assertEq(
             actualBranch.collateralAssetsDelivered,
             expectedBranch.collateralAssetsDelivered,
-            string.concat("tc004:", branchLabel, ":collateral-assets-delivered")
+            string.concat("simple-zapper:", branchLabel, ":collateral-assets-delivered")
         );
         assertEq(
             actualBranch.cTokenSharesReceived,
             expectedBranch.cTokenSharesReceived,
-            string.concat("tc004:", branchLabel, ":ctoken-shares")
+            string.concat("simple-zapper:", branchLabel, ":ctoken-shares")
         );
         assertEq(
             actualBranch.cTokenBalance,
             expectedBranch.cTokenBalance,
-            string.concat("tc004:", branchLabel, ":ctoken-balance")
+            string.concat("simple-zapper:", branchLabel, ":ctoken-balance")
         );
         assertEq(
             actualBranch.collateralPosted,
             expectedBranch.collateralPosted,
-            string.concat("tc004:", branchLabel, ":collateral-posted")
+            string.concat("simple-zapper:", branchLabel, ":collateral-posted")
         );
         assertEq(
             actualBranch.marketCollateralPosted,
             expectedBranch.marketCollateralPosted,
-            string.concat("tc004:", branchLabel, ":market-collateral-posted")
+            string.concat("simple-zapper:", branchLabel, ":market-collateral-posted")
         );
         assertEq(
             actualBranch.cTokenTotalAssets,
             expectedBranch.cTokenTotalAssets,
-            string.concat("tc004:", branchLabel, ":ctoken-total-assets")
+            string.concat("simple-zapper:", branchLabel, ":ctoken-total-assets")
         );
         assertEq(
             actualBranch.maxBorrowCapacity,
             expectedBranch.maxBorrowCapacity,
-            string.concat("tc004:", branchLabel, ":max-borrow-capacity")
+            string.concat("simple-zapper:", branchLabel, ":max-borrow-capacity")
         );
         assertEq(
             actualBranch.borrowAmount,
             expectedBranch.borrowAmount,
-            string.concat("tc004:", branchLabel, ":borrow-amount")
+            string.concat("simple-zapper:", branchLabel, ":borrow-amount")
         );
         assertEq(
             actualBranch.debtBalance,
             expectedBranch.debtBalance,
-            string.concat("tc004:", branchLabel, ":debt-balance")
+            string.concat("simple-zapper:", branchLabel, ":debt-balance")
         );
         assertEq(
             actualBranch.liquidationProbe.liquidationAvailable,
             expectedBranch.liquidationProbe.liquidationAvailable,
-            string.concat("tc004:", branchLabel, ":liquidation-availability")
+            string.concat("simple-zapper:", branchLabel, ":liquidation-availability")
         );
         assertEq(
             actualBranch.liquidationProbe.debtAmountResolved,
             expectedBranch.liquidationProbe.debtAmountResolved,
-            string.concat("tc004:", branchLabel, ":probe-debt-resolved")
+            string.concat("simple-zapper:", branchLabel, ":probe-debt-resolved")
         );
         assertEq(
             actualBranch.liquidationProbe.collateralPosted,
             expectedBranch.liquidationProbe.collateralPosted,
-            string.concat("tc004:", branchLabel, ":probe-collateral")
+            string.concat("simple-zapper:", branchLabel, ":probe-collateral")
         );
         assertEq(
             actualBranch.liquidationProbe.debtBalance,
             expectedBranch.liquidationProbe.debtBalance,
-            string.concat("tc004:", branchLabel, ":probe-debt-balance")
+            string.concat("simple-zapper:", branchLabel, ":probe-debt-balance")
         );
         assertEq(
             actualBranch.liquidationProbe.liquidatedShares,
             expectedBranch.liquidationProbe.liquidatedShares,
-            string.concat("tc004:", branchLabel, ":probe-liquidated-shares")
+            string.concat("simple-zapper:", branchLabel, ":probe-liquidated-shares")
         );
         assertEq(
             actualBranch.liquidationProbe.debtRepaid,
             expectedBranch.liquidationProbe.debtRepaid,
-            string.concat("tc004:", branchLabel, ":probe-debt-repaid")
+            string.concat("simple-zapper:", branchLabel, ":probe-debt-repaid")
         );
         assertEq(
             actualBranch.liquidationProbe.badDebtRealized,
             expectedBranch.liquidationProbe.badDebtRealized,
-            string.concat("tc004:", branchLabel, ":probe-bad-debt")
+            string.concat("simple-zapper:", branchLabel, ":probe-bad-debt")
         );
     }
 }

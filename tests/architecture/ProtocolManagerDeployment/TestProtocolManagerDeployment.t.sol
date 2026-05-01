@@ -627,6 +627,74 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
+    function test_revokeUnpause_ownerClearsAllowance() public {
+        _deployMarketViaManager();
+
+        deploymentManager.revokeUnpause(address(marketManagerIsolated));
+
+        assertFalse(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should be revoked"
+        );
+    }
+
+    function test_revokeUnpause_marketPermissionsClearsStaleAllowance()
+        public
+    {
+        _deployMarketViaManager();
+
+        address marketAdmin = address(0xCAFE);
+        centralRegistry.addMarketPermissions(marketAdmin);
+
+        vm.startPrank(marketAdmin);
+        marketManagerIsolated.setMintPaused(address(borrowableCWMON), false);
+        marketManagerIsolated.setMintPaused(
+            address(borrowableCUSDC_MONAD),
+            false
+        );
+        deploymentManager.revokeUnpause(address(marketManagerIsolated));
+        vm.stopPrank();
+
+        assertFalse(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should be revoked by market permissions"
+        );
+
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__NoPendingUnpause
+                .selector
+        );
+        deploymentManager.unpauseMarket(address(marketManagerIsolated));
+    }
+
+    function test_revokeUnpause_revertsUnauthorized() public {
+        _deployMarketViaManager();
+
+        address unauthorized = address(0xdead);
+        vm.prank(unauthorized);
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__Unauthorized
+                .selector
+        );
+        deploymentManager.revokeUnpause(address(marketManagerIsolated));
+
+        assertTrue(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should remain after unauthorized revoke"
+        );
+    }
+
+    function test_revokeUnpause_succeedsWithoutPendingAllowance() public {
+        deploymentManager.revokeUnpause(address(marketManagerIsolated));
+
+        assertFalse(
+            deploymentManager.pendingUnpause(address(marketManagerIsolated)),
+            "pendingUnpause should remain false"
+        );
+    }
+
     function test_unpauseMarket_success() public {
         _deployMarketViaManager();
 

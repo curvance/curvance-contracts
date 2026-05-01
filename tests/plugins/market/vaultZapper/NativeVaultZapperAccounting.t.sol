@@ -14,7 +14,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
+contract TestNativeVaultZapperAccounting is TestBaseMarketIsolated {
     uint256 internal constant INPUT_AMOUNT = 100 ether;
     uint256 internal constant MIN_BORROW_PROBE = 50e6;
     uint256 internal constant MAX_BORROW_PROBE = 50_000e6;
@@ -130,7 +130,7 @@ contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(simpleCSHMON), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e18);
 
-        address liquidityProvider = makeAddr("tc003LiquidityProvider");
+        address liquidityProvider = makeAddr("nativeVaultZapperLiquidityProvider");
         _prepareUSDC(liquidityProvider, 1_000_000e6);
 
         vm.startPrank(liquidityProvider);
@@ -139,31 +139,31 @@ contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_tc003_nativeVaultZapper_directNativeAndNativeNoSwapReachEquivalentMarketState() public {
+    function test_nativeVaultZapper_directNativeAndNativeNoSwapReachEquivalentMarketState() public {
         uint256 baselineSnapshot = vm.snapshotState();
 
         BranchState memory directBranch = _runDirectNativeBranch(INPUT_AMOUNT);
 
-        assertTrue(vm.revertToState(baselineSnapshot), "tc003:failed-to-revert-direct-baseline");
+        assertTrue(vm.revertToState(baselineSnapshot), "native-vault-zapper:failed-to-revert-direct-baseline");
 
         BranchState memory nativeZapperBranch = _runNativeVaultNoSwapBranch(INPUT_AMOUNT, false);
 
         _assertEquivalentBranchState(directBranch, nativeZapperBranch, "native-no-swap");
     }
 
-    function test_tc003_nativeVaultZapper_directNativeAndWrappedNativeNoSwapReachEquivalentMarketState() public {
+    function test_nativeVaultZapper_directNativeAndWrappedNativeNoSwapReachEquivalentMarketState() public {
         uint256 baselineSnapshot = vm.snapshotState();
 
         BranchState memory directBranch = _runDirectNativeBranch(INPUT_AMOUNT);
 
-        assertTrue(vm.revertToState(baselineSnapshot), "tc003:failed-to-revert-direct-baseline");
+        assertTrue(vm.revertToState(baselineSnapshot), "native-vault-zapper:failed-to-revert-direct-baseline");
 
         BranchState memory wrappedNativeBranch = _runNativeVaultNoSwapBranch(INPUT_AMOUNT, true);
 
         _assertEquivalentBranchState(directBranch, wrappedNativeBranch, "wrapped-native-no-swap");
     }
 
-    function test_tc003_nativeVaultZapper_nonNativeOutputRevertsBeforeMarketMutation() public {
+    function test_nativeVaultZapper_nonNativeOutputRevertsBeforeMarketMutation() public {
         deal(user1, INPUT_AMOUNT);
         BranchState memory beforeState = _captureStaticState();
         uint256 userEthBefore = user1.balance;
@@ -191,12 +191,12 @@ contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
 
         BranchState memory afterState = _captureStaticState();
 
-        assertEq(afterState.cTokenBalance, beforeState.cTokenBalance, "tc003:revert-ctoken-balance-drift");
-        assertEq(afterState.collateralPosted, beforeState.collateralPosted, "tc003:revert-collateral-drift");
-        assertEq(afterState.marketCollateralPosted, beforeState.marketCollateralPosted, "tc003:revert-market-collateral-drift");
-        assertEq(afterState.cTokenTotalAssets, beforeState.cTokenTotalAssets, "tc003:revert-total-assets-drift");
-        assertEq(afterState.debtBalance, beforeState.debtBalance, "tc003:revert-debt-drift");
-        assertEq(user1.balance, userEthBefore, "tc003:revert-user-eth-drift");
+        assertEq(afterState.cTokenBalance, beforeState.cTokenBalance, "native-vault-zapper:revert-ctoken-balance-drift");
+        assertEq(afterState.collateralPosted, beforeState.collateralPosted, "native-vault-zapper:revert-collateral-drift");
+        assertEq(afterState.marketCollateralPosted, beforeState.marketCollateralPosted, "native-vault-zapper:revert-market-collateral-drift");
+        assertEq(afterState.cTokenTotalAssets, beforeState.cTokenTotalAssets, "native-vault-zapper:revert-total-assets-drift");
+        assertEq(afterState.debtBalance, beforeState.debtBalance, "native-vault-zapper:revert-debt-drift");
+        assertEq(user1.balance, userEthBefore, "native-vault-zapper:revert-user-eth-drift");
     }
 
     function _runDirectNativeBranch(uint256 nativeAmount) internal returns (BranchState memory branch) {
@@ -272,12 +272,12 @@ contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
         branch.marketCollateralPosted = simpleCSHMON.marketCollateralPosted();
         branch.cTokenTotalAssets = simpleCSHMON.totalAssets();
 
-        assertGt(branch.cTokenSharesReceived, 0, "tc003:missing-ctoken-shares");
-        assertEq(branch.cTokenBalance, branch.cTokenSharesReceived, "tc003:unexpected-ctoken-balance");
-        assertEq(branch.collateralPosted, branch.cTokenBalance, "tc003:unexpected-collateral-posted");
+        assertGt(branch.cTokenSharesReceived, 0, "native-vault-zapper:missing-ctoken-shares");
+        assertEq(branch.cTokenBalance, branch.cTokenSharesReceived, "native-vault-zapper:unexpected-ctoken-balance");
+        assertEq(branch.collateralPosted, branch.cTokenBalance, "native-vault-zapper:unexpected-collateral-posted");
 
         branch.maxBorrowCapacity = _maxBorrowCapacity();
-        assertGe(branch.maxBorrowCapacity, MIN_BORROW_PROBE, "tc003:insufficient-borrow-capacity");
+        assertGe(branch.maxBorrowCapacity, MIN_BORROW_PROBE, "native-vault-zapper:insufficient-borrow-capacity");
 
         branch.borrowAmount = branch.maxBorrowCapacity / 2;
         vm.prank(address(borrowableCUSDC));
@@ -378,25 +378,25 @@ contract TC003NativeVaultZapperAccountingPoC is TestBaseMarketIsolated {
         BranchState memory actualBranch,
         string memory branchLabel
     ) internal pure {
-        assertEq(actualBranch.vaultSharesReceived, expectedBranch.vaultSharesReceived, string.concat("tc003:", branchLabel, ":vault-shares"));
-        assertEq(actualBranch.cTokenSharesReceived, expectedBranch.cTokenSharesReceived, string.concat("tc003:", branchLabel, ":ctoken-shares"));
-        assertEq(actualBranch.cTokenBalance, expectedBranch.cTokenBalance, string.concat("tc003:", branchLabel, ":ctoken-balance"));
-        assertEq(actualBranch.collateralPosted, expectedBranch.collateralPosted, string.concat("tc003:", branchLabel, ":collateral-posted"));
-        assertEq(actualBranch.marketCollateralPosted, expectedBranch.marketCollateralPosted, string.concat("tc003:", branchLabel, ":market-collateral-posted"));
-        assertEq(actualBranch.cTokenTotalAssets, expectedBranch.cTokenTotalAssets, string.concat("tc003:", branchLabel, ":ctoken-total-assets"));
-        assertEq(actualBranch.maxBorrowCapacity, expectedBranch.maxBorrowCapacity, string.concat("tc003:", branchLabel, ":max-borrow-capacity"));
-        assertEq(actualBranch.borrowAmount, expectedBranch.borrowAmount, string.concat("tc003:", branchLabel, ":borrow-amount"));
-        assertEq(actualBranch.debtBalance, expectedBranch.debtBalance, string.concat("tc003:", branchLabel, ":debt-balance"));
+        assertEq(actualBranch.vaultSharesReceived, expectedBranch.vaultSharesReceived, string.concat("native-vault-zapper:", branchLabel, ":vault-shares"));
+        assertEq(actualBranch.cTokenSharesReceived, expectedBranch.cTokenSharesReceived, string.concat("native-vault-zapper:", branchLabel, ":ctoken-shares"));
+        assertEq(actualBranch.cTokenBalance, expectedBranch.cTokenBalance, string.concat("native-vault-zapper:", branchLabel, ":ctoken-balance"));
+        assertEq(actualBranch.collateralPosted, expectedBranch.collateralPosted, string.concat("native-vault-zapper:", branchLabel, ":collateral-posted"));
+        assertEq(actualBranch.marketCollateralPosted, expectedBranch.marketCollateralPosted, string.concat("native-vault-zapper:", branchLabel, ":market-collateral-posted"));
+        assertEq(actualBranch.cTokenTotalAssets, expectedBranch.cTokenTotalAssets, string.concat("native-vault-zapper:", branchLabel, ":ctoken-total-assets"));
+        assertEq(actualBranch.maxBorrowCapacity, expectedBranch.maxBorrowCapacity, string.concat("native-vault-zapper:", branchLabel, ":max-borrow-capacity"));
+        assertEq(actualBranch.borrowAmount, expectedBranch.borrowAmount, string.concat("native-vault-zapper:", branchLabel, ":borrow-amount"));
+        assertEq(actualBranch.debtBalance, expectedBranch.debtBalance, string.concat("native-vault-zapper:", branchLabel, ":debt-balance"));
         assertEq(
             actualBranch.liquidationProbe.liquidationAvailable,
             expectedBranch.liquidationProbe.liquidationAvailable,
-            string.concat("tc003:", branchLabel, ":liquidation-availability")
+            string.concat("native-vault-zapper:", branchLabel, ":liquidation-availability")
         );
-        assertEq(actualBranch.liquidationProbe.debtAmountResolved, expectedBranch.liquidationProbe.debtAmountResolved, string.concat("tc003:", branchLabel, ":probe-debt-resolved"));
-        assertEq(actualBranch.liquidationProbe.collateralPosted, expectedBranch.liquidationProbe.collateralPosted, string.concat("tc003:", branchLabel, ":probe-collateral"));
-        assertEq(actualBranch.liquidationProbe.debtBalance, expectedBranch.liquidationProbe.debtBalance, string.concat("tc003:", branchLabel, ":probe-debt-balance"));
-        assertEq(actualBranch.liquidationProbe.liquidatedShares, expectedBranch.liquidationProbe.liquidatedShares, string.concat("tc003:", branchLabel, ":probe-liquidated-shares"));
-        assertEq(actualBranch.liquidationProbe.debtRepaid, expectedBranch.liquidationProbe.debtRepaid, string.concat("tc003:", branchLabel, ":probe-debt-repaid"));
-        assertEq(actualBranch.liquidationProbe.badDebtRealized, expectedBranch.liquidationProbe.badDebtRealized, string.concat("tc003:", branchLabel, ":probe-bad-debt"));
+        assertEq(actualBranch.liquidationProbe.debtAmountResolved, expectedBranch.liquidationProbe.debtAmountResolved, string.concat("native-vault-zapper:", branchLabel, ":probe-debt-resolved"));
+        assertEq(actualBranch.liquidationProbe.collateralPosted, expectedBranch.liquidationProbe.collateralPosted, string.concat("native-vault-zapper:", branchLabel, ":probe-collateral"));
+        assertEq(actualBranch.liquidationProbe.debtBalance, expectedBranch.liquidationProbe.debtBalance, string.concat("native-vault-zapper:", branchLabel, ":probe-debt-balance"));
+        assertEq(actualBranch.liquidationProbe.liquidatedShares, expectedBranch.liquidationProbe.liquidatedShares, string.concat("native-vault-zapper:", branchLabel, ":probe-liquidated-shares"));
+        assertEq(actualBranch.liquidationProbe.debtRepaid, expectedBranch.liquidationProbe.debtRepaid, string.concat("native-vault-zapper:", branchLabel, ":probe-debt-repaid"));
+        assertEq(actualBranch.liquidationProbe.badDebtRealized, expectedBranch.liquidationProbe.badDebtRealized, string.concat("native-vault-zapper:", branchLabel, ":probe-bad-debt"));
     }
 }

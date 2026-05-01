@@ -170,6 +170,25 @@ contract TestProtocolManagerDeployment is TestProtocolManagerBase {
         );
     }
 
+    function test_ProtocolManagerDeployment_fail_zeroProtocolManager() public {
+        address[] memory managedAddresses = new address[](1);
+        managedAddresses[0] = address(borrowableCUSDC_MONAD);
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        limits[0] = _getValidLimits();
+
+        ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(0),
+            permsConfig,
+            managedAddresses,
+            limits
+        );
+    }
+
     function test_ProtocolManagerDeployment_fail_emptyManagedAddresses() public {
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 

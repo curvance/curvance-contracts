@@ -14,6 +14,16 @@ contract BulkUnpauseMarkets is DeployScript {
             address cToken0 = market.tokensListed(0);
             address cToken1 = market.tokensListed(1);
 
+            // This script is only intended to clear the initial mint-only
+            // pause set during market deployment. Preflight before mutating
+            // so it cannot partially unpause a market in another pause state.
+            require(market.liquidationPaused() == 1, "liquidation paused");
+            require(market.redeemPaused() == 1, "redeem paused");
+            require(market.transferPaused() == 1, "transfer paused");
+
+            _checkInitialMintOnlyPause(market, cToken0, "cToken0");
+            _checkInitialMintOnlyPause(market, cToken1, "cToken1");
+
             market.setMintPaused(cToken0, false);
             market.setMintPaused(cToken1, false);
 
@@ -27,5 +37,24 @@ contract BulkUnpauseMarkets is DeployScript {
             require(collateralizationPaused == false, "cToken1 collateralization paused");
             require(borrowPaused == false, "cToken1 borrow paused");
         }
+    }
+
+    function _checkInitialMintOnlyPause(
+        MarketManagerIsolated market,
+        address cToken,
+        string memory label
+    ) internal view {
+        (
+            bool mintPaused,
+            bool collateralizationPaused,
+            bool borrowPaused
+        ) = market.actionsPaused(cToken);
+
+        require(mintPaused == true, string.concat(label, " mint not paused"));
+        require(
+            collateralizationPaused == false,
+            string.concat(label, " collateralization paused")
+        );
+        require(borrowPaused == false, string.concat(label, " borrow paused"));
     }
 }

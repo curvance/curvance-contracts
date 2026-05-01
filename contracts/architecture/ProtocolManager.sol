@@ -194,6 +194,9 @@ contract ProtocolManager is ReentrancyGuard {
         PeriodLimits[] memory l
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
+        if (pm == address(0)) {
+            revert ProtocolManager__ParametersAreInvalid();
+        }
         centralRegistry = cr;
         protocolManager = pm;
 

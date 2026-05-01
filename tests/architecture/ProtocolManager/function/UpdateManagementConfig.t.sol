@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { ProtocolManager } from "contracts/architecture/ProtocolManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { TestProtocolManagerBase } from "tests/architecture/ProtocolManager/TestProtocolManagerBase.t.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -160,6 +161,74 @@ contract TestProtocolManagerUpdateManagementConfig is TestProtocolManagerBase {
         assertEq(storedLimits.minPriceUSDLimit, 0, "minPriceUSDLimit should be cleared");
         assertEq(storedLimits.basePriceNativeLimit, 0, "basePriceNativeLimit should be cleared");
         assertEq(storedLimits.minPriceNativeLimit, 0, "minPriceNativeLimit should be cleared");
+    }
+
+    /// @notice Removing only CentralRegistry market permissions makes the
+    ///         manager inert, but re-granting those permissions resurrects
+    ///         any still-enabled local management config.
+    function test_updateManagementConfig_revocationRequiresGlobalAndLocalCleanup()
+        public
+    {
+        address[] memory managedAddresses = new address[](2);
+        managedAddresses[0] = address(marketManagerIsolated);
+        managedAddresses[1] = address(borrowableCWMON);
+
+        ProtocolManager.PeriodLimits[] memory limits =
+            new ProtocolManager.PeriodLimits[](2);
+        limits[0] = _getValidLimits();
+        limits[1] = _getValidLimits();
+
+        protocolManager.updateManagementConfig(managedAddresses, limits, true);
+        centralRegistry.addMarketPermissions(address(protocolManager));
+
+        protocolManager.setPaused(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            3,
+            true
+        );
+
+        (bool mintPaused, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertTrue(mintPaused, "manager should pause while both gates are live");
+
+        centralRegistry.removeMarketPermissions(address(protocolManager));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
+        protocolManager.setPaused(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            3,
+            false
+        );
+
+        centralRegistry.addMarketPermissions(address(protocolManager));
+
+        protocolManager.setPaused(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            3,
+            false
+        );
+
+        (mintPaused, , ) = marketManagerIsolated.actionsPaused(
+            address(borrowableCWMON)
+        );
+        assertFalse(
+            mintPaused,
+            "local authority resurrected after global permission re-grant"
+        );
+
+        protocolManager.updateManagementConfig(managedAddresses, limits, false);
+
+        vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
+        protocolManager.setPaused(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            3,
+            true
+        );
     }
 
     /// @notice Test updating existing managed address config

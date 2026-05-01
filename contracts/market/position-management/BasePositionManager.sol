@@ -146,12 +146,23 @@ abstract contract BasePositionManager is
     modifier checkSlippage(address account, uint256 slippage) {
         (uint256 collateralBefore, , uint256 debtBefore) = marketManager
             .statusOf(account);
+
+        // Once debt exceeds collateral, recovery should use
+        // liquidation/direct repay paths.
+        if (collateralBefore < debtBefore) {
+            revert BasePositionManager__InvalidSlippage();
+        }
+
         uint256 valueIn = collateralBefore - debtBefore;
 
         _;
 
         (uint256 collateralAfter, , uint256 debtAfter) = marketManager
             .statusOf(account);
+        if (collateralAfter < debtAfter) {
+            revert BasePositionManager__InvalidSlippage();
+        }
+
         uint256 valueOut = collateralAfter - debtAfter;
 
         // If there was slippage, make sure its within slippage tolerance.

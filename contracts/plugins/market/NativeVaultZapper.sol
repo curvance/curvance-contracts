@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { SimpleZapper, ICentralRegistry, SwapperLib, ICToken } from "contracts/plugins/market/SimpleZapper.sol";
+import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
+import { ICentralRegistry, SwapperLib, ICToken } from "contracts/plugins/BaseZapper.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
@@ -82,7 +83,7 @@ contract NativeVaultZapper is SimpleZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         address vault = ICToken(cToken).asset();

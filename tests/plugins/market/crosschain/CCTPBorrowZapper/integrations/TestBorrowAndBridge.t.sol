@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { CCTPBorrowZapper } from "contracts/plugins/market/crosschain/CCTPBorrowZapper.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import {CCTPBorrowZapper} from "contracts/plugins/market/crosschain/CCTPBorrowZapper.sol";
+import {MarketManagerIsolated} from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {ChainConfig} from "contracts/interfaces/ICentralRegistry.sol";
+import {IWormholeRelayer} from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 
-import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import {IUniswapV3Router} from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
+import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+import {MockDataFeed} from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBorrowAndBridge is TestBaseMarketIsolated {
-    address internal _UNISWAP_V3_SWAP_ROUTER =
-        0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address internal _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint256 internal constant _TEST_SWAP_SLIPPAGE = 0.999e18;
 
     CCTPBorrowZapper public CCTPZapper;
 
@@ -28,44 +29,14 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, true, address(mockDaiFeed), 0);
+        dualChainlinkAdaptor.addAsset(_DAI_ADDRESS, true, address(mockDaiFeed), 0);
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_WETH_ADDRESS, true, address(mockWethFeed), 0);
+        dualChainlinkAdaptor.addAsset(_WETH_ADDRESS, true, address(mockWethFeed), 0);
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_RETH_ADDRESS, false, address(mockRethFeed), 0);
+        dualChainlinkAdaptor.addAsset(_RETH_ADDRESS, false, address(mockRethFeed), 0);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
@@ -73,7 +44,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         _refreshMockFeeds();
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice,,,) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         // Setup borrowable CDAI.
@@ -86,7 +57,6 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         {
             deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
             LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
-
         }
 
         marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
@@ -99,9 +69,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         deal(user1, _ONE);
 
-        CCTPZapper = new CCTPBorrowZapper(
-            ICentralRegistry(address(centralRegistry))
-        );
+        CCTPZapper = new CCTPBorrowZapper(ICentralRegistry(address(centralRegistry)));
 
         ChainConfig memory config;
         config.isSupported = true;
@@ -115,6 +83,11 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         // Support chainId 42161.
         centralRegistry.addChain(42161, config);
+        CCTPZapper.setCCTPDeliveryProvider(
+            42161,
+            IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider(),
+            true
+        );
     }
 
     function testETokenBorrowAndBridge() public {
@@ -131,8 +104,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         centralRegistry.setExternalCalldataChecker(
-            _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            _UNISWAP_V3_SWAP_ROUTER, address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
         SwapperLib.Swap memory swapAction;
@@ -140,6 +112,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         swapAction.inputAmount = 500e18;
         swapAction.outputToken = _USDC_ADDRESS;
         swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -149,10 +122,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapAction.call = abi.encodeWithSelector(
-            IUniswapV3Router.exactInputSingle.selector,
-            params
-        );
+        swapAction.call = abi.encodeWithSelector(IUniswapV3Router.exactInputSingle.selector, params);
 
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
 
@@ -160,12 +130,8 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         vm.startPrank(user1);
 
         borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
-        CCTPZapper.borrowAndBridge{ value: messageFee }(
-            address(borrowableCDAI),
-            500e18,
-            swapAction,
-            42161,
-            0
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, swapAction, 42161, 0, address(messagingHub)
         );
         borrowableCDAI.borrow(500e18, user1);
 

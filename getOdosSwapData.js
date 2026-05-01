@@ -1,7 +1,14 @@
 // Doc Link: https://docs.odos.xyz/build/api-docs
-const { appendFileSync } = require("fs");
 const { performance } = require("perf_hooks");
 const { ethers } = require("ethers");
+const {
+    failFfi,
+    logFfi,
+    postJsonWithRetry,
+    writeFfiResult,
+} = require("./ffiHelpers");
+
+const LOG_PATH = "./Odos.log.txt";
 
 main().catch(err => {
     console.error(err);
@@ -38,49 +45,36 @@ async function main() {
     };
 
     try {
-        let response = await fetch(
+        const quote = await postJsonWithRetry(
             quoteUrl,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(quoteRequestBody),
-            });
+            quoteRequestBody,
+            {},
+            { label: "Odos quote" }
+        );
+        assembleRequestBody.pathId = quote.pathId;
 
-        if (response.status === 200) {
-            const quote = await response.json();
-            assembleRequestBody.pathId = quote.pathId;
-        } else {
-            exit(3, `Error in Quote: ` + response.statusText);
-        }
-
-        response = await fetch(
+        const assembledTransaction = await postJsonWithRetry(
             assembleUrl,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(assembleRequestBody),
-            });
+            assembleRequestBody,
+            {},
+            { label: "Odos assemble" }
+        );
+        // log("Results", JSON.stringify(assembledTransaction, null, 2));
 
-        if (response.status === 200) {
-            const assembledTransaction = await response.json();
-            // log("Results", JSON.stringify(assembledTransaction, null, 2));
-
-            const output = ethers.AbiCoder.defaultAbiCoder().encode(["uint", "bytes"],
-                [assembledTransaction.outputTokens[0].amount, assembledTransaction.transaction.data]);
-            process.stdout.write(output);
-        } else {
-            exit(3, `Error in Transaction Assembly: ` + response.statusText);
-        }
+        const output = ethers.AbiCoder.defaultAbiCoder().encode(["uint", "bytes"],
+            [assembledTransaction.outputTokens[0].amount, assembledTransaction.transaction.data]);
+        writeFfiResult(output);
     } catch (e) {
         console.error(e);
-        log(3, e);
+        log("Failed", e.stack || e.message || String(e));
+        exit(1, "Failed: " + (e.message || String(e)));
     }
 
     const endTime = performance.now();
     // log(`--- End, Ran in: ${endTime - startTime}ms ---`);
 
 
-    process.exit(0);
+    process.exitCode = 0;
 }
 
 function loadArgs() {
@@ -124,16 +118,9 @@ function loadArgs() {
 }
 
 function exit(code, message) {
-    process.stderr.write(message);
-    appendFileSync("./Odos.log.txt", `***Exited (${code}) with message:***\n ${message}\n`);
-    process.exit(code);
+    failFfi(code, message, LOG_PATH);
 };
 
 function log(message, data = null) {
-    console.log(message, data);
-    if (data) {
-        appendFileSync("./Odos.log.txt", `${message}:\n ${data}\n\n`);
-    } else {
-        appendFileSync("./Odos.log.txt", `${message}\n\n`);
-    }
+    logFfi(LOG_PATH, message, data);
 }

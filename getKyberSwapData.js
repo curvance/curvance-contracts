@@ -1,5 +1,12 @@
-const { appendFileSync } = require("fs");
 const { performance } = require("perf_hooks");
+const {
+    failFfi,
+    getJsonWithRetry,
+    postJsonWithRetry,
+    writeFfiResult,
+} = require("./ffiHelpers");
+
+const LOG_PATH = "./KyberSwap.log.txt";
 
 main().catch(err => {
     console.error(err);
@@ -44,30 +51,14 @@ async function main() {
         routeParams.set("feeAmount", feeBps);
     }
 
-    let response = await fetch(
+    const routesJson = await getJsonWithRetry(
         `${routesUrl}?${routeParams.toString()}`,
         {
-            method: "GET",
-            headers: {
-                "Accept": "application/json",
-                "X-Client-Id": "CurvanceProtocol"
-            }
-        }
+            "Accept": "application/json",
+            "X-Client-Id": "CurvanceProtocol"
+        },
+        { label: "Kyber routes" }
     );
-
-    if (!response.ok) {
-        const body = await response.json();
-        const requestId =
-            body.requestId ||
-            body.requestID ||
-            (body.data && (body.data.requestId || body.data.requestID));
-        exit(
-            3,
-            `Error in Kyber routes: ${response.status} ${response.statusText} (requestId=${requestId})`
-        );
-    }
-
-    const routesJson = await response.json();
     const routeData = routesJson && routesJson.data;
     if (!routeData || !routeData.routeSummary) {
         exit(3, "Kyber routes response missing data.routeSummary");
@@ -91,8 +82,8 @@ async function main() {
         const outHex =
             "0x" + normalizedBigInt.toString(16).padStart(64, "0");
 
-        process.stdout.write(outHex);
-        process.exit(0);
+        writeFfiResult(outHex);
+        return;
     }
 
     // 2. Build transaction calldata
@@ -109,32 +100,15 @@ async function main() {
         deadline: Math.floor(Date.now() / 1000) + 20 * 60,
     };
 
-    response = await fetch(
+    const buildJson = await postJsonWithRetry(
         buildUrl,
+        buildBody,
         {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "X-Client-Id": "CurvanceProtocol"
-            },
-            body: JSON.stringify(buildBody)
-        }
+            "Accept": "application/json",
+            "X-Client-Id": "CurvanceProtocol"
+        },
+        { label: "Kyber build" }
     );
-
-    if (!response.ok) {
-        const body = await response.json();
-        const requestId =
-            body.requestId ||
-            body.requestID ||
-            (body.data && (body.data.requestId || body.data.requestID));
-        exit(
-            3,
-            `Error in Kyber build: ${response.status} ${response.statusText} (requestId=${requestId})`
-        );
-    }
-
-    const buildJson = await response.json();
     const buildData = buildJson && buildJson.data;
     if (!buildData) {
         exit(3, "Kyber build response missing data field");
@@ -150,9 +124,7 @@ async function main() {
         exit(3, "Failed to extract calldata from Kyber build response");
     }
 
-    process.stdout.write(calldata);
-
-    process.exit(0);
+    writeFfiResult(calldata);
 }
 
 function mapChainIdToKyberChain(chainId) {
@@ -207,12 +179,5 @@ function loadArgs() {
 }
 
 function exit(code, message) {
-    process.stderr.write(String(message));
-    appendFileSync(
-        "./KyberSwap.log.txt",
-        `***Exited (${code}) with message:***\n ${message}\n`
-    );
-    process.exit(code);
+    failFfi(code, message, LOG_PATH);
 }
-
-

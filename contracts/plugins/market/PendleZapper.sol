@@ -119,6 +119,12 @@ contract PendleZapper is BaseZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
+        // Redundant receiver == address(0) check so we fail fast if execution
+        // is impossible.
+        if (receiver == address(0) || expectedShares == 0) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapAction.inputToken,
@@ -198,6 +204,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Transfer the Pendle position to the Zapper.
         SafeTransferLib.safeTransferFrom(
             zapAction.inputToken,
@@ -278,6 +288,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // Exit Curvance position.
         _exitCurvance(
             redeemAction.cToken,
@@ -353,6 +367,10 @@ contract PendleZapper is BaseZapper {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
+        if (swapActions.length == 0 && zapAction.minimumOut == 0) {
+            revert PendleZapper__SlippageError();
+        }
+
         // Exit Pendle position.
         PendleLib._exitPendle(
             router,
@@ -367,7 +385,7 @@ contract PendleZapper is BaseZapper {
         uint256 numTokenSwaps = swapActions.length;
         // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
 
         outAmount = CommonLib._balanceOf(zapAction.outputToken);
@@ -416,7 +434,7 @@ contract PendleZapper is BaseZapper {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
         }
     }
 }

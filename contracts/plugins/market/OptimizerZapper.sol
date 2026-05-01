@@ -10,7 +10,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 /// @title Curvance Lending Optimizer Zapper.
@@ -86,6 +85,13 @@ contract OptimizerZapper is ReentrancyGuard {
             swapAction.inputToken = wrappedNative;
         }
 
+        // Validate swap output matches the optimizer's underlying asset
+        // before executing an external swap.
+        address underlying = ILendingOptimizer(optimizer).asset();
+        if (swapAction.outputToken != underlying) {
+            revert OptimizerZapper__AssetMismatch();
+        }
+
         uint256 assets;
         if (
             CommonLib._isMatchingToken(
@@ -95,13 +101,7 @@ contract OptimizerZapper is ReentrancyGuard {
         ) {
             assets = swapAction.inputAmount;
         } else {
-            assets = SwapperLib._swapUnsafe(centralRegistry, swapAction);
-        }
-
-        // Validate swap output matches the optimizer's underlying asset.
-        address underlying = ILendingOptimizer(optimizer).asset();
-        if (swapAction.outputToken != underlying) {
-            revert OptimizerZapper__AssetMismatch();
+            assets = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Approve optimizer to pull underlying, deposit, clean up approval.

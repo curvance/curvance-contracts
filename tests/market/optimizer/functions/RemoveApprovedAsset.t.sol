@@ -501,9 +501,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertEq(usdcAfter, usdcBefore, "No USDC dust should remain in optimizer");
     }
 
-    /// @notice Removing an approved asset that has zero deposits should succeed
-    ///         with empty removeActions (no assets to reallocate).
-    function test_lendingOptimizer_removeApprovedAsset_success_zeroDeposits() public {
+    function test_lendingOptimizer_removeApprovedAsset_fail_emptyRemoveActions() public {
         _setUpThreeMarkets();
 
         vm.mockCall(
@@ -531,11 +529,13 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
 
         // Remove market 2 with empty removeActions — no assets to reallocate.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, bounds);
 
-        // Verify market was removed.
-        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
-        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 0, "Removed market cap should be 0");
+        // Verify market was not removed.
+        assertEq(optimizer.numApprovedMarkets(), 3, "Should still have 3 markets after failed removal");
+        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 2_000 * 1e14, "Removed market cap should be unchanged");
 
         // Verify total assets unchanged.
         assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
@@ -543,6 +543,133 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         // Verify remaining markets are correct.
         assertEq(optimizer.approvedCTokensList(0), cUSDC_WMON_MARKET, "Market 0 should be WMON");
         assertEq(optimizer.approvedCTokensList(1), cUSDC_WBTC_MARKET, "Market 1 should be WBTC");
+    }
+
+    /// @notice Removing an approved asset that has zero deposits should succeed
+    ///         with a valid fallback reallocation plan.
+    function test_lendingOptimizer_removeApprovedAsset_success_zeroDeposits() public {
+        _setUpThreeMarkets();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        deal(USDC_MONAD, address(this), 20_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer)),
+            0,
+            "Market 2 should have zero shares before removal"
+        );
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(10_000)
+        );
+
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
+        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 0, "Removed market cap should be 0");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
+        assertEq(optimizer.approvedCTokensList(0), cUSDC_WMON_MARKET, "Market 0 should be WMON");
+        assertEq(optimizer.approvedCTokensList(1), cUSDC_WBTC_MARKET, "Market 1 should be WBTC");
+    }
+
+    function test_lendingOptimizer_removeApprovedAsset_success_reallocatesDonatedShares() public {
+        _setUpThreeMarkets();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        deal(USDC_MONAD, address(this), 20_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        uint256 donatedShares = IBorrowableCToken(cUSDC_WETH_MARKET).convertToShares(1_000e6);
+        IERC20(cUSDC_WETH_MARKET).transfer(address(optimizer), donatedShares);
+
+        uint256 targetAssetsBefore = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(10_000)
+        );
+
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+
+        uint256 targetAssetsAfter = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer)),
+            0,
+            "Donated removed-market shares should be fully exited"
+        );
+        assertGt(targetAssetsAfter, targetAssetsBefore, "Donated value should be reallocated");
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should remove market after reallocating donation");
+    }
+
+    function test_lendingOptimizer_removeApprovedAsset_success_sweepsZeroAssetDonatedShares() public {
+        _setUpThreeMarkets();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        deal(USDC_MONAD, address(this), 20_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 20_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        address dao = liveCentralRegistry.daoAddress();
+        uint256 daoSharesBefore = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(dao);
+        uint256 donatedShares = 1;
+        IERC20(cUSDC_WETH_MARKET).transfer(address(optimizer), donatedShares);
+
+        vm.mockCall(
+            cUSDC_WETH_MARKET,
+            abi.encodeWithSelector(IBorrowableCToken.convertToAssets.selector, donatedShares),
+            abi.encode(0)
+        );
+
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(10_000)
+        );
+
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer)),
+            0,
+            "Zero-asset cToken dust should not remain on optimizer"
+        );
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(dao),
+            daoSharesBefore,
+            "Zero-asset cToken dust should be swept to DAO"
+        );
+        assertEq(optimizer.numApprovedMarkets(), 2, "Should remove market after sweeping dust");
     }
 
     function test_lendingOptimizer_removeApprovedAsset_fail_whenRemainingCapsUnder100() public {

@@ -43,6 +43,14 @@ contract DeployMarkets is DeployScript {
         address wrappedNative,
         AddPlugins.AvailablePlugins[] memory plugins
     ) external recordEvents {
+        if (
+            names.length != tokens.length ||
+            names.length != isCorrelatedMarkets.length ||
+            names.length != plugins.length
+        ) {
+            revert("array length mismatch");
+        }
+
         CentralRegistry registry = CentralRegistry(centralRegistry);
         ICentralRegistry icr = ICentralRegistry(centralRegistry);
         OracleManager router = OracleManager(registry.oracleManager());
@@ -51,6 +59,9 @@ contract DeployMarkets is DeployScript {
             string memory market_name = names[i];
             string memory name = string.concat("markets.", market_name);
             ListConfig[] memory tokens = tokens[i];
+            if (tokens.length != 2) {
+                revert("market must have exactly two tokens");
+            }
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18, isCorrelatedMarkets[i]);
             registry.addMarketManager(address(market));

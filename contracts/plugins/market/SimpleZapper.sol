@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseZapper, ICentralRegistry, SwapperLib, CommonLib, ICToken } from "contracts/plugins/BaseZapper.sol";
+import { BaseZapper, ICentralRegistry, SwapperLib, CommonLib } from "contracts/plugins/BaseZapper.sol";
 
 /// @title Curvance Simple Zapper.
 /// @notice Simple Asset-specific contract for executing zap related
@@ -81,7 +81,7 @@ contract SimpleZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance position.
@@ -96,7 +96,7 @@ contract SimpleZapper is BaseZapper {
     }
 
     /// @notice Swaps then repays outstanding debt for `receiver`.
-    /// @dev Sends any excess debt token to `receiver`.
+    /// @dev Sends any excess debt token to caller.
     /// @param borrowableCToken The Curvance token address to repay debt to.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
@@ -116,7 +116,7 @@ contract SimpleZapper is BaseZapper {
     ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
-    ///                   `receiver`.
+    ///                   caller.
     function swapAndRepay(
         address borrowableCToken,
         bool depositAsWrappedNative,
@@ -148,7 +148,7 @@ contract SimpleZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Revert if less than `repayAssets` was received, then repay as much
@@ -204,7 +204,7 @@ contract SimpleZapper is BaseZapper {
         if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         _transferToRecipient(swapAction.outputToken, receiver, outAmount);
@@ -253,7 +253,7 @@ contract SimpleZapper is BaseZapper {
         } else {
             // Execute swap into `swapAction.outputToken` which should be
             // new cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance position.

@@ -701,10 +701,9 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
     // =====================================================================
 
     /// @notice Adds a market but never deposits into it, then attempts removal.
-    ///         The underlying cToken.redeem(0,...) reverts with ZeroAmount,
-    ///         so this verifies the revert behavior. Then deposits a minimal
-    ///         amount and verifies that removal succeeds with a near-zero balance.
-    function test_removeApprovedAsset_zeroBalanceMarket_succeeds() public {
+    ///         Empty remove actions are rejected even for zero-balance removals
+    ///         so deployment/runbook calls always include an explicit plan.
+    function test_removeApprovedAsset_zeroBalanceMarket_requiresExplicitPlan() public {
         _setUpThreeMarkets();
 
         // Deposit only to markets 0 and 1, NOT market 2 (WETH).
@@ -728,11 +727,13 @@ contract TestLendingOptimizerIntegrationEdgeCases is TestBaseLendingOptimizer {
 
         _mockMarketPermissions();
 
-        // Removing a zero-balance market succeeds with empty removeActions.
+        // Removing a zero-balance market still requires explicit removeActions.
         LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](0);
-        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, bounds);
 
-        assertEq(optimizer.numApprovedMarkets(), 2, "Should have 2 markets after removal");
+        assertEq(optimizer.numApprovedMarkets(), 3, "Should still have 3 markets after failed removal");
         assertEq(optimizer.totalAssets(), totalAssetsBefore, "Total assets should be unchanged");
     }
 

@@ -89,7 +89,7 @@ contract SimpleRewardZapper is BaseZapper {
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -157,7 +157,7 @@ contract SimpleRewardZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance cToken position.
@@ -173,7 +173,7 @@ contract SimpleRewardZapper is BaseZapper {
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         outstanding debt inside Curvance.
-    /// @dev Sends any excess debt token to `receiver`. Only needs to
+    /// @dev Sends any excess debt token to caller. Only needs to
     ///      swap if `rewardToken` != `borrowableCToken` asset.
     /// @param swapAction Optional instructions for executing a swap into debt
     ///                   asset.
@@ -192,7 +192,7 @@ contract SimpleRewardZapper is BaseZapper {
     ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
-    ///                   `receiver`.
+    ///                   caller.
     function claimSwapAndRepay(
         SwapperLib.Swap memory swapAction,
         address borrowableCToken,
@@ -238,7 +238,7 @@ contract SimpleRewardZapper is BaseZapper {
             }
 
             // Swap from `rewardToken` into `debtAsset`.
-            swapAction.inputAmount = SwapperLib._swapUnsafe(
+                swapAction.inputAmount = SwapperLib._swapSafe(
                 centralRegistry,
                 swapAction
             );

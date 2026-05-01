@@ -266,6 +266,11 @@ contract TestDualSidedVaultPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory collAfter = simpleCSFRAX.getSnapshot(user1);
 
         assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
+        assertGe(
+            debtBefore.debtBalance - debtAfter.debtBalance,
+            repayAssets,
+            "Debt reduction should satisfy requested repayment floor"
+        );
         assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
 
         vm.stopPrank();
@@ -379,6 +384,11 @@ contract TestDualSidedVaultPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory collAfter = simpleCSFRAX.getSnapshot(user1);
 
         assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
+        assertGe(
+            debtBefore.debtBalance - debtAfter.debtBalance,
+            repayAssets,
+            "Debt reduction should satisfy requested repayment floor"
+        );
         assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
 
         vm.stopPrank();
