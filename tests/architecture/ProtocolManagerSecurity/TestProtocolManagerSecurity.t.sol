@@ -257,31 +257,31 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         emit log_named_uint("pauseAll (2 markets, auto-discover) gas", gasUsed);
     }
 
-    function test_gasBenchmark_pauseSupply_singleMarket() public {
+    function test_gasBenchmark_pauseTokenLevelEntryActions_singleMarket() public {
         _deployMarket1();
 
         marketManagerIsolated.setMintPaused(address(borrowableCWMON_1), false);
         marketManagerIsolated.setMintPaused(address(borrowableCUSDC_1), false);
 
         uint256 gasBefore = gasleft();
-        massPause.pauseSupply(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray(address(marketManagerIsolated)));
         uint256 gasUsed = gasBefore - gasleft();
 
-        // Entry-only: 6 SSTOREs (3 per token × 2 tokens).
-        assertLt(gasUsed, 400_000, "pauseSupply single market should use < 400k gas");
-        emit log_named_uint("pauseSupply (1 market) gas", gasUsed);
+        // Token-level entry: 6 SSTOREs (3 per token × 2 tokens).
+        assertLt(gasUsed, 400_000, "pauseTokenLevelEntryActions single market should use < 400k gas");
+        emit log_named_uint("pauseTokenLevelEntryActions (1 market) gas", gasUsed);
     }
 
-    function test_gasBenchmark_pauseRedemption_singleMarket() public {
+    function test_gasBenchmark_pauseMarketWideExitActions_singleMarket() public {
         _deployMarket1();
 
         uint256 gasBefore = gasleft();
-        massPause.pauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseMarketWideExitActions(_singleMarketArray(address(marketManagerIsolated)));
         uint256 gasUsed = gasBefore - gasleft();
 
-        // Exit-only: 3 SSTOREs (market-wide, no token iteration).
-        assertLt(gasUsed, 200_000, "pauseRedemption single market should use < 200k gas");
-        emit log_named_uint("pauseRedemption (1 market) gas", gasUsed);
+        // Market-wide exit: 3 SSTOREs (no token iteration).
+        assertLt(gasUsed, 200_000, "pauseMarketWideExitActions single market should use < 200k gas");
+        emit log_named_uint("pauseMarketWideExitActions (1 market) gas", gasUsed);
     }
 
     function test_gasBenchmark_deployMarket() public {
@@ -298,15 +298,15 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
     // 2. ORDERING INDEPENDENCE
     // ══════════════════════════════════════════════════════
 
-    /// @notice Proves supply→redemption == redemption→supply at storage level.
-    function test_orderingIndependence_supplyThenRedemption() public {
+    /// @notice Proves token-level entry then market-wide exit == market-wide exit then token-level entry.
+    function test_orderingIndependence_tokenLevelEntryThenMarketWideExit() public {
         _deployMarket1();
         marketManagerIsolated.setMintPaused(address(borrowableCWMON_1), false);
         marketManagerIsolated.setMintPaused(address(borrowableCUSDC_1), false);
 
-        // Path A: supply then redemption.
-        massPause.pauseSupply(_singleMarketArray(address(marketManagerIsolated)));
-        massPause.pauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
+        // Path A: token-level entry then market-wide exit.
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseMarketWideExitActions(_singleMarketArray(address(marketManagerIsolated)));
 
         // Capture state.
         uint8 liqA = marketManagerIsolated.liquidationPaused();
@@ -320,9 +320,9 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         // Reset.
         massPause.unpauseAll(_singleMarketArray(address(marketManagerIsolated)));
 
-        // Path B: redemption then supply.
-        massPause.pauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
-        massPause.pauseSupply(_singleMarketArray(address(marketManagerIsolated)));
+        // Path B: market-wide exit then token-level entry.
+        massPause.pauseMarketWideExitActions(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray(address(marketManagerIsolated)));
 
         // Compare.
         assertEq(marketManagerIsolated.liquidationPaused(), liqA, "liquidation ordering mismatch");
@@ -498,8 +498,8 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         borrowableCWMON_1.redeem(userShares, user, user);
         vm.stopPrank();
 
-        // ─── PHASE 5: Partial recovery — open exits only ───
-        massPause.unpauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
+        // ─── PHASE 5: Partial recovery — open market-wide exit actions only ───
+        massPause.unpauseMarketWideExitActions(_singleMarketArray(address(marketManagerIsolated)));
 
         // User CAN withdraw now.
         // Need to advance past the cooldown period first.
@@ -513,7 +513,7 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         assertTrue(userBalance > 0, "Phase 5: user should have withdrawn WMON");
         assertEq(borrowableCWMON_1.balanceOf(user), 0, "Phase 5: user shares should be 0");
 
-        // Deposits still blocked (supply pause still active).
+        // Deposits still blocked (token-level entry pause still active).
         vm.startPrank(user);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON_1), userBalance);
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
@@ -521,7 +521,7 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         vm.stopPrank();
 
         // ─── PHASE 6: Full recovery ───
-        massPause.unpauseSupply(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray(address(marketManagerIsolated)));
 
         // User can deposit again.
         vm.startPrank(user);
@@ -577,13 +577,13 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         massPause.pauseAll(_singleMarketArray(address(marketManagerIsolated)));
         assertEq(marketManagerIsolated.liquidationPaused(), 1, "should still be unpaused");
 
-        massPause.pauseSupply(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray(address(marketManagerIsolated)));
         (bool mintPaused, , ) = marketManagerIsolated.actionsPaused(
             address(borrowableCWMON_1)
         );
         assertFalse(mintPaused, "mint should still be unpaused");
 
-        massPause.pauseRedemption(_singleMarketArray(address(marketManagerIsolated)));
+        massPause.pauseMarketWideExitActions(_singleMarketArray(address(marketManagerIsolated)));
         assertEq(marketManagerIsolated.redeemPaused(), 1, "redeem should still be unpaused");
     }
 

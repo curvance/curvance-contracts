@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { BorrowableCToken, IERC20 } from "contracts/market/token/BorrowableCToken.sol";
-import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import {BorrowableCToken, IERC20} from "contracts/market/token/BorrowableCToken.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {MarketManagerIsolated} from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
+import {MockDataFeed} from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     address public owner;
@@ -25,44 +24,14 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, true, address(mockDaiFeed), 0);
+        dualChainlinkAdaptor.addAsset(_DAI_ADDRESS, true, address(mockDaiFeed), 0);
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_WETH_ADDRESS, true, address(mockWethFeed), 0);
+        dualChainlinkAdaptor.addAsset(_WETH_ADDRESS, true, address(mockWethFeed), 0);
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
+        chainlinkAdaptor.addAsset(_RETH_ADDRESS, false, address(mockRethFeed), 0);
+        dualChainlinkAdaptor.addAsset(_RETH_ADDRESS, false, address(mockRethFeed), 0);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
@@ -70,14 +39,13 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
         _refreshMockFeeds();
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice,,,) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         // Setup borrowable CDAI.
         {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
-            
         }
 
         // Setup pendleStrategyCTokenSTETH.
@@ -96,10 +64,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     function testInitialize() public view {
         assertEq(centralRegistry.daoAddress(), dao);
         assertEq(borrowableCDAI.interestFee(), 2000);
-        assertEq(
-            borrowableCDAI.interestFee(),
-            centralRegistry.defaultProtocolInterestFee()
-        );
+        assertEq(borrowableCDAI.interestFee(), centralRegistry.defaultProtocolInterestFee());
     }
 
     function testDelegatedBorrowing() public {
@@ -137,10 +102,6 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             uint256 totalBorrowsBefore = borrowableCDAI.marketOutstandingDebt();
             assertEq(totalBorrowsBefore, 500 ether, "total borrows should be 500");
             uint256 daoBalanceBefore = borrowableCDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
-                address(borrowableCDAI),
-                dao
-            );
             uint256 debtBalanceBefore = borrowableCDAI.debtBalance(user1);
             uint256 rateBefore = borrowableCDAI.convertToShares(1e18);
 
@@ -149,8 +110,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
             borrowableCDAI.accrueIfNeeded();
 
-            uint256 debt = ((borrowableCDAI.marketOutstandingDebt() - totalBorrowsBefore) *
-                rateBefore) / 1e18;
+            uint256 debt = ((borrowableCDAI.marketOutstandingDebt() - totalBorrowsBefore) * rateBefore) / 1e18;
 
             // check borrower debt increased
             assertEq(borrowableCDAI.balanceOf(user1), 0, "user1 should have no cDAI");
@@ -159,13 +119,6 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
             // dao eDAI balance SHOULD increase because of the interest accrued
             assertGt(borrowableCDAI.balanceOf(dao), daoBalanceBefore, "dao should have cDAI");
-
-            // check gauge balance, should increase by the actual DAO balance increase
-            assertEq(
-                gaugeManager.balanceOf(address(borrowableCDAI), dao),
-                daoGaugeBalanceBefore + (borrowableCDAI.balanceOf(dao) - daoBalanceBefore),
-                "dao gauge balance should increase by actual DAO balance increase"
-            );
         }
 
         {
@@ -173,10 +126,6 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             uint256 exchangeRateBefore = borrowableCDAI.exchangeRate();
             uint256 totalBorrowsBefore = borrowableCDAI.marketOutstandingDebt();
             uint256 daoBalanceBefore = borrowableCDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
-                address(borrowableCDAI),
-                dao
-            );
             uint256 debtBalanceBefore = borrowableCDAI.debtBalance(user1);
             uint256 rateBefore = borrowableCDAI.convertToShares(1e18);
 
@@ -185,37 +134,23 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
             borrowableCDAI.accrueIfNeeded();
 
-            uint256 debt = ((borrowableCDAI.marketOutstandingDebt() - totalBorrowsBefore) *
-                rateBefore) / 1e18;
+            uint256 debt = ((borrowableCDAI.marketOutstandingDebt() - totalBorrowsBefore) * rateBefore) / 1e18;
 
             // check borrower debt increased
             assertEq(borrowableCDAI.balanceOf(user1), 0, "user1 should have no cDAI");
-            assertApproxEqRel(
-                borrowableCDAI.debtBalance(user1),
-                debtBalanceBefore + debt,
-                1 ether
-            );
+            assertApproxEqRel(borrowableCDAI.debtBalance(user1), debtBalanceBefore + debt, 1 ether);
             assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore, "exchange rate should increase");
 
             // dao eDAI balance should increase again because a new vesting period starts
             assertGt(borrowableCDAI.balanceOf(dao), daoBalanceBefore, "dao should have more cDAI from protocol fees");
-
-            // check gauge balance
-            assertEq(
-                gaugeManager.balanceOf(address(borrowableCDAI), dao),
-                daoGaugeBalanceBefore + (borrowableCDAI.balanceOf(dao) - daoBalanceBefore),
-                "dao gauge balance should increase by actual DAO balance increase"
-            );
         }
     }
 
     // Deploy BorrowableCToken.
-    function _deployBorrowableCToken(
-        address asset
-    ) internal override initMainVariables returns (BorrowableCToken) {
+    function _deployBorrowableCToken(address asset) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken borrowableCToken = BorrowableCToken(
             address(
-                new BorrowableCTokenWithGauge(
+                new BorrowableCToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(asset),
                     address(marketManagerIsolated),
@@ -224,9 +159,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             )
         );
 
-        IRMs[block.chainid][asset].setLinkedToken(
-            address(borrowableCToken)
-        );
+        IRMs[block.chainid][asset].setLinkedToken(address(borrowableCToken));
 
         return borrowableCToken;
     }

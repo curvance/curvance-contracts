@@ -96,7 +96,7 @@ contract SimpleZapper is BaseZapper {
     }
 
     /// @notice Swaps then repays outstanding debt for `receiver`.
-    /// @dev Sends any excess debt token to `receiver`.
+    /// @dev Sends any excess debt token to caller.
     /// @param borrowableCToken The Curvance token address to repay debt to.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
@@ -116,7 +116,7 @@ contract SimpleZapper is BaseZapper {
     ///                    transfer.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
-    ///                   `receiver`.
+    ///                   caller.
     function swapAndRepay(
         address borrowableCToken,
         bool depositAsWrappedNative,

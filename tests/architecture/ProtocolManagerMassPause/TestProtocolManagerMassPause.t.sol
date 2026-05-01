@@ -227,19 +227,19 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         assertFalse(borrowP1, "t1 borrow should be unpaused");
     }
 
-    function _assertExitsPaused(MarketManagerIsolated mm) internal view {
+    function _assertMarketWideExitPaused(MarketManagerIsolated mm) internal view {
         assertEq(mm.liquidationPaused(), 2, "liquidation should be paused");
         assertEq(mm.redeemPaused(), 2, "redeem should be paused");
         assertEq(mm.transferPaused(), 2, "transfer should be paused");
     }
 
-    function _assertExitsUnpaused(MarketManagerIsolated mm) internal view {
+    function _assertMarketWideExitUnpaused(MarketManagerIsolated mm) internal view {
         assertEq(mm.liquidationPaused(), 1, "liquidation should be unpaused");
         assertEq(mm.redeemPaused(), 1, "redeem should be unpaused");
         assertEq(mm.transferPaused(), 1, "transfer should be unpaused");
     }
 
-    function _assertEntryPaused(MarketManagerIsolated mm, address t0, address t1) internal view {
+    function _assertTokenLevelEntryPaused(MarketManagerIsolated mm, address t0, address t1) internal view {
         (bool mintP0, bool collP0, bool borrowP0) = mm.actionsPaused(t0);
         assertTrue(mintP0, "t0 mint should be paused");
         assertTrue(collP0, "t0 collateralization should be paused");
@@ -251,7 +251,7 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         assertTrue(borrowP1, "t1 borrow should be paused");
     }
 
-    function _assertEntryUnpaused(MarketManagerIsolated mm, address t0, address t1) internal view {
+    function _assertTokenLevelEntryUnpaused(MarketManagerIsolated mm, address t0, address t1) internal view {
         (bool mintP0, bool collP0, bool borrowP0) = mm.actionsPaused(t0);
         assertFalse(mintP0, "t0 mint should be unpaused");
         assertFalse(collP0, "t0 collateralization should be unpaused");
@@ -270,17 +270,17 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
     function _assertM1AllUnpaused() internal view {
         _assertAllUnpaused(marketManagerIsolated, address(borrowableCUSDC_MONAD), address(borrowableCWMON));
     }
-    function _assertM1ExitsPaused() internal view {
-        _assertExitsPaused(marketManagerIsolated);
+    function _assertM1MarketWideExitPaused() internal view {
+        _assertMarketWideExitPaused(marketManagerIsolated);
     }
-    function _assertM1ExitsUnpaused() internal view {
-        _assertExitsUnpaused(marketManagerIsolated);
+    function _assertM1MarketWideExitUnpaused() internal view {
+        _assertMarketWideExitUnpaused(marketManagerIsolated);
     }
-    function _assertM1EntryPaused() internal view {
-        _assertEntryPaused(marketManagerIsolated, address(borrowableCUSDC_MONAD), address(borrowableCWMON));
+    function _assertM1TokenLevelEntryPaused() internal view {
+        _assertTokenLevelEntryPaused(marketManagerIsolated, address(borrowableCUSDC_MONAD), address(borrowableCWMON));
     }
-    function _assertM1EntryUnpaused() internal view {
-        _assertEntryUnpaused(marketManagerIsolated, address(borrowableCUSDC_MONAD), address(borrowableCWMON));
+    function _assertM1TokenLevelEntryUnpaused() internal view {
+        _assertTokenLevelEntryUnpaused(marketManagerIsolated, address(borrowableCUSDC_MONAD), address(borrowableCWMON));
     }
 
     // Market 2 shorthand helpers.
@@ -290,17 +290,17 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
     function _assertM2AllUnpaused() internal view {
         _assertAllUnpaused(marketManager2, address(borrowableCUSDC_2), address(borrowableCWMON_2));
     }
-    function _assertM2ExitsPaused() internal view {
-        _assertExitsPaused(marketManager2);
+    function _assertM2MarketWideExitPaused() internal view {
+        _assertMarketWideExitPaused(marketManager2);
     }
-    function _assertM2ExitsUnpaused() internal view {
-        _assertExitsUnpaused(marketManager2);
+    function _assertM2MarketWideExitUnpaused() internal view {
+        _assertMarketWideExitUnpaused(marketManager2);
     }
-    function _assertM2EntryPaused() internal view {
-        _assertEntryPaused(marketManager2, address(borrowableCUSDC_2), address(borrowableCWMON_2));
+    function _assertM2TokenLevelEntryPaused() internal view {
+        _assertTokenLevelEntryPaused(marketManager2, address(borrowableCUSDC_2), address(borrowableCWMON_2));
     }
-    function _assertM2EntryUnpaused() internal view {
-        _assertEntryUnpaused(marketManager2, address(borrowableCUSDC_2), address(borrowableCWMON_2));
+    function _assertM2TokenLevelEntryUnpaused() internal view {
+        _assertTokenLevelEntryUnpaused(marketManager2, address(borrowableCUSDC_2), address(borrowableCWMON_2));
     }
 
     function _singleMarketArray()
@@ -358,48 +358,48 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         _assertM2AllUnpaused();
     }
 
-    /// ==================== pauseSupply / unpauseSupply ==================== ///
+    /// ========== pauseTokenLevelEntryActions / unpauseTokenLevelEntryActions ========== ///
 
-    function test_pauseSupply_onlyPausesEntry() public {
-        massPause.pauseSupply(_singleMarketArray());
-        _assertM1EntryPaused();
-        _assertM1ExitsUnpaused();
+    function test_pauseTokenLevelEntryActions_onlyPausesTokenLevelEntry() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
+        _assertM1TokenLevelEntryPaused();
+        _assertM1MarketWideExitUnpaused();
     }
 
-    function test_unpauseSupply() public {
-        massPause.pauseSupply(_singleMarketArray());
-        massPause.unpauseSupply(_singleMarketArray());
-        _assertM1EntryUnpaused();
+    function test_unpauseTokenLevelEntryActions() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
+        _assertM1TokenLevelEntryUnpaused();
     }
 
-    function test_pauseSupply_autoDiscover() public {
-        massPause.pauseSupply(_emptyArray());
-        _assertM1EntryPaused();
-        _assertM1ExitsUnpaused();
-        _assertM2EntryPaused();
-        _assertM2ExitsUnpaused();
+    function test_pauseTokenLevelEntryActions_autoDiscover() public {
+        massPause.pauseTokenLevelEntryActions(_emptyArray());
+        _assertM1TokenLevelEntryPaused();
+        _assertM1MarketWideExitUnpaused();
+        _assertM2TokenLevelEntryPaused();
+        _assertM2MarketWideExitUnpaused();
     }
 
-    /// ==================== pauseRedemption / unpauseRedemption ==================== ///
+    /// ========== pauseMarketWideExitActions / unpauseMarketWideExitActions ========== ///
 
-    function test_pauseRedemption_onlyPausesExits() public {
-        massPause.pauseRedemption(_singleMarketArray());
-        _assertM1ExitsPaused();
-        _assertM1EntryUnpaused();
+    function test_pauseMarketWideExitActions_onlyPausesMarketWideExit() public {
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
+        _assertM1MarketWideExitPaused();
+        _assertM1TokenLevelEntryUnpaused();
     }
 
-    function test_unpauseRedemption() public {
-        massPause.pauseRedemption(_singleMarketArray());
-        massPause.unpauseRedemption(_singleMarketArray());
-        _assertM1ExitsUnpaused();
+    function test_unpauseMarketWideExitActions() public {
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
+        _assertM1MarketWideExitUnpaused();
     }
 
-    function test_pauseRedemption_autoDiscover() public {
-        massPause.pauseRedemption(_emptyArray());
-        _assertM1ExitsPaused();
-        _assertM1EntryUnpaused();
-        _assertM2ExitsPaused();
-        _assertM2EntryUnpaused();
+    function test_pauseMarketWideExitActions_autoDiscover() public {
+        massPause.pauseMarketWideExitActions(_emptyArray());
+        _assertM1MarketWideExitPaused();
+        _assertM1TokenLevelEntryUnpaused();
+        _assertM2MarketWideExitPaused();
+        _assertM2TokenLevelEntryUnpaused();
     }
 
     /// ==================== MULTI-MARKET ==================== ///
@@ -417,20 +417,20 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         _assertM2AllUnpaused();
     }
 
-    function test_pauseSupply_multipleMarkets() public {
-        massPause.pauseSupply(_bothMarketsArray());
-        _assertM1EntryPaused();
-        _assertM1ExitsUnpaused();
-        _assertM2EntryPaused();
-        _assertM2ExitsUnpaused();
+    function test_pauseTokenLevelEntryActions_multipleMarkets() public {
+        massPause.pauseTokenLevelEntryActions(_bothMarketsArray());
+        _assertM1TokenLevelEntryPaused();
+        _assertM1MarketWideExitUnpaused();
+        _assertM2TokenLevelEntryPaused();
+        _assertM2MarketWideExitUnpaused();
     }
 
-    function test_pauseRedemption_multipleMarkets() public {
-        massPause.pauseRedemption(_bothMarketsArray());
-        _assertM1ExitsPaused();
-        _assertM1EntryUnpaused();
-        _assertM2ExitsPaused();
-        _assertM2EntryUnpaused();
+    function test_pauseMarketWideExitActions_multipleMarkets() public {
+        massPause.pauseMarketWideExitActions(_bothMarketsArray());
+        _assertM1MarketWideExitPaused();
+        _assertM1TokenLevelEntryUnpaused();
+        _assertM2MarketWideExitPaused();
+        _assertM2TokenLevelEntryUnpaused();
     }
 
     function test_pauseAll_singleMarket_doesNotAffectOther() public {
@@ -442,38 +442,38 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
 
     /// ==================== COMPOSABILITY ==================== ///
 
-    function test_pauseSupplyThenRedemption_equalsAll() public {
-        massPause.pauseSupply(_singleMarketArray());
-        massPause.pauseRedemption(_singleMarketArray());
+    function test_pauseTokenLevelEntryThenMarketWideExit_equalsAll() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
         _assertM1AllPaused();
     }
 
-    function test_unpauseSupplyOnly_afterPauseAll() public {
+    function test_unpauseTokenLevelEntryOnly_afterPauseAll() public {
         massPause.pauseAll(_singleMarketArray());
         _assertM1AllPaused();
 
-        massPause.unpauseSupply(_singleMarketArray());
-        _assertM1EntryUnpaused();
-        _assertM1ExitsPaused();
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
+        _assertM1TokenLevelEntryUnpaused();
+        _assertM1MarketWideExitPaused();
     }
 
-    function test_unpauseRedemptionOnly_afterPauseAll() public {
+    function test_unpauseMarketWideExitOnly_afterPauseAll() public {
         massPause.pauseAll(_singleMarketArray());
         _assertM1AllPaused();
 
-        massPause.unpauseRedemption(_singleMarketArray());
-        _assertM1ExitsUnpaused();
-        _assertM1EntryPaused();
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
+        _assertM1MarketWideExitUnpaused();
+        _assertM1TokenLevelEntryPaused();
     }
 
-    function test_pauseAll_unpauseSupply_unpauseRedemption_fullRecovery()
+    function test_pauseAll_unpauseTokenLevelEntry_unpauseMarketWideExit_fullRecovery()
         public
     {
         massPause.pauseAll(_singleMarketArray());
         _assertM1AllPaused();
 
-        massPause.unpauseSupply(_singleMarketArray());
-        massPause.unpauseRedemption(_singleMarketArray());
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
         _assertM1AllUnpaused();
     }
 
@@ -501,7 +501,7 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.unpauseAll(_singleMarketArray());
     }
 
-    function test_pauseSupply_revertsUnauthorized() public {
+    function test_pauseTokenLevelEntryActions_revertsUnauthorized() public {
         address unauthorized = address(0xdead);
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -509,10 +509,10 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
                 .ProtocolManagerMassPause__Unauthorized
                 .selector
         );
-        massPause.pauseSupply(_singleMarketArray());
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
     }
 
-    function test_unpauseSupply_revertsUnauthorized() public {
+    function test_unpauseTokenLevelEntryActions_revertsUnauthorized() public {
         address unauthorized = address(0xdead);
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -520,10 +520,10 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
                 .ProtocolManagerMassPause__Unauthorized
                 .selector
         );
-        massPause.unpauseSupply(_singleMarketArray());
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
     }
 
-    function test_pauseRedemption_revertsUnauthorized() public {
+    function test_pauseMarketWideExitActions_revertsUnauthorized() public {
         address unauthorized = address(0xdead);
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -531,10 +531,10 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
                 .ProtocolManagerMassPause__Unauthorized
                 .selector
         );
-        massPause.pauseRedemption(_singleMarketArray());
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
     }
 
-    function test_unpauseRedemption_revertsUnauthorized() public {
+    function test_unpauseMarketWideExitActions_revertsUnauthorized() public {
         address unauthorized = address(0xdead);
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -542,7 +542,7 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
                 .ProtocolManagerMassPause__Unauthorized
                 .selector
         );
-        massPause.unpauseRedemption(_singleMarketArray());
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
     }
 
     function test_pauseAll_withoutMarketPermissions_emitsFailure() public {
@@ -575,37 +575,37 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.unpauseAll(_singleMarketArray());
     }
 
-    function test_pauseSupply_emitsEvent() public {
+    function test_pauseTokenLevelEntryActions_emitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", true, 1, 0);
-        massPause.pauseSupply(_singleMarketArray());
+        emit ProtocolManagerMassPause.MassPauseExecuted("TokenLevelEntry", true, 1, 0);
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
     }
 
-    function test_unpauseSupply_emitsEvent() public {
-        massPause.pauseSupply(_singleMarketArray());
+    function test_unpauseTokenLevelEntryActions_emitsEvent() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
 
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Supply", false, 1, 0);
-        massPause.unpauseSupply(_singleMarketArray());
+        emit ProtocolManagerMassPause.MassPauseExecuted("TokenLevelEntry", false, 1, 0);
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
     }
 
-    function test_pauseRedemption_emitsEvent() public {
+    function test_pauseMarketWideExitActions_emitsEvent() public {
         vm.expectEmit(true, true, true, true);
-        emit ProtocolManagerMassPause.MassPauseExecuted("Redemption", true, 1, 0);
-        massPause.pauseRedemption(_singleMarketArray());
+        emit ProtocolManagerMassPause.MassPauseExecuted("MarketWideExit", true, 1, 0);
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
     }
 
-    function test_unpauseRedemption_emitsEvent() public {
-        massPause.pauseRedemption(_singleMarketArray());
+    function test_unpauseMarketWideExitActions_emitsEvent() public {
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
 
         vm.expectEmit(true, true, true, true);
         emit ProtocolManagerMassPause.MassPauseExecuted(
-            "Redemption",
+            "MarketWideExit",
             false,
             1,
             0
         );
-        massPause.unpauseRedemption(_singleMarketArray());
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
     }
 
     function test_pauseAll_autoDiscover_emitsCorrectCount() public {
@@ -632,22 +632,22 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         _assertM1AllUnpaused();
     }
 
-    function test_pauseSupply_idempotent() public {
-        massPause.pauseSupply(_singleMarketArray());
-        massPause.pauseSupply(_singleMarketArray());
-        _assertM1EntryPaused();
+    function test_pauseTokenLevelEntryActions_idempotent() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
+        _assertM1TokenLevelEntryPaused();
     }
 
-    function test_pauseRedemption_idempotent() public {
-        massPause.pauseRedemption(_singleMarketArray());
-        massPause.pauseRedemption(_singleMarketArray());
-        _assertM1ExitsPaused();
+    function test_pauseMarketWideExitActions_idempotent() public {
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
+        _assertM1MarketWideExitPaused();
     }
 
     /// ==================== INTEGRATION ==================== ///
 
-    function test_pauseSupply_mintActuallyReverts() public {
-        massPause.pauseSupply(_singleMarketArray());
+    function test_pauseTokenLevelEntryActions_mintActuallyReverts() public {
+        massPause.pauseTokenLevelEntryActions(_singleMarketArray());
 
         address user = address(0xBEEF);
         deal(WMON_ADDRESS, user, 1e18);
@@ -660,10 +660,10 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_pauseRedemption_mintStillWorks() public {
-        massPause.pauseRedemption(_singleMarketArray());
+    function test_pauseMarketWideExitActions_mintStillWorks() public {
+        massPause.pauseMarketWideExitActions(_singleMarketArray());
 
-        // Minting should still work when only redemption is paused.
+        // Minting should still work when only market-wide exit actions are paused.
         address user = address(0xBEEF);
         deal(WMON_ADDRESS, user, 1e18);
 

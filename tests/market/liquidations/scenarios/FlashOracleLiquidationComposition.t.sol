@@ -17,13 +17,13 @@ import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
 import { TestBaseBorrowableCToken } from "tests/market/token/BorrowableCToken/TestBaseBorrowableCToken.sol";
 
-contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
+contract TestFlashOracleLiquidationComposition is TestBaseBorrowableCToken {
     address internal constant _PENDLE_ROUTER = 0x888888888889758F76e7103c6CbF23ABbF58F946;
 
-    error ParallaxPoCScaffold_LiquidationCheckpoint();
-    error ParallaxPoCScaffold_SelfFundingUnavailable(uint256 repaymentGap, uint256 borrowCapacity);
-    error ParallaxPoCScaffold_PendleSelfFundingUnavailable(uint256 repaymentGap, uint256 safeStEthEstimate, uint256 maxStEthInput);
-    error ParallaxPoCScaffold_PendleDeleverageRequiresExistingDebt();
+    error FlashOracleLiquidation_LiquidationCheckpoint();
+    error FlashOracleLiquidation_SelfFundingUnavailable(uint256 repaymentGap, uint256 borrowCapacity);
+    error FlashOracleLiquidation_PendleSelfFundingUnavailable(uint256 repaymentGap, uint256 safeStEthEstimate, uint256 maxStEthInput);
+    error FlashOracleLiquidation_PendleDeleverageRequiresExistingDebt();
 
     struct FlashLoanInvocation {
         address loanToken;
@@ -143,7 +143,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         borrowableCUSDC.accrueIfNeeded();
     }
 
-    function test_tc001_flashOracleLiquidation_flashloanRoundtripScaffold() public {
+    function test_flashOracleLiquidation_flashloanRoundtripScaffold() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation();
         OraclePairSnapshot memory beforeSnapshot = scaffoldOraclePairSnapshot();
         LiquidationProbe memory beforeProbe = scaffoldLiquidationProbe();
@@ -156,17 +156,17 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         LiquidationProbe memory afterProbe = scaffoldLiquidationProbe();
         uint256 cTokenLiquidityAfter = usdc.balanceOf(address(borrowableCUSDC));
 
-        assertTrue(flashloanCallbackSeen, "tc001:flashloan-callback-not-seen");
-        assertEq(flashloanTrace.lender, address(borrowableCUSDC), "tc001:unexpected-lender");
-        assertEq(flashloanTrace.assets, flashLoan.assets, "tc001:unexpected-assets");
-        assertEq(flashloanTrace.assetsReturned, flashLoan.assets + flashLoan.fee, "tc001:unexpected-assets-returned");
-        assertEq(cTokenLiquidityAfter, cTokenLiquidityBefore + flashLoan.fee, "tc001:lender-fee-mismatch");
-        assertEq(afterSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "tc001:unexpected-collateral-price-change");
-        assertEq(afterSnapshot.debtUnderlyingPrice, beforeSnapshot.debtUnderlyingPrice, "tc001:unexpected-debt-price-change");
-        assertEq(afterProbe.liquidationAvailable, beforeProbe.liquidationAvailable, "tc001:unexpected-liquidation-state-change");
+        assertTrue(flashloanCallbackSeen, "flash-oracle-liquidation:flashloan-callback-not-seen");
+        assertEq(flashloanTrace.lender, address(borrowableCUSDC), "flash-oracle-liquidation:unexpected-lender");
+        assertEq(flashloanTrace.assets, flashLoan.assets, "flash-oracle-liquidation:unexpected-assets");
+        assertEq(flashloanTrace.assetsReturned, flashLoan.assets + flashLoan.fee, "flash-oracle-liquidation:unexpected-assets-returned");
+        assertEq(cTokenLiquidityAfter, cTokenLiquidityBefore + flashLoan.fee, "flash-oracle-liquidation:lender-fee-mismatch");
+        assertEq(afterSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "flash-oracle-liquidation:unexpected-collateral-price-change");
+        assertEq(afterSnapshot.debtUnderlyingPrice, beforeSnapshot.debtUnderlyingPrice, "flash-oracle-liquidation:unexpected-debt-price-change");
+        assertEq(afterProbe.liquidationAvailable, beforeProbe.liquidationAvailable, "flash-oracle-liquidation:unexpected-liquidation-state-change");
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCanMutateOracleAndProbeLiquidation() public {
+    function test_flashOracleLiquidation_flashCallbackCanMutateOracleAndProbeLiquidation() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(true, 3e18);
         OraclePairSnapshot memory beforeSnapshot = scaffoldOraclePairSnapshot();
         LiquidationProbe memory beforeProbe = scaffoldLiquidationProbe();
@@ -180,23 +180,23 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         LiquidationProbe memory afterProbe = scaffoldLiquidationProbe();
         uint256 cTokenLiquidityAfter = usdc.balanceOf(address(borrowableCUSDC));
 
-        assertTrue(flashloanCallbackSeen, "tc001:flashloan-callback-not-seen");
-        assertEq(cTokenLiquidityAfter, cTokenLiquidityBefore + flashLoan.fee, "tc001:lender-fee-mismatch");
-        assertTrue(callbackObservation.oracleMutationApplied, "tc001:oracle-mutation-not-applied");
-        assertTrue(callbackObservation.liquidationProbeObserved, "tc001:liquidation-probe-not-observed");
-        assertTrue(callbackObservation.oracleMutation.primaryMockAdaptor != address(0), "tc001:primary-mock-missing");
-        assertTrue(callbackObservation.oracleMutation.secondaryMockAdaptor != address(0), "tc001:secondary-mock-missing");
-        assertEq(callbackObservation.oracleMutation.configuredPrice, 3e18, "tc001:configured-price");
-        assertEq(callbackObservation.oracleSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "tc001:collateral-price-drift");
-        assertGt(callbackObservation.oracleSnapshot.debtUnderlyingPrice, beforeSnapshot.debtUnderlyingPrice, "tc001:debt-price-did-not-increase");
-        assertEq(afterSnapshot.debtUnderlyingPrice, callbackObservation.oracleSnapshot.debtUnderlyingPrice, "tc001:post-callback-price-mismatch");
-        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "tc001:unexpected-mutated-debt-price");
-        assertEq(afterProbe.collateralPosted, beforeProbe.collateralPosted, "tc001:collateral-posted-drift");
-        assertEq(afterProbe.debtBalance, beforeProbe.debtBalance, "tc001:debt-balance-drift");
-        assertEq(afterProbe.liquidationAvailable, callbackObservation.liquidationProbe.liquidationAvailable, "tc001:liquidation-probe-mismatch");
+        assertTrue(flashloanCallbackSeen, "flash-oracle-liquidation:flashloan-callback-not-seen");
+        assertEq(cTokenLiquidityAfter, cTokenLiquidityBefore + flashLoan.fee, "flash-oracle-liquidation:lender-fee-mismatch");
+        assertTrue(callbackObservation.oracleMutationApplied, "flash-oracle-liquidation:oracle-mutation-not-applied");
+        assertTrue(callbackObservation.liquidationProbeObserved, "flash-oracle-liquidation:liquidation-probe-not-observed");
+        assertTrue(callbackObservation.oracleMutation.primaryMockAdaptor != address(0), "flash-oracle-liquidation:primary-mock-missing");
+        assertTrue(callbackObservation.oracleMutation.secondaryMockAdaptor != address(0), "flash-oracle-liquidation:secondary-mock-missing");
+        assertEq(callbackObservation.oracleMutation.configuredPrice, 3e18, "flash-oracle-liquidation:configured-price");
+        assertEq(callbackObservation.oracleSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "flash-oracle-liquidation:collateral-price-drift");
+        assertGt(callbackObservation.oracleSnapshot.debtUnderlyingPrice, beforeSnapshot.debtUnderlyingPrice, "flash-oracle-liquidation:debt-price-did-not-increase");
+        assertEq(afterSnapshot.debtUnderlyingPrice, callbackObservation.oracleSnapshot.debtUnderlyingPrice, "flash-oracle-liquidation:post-callback-price-mismatch");
+        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "flash-oracle-liquidation:unexpected-mutated-debt-price");
+        assertEq(afterProbe.collateralPosted, beforeProbe.collateralPosted, "flash-oracle-liquidation:collateral-posted-drift");
+        assertEq(afterProbe.debtBalance, beforeProbe.debtBalance, "flash-oracle-liquidation:debt-balance-drift");
+        assertEq(afterProbe.liquidationAvailable, callbackObservation.liquidationProbe.liquidationAvailable, "flash-oracle-liquidation:liquidation-probe-mismatch");
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackReachesLiquidationCheckpointBeforeRepayment() public {
+    function test_flashOracleLiquidation_flashCallbackReachesLiquidationCheckpointBeforeRepayment() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
             true,
             3e18,
@@ -210,11 +210,11 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
 
         flashloanCallbackSeen = false;
         delete callbackObservation;
-        vm.expectRevert(ParallaxPoCScaffold_LiquidationCheckpoint.selector);
+        vm.expectRevert(FlashOracleLiquidation_LiquidationCheckpoint.selector);
         borrowableCUSDC.flashLoan(flashLoan.assets, flashLoan.callbackData);
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCannotSettleWithoutSwapLeg() public {
+    function test_flashOracleLiquidation_flashCallbackCannotSettleWithoutSwapLeg() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
             true,
             3e18,
@@ -232,7 +232,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         borrowableCUSDC.flashLoan(flashLoan.assets, flashLoan.callbackData);
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCanExecuteLiquidation() public {
+    function test_flashOracleLiquidation_flashCallbackCanExecuteLiquidation() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
             true,
             3e18,
@@ -254,38 +254,38 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         uint256 borrowerCollateralAfter = pendleStrategyCTokenSTETH.balanceOf(user1);
         uint256 liquidatorCollateralAfter = pendleStrategyCTokenSTETH.balanceOf(address(this));
 
-        assertTrue(flashloanCallbackSeen, "tc001:flashloan-callback-not-seen");
-        assertTrue(callbackObservation.oracleMutationApplied, "tc001:oracle-mutation-not-applied");
-        assertTrue(callbackObservation.liquidationProbeObserved, "tc001:liquidation-probe-not-observed");
-        assertTrue(callbackObservation.liquidationExecuted, "tc001:liquidation-not-executed");
-        assertTrue(callbackObservation.liquidationProbe.liquidationAvailable, "tc001:liquidation-probe-unavailable");
-        assertEq(callbackObservation.liquidationExecution.requestedDebtAmount, 250e6, "tc001:requested-debt-amount");
-        assertEq(callbackObservation.liquidationExecution.borrowerDebtBefore, borrowerDebtBefore, "tc001:borrower-debt-before");
-        assertEq(callbackObservation.liquidationExecution.borrowerCollateralBefore, borrowerCollateralBefore, "tc001:borrower-collateral-before");
-        assertEq(callbackObservation.liquidationExecution.liquidatorCollateralBefore, liquidatorCollateralBefore, "tc001:liquidator-collateral-before");
-        assertEq(callbackObservation.liquidationExecution.borrowerDebtAfter, borrowerDebtAfter, "tc001:borrower-debt-after");
-        assertEq(callbackObservation.liquidationExecution.borrowerCollateralAfter, borrowerCollateralAfter, "tc001:borrower-collateral-after");
-        assertEq(callbackObservation.liquidationExecution.liquidatorCollateralAfter, liquidatorCollateralAfter, "tc001:liquidator-collateral-after");
-        assertGt(callbackObservation.liquidationExecution.collateralSeized, 0, "tc001:missing-collateral-seized");
+        assertTrue(flashloanCallbackSeen, "flash-oracle-liquidation:flashloan-callback-not-seen");
+        assertTrue(callbackObservation.oracleMutationApplied, "flash-oracle-liquidation:oracle-mutation-not-applied");
+        assertTrue(callbackObservation.liquidationProbeObserved, "flash-oracle-liquidation:liquidation-probe-not-observed");
+        assertTrue(callbackObservation.liquidationExecuted, "flash-oracle-liquidation:liquidation-not-executed");
+        assertTrue(callbackObservation.liquidationProbe.liquidationAvailable, "flash-oracle-liquidation:liquidation-probe-unavailable");
+        assertEq(callbackObservation.liquidationExecution.requestedDebtAmount, 250e6, "flash-oracle-liquidation:requested-debt-amount");
+        assertEq(callbackObservation.liquidationExecution.borrowerDebtBefore, borrowerDebtBefore, "flash-oracle-liquidation:borrower-debt-before");
+        assertEq(callbackObservation.liquidationExecution.borrowerCollateralBefore, borrowerCollateralBefore, "flash-oracle-liquidation:borrower-collateral-before");
+        assertEq(callbackObservation.liquidationExecution.liquidatorCollateralBefore, liquidatorCollateralBefore, "flash-oracle-liquidation:liquidator-collateral-before");
+        assertEq(callbackObservation.liquidationExecution.borrowerDebtAfter, borrowerDebtAfter, "flash-oracle-liquidation:borrower-debt-after");
+        assertEq(callbackObservation.liquidationExecution.borrowerCollateralAfter, borrowerCollateralAfter, "flash-oracle-liquidation:borrower-collateral-after");
+        assertEq(callbackObservation.liquidationExecution.liquidatorCollateralAfter, liquidatorCollateralAfter, "flash-oracle-liquidation:liquidator-collateral-after");
+        assertGt(callbackObservation.liquidationExecution.collateralSeized, 0, "flash-oracle-liquidation:missing-collateral-seized");
         assertEq(
             callbackObservation.liquidationExecution.flashRepaymentTopUp,
             flashLoan.fee + callbackObservation.liquidationExecution.requestedDebtAmount,
-            "tc001:unexpected-flash-topup"
+            "flash-oracle-liquidation:unexpected-flash-topup"
         );
         assertApproxEqAbs(
             callbackObservation.liquidationExecution.collateralSeized,
             callbackObservation.liquidationProbe.liquidatedShares,
             1000,
-            "tc001:probe-to-execution-collateral-mismatch"
+            "flash-oracle-liquidation:probe-to-execution-collateral-mismatch"
         );
-        assertLt(borrowerDebtAfter, borrowerDebtBefore, "tc001:borrower-debt-not-reduced");
-        assertLt(borrowerCollateralAfter, borrowerCollateralBefore, "tc001:borrower-collateral-not-reduced");
-        assertGt(liquidatorCollateralAfter, liquidatorCollateralBefore, "tc001:liquidator-did-not-receive-collateral");
-        assertEq(afterSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "tc001:collateral-price-drift");
-        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "tc001:unexpected-mutated-debt-price");
+        assertLt(borrowerDebtAfter, borrowerDebtBefore, "flash-oracle-liquidation:borrower-debt-not-reduced");
+        assertLt(borrowerCollateralAfter, borrowerCollateralBefore, "flash-oracle-liquidation:borrower-collateral-not-reduced");
+        assertGt(liquidatorCollateralAfter, liquidatorCollateralBefore, "flash-oracle-liquidation:liquidator-did-not-receive-collateral");
+        assertEq(afterSnapshot.collateralSharesPrice, beforeSnapshot.collateralSharesPrice, "flash-oracle-liquidation:collateral-price-drift");
+        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "flash-oracle-liquidation:unexpected-mutated-debt-price");
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCannotSelfFundRepaymentWithSeizedCollateral() public {
+    function test_flashOracleLiquidation_flashCallbackCannotSelfFundRepaymentWithSeizedCollateral() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
             true,
             3e18,
@@ -302,7 +302,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         delete callbackObservation;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ParallaxPoCScaffold_SelfFundingUnavailable.selector,
+                FlashOracleLiquidation_SelfFundingUnavailable.selector,
                 254e6,
                 0
             )
@@ -310,7 +310,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         borrowableCUSDC.flashLoan(flashLoan.assets, flashLoan.callbackData);
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCannotMonetizeSeizedCollateralViaPendleDeleverageWithoutExistingDebt() public {
+    function test_flashOracleLiquidation_flashCallbackCannotMonetizeSeizedCollateralViaPendleDeleverageWithoutExistingDebt() public {
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
             true,
             3e18,
@@ -326,12 +326,12 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         flashloanCallbackSeen = false;
         delete callbackObservation;
         vm.expectRevert(
-            ParallaxPoCScaffold_PendleDeleverageRequiresExistingDebt.selector
+            FlashOracleLiquidation_PendleDeleverageRequiresExistingDebt.selector
         );
         borrowableCUSDC.flashLoan(flashLoan.assets, flashLoan.callbackData);
     }
 
-    function test_tc001_flashOracleLiquidation_flashCallbackCanMonetizeSeizedCollateralViaPendleDeleverageWithExistingDustDebt() public {
+    function test_flashOracleLiquidation_flashCallbackCanMonetizeSeizedCollateralViaPendleDeleverageWithExistingDustDebt() public {
         _prepareLiquidatorDustDebtState(0.5e18, 10e6);
 
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
@@ -354,29 +354,29 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         delete callbackObservation;
         borrowableCUSDC.flashLoan(flashLoan.assets, flashLoan.callbackData);
 
-        assertTrue(flashloanCallbackSeen, "tc001:flashloan-callback-not-seen");
-        assertTrue(callbackObservation.oracleMutationApplied, "tc001:oracle-mutation-not-applied");
-        assertTrue(callbackObservation.liquidationExecuted, "tc001:liquidation-not-executed");
-        assertGt(liquidatorDebtBefore, 0, "tc001:missing-liquidator-debt");
+        assertTrue(flashloanCallbackSeen, "flash-oracle-liquidation:flashloan-callback-not-seen");
+        assertTrue(callbackObservation.oracleMutationApplied, "flash-oracle-liquidation:oracle-mutation-not-applied");
+        assertTrue(callbackObservation.liquidationExecuted, "flash-oracle-liquidation:liquidation-not-executed");
+        assertGt(liquidatorDebtBefore, 0, "flash-oracle-liquidation:missing-liquidator-debt");
         assertEq(
             callbackObservation.liquidationExecution.liquidatorDebtBeforePendleDeleverage,
             liquidatorDebtBefore,
-            "tc001:unexpected-liquidator-debt-before-deleverage"
+            "flash-oracle-liquidation:unexpected-liquidator-debt-before-deleverage"
         );
         assertEq(
             callbackObservation.liquidationExecution.flashRepaymentTopUp,
             0,
-            "tc001:unexpected-helper-topup"
+            "flash-oracle-liquidation:unexpected-helper-topup"
         );
         assertGt(
             callbackObservation.liquidationExecution.pendleDeleverageUsdcProceeds,
             0,
-            "tc001:missing-pendle-usdc-proceeds"
+            "flash-oracle-liquidation:missing-pendle-usdc-proceeds"
         );
         assertGe(
             callbackObservation.liquidationExecution.pendleDeleverageUsdcProceeds,
             callbackObservation.liquidationExecution.repaymentGapBeforeSelfFunding,
-            "tc001:pendle-proceeds-below-repayment-gap"
+            "flash-oracle-liquidation:pendle-proceeds-below-repayment-gap"
         );
         _assertPreExistingDebtPendleBranchAccounting(
             flashLoan,
@@ -386,7 +386,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         _assertPreExistingDebtPendleOracleAftermath(beforeSnapshot);
     }
 
-    function test_tc001_flashOracleLiquidation_flashWrapperOnlyAddsFeeOverDirectPendleLiquidation() public {
+    function test_flashOracleLiquidation_flashWrapperOnlyAddsFeeOverDirectPendleLiquidation() public {
         _prepareLiquidatorDustDebtState(0.5e18, 10e6);
 
         FlashLoanInvocation memory flashLoan = scaffoldFlashLoanInvocation(
@@ -404,39 +404,39 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
 
         BranchEconomics memory flashBranch = _runFlashPendleBranch(flashLoan);
 
-        assertTrue(vm.revertToState(baselineSnapshot), "tc001:failed-to-revert-baseline-snapshot");
+        assertTrue(vm.revertToState(baselineSnapshot), "flash-oracle-liquidation:failed-to-revert-baseline-snapshot");
 
         BranchEconomics memory directBranch = _runDirectPendleBranch(3e18, 250e6);
 
         assertEq(
             flashBranch.grossMonetization,
             directBranch.grossMonetization,
-            "tc001:unexpected-gross-monetization-drift"
+            "flash-oracle-liquidation:unexpected-gross-monetization-drift"
         );
         assertEq(
             flashBranch.debtRepaid,
             directBranch.debtRepaid,
-            "tc001:unexpected-debt-repayment-drift"
+            "flash-oracle-liquidation:unexpected-debt-repayment-drift"
         );
         assertEq(
             flashBranch.collateralSharesPriceAfter,
             directBranch.collateralSharesPriceAfter,
-            "tc001:unexpected-collateral-price-drift-between-branches"
+            "flash-oracle-liquidation:unexpected-collateral-price-drift-between-branches"
         );
         assertEq(
             flashBranch.debtUnderlyingPriceAfter,
             directBranch.debtUnderlyingPriceAfter,
-            "tc001:unexpected-debt-price-drift-between-branches"
+            "flash-oracle-liquidation:unexpected-debt-price-drift-between-branches"
         );
         assertEq(
             flashBranch.lenderLiquidityDelta,
             directBranch.lenderLiquidityDelta + flashLoan.fee,
-            "tc001:flash-wrapper-added-more-than-fee"
+            "flash-oracle-liquidation:flash-wrapper-added-more-than-fee"
         );
         assertEq(
             flashBranch.netValueGain + flashLoan.fee,
             directBranch.netValueGain,
-            "tc001:flash-wrapper-changed-net-economics"
+            "flash-oracle-liquidation:flash-wrapper-changed-net-economics"
         );
     }
 
@@ -619,7 +619,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         }
 
         if (checkpointAfterLiquidation) {
-            revert ParallaxPoCScaffold_LiquidationCheckpoint();
+            revert FlashOracleLiquidation_LiquidationCheckpoint();
         }
 
         if (executeLiquidation && selfFundRepaymentWithSeizedCollateral) {
@@ -648,11 +648,11 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
     ) internal returns (OracleMutationExecution memory execution) {
         MockOracleAdaptor primaryMock = new MockOracleAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            "ParallaxPrimary"
+            "OracleMutationPrimary"
         );
         MockOracleAdaptor secondaryMock = new MockOracleAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            "ParallaxSecondary"
+            "OracleMutationSecondary"
         );
 
         oracleManager.addApprovedAdaptor(address(primaryMock));
@@ -740,7 +740,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         callbackObservation.liquidationExecution.selfFundingBorrowCapacity = borrowCapacity;
 
         if (borrowCapacity < repaymentGap) {
-            revert ParallaxPoCScaffold_SelfFundingUnavailable(repaymentGap, borrowCapacity);
+            revert FlashOracleLiquidation_SelfFundingUnavailable(repaymentGap, borrowCapacity);
         }
 
         borrowableCUSDC.borrow(repaymentGap, address(this));
@@ -752,7 +752,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
     function _selfFundFlashRepaymentViaPendleDeleverage(uint256 assetsReturned) internal {
         uint256 liquidatorDebtBefore = borrowableCUSDC.debtBalance(address(this));
         if (liquidatorDebtBefore == 0) {
-            revert ParallaxPoCScaffold_PendleDeleverageRequiresExistingDebt();
+            revert FlashOracleLiquidation_PendleDeleverageRequiresExistingDebt();
         }
 
         uint256 currentBalance = usdc.balanceOf(address(this));
@@ -776,7 +776,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         callbackObservation.liquidationExecution.liquidatorDebtBeforePendleDeleverage = liquidatorDebtBefore;
 
         if (quotedUsdcOut < repaymentGap) {
-            revert ParallaxPoCScaffold_PendleSelfFundingUnavailable(
+            revert FlashOracleLiquidation_PendleSelfFundingUnavailable(
                 repaymentGap,
                 safeStEthEstimate,
                 safeStEthEstimate
@@ -863,8 +863,8 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
             true
         );
 
-        require(lpErrorCode == NO_ERROR, "tc001:lp-price-error");
-        require(stEthErrorCode == NO_ERROR, "tc001:steth-price-error");
+        require(lpErrorCode == NO_ERROR, "flash-oracle-liquidation:lp-price-error");
+        require(stEthErrorCode == NO_ERROR, "flash-oracle-liquidation:steth-price-error");
 
         estimatedStEthOut = FixedPointMathLib.mulDiv(
             collateralAssets,
@@ -893,44 +893,44 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         uint256 postSettlementNetValueGain =
             liquidatorUsdcAfterFlash + liquidatorDebtRepaid;
 
-        assertLt(liquidatorDebtAfter, liquidatorDebtBefore, "tc001:liquidator-debt-not-reduced");
+        assertLt(liquidatorDebtAfter, liquidatorDebtBefore, "flash-oracle-liquidation:liquidator-debt-not-reduced");
         assertEq(
             callbackObservation.liquidationExecution.liquidatorDebtAfterPendleDeleverage,
             liquidatorDebtAfter,
-            "tc001:unexpected-liquidator-debt-after-deleverage"
+            "flash-oracle-liquidation:unexpected-liquidator-debt-after-deleverage"
         );
         assertEq(
             cTokenLiquidityAfter - cTokenLiquidityBefore,
             flashLoan.fee +
                 callbackObservation.liquidationExecution.requestedDebtAmount +
                 liquidatorDebtRepaid,
-            "tc001:unexpected-lender-liquidity-delta"
+            "flash-oracle-liquidation:unexpected-lender-liquidity-delta"
         );
         assertEq(
             callbackObservation.liquidationExecution.repaymentGapBeforeSelfFunding,
             callbackObservation.liquidationExecution.requestedDebtAmount + flashLoan.fee,
-            "tc001:unexpected-repayment-gap"
+            "flash-oracle-liquidation:unexpected-repayment-gap"
         );
         assertEq(
             liquidatorUsdcAfterFlash,
             callbackObservation.liquidationExecution.liquidatorUsdcAfterPendleDeleverage -
                 (flashLoan.assets + flashLoan.fee),
-            "tc001:unexpected-post-flash-usdc"
+            "flash-oracle-liquidation:unexpected-post-flash-usdc"
         );
-        assertGt(liquidatorUsdcAfterFlash, 0, "tc001:no-post-flash-usdc-profit");
+        assertGt(liquidatorUsdcAfterFlash, 0, "flash-oracle-liquidation:no-post-flash-usdc-profit");
         assertEq(
             postSettlementNetValueGain,
             callbackObservation.liquidationExecution.pendleDeleverageUsdcProceeds +
                 liquidatorDebtRepaid -
                 callbackObservation.liquidationExecution.requestedDebtAmount -
                 flashLoan.fee,
-            "tc001:unexpected-post-settlement-net-value"
+            "flash-oracle-liquidation:unexpected-post-settlement-net-value"
         );
-        assertGt(postSettlementNetValueGain, 0, "tc001:no-post-settlement-net-value");
+        assertGt(postSettlementNetValueGain, 0, "flash-oracle-liquidation:no-post-settlement-net-value");
         assertGe(
             callbackObservation.liquidationExecution.liquidatorUsdcAfterPendleDeleverage,
             flashLoan.assets + flashLoan.fee,
-            "tc001:deleverage-did-not-restore-flash-balance"
+            "flash-oracle-liquidation:deleverage-did-not-restore-flash-balance"
         );
     }
 
@@ -941,9 +941,9 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
         assertGt(
             afterSnapshot.collateralSharesPrice,
             beforeSnapshot.collateralSharesPrice,
-            "tc001:collateral-price-did-not-rise"
+            "flash-oracle-liquidation:collateral-price-did-not-rise"
         );
-        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "tc001:unexpected-mutated-debt-price");
+        assertEq(afterSnapshot.debtUnderlyingPrice, 3e18, "flash-oracle-liquidation:unexpected-mutated-debt-price");
     }
 
     function _runFlashPendleBranch(
@@ -1024,7 +1024,7 @@ contract TC001FlashOracleLiquidationPoC is TestBaseBorrowableCToken {
     function _clearAmbientUsdcBalance() internal {
         uint256 ambientUsdcBalance = usdc.balanceOf(address(this));
         if (ambientUsdcBalance != 0) {
-            usdc.transfer(makeAddr("tc001BalanceSink"), ambientUsdcBalance);
+            usdc.transfer(makeAddr("flashOracleLiquidationBalanceSink"), ambientUsdcBalance);
         }
     }
 }

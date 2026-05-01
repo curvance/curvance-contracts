@@ -8,7 +8,7 @@ import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TC002OracleLiquidationPoC is TestBaseMarketIsolated {
+contract TestOracleReplacementLiquidation is TestBaseMarketIsolated {
     struct OraclePairSnapshot {
         uint256 collateralSharesPrice;
         uint256 debtUnderlyingPrice;
@@ -84,128 +84,128 @@ contract TC002OracleLiquidationPoC is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
     }
 
-    function test_tc002_oracleLiquidation_oracleReplacementEnablesLiquidation() public {
+    function test_oracleLiquidation_oracleReplacementEnablesLiquidation() public {
         OracleMutationBranch memory branch = _runOracleMutationBranch(2e18);
 
-        assertGt(branch.beforeSnapshot.collateralSharesPrice, 0, "tc002:missing-collateral-price");
-        assertApproxEqRel(branch.beforeSnapshot.debtUnderlyingPrice, 1e18, 0.001e18, "tc002:baseline-debt-price-drift");
-        assertFalse(branch.beforeProbe.liquidationAvailable, "tc002:baseline-should-be-healthy");
-        assertEq(branch.beforeProbe.debtRepaid, 0, "tc002:baseline-debt-repaid");
+        assertGt(branch.beforeSnapshot.collateralSharesPrice, 0, "oracle-liquidation:missing-collateral-price");
+        assertApproxEqRel(branch.beforeSnapshot.debtUnderlyingPrice, 1e18, 0.001e18, "oracle-liquidation:baseline-debt-price-drift");
+        assertFalse(branch.beforeProbe.liquidationAvailable, "oracle-liquidation:baseline-should-be-healthy");
+        assertEq(branch.beforeProbe.debtRepaid, 0, "oracle-liquidation:baseline-debt-repaid");
 
-        assertTrue(branch.execution.primaryMockAdaptor != address(0), "tc002:primary-mock-missing");
-        assertTrue(branch.execution.secondaryMockAdaptor != address(0), "tc002:secondary-mock-missing");
-        assertEq(branch.execution.configuredPrice, 2e18, "tc002:configured-price");
+        assertTrue(branch.execution.primaryMockAdaptor != address(0), "oracle-liquidation:primary-mock-missing");
+        assertTrue(branch.execution.secondaryMockAdaptor != address(0), "oracle-liquidation:secondary-mock-missing");
+        assertEq(branch.execution.configuredPrice, 2e18, "oracle-liquidation:configured-price");
         assertEq(
             branch.afterSnapshot.collateralSharesPrice,
             branch.beforeSnapshot.collateralSharesPrice,
-            "tc002:collateral-price-drift"
+            "oracle-liquidation:collateral-price-drift"
         );
         assertGt(
             branch.afterSnapshot.debtUnderlyingPrice,
             branch.beforeSnapshot.debtUnderlyingPrice,
-            "tc002:debt-price-did-not-increase"
+            "oracle-liquidation:debt-price-did-not-increase"
         );
-        assertEq(branch.afterSnapshot.debtUnderlyingPrice, 2e18, "tc002:unexpected-mutated-debt-price");
-        assertEq(branch.afterProbe.collateralPosted, branch.beforeProbe.collateralPosted, "tc002:collateral-posted-drift");
-        assertEq(branch.afterProbe.debtBalance, branch.beforeProbe.debtBalance, "tc002:debt-balance-drift");
-        assertTrue(branch.afterProbe.liquidationAvailable, "tc002:mutation-should-enable-liquidation");
-        assertGt(branch.afterProbe.liquidatedShares, 0, "tc002:missing-liquidated-shares");
-        assertGt(branch.afterProbe.debtRepaid, 0, "tc002:missing-debt-repaid");
+        assertEq(branch.afterSnapshot.debtUnderlyingPrice, 2e18, "oracle-liquidation:unexpected-mutated-debt-price");
+        assertEq(branch.afterProbe.collateralPosted, branch.beforeProbe.collateralPosted, "oracle-liquidation:collateral-posted-drift");
+        assertEq(branch.afterProbe.debtBalance, branch.beforeProbe.debtBalance, "oracle-liquidation:debt-balance-drift");
+        assertTrue(branch.afterProbe.liquidationAvailable, "oracle-liquidation:mutation-should-enable-liquidation");
+        assertGt(branch.afterProbe.liquidatedShares, 0, "oracle-liquidation:missing-liquidated-shares");
+        assertGt(branch.afterProbe.debtRepaid, 0, "oracle-liquidation:missing-debt-repaid");
     }
 
-    function test_tc002_oracleLiquidation_parityAdaptorReplacementPreservesLiquidationState() public {
+    function test_oracleLiquidation_parityAdaptorReplacementPreservesLiquidationState() public {
         OracleMutationBranch memory branch = _runOracleMutationBranch(1e18);
 
-        assertEq(branch.execution.configuredPrice, 1e18, "tc002:unexpected-parity-config");
+        assertEq(branch.execution.configuredPrice, 1e18, "oracle-liquidation:unexpected-parity-config");
         assertEq(
             branch.afterSnapshot.collateralSharesPrice,
             branch.beforeSnapshot.collateralSharesPrice,
-            "tc002:parity-collateral-price-drift"
+            "oracle-liquidation:parity-collateral-price-drift"
         );
         assertApproxEqRel(
             branch.afterSnapshot.debtUnderlyingPrice,
             branch.beforeSnapshot.debtUnderlyingPrice,
             0.001e18,
-            "tc002:parity-debt-price-drift"
+            "oracle-liquidation:parity-debt-price-drift"
         );
-        assertEq(branch.afterProbe.collateralPosted, branch.beforeProbe.collateralPosted, "tc002:parity-collateral-posted-drift");
-        assertEq(branch.afterProbe.debtBalance, branch.beforeProbe.debtBalance, "tc002:parity-debt-balance-drift");
+        assertEq(branch.afterProbe.collateralPosted, branch.beforeProbe.collateralPosted, "oracle-liquidation:parity-collateral-posted-drift");
+        assertEq(branch.afterProbe.debtBalance, branch.beforeProbe.debtBalance, "oracle-liquidation:parity-debt-balance-drift");
         assertEq(
             branch.afterProbe.liquidationAvailable,
             branch.beforeProbe.liquidationAvailable,
-            "tc002:parity-liquidation-availability-drift"
+            "oracle-liquidation:parity-liquidation-availability-drift"
         );
-        assertEq(branch.afterProbe.liquidatedShares, branch.beforeProbe.liquidatedShares, "tc002:parity-liquidated-shares-drift");
-        assertEq(branch.afterProbe.debtRepaid, branch.beforeProbe.debtRepaid, "tc002:parity-debt-repaid-drift");
+        assertEq(branch.afterProbe.liquidatedShares, branch.beforeProbe.liquidatedShares, "oracle-liquidation:parity-liquidated-shares-drift");
+        assertEq(branch.afterProbe.debtRepaid, branch.beforeProbe.debtRepaid, "oracle-liquidation:parity-debt-repaid-drift");
         assertEq(
             branch.afterProbe.badDebtRealized,
             branch.beforeProbe.badDebtRealized,
-            "tc002:parity-bad-debt-drift"
+            "oracle-liquidation:parity-bad-debt-drift"
         );
     }
 
-    function test_tc002_oracleLiquidation_privilegedPricePressureOnlyChangesLiquidationRelativeToParityReplacement() public {
+    function test_oracleLiquidation_privilegedPricePressureOnlyChangesLiquidationRelativeToParityReplacement() public {
         uint256 baselineSnapshot = vm.snapshotState();
         OracleMutationBranch memory parityBranch = _runOracleMutationBranch(1e18);
 
-        assertTrue(vm.revertToState(baselineSnapshot), "tc002:failed-to-revert-baseline-snapshot");
+        assertTrue(vm.revertToState(baselineSnapshot), "oracle-liquidation:failed-to-revert-baseline-snapshot");
 
         OracleMutationBranch memory stressedBranch = _runOracleMutationBranch(2e18);
 
         assertEq(
             parityBranch.beforeSnapshot.collateralSharesPrice,
             stressedBranch.beforeSnapshot.collateralSharesPrice,
-            "tc002:mismatched-baseline-collateral-price"
+            "oracle-liquidation:mismatched-baseline-collateral-price"
         );
         assertApproxEqRel(
             parityBranch.beforeSnapshot.debtUnderlyingPrice,
             stressedBranch.beforeSnapshot.debtUnderlyingPrice,
             0.001e18,
-            "tc002:mismatched-baseline-debt-price"
+            "oracle-liquidation:mismatched-baseline-debt-price"
         );
         assertEq(
             parityBranch.beforeProbe.collateralPosted,
             stressedBranch.beforeProbe.collateralPosted,
-            "tc002:mismatched-baseline-collateral-posted"
+            "oracle-liquidation:mismatched-baseline-collateral-posted"
         );
         assertEq(
             parityBranch.beforeProbe.debtBalance,
             stressedBranch.beforeProbe.debtBalance,
-            "tc002:mismatched-baseline-debt-balance"
+            "oracle-liquidation:mismatched-baseline-debt-balance"
         );
 
         assertEq(
             parityBranch.afterSnapshot.collateralSharesPrice,
             stressedBranch.afterSnapshot.collateralSharesPrice,
-            "tc002:collateral-price-should-not-change-across-branches"
+            "oracle-liquidation:collateral-price-should-not-change-across-branches"
         );
         assertApproxEqRel(
             parityBranch.afterSnapshot.debtUnderlyingPrice,
             parityBranch.beforeSnapshot.debtUnderlyingPrice,
             0.001e18,
-            "tc002:parity-branch-debt-price-drift"
+            "oracle-liquidation:parity-branch-debt-price-drift"
         );
         assertGt(
             stressedBranch.afterSnapshot.debtUnderlyingPrice,
             parityBranch.afterSnapshot.debtUnderlyingPrice,
-            "tc002:stressed-branch-did-not-increase-debt-price"
+            "oracle-liquidation:stressed-branch-did-not-increase-debt-price"
         );
 
-        assertFalse(parityBranch.afterProbe.liquidationAvailable, "tc002:parity-branch-should-stay-healthy");
-        assertTrue(stressedBranch.afterProbe.liquidationAvailable, "tc002:stressed-branch-should-liquidate");
-        assertEq(parityBranch.afterProbe.liquidatedShares, 0, "tc002:parity-branch-liquidated-shares");
-        assertEq(parityBranch.afterProbe.debtRepaid, 0, "tc002:parity-branch-debt-repaid");
-        assertEq(parityBranch.afterProbe.badDebtRealized, 0, "tc002:parity-branch-bad-debt");
-        assertGt(stressedBranch.afterProbe.liquidatedShares, 0, "tc002:stressed-branch-liquidated-shares");
-        assertGt(stressedBranch.afterProbe.debtRepaid, 0, "tc002:stressed-branch-debt-repaid");
+        assertFalse(parityBranch.afterProbe.liquidationAvailable, "oracle-liquidation:parity-branch-should-stay-healthy");
+        assertTrue(stressedBranch.afterProbe.liquidationAvailable, "oracle-liquidation:stressed-branch-should-liquidate");
+        assertEq(parityBranch.afterProbe.liquidatedShares, 0, "oracle-liquidation:parity-branch-liquidated-shares");
+        assertEq(parityBranch.afterProbe.debtRepaid, 0, "oracle-liquidation:parity-branch-debt-repaid");
+        assertEq(parityBranch.afterProbe.badDebtRealized, 0, "oracle-liquidation:parity-branch-bad-debt");
+        assertGt(stressedBranch.afterProbe.liquidatedShares, 0, "oracle-liquidation:stressed-branch-liquidated-shares");
+        assertGt(stressedBranch.afterProbe.debtRepaid, 0, "oracle-liquidation:stressed-branch-debt-repaid");
     }
 
-    function test_tc002_oracleLiquidation_oracleReplacementCanBlockLiquidationViaBadSource() public {
+    function test_oracleLiquidation_oracleReplacementCanBlockLiquidationViaBadSource() public {
         OracleMutationPlan memory mutationPlan = scaffoldOracleMutationPlan();
         OracleMutationExecution memory execution = _applyDebtOracleReplacement(mutationPlan, 2e18);
         LiquidationProbe memory liquidatableProbe = scaffoldLiquidationProbe();
 
-        assertTrue(liquidatableProbe.liquidationAvailable, "tc002:expected-liquidatable-baseline");
+        assertTrue(liquidatableProbe.liquidationAvailable, "oracle-liquidation:expected-liquidatable-baseline");
 
         _setDebtOracleReplacementPrice(execution, mutationPlan.asset, 0);
 
@@ -215,22 +215,22 @@ contract TC002OracleLiquidationPoC is TestBaseMarketIsolated {
         _expectLiquidationBlockedByBadSource();
     }
 
-    function test_tc002_oracleLiquidation_oracleReplacementLiquidateExactRealizesStateChange() public {
+    function test_oracleLiquidation_oracleReplacementLiquidateExactRealizesStateChange() public {
         OracleMutationPlan memory mutationPlan = scaffoldOracleMutationPlan();
         _applyDebtOracleReplacement(mutationPlan, 2e18);
 
         LiquidationProbe memory exactProbe = scaffoldLiquidationProbe(true, 250e18);
-        assertTrue(exactProbe.liquidationAvailable, "tc002:expected-liquidatable-exact-probe");
-        assertEq(exactProbe.debtAmountInput, 250e18, "tc002:unexpected-exact-input");
-        assertGt(exactProbe.debtAmountResolved, exactProbe.debtAmountInput, "tc002:missing-bad-debt-gross-up");
+        assertTrue(exactProbe.liquidationAvailable, "oracle-liquidation:expected-liquidatable-exact-probe");
+        assertEq(exactProbe.debtAmountInput, 250e18, "oracle-liquidation:unexpected-exact-input");
+        assertGt(exactProbe.debtAmountResolved, exactProbe.debtAmountInput, "oracle-liquidation:missing-bad-debt-gross-up");
         assertApproxEqAbs(
             exactProbe.debtAmountResolved,
             exactProbe.debtRepaid + exactProbe.badDebtRealized,
             1000,
-            "tc002:resolved-debt-amount"
+            "oracle-liquidation:resolved-debt-amount"
         );
-        assertGt(exactProbe.liquidatedShares, 0, "tc002:missing-liquidated-shares");
-        assertGt(exactProbe.debtRepaid, 0, "tc002:missing-debt-repaid");
+        assertGt(exactProbe.liquidatedShares, 0, "oracle-liquidation:missing-liquidated-shares");
+        assertGt(exactProbe.debtRepaid, 0, "oracle-liquidation:missing-debt-repaid");
 
         _prepareDAI(user2, exactProbe.debtAmountInput);
 
@@ -264,31 +264,31 @@ contract TC002OracleLiquidationPoC is TestBaseMarketIsolated {
             borrowerDebtBefore - borrowerDebtAfter,
             exactProbe.debtRepaid + exactProbe.badDebtRealized,
             1000,
-            "tc002:borrower-debt-delta"
+            "oracle-liquidation:borrower-debt-delta"
         );
         assertApproxEqAbs(
             borrowerCollateralBefore - borrowerCollateralAfter,
             exactProbe.liquidatedShares,
             1000,
-            "tc002:borrower-collateral-delta"
+            "oracle-liquidation:borrower-collateral-delta"
         );
         assertApproxEqAbs(
             liquidatorCollateralAfter - liquidatorCollateralBefore,
             exactProbe.liquidatedShares,
             1000,
-            "tc002:liquidator-collateral-delta"
+            "oracle-liquidation:liquidator-collateral-delta"
         );
         assertApproxEqAbs(
             liquidatorDebtAssetBefore - liquidatorDebtAssetAfter,
             exactProbe.debtRepaid,
             1000,
-            "tc002:liquidator-dai-spend"
+            "oracle-liquidation:liquidator-dai-spend"
         );
         assertApproxEqAbs(
             marketDebtBefore - marketDebtAfter,
             exactProbe.debtRepaid + exactProbe.badDebtRealized,
             1000,
-            "tc002:market-debt-delta"
+            "oracle-liquidation:market-debt-delta"
         );
     }
 
@@ -370,11 +370,11 @@ contract TC002OracleLiquidationPoC is TestBaseMarketIsolated {
     ) internal returns (OracleMutationExecution memory execution) {
         MockOracleAdaptor primaryMock = new MockOracleAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            "ParallaxPrimary"
+            "OracleMutationPrimary"
         );
         MockOracleAdaptor secondaryMock = new MockOracleAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            "ParallaxSecondary"
+            "OracleMutationSecondary"
         );
 
         oracleManager.addApprovedAdaptor(address(primaryMock));

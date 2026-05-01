@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -335,6 +336,37 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         assertGt(weth.balanceOf(user1), 0);
     }
 
+    function test_vaultZapper_fail_redeemAndSwapCannotRedeemVictimShares() public {
+        _setUpSimpleCUSDC_borrowableCDAI();
+
+        _prepareUSDC(user1, 2000e6);
+        vm.startPrank(user1);
+        usdc.approve(address(simpleCUSDC), 2000e6);
+        simpleCUSDC.deposit(2000e6, user1);
+        simpleCUSDC.setDelegateApproval(address(vaultZapper), true);
+        vm.stopPrank();
+
+        uint256 victimSharesBefore = simpleCUSDC.balanceOf(user1);
+        uint256 attackerUsdcBefore = usdc.balanceOf(user2);
+
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(simpleCUSDC);
+        redeemAction.shares = victimSharesBefore;
+        redeemAction.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = victimSharesBefore;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        vm.prank(user2);
+        vm.expectRevert();
+        vaultZapper.redeemAndSwap(redeemAction, swapAction, user2);
+
+        assertEq(simpleCUSDC.balanceOf(user1), victimSharesBefore);
+        assertEq(usdc.balanceOf(user2), attackerUsdcBefore);
+    }
+
     function testRedeemAndSwapBorrowableCToken() public {
         _setUpSimpleCUSDC_borrowableCDAI();
 
@@ -464,6 +496,73 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
         uint256 balanceAfter = simpleCSFRAX.balanceOf(user1);
         assertGt(balanceAfter, balanceBefore, "User should have received cToken shares");
+    }
+
+    function test_vaultZapper_fail_swapAndDeposit_zeroReceiver() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        deal(_FRAX_ADDRESS, user1, 100e18);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _FRAX_ADDRESS;
+        swapAction.inputAmount = 100e18;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.call = "";
+
+        vm.startPrank(user1);
+        IERC20(_FRAX_ADDRESS).approve(address(vaultZapper), 100e18);
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        vaultZapper.swapAndDeposit(
+            address(simpleCSFRAX),
+            false,
+            swapAction,
+            0,
+            false,
+            address(0)
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_vaultZapper_fail_multicallCannotCollateralizeForNonDelegate() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        deal(_FRAX_ADDRESS, user2, 100e18);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _FRAX_ADDRESS;
+        swapAction.inputAmount = 100e18;
+        swapAction.outputToken = _FRAX_ADDRESS;
+
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](1);
+        calls[0] = Multicall.MulticallAction({
+            target: address(vaultZapper),
+            isPriceUpdate: false,
+            data: abi.encodeWithSelector(
+                vaultZapper.swapAndDeposit.selector,
+                address(simpleCSFRAX),
+                false,
+                swapAction,
+                0,
+                true,
+                user1
+            )
+        });
+
+        uint256 user2BalanceBefore = IERC20(_FRAX_ADDRESS).balanceOf(user2);
+        uint256 user1CollateralBefore = simpleCSFRAX.collateralPosted(user1);
+
+        vm.startPrank(user2);
+        IERC20(_FRAX_ADDRESS).approve(address(vaultZapper), 100e18);
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        vaultZapper.multicall(calls);
+        vm.stopPrank();
+
+        assertEq(IERC20(_FRAX_ADDRESS).balanceOf(user2), user2BalanceBefore);
+        assertEq(simpleCSFRAX.collateralPosted(user1), user1CollateralBefore);
+        assertEq(simpleCSFRAX.balanceOf(user1), 0);
     }
 
     function test_vaultZapper_fail_swapAndDepositErc20WithMsgValue() public {

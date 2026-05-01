@@ -26,7 +26,7 @@ contract DeployCalldataChecker is DeployScript {
             KyberSwapChecker checker = new KyberSwapChecker(
                 checkerSelection.router, 
                 EXECUTORS, 
-                cr.daoAddress()
+                address(cr)
             );
             cr.setExternalCalldataChecker(checkerSelection.router, address(checker));
         }

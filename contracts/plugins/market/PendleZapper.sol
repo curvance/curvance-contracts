@@ -119,6 +119,8 @@ contract PendleZapper is BaseZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
+        // Redundant receiver == address(0) check so we fail fast if execution
+        // is impossible.
         if (receiver == address(0) || expectedShares == 0) {
             revert BaseZapper__ExecutionError();
         }

@@ -2,42 +2,33 @@
 pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
+import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
-import { TestPendlePTTokenAdaptor } from "tests/oracles/OracleManager/integrations/TestPendlePTTokenAdaptor.t.sol";
+import { TestPendleLPTokenAdaptor } from "tests/oracles/OracleManager/integrations/TestPendleLPTokenAdaptor.t.sol";
 
-/// @title TC007 — Pendle PT guard-binding regression
-/// @notice Originally authored as a PoC demonstrating that
-///         `PendlePrincipalTokenAdaptor.getPrice` bypassed `_adjustPrice`,
-///         leaving any configured `PriceGuard` inert at runtime. The
-///         direct-override family (PendlePT, PendleLP, UniswapV3) was
-///         subsequently fixed to route through `_adjustPrice`. This test
-///         is now a REGRESSION SENTINEL: it pins the post-fix behavior
-///         (guard clamps runtime price) so any future change that
-///         re-introduces the bypass is caught immediately. The
-///         `TC007*PoC` filename is preserved for cross-reference with
-///         Parallax tracking.
-contract TC007PendlePtGuardBypassPoC is TestPendlePTTokenAdaptor {
-    function test_tc007_pendlePtUsdGuard_clampsRuntimePrice() public {
-        _configurePendlePtUsdPricing();
+/// @title Pendle LP guard-binding regression
+/// @notice Pins the direct override path through `_adjustPrice` so a configured
+///         USD `PriceGuard` clamps the runtime adaptor price.
+contract TestPendleLPGuardBinding is TestPendleLPTokenAdaptor {
+    function test_pendleLpUsdGuard_clampsRuntimePrice() public {
+        _configurePendleLpUsdPricing();
 
         (uint256 priceBefore, uint256 errorBefore) = oracleManager.getPrice(
-            _PT_STETH,
+            _LP_STETH,
             true,
             false
         );
-        assertEq(errorBefore, 0, "tc007:expected-clean-usd-price");
-        assertGt(priceBefore, 0, "tc007:missing-pt-price");
+        assertEq(errorBefore, 0, "pendle-lp-guard:expected-clean-usd-price");
+        assertGt(priceBefore, 0, "pendle-lp-guard:missing-lp-price");
 
         // Configure a guard cap at half the current price. Pre-fix the
         // guard storage would succeed but be silently inert at runtime;
         // post-fix `_adjustPrice` clamps the returned price to basePrice.
         uint256 guardCap = priceBefore / 2;
         adapter.setGuardedPriceConfig(
-            _PT_STETH,
+            _LP_STETH,
             true,
             0,
             0,
@@ -46,21 +37,21 @@ contract TC007PendlePtGuardBypassPoC is TestPendlePTTokenAdaptor {
         );
 
         BaseOracleAdaptor.PriceGuard memory storedGuard = adapter.getPriceGuard(
-            _PT_STETH,
+            _LP_STETH,
             true
         );
         assertEq(
             storedGuard.basePrice,
             guardCap,
-            "tc007:expected-usd-guard-to-be-stored"
+            "pendle-lp-guard:expected-usd-guard-to-be-stored"
         );
 
         (uint256 priceAfter, uint256 errorAfter) = oracleManager.getPrice(
-            _PT_STETH,
+            _LP_STETH,
             true,
             false
         );
-        assertEq(errorAfter, 0, "tc007:expected-clean-usd-price-after-guard");
+        assertEq(errorAfter, 0, "pendle-lp-guard:expected-clean-usd-price-after-guard");
 
         // Post-fix invariants: priceAfter MUST equal `guardCap` (clamp
         // bound the price to basePrice) and MUST be strictly less than
@@ -68,16 +59,16 @@ contract TC007PendlePtGuardBypassPoC is TestPendlePTTokenAdaptor {
         assertEq(
             priceAfter,
             guardCap,
-            "tc007:guard-MUST-clamp-price-to-basePrice"
+            "pendle-lp-guard:guard-MUST-clamp-price-to-basePrice"
         );
         assertLt(
             priceAfter,
             priceBefore,
-            "tc007:clamp-MUST-have-reduced-price-from-raw-to-cap"
+            "pendle-lp-guard:clamp-MUST-have-reduced-price-from-raw-to-cap"
         );
     }
 
-    function _configurePendlePtUsdPricing() internal {
+    function _configurePendleLpUsdPricing() internal {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
@@ -91,7 +82,7 @@ contract TC007PendlePtGuardBypassPoC is TestPendlePTTokenAdaptor {
         chainlinkAdaptor.addAsset(
             _STETH,
             true,
-            _CHAINLINK_ETH_USD,
+            _CHAINLINK_STETH_USD,
             0
         );
         oracleManager.addAssetPricingAdaptor(
@@ -111,16 +102,16 @@ contract TC007PendlePtGuardBypassPoC is TestPendlePTTokenAdaptor {
             50
         );
 
-        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
-        assetConfig.market = IPMarket(_LP_STETH);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 12;
         assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
         assetConfig.quoteAssetDecimals = 18;
-        adapter.addAsset(_PT_STETH, assetConfig);
+        adapter.addAsset(_LP_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
         oracleManager.addAssetPricingAdaptor(
-            _PT_STETH,
+            _LP_STETH,
             address(adapter),
             100,
             50,

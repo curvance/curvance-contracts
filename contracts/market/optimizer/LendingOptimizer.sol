@@ -25,6 +25,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      support, enabling users to deposit a single asset and have it
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
+///      Preview methods are estimates, not exact settlement guarantees:
+///      state-changing entrypoints accrue underlying markets before routing,
+///      so preview values can differ from actual results.
 ///
 ///      Deposits and withdrawals are routed pro-rata across approved
 ///      markets to maintain current allocation percentages. Only
@@ -545,6 +548,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Revert if there is only one market.
         if (approvedCTokensList.length == 1) revert LendingOptimizer__InvalidParameter();
+        // Always require an explicit reallocation plan so donated cToken shares
+        // cannot grief an otherwise empty market removal.
+        if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
         // Bounds must match the post-removal market count.
         if (bounds.length != approvedCTokensList.length - 1) revert LendingOptimizer__ArrayLengthMismatch();
 
@@ -565,9 +571,6 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Delete the allocation cap for the removed market.
         delete allocationCaps[cTokenToRemove];
 
-        // Check if there are actual assets to redeem.
-        // Both zero shares and non-zero shares that round down to
-        // zero assets are handled.
         {
             IBorrowableCToken cToken = IBorrowableCToken(cTokenToRemove);
             uint256 sharesToRedeem = cToken.balanceOf(address(this));
@@ -576,11 +579,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 : 0;
 
             // Only redeem and reallocate if there are previewed assets.
-            // Else we can skip straight to removing the market from the approved list.
+            // Zero-asset cToken dust is swept to DAO before removal so it cannot
+            // be orphaned on the optimizer or used to grief removal.
             if (previewedAssets > 0) {
-                // Revert if no reallocation targets are provided.
-                if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
-
                 // Redeem all shares from the market being removed.
                 uint256 assetsRedeemed = cToken.redeem(
                     sharesToRedeem,
@@ -639,6 +640,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
                 // Revert if BPS values do not sum to exactly 100%.
                 if (totalBps != BPS) revert LendingOptimizer__InvalidParameter();
+            } else if (sharesToRedeem > 0) {
+                SafeTransferLib.safeTransfer(
+                    cTokenToRemove,
+                    centralRegistry.daoAddress(),
+                    sharesToRedeem
+                );
             }
         }
 
@@ -1082,6 +1089,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
             totalMarketAssets += marketAssets[i];
             if (marketAssets[i] > 0) lastNonZero = i;
         }
+        if (totalMarketAssets == 0) revert LendingOptimizer__ZeroAmount();
 
         // Split the deposit proportionally by current allocation.
         // No liquidity cap needed for deposits — last non-zero market
@@ -1266,7 +1274,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 // Check caller-specified bounds (BPS-based) if provided.
                 if (checkBounds) {
                     uint256 allocationBps = FixedPointMathLib.fullMulDiv(allocations[i], BPS, ta);
-                    if (allocationBps < bounds[i].minBps || allocationBps > bounds[i].maxBps) {
+                    if (allocationBps < bounds[i].minBps) {
+                        revert LendingOptimizer__AllocationOutOfBounds();
+                    }
+                    allocationBps = FixedPointMathLib.fullMulDivUp(allocations[i], BPS, ta);
+                    if (allocationBps > bounds[i].maxBps) {
                         revert LendingOptimizer__AllocationOutOfBounds();
                     }
                 }

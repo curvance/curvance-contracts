@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { IMetaAggregationRouterV2 } from "contracts/interfaces/external/kyberswap/IMetaAggregationRouterV2.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -84,7 +85,9 @@ contract KyberSwapChecker is BaseSwapChecker {
         address[] memory kyberSwapExecutors,
         address centralRegistryInit
     ) BaseSwapChecker(target) {
-        centralRegistry = ICentralRegistry(centralRegistryInit);
+        ICentralRegistry cr = ICentralRegistry(centralRegistryInit);
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         if (block.chainid != 143) {
             revert KyberSwapChecker__UnsupportedChain();

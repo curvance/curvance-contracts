@@ -134,6 +134,9 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
         address receiver
     ) internal returns (uint256 shares) {
         _checkAddresses(cToken, asset);
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
 
         // Approve `cToken` to take `asset`.
         SwapperLib._approveIfNeeded(asset, cToken, assets);
@@ -230,7 +233,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     ///                    to `receiver` through repayment and/or direct
     ///                    transfer.
     /// @param receiver Address that should have outstanding debt repaid.
-    /// @return The amount of `debtAsset` that was returned to `receiver`.
+    /// @return The amount of `debtAsset` that was returned to caller.
     function _repayDebt(
         address borrowableCToken,
         address debtAsset,

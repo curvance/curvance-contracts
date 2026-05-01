@@ -19,7 +19,10 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
         _setUpTwoMarkets();
 
         LendingOptimizer.ReallocationAction[] memory actions =
-            new LendingOptimizer.ReallocationAction[](0);
+            new LendingOptimizer.ReallocationAction[](1);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(10000)
+        );
 
         // Compute bounds before expectRevert (helper makes external calls).
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WMON_MARKET);

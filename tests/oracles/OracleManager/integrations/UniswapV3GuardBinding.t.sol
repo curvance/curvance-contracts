@@ -5,20 +5,18 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 
 import { TestUniswapV3Adaptor } from "tests/oracles/OracleManager/integrations/TestUniswapV3Adaptor.t.sol";
 
-/// @title TC009 — UniswapV3 guard-binding regression
-/// @notice Originally a PoC for the `UniswapV3Adaptor.getPrice`
-///         direct-override bypass at lines 160/184/189; now a regression
-///         sentinel pinning the post-fix clamp behavior. See TC007 file
-///         natspec for the full provenance note.
-contract TC009UniswapV3GuardBypassPoC is TestUniswapV3Adaptor {
-    function test_tc009_uniswapV3UsdGuard_clampsRuntimePrice() public {
+/// @title UniswapV3 guard-binding regression
+/// @notice Pins the direct override path through `_adjustPrice` so a configured
+///         USD `PriceGuard` clamps the runtime adaptor price.
+contract TestUniswapV3GuardBinding is TestUniswapV3Adaptor {
+    function test_uniswapV3UsdGuard_clampsRuntimePrice() public {
         (uint256 priceBefore, uint256 errorBefore) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             true,
             false
         );
-        assertEq(errorBefore, 0, "tc009:expected-clean-usd-price");
-        assertGt(priceBefore, 0, "tc009:missing-wbtc-price");
+        assertEq(errorBefore, 0, "uniswap-v3-guard:expected-clean-usd-price");
+        assertGt(priceBefore, 0, "uniswap-v3-guard:missing-wbtc-price");
 
         // Configure a guard cap at half the current price. Pre-fix the
         // guard storage would succeed but be silently inert at runtime;
@@ -40,7 +38,7 @@ contract TC009UniswapV3GuardBypassPoC is TestUniswapV3Adaptor {
         assertEq(
             storedGuard.basePrice,
             guardCap,
-            "tc009:expected-usd-guard-to-be-stored"
+            "uniswap-v3-guard:expected-usd-guard-to-be-stored"
         );
 
         (uint256 priceAfter, uint256 errorAfter) = oracleManager.getPrice(
@@ -48,7 +46,7 @@ contract TC009UniswapV3GuardBypassPoC is TestUniswapV3Adaptor {
             true,
             false
         );
-        assertEq(errorAfter, 0, "tc009:expected-clean-usd-price-after-guard");
+        assertEq(errorAfter, 0, "uniswap-v3-guard:expected-clean-usd-price-after-guard");
 
         // Post-fix invariants: priceAfter MUST equal `guardCap` (clamp
         // bound the price to basePrice) and MUST be strictly less than
@@ -56,12 +54,12 @@ contract TC009UniswapV3GuardBypassPoC is TestUniswapV3Adaptor {
         assertEq(
             priceAfter,
             guardCap,
-            "tc009:guard-MUST-clamp-price-to-basePrice"
+            "uniswap-v3-guard:guard-MUST-clamp-price-to-basePrice"
         );
         assertLt(
             priceAfter,
             priceBefore,
-            "tc009:clamp-MUST-have-reduced-price-from-raw-to-cap"
+            "uniswap-v3-guard:clamp-MUST-have-reduced-price-from-raw-to-cap"
         );
     }
 }
