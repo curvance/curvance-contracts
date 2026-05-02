@@ -2,6 +2,12 @@ name: Forge test
 on:
   push:
 
+permissions:
+  contents: read
+
+env:
+  FOUNDRY_VERSION: v1.5.1
+
 jobs:
   test:
     runs-on: macos-latest
@@ -15,12 +21,42 @@ jobs:
         run: yarn install --immutable || true
 
       - name: Install Foundry
+        id: install-foundry
+        continue-on-error: true
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          cache: true
+          version: ${{ env.FOUNDRY_VERSION }}
+          cache: false
+
+      - name: Retry Foundry install after rate-limit delay
+        if: steps.install-foundry.outcome != 'success'
+        shell: bash
+        run: sleep 60
+
+      - name: Install Foundry retry
+        if: steps.install-foundry.outcome != 'success'
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+          cache: false
+
+      - name: Verify Foundry toolchain
+        run: |
+          forge --version
+          cast --version
+          anvil --version
 
       - name: Install Forge dependencies
-        run: forge install
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if forge install; then
+              exit 0
+            fi
+            echo "forge install failed on attempt ${attempt}; retrying after delay..."
+            sleep $((attempt * 30))
+          done
+          forge install
 
       - name: Restore Forge build cache
         uses: actions/cache/restore@v4
