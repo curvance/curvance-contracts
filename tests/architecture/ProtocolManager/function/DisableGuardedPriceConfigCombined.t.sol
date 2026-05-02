@@ -14,6 +14,7 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
     CombinedAggregator public combinedAggregator;
     MockV3Aggregator public primaryAggregator;
     MockV3Aggregator public secondaryAggregator;
+    address public testAsset;
     address public manager;
 
     uint256 internal constant MINIMUM_TIMESTAMP_BUFFER = 7 days;
@@ -22,6 +23,7 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
         super.setUp();
 
         manager = makeAddr("manager");
+        testAsset = _USDC_ADDRESS;
 
         // Deploy mock aggregators for primary and secondary feeds
         primaryAggregator = new MockV3Aggregator(8, 2000e8);
@@ -36,12 +38,30 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
             "stETH/USD"
         );
 
-        // Deploy ProtocolManager with manager and managed addresses
-        address[] memory managedAddresses = new address[](1);
-        managedAddresses[0] = address(combinedAggregator);
+        // Deploy a fresh ChainlinkAdaptor that uses the CombinedAggregator.
+        chainlinkAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        chainlinkAdaptor.addAsset(testAsset, true, address(combinedAggregator), 0);
 
-        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        address[] memory oldAdaptors = oracleManager.getPricingAdaptors(testAsset);
+        oracleManager.replaceAssetPricingAdaptor(
+            testAsset,
+            oldAdaptors[0],
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+
+        // Deploy ProtocolManager with manager and managed addresses
+        address[] memory managedAddresses = new address[](2);
+        managedAddresses[0] = address(combinedAggregator);
+        managedAddresses[1] = testAsset;
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
+        limits[1] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = _getDefaultPermsConfig();
 
@@ -73,7 +93,11 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
 
         // Manager disables price guard
         vm.prank(manager);
-        protocolManager.disableGuardedPriceConfigCombined(address(combinedAggregator));
+        protocolManager.disableGuardedPriceConfigCombined(
+            address(combinedAggregator),
+            testAsset,
+            true
+        );
 
         // Verify price guard is disabled (all values should be 0)
         (uint40 pgTimestampStart, uint40 pgIps, uint88 pgBasePrice, uint88 pgMinPrice) =
@@ -107,7 +131,11 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
 
         // Manager disables price guard
         vm.prank(manager);
-        protocolManager.disableGuardedPriceConfigCombined(address(combinedAggregator));
+        protocolManager.disableGuardedPriceConfigCombined(
+            address(combinedAggregator),
+            testAsset,
+            true
+        );
 
         // Verify price guard is disabled
         (uint40 pgTimestampStart, uint40 pgIps, uint88 pgBasePrice, uint88 pgMinPrice) =
@@ -130,7 +158,11 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
 
         vm.prank(notManager);
         vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
-        protocolManager.disableGuardedPriceConfigCombined(address(combinedAggregator));
+        protocolManager.disableGuardedPriceConfigCombined(
+            address(combinedAggregator),
+            testAsset,
+            true
+        );
     }
 
     /// @notice Test that manager cannot disable aggregator without authority
@@ -149,7 +181,64 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
 
         vm.prank(manager);
         vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
-        protocolManager.disableGuardedPriceConfigCombined(address(unauthorizedAgg));
+        protocolManager.disableGuardedPriceConfigCombined(
+            address(unauthorizedAgg),
+            testAsset,
+            true
+        );
+    }
+
+    /// @notice Test that manager cannot disable through an unauthorized asset.
+    function test_disableGuardedPriceConfigCombined_fail_assetNoAuthority() public {
+        address unauthorizedAsset = makeAddr("unauthorizedAsset");
+
+        combinedAggregator.setGuardedPriceConfig(0, 0, 1.10e18, 1.0e18);
+
+        vm.prank(manager);
+        vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
+        protocolManager.disableGuardedPriceConfigCombined(
+            address(combinedAggregator),
+            unauthorizedAsset,
+            true
+        );
+    }
+
+    /// @notice Test that manager cannot disable through the wrong oracle mapping.
+    function test_disableGuardedPriceConfigCombined_fail_wrongAggregatorMapping() public {
+        CombinedAggregator otherAggregator = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAggregator),
+            address(secondaryAggregator),
+            0,
+            "other"
+        );
+
+        address[] memory managedAddresses = new address[](2);
+        managedAddresses[0] = address(otherAggregator);
+        managedAddresses[1] = testAsset;
+
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
+        limits[0] = _getValidLimits();
+        limits[1] = _getValidLimits();
+
+        ProtocolManager pm = new ProtocolManager(
+            ICentralRegistry(address(centralRegistry)),
+            manager,
+            _getDefaultPermsConfig(),
+            managedAddresses,
+            limits
+        );
+        centralRegistry.addMarketPermissions(address(pm));
+
+        otherAggregator.setGuardedPriceConfig(0, 0, 1.10e18, 1.0e18);
+
+        vm.prank(manager);
+        vm.expectRevert(ProtocolManager.ProtocolManager__ParametersAreInvalid.selector);
+        pm.disableGuardedPriceConfigCombined(
+            address(otherAggregator),
+            testAsset,
+            true
+        );
     }
 
     /// @notice Test that canDisablePriceGuards permission is required
@@ -158,11 +247,13 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
         combinedAggregator.setGuardedPriceConfig(0, 0, 1.10e18, 1.0e18);
 
         // Create ProtocolManager without canDisablePriceGuards permission
-        address[] memory managedAddresses = new address[](1);
+        address[] memory managedAddresses = new address[](2);
         managedAddresses[0] = address(combinedAggregator);
+        managedAddresses[1] = testAsset;
 
-        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](1);
+        ProtocolManager.PeriodLimits[] memory limits = new ProtocolManager.PeriodLimits[](2);
         limits[0] = _getValidLimits();
+        limits[1] = _getValidLimits();
 
         ProtocolManager.PermsConfig memory permsConfig = ProtocolManager.PermsConfig({
             canModifyPriceGuards: true,
@@ -190,6 +281,10 @@ contract TestProtocolManagerDisableGuardedPriceConfigCombined is TestProtocolMan
 
         vm.prank(manager);
         vm.expectRevert(ProtocolManager.ProtocolManager__Unauthorized.selector);
-        pmNoDisable.disableGuardedPriceConfigCombined(address(combinedAggregator));
+        pmNoDisable.disableGuardedPriceConfigCombined(
+            address(combinedAggregator),
+            testAsset,
+            true
+        );
     }
 }

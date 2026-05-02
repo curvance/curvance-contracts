@@ -419,6 +419,49 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
+    function test_deployMarket_revertsUnregisteredMarketBeforeReservePull()
+        public
+    {
+        _fundAndApprove();
+
+        address unregisteredMarket = makeAddr("unregisteredMarket");
+
+        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
+            address(borrowableCWMON),
+            1_000_000e18,
+            0
+        );
+        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
+            address(borrowableCUSDC_MONAD),
+            0,
+            1_000_000e6
+        );
+
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__ParametersAreInvalid
+                .selector
+        );
+        deploymentManager.deployMarket(
+            unregisteredMarket,
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+
+        assertEq(
+            IERC20(_USDC_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE,
+            "USDC should not be pulled"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE,
+            "WMON should not be pulled"
+        );
+    }
+
     /// ==================== PARAMETER VALIDATION ==================== ///
 
     function test_deployMarket_revertsParametersInvalid_config0Mismatch()

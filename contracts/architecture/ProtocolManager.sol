@@ -487,21 +487,12 @@ contract ProtocolManager is ReentrancyGuard {
         uint256 basePrice,
         uint256 minPrice
     ) external nonReentrant {
-        _checkAuthorityAndAsset(managedAddress, asset, canModifyPriceGuards);
-
-        // Validate inUSD matches the oracle configuration to ensure limit
-        // tracking uses the correct bucket (USD vs native).
-        address adaptor = IOracleManager(centralRegistry.oracleManager())
-            .getPricingAdaptors(asset)[0];
-        (, address aggregator, , ) = IChainlinkStyleAdaptor(adaptor).assetConfig(
+        _checkCombinedAggregatorAuthority(
+            managedAddress,
             asset,
-            inUSD
+            inUSD,
+            canModifyPriceGuards
         );
-        // Validate that the aggregator for the asset and inUSD matches the
-        // managedAddress (combined aggregator).
-        if (aggregator != managedAddress) {
-            revert ProtocolManager__ParametersAreInvalid();
-        }
 
         // Get current price guard from the combined aggregator.
         // Combined aggregator does not have a `getPriceGuard()` function,
@@ -570,10 +561,20 @@ contract ProtocolManager is ReentrancyGuard {
     ///      or per-denomination). Uses separate permission from modifying since
     ///      disabling bypasses period limits and is a more privileged operation.
     /// @param managedAddress The combined aggregator address to configure.
+    /// @param asset The address of the asset priced by this aggregator.
+    /// @param inUSD Specifies whether this aggregator is used for USD (true)
+    ///              or native token (false) pricing of the asset.
     function disableGuardedPriceConfigCombined(
-        address managedAddress
+        address managedAddress,
+        address asset,
+        bool inUSD
     ) external nonReentrant {
-        _checkAuthority(managedAddress, canDisablePriceGuards);
+        _checkCombinedAggregatorAuthority(
+            managedAddress,
+            asset,
+            inUSD,
+            canDisablePriceGuards
+        );
 
         ICombinedAggregator(managedAddress).disableGuardedPriceConfig();
     }
@@ -806,6 +807,34 @@ contract ProtocolManager is ReentrancyGuard {
 
         if (!config[asset].hasAuthority) {
             revert ProtocolManager__Unauthorized();
+        }
+    }
+
+    /// @notice Validates caller authority and oracle binding for a combined aggregator.
+    /// @dev CombinedAggregators have one global PriceGuard, so callers must
+    ///      prove the aggregator is the configured feed for the authorized
+    ///      asset/denomination before mutating that global guard.
+    /// @param managedAddress The combined aggregator being managed.
+    /// @param asset The asset whose oracle route must use `managedAddress`.
+    /// @param inUSD Whether the oracle route is USD or native denominated.
+    /// @param authority The permission flag that must be enabled.
+    function _checkCombinedAggregatorAuthority(
+        address managedAddress,
+        address asset,
+        bool inUSD,
+        bool authority
+    ) internal view {
+        _checkAuthorityAndAsset(managedAddress, asset, authority);
+
+        address adaptor = IOracleManager(centralRegistry.oracleManager())
+            .getPricingAdaptors(asset)[0];
+        (, address aggregator, , ) = IChainlinkStyleAdaptor(adaptor).assetConfig(
+            asset,
+            inUSD
+        );
+
+        if (aggregator != managedAddress) {
+            revert ProtocolManager__ParametersAreInvalid();
         }
     }
 
