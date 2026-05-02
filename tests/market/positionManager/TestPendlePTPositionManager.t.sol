@@ -192,7 +192,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.approx.maxIteration = 30;
         action.approx.eps = 1e15;
         action.input.tokenIn = _DAI_ADDRESS;
-        action.input.netTokenIn = amountForLeverage;
+        // Intentionally stale: the PM must derive no-pre-swap input amount
+        // from `borrowAssets`, not caller-supplied Pendle aux data.
+        action.input.netTokenIn = 1;
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
@@ -310,7 +312,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.approx.maxIteration = 30;
         action.approx.eps = 1e15;
         action.input.tokenIn = _DAI_ADDRESS;
-        action.input.netTokenIn = amountForLeverage;
+        // Intentionally stale: the PM must derive no-pre-swap input amount
+        // from `borrowAssets`, not caller-supplied Pendle aux data.
+        action.input.netTokenIn = 1;
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
