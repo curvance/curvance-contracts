@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
-import { ICentralRegistry, SwapperLib, ICToken } from "contracts/plugins/BaseZapper.sol";
+import { ICentralRegistry, SwapperLib } from "contracts/plugins/BaseZapper.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
@@ -73,8 +73,7 @@ contract NativeVaultZapper is SimpleZapper {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
-        address vault = ICToken(cToken).asset();
-        _checkAddresses(cToken, vault);
+        address vault = _getValidatedCTokenAsset(cToken);
 
         _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 

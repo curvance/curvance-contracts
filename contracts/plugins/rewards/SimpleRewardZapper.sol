@@ -7,7 +7,6 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract SimpleRewardZapper is BaseZapper {
     /// CONSTANTS ///
@@ -221,9 +220,8 @@ contract SimpleRewardZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
-        // Cache and validate `borrowableCToken` asset before claiming rewards.
-        address debtAsset = ICToken(borrowableCToken).asset();
-        _checkAddresses(borrowableCToken, debtAsset);
+        // Validate `borrowableCToken` before claiming rewards.
+        address debtAsset = _getValidatedCTokenAsset(borrowableCToken);
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);

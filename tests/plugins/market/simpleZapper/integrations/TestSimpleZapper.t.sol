@@ -5,6 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -101,6 +102,34 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
         assertGt(simpleCUSDC.balanceOf(user1), 0);
+    }
+
+    function test_swapAndDeposit_fail_unlistedCTokenBeforeAssetLookup() public {
+        address fakeCToken = address(0xBEEF);
+
+        vm.mockCall(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.marketManager.selector),
+            abi.encode(address(marketManagerIsolated))
+        );
+        vm.mockCallRevert(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.asset.selector),
+            "asset called"
+        );
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.outputToken = address(usdc);
+
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        simpleZapper.swapAndDeposit(
+            fakeCToken,
+            false,
+            swapAction,
+            0,
+            false,
+            user1
+        );
     }
 
     function testSwapAndRepay() external {

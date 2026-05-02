@@ -7,6 +7,7 @@ import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -127,6 +128,35 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+    }
+
+    function test_vaultZapper_fail_unlistedCTokenBeforeAssetLookup() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        address fakeCToken = address(0xBEEF);
+
+        vm.mockCall(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.marketManager.selector),
+            abi.encode(address(marketManagerIsolated))
+        );
+        vm.mockCallRevert(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.asset.selector),
+            "asset called"
+        );
+
+        SwapperLib.Swap memory swapAction;
+
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        vaultZapper.swapAndDeposit(
+            fakeCToken,
+            false,
+            swapAction,
+            0,
+            false,
+            user1
+        );
     }
 
     function test_vaultZapper_success_swapAndDeposit_withETH() public {
