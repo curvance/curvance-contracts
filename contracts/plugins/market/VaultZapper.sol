@@ -72,6 +72,14 @@ contract VaultZapper is SimpleZapper {
         bool collateralizeFor,
         address receiver
     ) external override payable nonReentrant returns (uint256 outAmount) {
+        IVault vault = IVault(ICToken(cToken).asset());
+        _checkAddresses(cToken, address(vault));
+        address asset = address(vault.asset());
+
+        if (asset != swapAction.outputToken) {
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
+        }
+
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -84,13 +92,6 @@ contract VaultZapper is SimpleZapper {
         if (CommonLib._isNative(swapAction.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapAction.inputToken = address(wrappedNative);
-        }
-
-        IVault vault = IVault(ICToken(cToken).asset());
-        address asset = address(vault.asset());
-
-        if (asset != swapAction.outputToken) {
-            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
         if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
