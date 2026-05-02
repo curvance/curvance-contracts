@@ -1324,7 +1324,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 if (currentRate > highRate) {
                     // Round up to prevent fee undercharge on dust profits.
                     uint256 profit = rawTa - FixedPointMathLib.fullMulDivUp(highRate, supply, WAD);
-                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, _bpsToWad(fee), WAD);
+                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, fee, BPS);
 
                     if (feeAssets > 0) {
                         uint256 feeShares = FixedPointMathLib.fullMulDiv(
