@@ -456,6 +456,47 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testRevert_LeverageNoSwapPendleInputMustUseBorrowedAsset() public {
+        vm.startPrank(user);
+
+        _preparePT(user, 1 ether);
+        pendlePT.approve(address(cPendlePTSTETH), 1 ether);
+
+        assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+        cPendlePTSTETH.postCollateral(1 ether);
+        borrowableCDAI.borrow(100 ether, user);
+
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        PendlePTPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(cPendlePTSTETH));
+
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 5e17;
+        action.approx.guessMax = 1.2e18;
+        action.approx.guessOffchain = 1.2e18;
+        action.approx.maxIteration = 30;
+        action.approx.eps = 1e15;
+        action.input.tokenIn = _WSTETH;
+        action.input.netTokenIn = amountForLeverage;
+        action.input.tokenMintSy = _WSTETH;
+        action.input.pendleSwap = _PENDLE_SWAP;
+        action.input.swapData.swapType = SwapType.KYBERSWAP;
+        action.input.swapData.extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        action.input.swapData.needScale = false;
+        leverageAction.auxData = abi.encode(_LP_STETH, 1, action);
+
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
+        positionManager.leverage(leverageAction, 0.05e18);
+
+        vm.stopPrank();
+    }
+
     function testRevert_InvalidPendlePT() public {
         vm.startPrank(user);
 
