@@ -143,6 +143,8 @@ contract SimpleRewardZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
+        _checkAddresses(cToken, swapAction.outputToken);
+
         // We do not need to check for an output token approval here since all
         // cTokens are natively authorized.
 
@@ -157,7 +159,7 @@ contract SimpleRewardZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance cToken position.
@@ -219,6 +221,10 @@ contract SimpleRewardZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
+        // Cache and validate `borrowableCToken` asset before claiming rewards.
+        address debtAsset = ICToken(borrowableCToken).asset();
+        _checkAddresses(borrowableCToken, debtAsset);
+
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
 
@@ -226,10 +232,6 @@ contract SimpleRewardZapper is BaseZapper {
         if (swapAction.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
-        
-        // Cache `borrowableCToken` asset to minimize external calls.
-        address debtAsset = ICToken(borrowableCToken).asset();
-
         if (rewardToken != debtAsset) {
             // Validate that if we are swapping that the output token
             // matches `debtAsset`.
@@ -238,7 +240,7 @@ contract SimpleRewardZapper is BaseZapper {
             }
 
             // Swap from `rewardToken` into `debtAsset`.
-                swapAction.inputAmount = SwapperLib._swapSafe(
+            swapAction.inputAmount = SwapperLib._swapSafe(
                 centralRegistry,
                 swapAction
             );

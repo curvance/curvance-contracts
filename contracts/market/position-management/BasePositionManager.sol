@@ -113,6 +113,10 @@ abstract contract BasePositionManager is
     /// @param assets The amount of the underlying assets to deposit.
     /// @param cToken Curvance token to deposit `assets` into.
     modifier preDeposit(uint256 assets, ICToken cToken) {
+        if (!marketManager.isListed(address(cToken))) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         address collateralAsset = cToken.asset();
         
         // Transfer `collateralAsset` to deposit.
