@@ -402,18 +402,13 @@ abstract contract BasePositionManager is
             revert BasePositionManager__Unauthorized();
         }
 
-        // Cache debt asset address.
-        address debtAsset = IBorrowableCToken(borrowableCToken).asset();
-
-        // Validate that `cToken` is listed inside `marketManager` and is the
-        // caller, then that the action instructions are built correct, then
-        // take the protocol fee, if any.
-        action.borrowAssets = _validateInputsAndApplyFee(
+        // Validate the callback caller, action inputs, and fee-adjusted amount.
+        address debtAsset;
+        (action.borrowAssets, debtAsset) = _validateInputsAndApplyFee(
             borrowableCToken,
             borrowAssets,
             address(action.borrowableCToken),
-            action.borrowAssets,
-            debtAsset
+            action.borrowAssets
         );
 
         // Unwrap leverage instructions for collateral deposit.
@@ -481,18 +476,13 @@ abstract contract BasePositionManager is
             revert BasePositionManager__Unauthorized();
         }
 
-        // Cache collateral asset address.
-        address collateralAsset = ICToken(cToken).asset();
-
-        // Validate that `cToken` is listed inside `marketManager` and is the
-        // caller, then that the action instructions are built correct, then
-        // take the protocol fee, if any.
-        action.collateralAssets = _validateInputsAndApplyFee(
+        // Validate the callback caller, action inputs, and fee-adjusted amount.
+        address collateralAsset;
+        (action.collateralAssets, collateralAsset) = _validateInputsAndApplyFee(
             cToken,
             collateralAssets,
             address(action.cToken),
-            action.collateralAssets,
-            collateralAsset
+            action.collateralAssets
         );
 
         // Swap redeemed `collateralAsset` assets into debt token assets.
@@ -585,21 +575,22 @@ abstract contract BasePositionManager is
     /// @param actionAssets The amount of `cTokenUnderlying` given from
     ///                     `action` parameters to be used during the callback
     ///                     action.
-    /// @param cTokenUnderlying The `asset()` token of `cToken`.
-    /// @return The `cTokenUnderlying` assets for callback action potentially
-    ///         with fee applied.
+    /// @return result The `cToken` underlying assets for callback action
+    ///                potentially with fee applied.
+    /// @return cTokenUnderlying The `asset()` token of `cToken`.
     function _validateInputsAndApplyFee(
         address cToken,
         uint256 assets,
         address actionToken,
-        uint256 actionAssets,
-        address cTokenUnderlying
-    ) internal returns (uint256) {
+        uint256 actionAssets
+    ) internal returns (uint256 result, address cTokenUnderlying) {
         // Validate that the token itself is executing the callback and
         // `cToken` is actually listed in this Market Manager.
         if (msg.sender != cToken || !marketManager.isListed(cToken)) {
             revert BasePositionManager__Unauthorized();
         }
+
+        cTokenUnderlying = ICToken(cToken).asset();
 
         // Validate enough `cTokenUnderlying` was received to preform desired
         // action.
@@ -631,7 +622,7 @@ abstract contract BasePositionManager is
 
         // Return `cTokenUnderlying` assets for callback action potentially
         // with fee applied.
-        return actionAssets;
+        result = actionAssets;
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing

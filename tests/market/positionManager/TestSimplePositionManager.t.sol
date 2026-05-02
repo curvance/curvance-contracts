@@ -163,6 +163,44 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_onBorrow_fail_unauthorizedCallbackBeforeAssetLookup() public {
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
+        leverageAction.borrowAssets = 1 ether;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__Unauthorized.selector
+        );
+        positionManager.onBorrow(
+            address(this),
+            1 ether,
+            user,
+            leverageAction
+        );
+    }
+
+    function test_onRedeem_fail_unauthorizedCallbackBeforeAssetLookup() public {
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = 10e6;
+        deleverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__Unauthorized.selector
+        );
+        positionManager.onRedeem(
+            address(this),
+            10e6,
+            user,
+            deleverageAction
+        );
+    }
+
     function test_onRedeem_fail_unlistedBorrowableCToken() public {
         vm.startPrank(user);
         deal(address(usdc), user, 1_000e6);
