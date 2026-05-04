@@ -3,7 +3,9 @@ pragma solidity 0.8.28;
 
 import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
@@ -167,6 +169,40 @@ contract TestSimpleRewardZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+    }
+
+    function test_claimSwapAndRepay_fail_unlistedCTokenBeforeAssetLookup()
+        public
+    {
+        uint256 expectedRewards = _seedClaimableRewards(user1);
+        address fakeBorrowableCToken = address(0xBEEF);
+
+        vm.mockCall(
+            fakeBorrowableCToken,
+            abi.encodeWithSelector(ICToken.marketManager.selector),
+            abi.encode(address(marketManagerIsolated))
+        );
+        vm.mockCallRevert(
+            fakeBorrowableCToken,
+            abi.encodeWithSelector(ICToken.asset.selector),
+            "asset called"
+        );
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = expectedRewards;
+        swapAction.outputToken = _DAI_ADDRESS;
+
+        vm.prank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        simpleRewardZapper.claimSwapAndRepay(
+            swapAction,
+            fakeBorrowableCToken,
+            1,
+            user2
+        );
+
+        assertGt(rewardManager.epochsToClaim(user1), 0);
     }
 
     function test_claimRejectsMismatchedInputAmount() public {

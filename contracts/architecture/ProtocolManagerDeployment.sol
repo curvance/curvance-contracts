@@ -113,6 +113,10 @@ contract ProtocolManagerDeployment is ReentrancyGuard {
             revert ProtocolManagerDeployment__ParametersAreInvalid();
         }
 
+        if (!centralRegistry.isMarketManager(marketManager)) {
+            revert ProtocolManagerDeployment__ParametersAreInvalid();
+        }
+
         MarketManagerIsolated mm = MarketManagerIsolated(marketManager);
 
         // Pull underlying assets from the caller for initialization.

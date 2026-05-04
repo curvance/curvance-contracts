@@ -123,6 +123,12 @@ contract PendlePTPositionManager is BasePositionManager {
             }
 
             SwapperLib._swapSafe(centralRegistry, swapAction);
+        } else {
+            if (pendleAction.input.tokenIn != debtAsset) {
+                revert BasePositionManager__InvalidParam();
+            }
+
+            pendleAction.input.netTokenIn = action.borrowAssets;
         }
 
         // Enter Pendle position.

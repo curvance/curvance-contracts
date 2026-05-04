@@ -10,7 +10,7 @@ import {PendleLib} from "contracts/libraries/PendleLib.sol";
 
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
-import {AccountSnapshot} from "contracts/interfaces/ICToken.sol";
+import {AccountSnapshot, ICToken} from "contracts/interfaces/ICToken.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {BaseZapper} from "contracts/plugins/BaseZapper.sol";
 
@@ -140,6 +140,36 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+    }
+
+    function testEnterPendle_fail_unlistedCTokenBeforeAssetLookup() public {
+        address fakeCToken = address(0xBEEF);
+
+        vm.mockCall(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.marketManager.selector),
+            abi.encode(address(marketManagerIsolated))
+        );
+        vm.mockCallRevert(
+            fakeCToken,
+            abi.encodeWithSelector(ICToken.asset.selector),
+            "asset called"
+        );
+
+        PendleLib.PendleAction memory action;
+
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        pendleZapper.enterPendle(
+            fakeCToken,
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
+            PendleZapper.ZapAction(address(0), 1, _PENDLE_LP_STETH, 1, true),
+            new SwapperLib.Swap[](0),
+            1,
+            false,
+            user1
+        );
     }
 
     function testEnterPendle_fail_ZeroReceiver() public {

@@ -70,6 +70,13 @@ contract OptimizerZapper is ReentrancyGuard {
     ) external payable nonReentrant returns (uint256 shares) {
         if (receiver == address(0)) revert OptimizerZapper__ExecutionError();
 
+        // Validate swap output matches the optimizer's underlying asset
+        // before pulling user input or executing an external swap.
+        address underlying = ILendingOptimizer(optimizer).asset();
+        if (swapAction.outputToken != underlying) {
+            revert OptimizerZapper__AssetMismatch();
+        }
+
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -83,13 +90,6 @@ contract OptimizerZapper is ReentrancyGuard {
                 && depositAsWrappedNative
         ) {
             swapAction.inputToken = wrappedNative;
-        }
-
-        // Validate swap output matches the optimizer's underlying asset
-        // before executing an external swap.
-        address underlying = ILendingOptimizer(optimizer).asset();
-        if (swapAction.outputToken != underlying) {
-            revert OptimizerZapper__AssetMismatch();
         }
 
         uint256 assets;

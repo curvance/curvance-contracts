@@ -3,23 +3,26 @@ pragma solidity 0.8.28;
 
 import { ProtocolManagerDeployment } from "contracts/architecture/ProtocolManagerDeployment.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
-    ProtocolManagerDeployment public deploymentManager;
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+
+contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     address public constant WMON_ADDRESS =
         0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
+    uint256 constant BASE_UNDERLYING_RESERVE = 77777;
+
+    ProtocolManagerDeployment public deploymentManager;
+
     BorrowableCToken public borrowableCUSDC_MONAD;
     BorrowableCToken public borrowableCWMON;
-
-    uint256 constant BASE_UNDERLYING_RESERVE = 77777;
 
     /// @dev Sets up cTokens and oracles but does NOT list tokens.
     ///      Listing is the deployment manager's job.
@@ -40,8 +43,7 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
 
         MockV3Aggregator chainlinkUSDC_USD = new MockV3Aggregator(8, 1e8);
-        address chainlinkWMON_USD =
-            0xBcD78f76005B7515837af6b50c7C52BCf73822fb;
+        address chainlinkWMON_USD = 0xBcD78f76005B7515837af6b50c7C52BCf73822fb;
 
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -55,12 +57,7 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             address(chainlinkUSDC_USD),
             0
         );
-        chainlinkAdaptor.addAsset(
-            WMON_ADDRESS,
-            true,
-            chainlinkWMON_USD,
-            0
-        );
+        chainlinkAdaptor.addAsset(WMON_ADDRESS, true, chainlinkWMON_USD, 0);
 
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
@@ -90,65 +87,6 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
 
         // Grant market permissions to the deployment manager.
         centralRegistry.addMarketPermissions(address(deploymentManager));
-    }
-
-    /// HELPER FUNCTIONS ///
-
-    function _getBasicTokenConfig(
-        address cToken,
-        uint256 collateralCap,
-        uint256 debtCap
-    ) internal pure returns (MarketManagerIsolated.TokenConfig memory config) {
-        config.cToken = cToken;
-        config.collRatio = 7000;
-        config.collReqSoft = 4000;
-        config.collReqHard = 3000;
-        config.liqIncBase = 1000;
-        config.liqIncHard = 1500;
-        config.liqIncMin = 10;
-        config.liqIncMax = 2000;
-        config.closeFactorBase = 2000;
-        config.closeFactorMin = 2000;
-        config.closeFactorMax = 5000;
-        config.collateralCap = collateralCap;
-        config.debtCap = debtCap;
-    }
-
-    function _fundAndApprove() internal {
-        deal(_USDC_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
-        deal(WMON_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
-
-        IERC20(_USDC_ADDRESS).approve(
-            address(deploymentManager),
-            BASE_UNDERLYING_RESERVE
-        );
-        IERC20(WMON_ADDRESS).approve(
-            address(deploymentManager),
-            BASE_UNDERLYING_RESERVE
-        );
-    }
-
-    function _deployMarketViaManager() internal {
-        _fundAndApprove();
-
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
-
-        deploymentManager.deployMarket(
-            address(marketManagerIsolated),
-            address(borrowableCWMON),
-            address(borrowableCUSDC_MONAD),
-            config0,
-            config1
-        );
     }
 
     /// ==================== DEPLOYMENT SUCCESS ==================== ///
@@ -192,12 +130,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         // Collateralization and borrow should NOT be paused.
         (, bool collPaused0, bool borrowPaused0) = marketManagerIsolated
             .actionsPaused(address(borrowableCWMON));
-        assertFalse(collPaused0, "token0 collateralization should not be paused");
+        assertFalse(
+            collPaused0,
+            "token0 collateralization should not be paused"
+        );
         assertFalse(borrowPaused0, "token0 borrow should not be paused");
 
         (, bool collPaused1, bool borrowPaused1) = marketManagerIsolated
             .actionsPaused(address(borrowableCUSDC_MONAD));
-        assertFalse(collPaused1, "token1 collateralization should not be paused");
+        assertFalse(
+            collPaused1,
+            "token1 collateralization should not be paused"
+        );
         assertFalse(borrowPaused1, "token1 borrow should not be paused");
 
         // Market-wide pauses should also be off.
@@ -214,7 +158,9 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             1_000_000e18
         );
         assertEq(
-            marketManagerIsolated.collateralCaps(address(borrowableCUSDC_MONAD)),
+            marketManagerIsolated.collateralCaps(
+                address(borrowableCUSDC_MONAD)
+            ),
             0
         );
     }
@@ -232,8 +178,11 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     function test_deployMarket_collConfigSet() public {
         _deployMarketViaManager();
 
-        (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
-            marketManagerIsolated.collConfig(address(borrowableCWMON));
+        (
+            uint256 collRatio,
+            uint256 collReqSoft,
+            uint256 collReqHard
+        ) = marketManagerIsolated.collConfig(address(borrowableCWMON));
 
         assertEq(collRatio, 7000, "collRatio mismatch");
         // collReqSoft is stored as premium above BPS (4000 + 10000).
@@ -283,16 +232,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             BASE_UNDERLYING_RESERVE
         );
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         deploymentManager.deployMarket(
             address(marketManagerIsolated),
@@ -345,7 +296,7 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     function test_deployMarket_mintRevertsWhenPaused() public {
         _deployMarketViaManager();
 
-        // Fund a user and try to mint — should revert because mint is paused.
+        // Fund a user and try to mint; should revert because mint is paused.
         address user = address(0xBEEF);
         deal(WMON_ADDRESS, user, 1e18);
 
@@ -362,16 +313,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     function test_deployMarket_revertsUnauthorized() public {
         _fundAndApprove();
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         address unauthorized = address(0xdead);
         vm.prank(unauthorized);
@@ -395,16 +348,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         // Remove market permissions from the deployment manager.
         centralRegistry.removeMarketPermissions(address(deploymentManager));
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         // Should revert at listTokens → _checkMarketPermissions.
         vm.expectRevert(
@@ -419,6 +374,67 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
+    function test_deployMarket_revertsUnregisteredMarketBeforeReservePull()
+        public
+    {
+        _fundAndApprove();
+
+        address unregisteredMarket = makeAddr("unregisteredMarket");
+
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
+
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__ParametersAreInvalid
+                .selector
+        );
+        deploymentManager.deployMarket(
+            unregisteredMarket,
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
+        );
+
+        assertEq(
+            IERC20(_USDC_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE,
+            "USDC should not be pulled"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(this)),
+            BASE_UNDERLYING_RESERVE,
+            "WMON should not be pulled"
+        );
+        assertEq(
+            IERC20(_USDC_ADDRESS).allowance(
+                address(deploymentManager),
+                address(borrowableCUSDC_MONAD)
+            ),
+            0,
+            "USDC cToken approval should not be set"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).allowance(
+                address(deploymentManager),
+                address(borrowableCWMON)
+            ),
+            0,
+            "WMON cToken approval should not be set"
+        );
+    }
+
     /// ==================== PARAMETER VALIDATION ==================== ///
 
     function test_deployMarket_revertsParametersInvalid_config0Mismatch()
@@ -427,16 +443,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         _fundAndApprove();
 
         // config0 has wrong cToken address.
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(0xbeef),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(0xbeef),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         vm.expectRevert(
             ProtocolManagerDeployment
@@ -457,17 +475,19 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     {
         _fundAndApprove();
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
         // config1 has wrong cToken address.
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(0xbeef),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(0xbeef),
+                0,
+                1_000_000e6
+            );
 
         vm.expectRevert(
             ProtocolManagerDeployment
@@ -490,16 +510,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         // Try to deploy again — listTokens checks tokensListed.length != 0.
         _fundAndApprove();
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -516,16 +538,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
     function test_deployMarket_revertsSameToken() public {
         _fundAndApprove();
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                0,
+                1_000_000e6
+            );
 
         // When token0 == token1, underlying0 == underlying1. The second
         // safeTransferFrom fails because the first already consumed the
@@ -552,16 +576,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             BASE_UNDERLYING_RESERVE
         );
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         vm.expectRevert();
         deploymentManager.deployMarket(
@@ -584,16 +610,18 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
         // Intentionally skip USDC approval.
 
-        MarketManagerIsolated.TokenConfig memory config0 = _getBasicTokenConfig(
-            address(borrowableCWMON),
-            1_000_000e18,
-            0
-        );
-        MarketManagerIsolated.TokenConfig memory config1 = _getBasicTokenConfig(
-            address(borrowableCUSDC_MONAD),
-            0,
-            1_000_000e6
-        );
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
 
         vm.expectRevert();
         deploymentManager.deployMarket(
@@ -828,6 +856,67 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         assertTrue(
             borrowableCWMON.balanceOf(user) > 0,
             "user should have shares after unpause"
+        );
+    }
+
+    /// HELPER FUNCTIONS ///
+
+    function _getBasicTokenConfig(
+        address cToken,
+        uint256 collateralCap,
+        uint256 debtCap
+    ) internal pure returns (MarketManagerIsolated.TokenConfig memory config) {
+        config.cToken = cToken;
+        config.collRatio = 7000;
+        config.collReqSoft = 4000;
+        config.collReqHard = 3000;
+        config.liqIncBase = 1000;
+        config.liqIncHard = 1500;
+        config.liqIncMin = 10;
+        config.liqIncMax = 2000;
+        config.closeFactorBase = 2000;
+        config.closeFactorMin = 2000;
+        config.closeFactorMax = 5000;
+        config.collateralCap = collateralCap;
+        config.debtCap = debtCap;
+    }
+
+    function _fundAndApprove() internal {
+        deal(_USDC_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+        deal(WMON_ADDRESS, address(this), BASE_UNDERLYING_RESERVE);
+
+        IERC20(_USDC_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+        IERC20(WMON_ADDRESS).approve(
+            address(deploymentManager),
+            BASE_UNDERLYING_RESERVE
+        );
+    }
+
+    function _deployMarketViaManager() internal {
+        _fundAndApprove();
+
+        MarketManagerIsolated.TokenConfig
+            memory config0 = _getBasicTokenConfig(
+                address(borrowableCWMON),
+                1_000_000e18,
+                0
+            );
+        MarketManagerIsolated.TokenConfig
+            memory config1 = _getBasicTokenConfig(
+                address(borrowableCUSDC_MONAD),
+                0,
+                1_000_000e6
+            );
+
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(borrowableCWMON),
+            address(borrowableCUSDC_MONAD),
+            config0,
+            config1
         );
     }
 }

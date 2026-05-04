@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
@@ -192,11 +194,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256[] memory _allocationCapsBps,
         uint256 _feeBps
     ) {
+        uint256 numApprovedCTokens = _approvedCTokens.length;
+
         // Revert if trying to add more than `MAX_MARKETS`.
-        if (_approvedCTokens.length > MAX_MARKETS) revert LendingOptimizer__TooManyMarkets();
-        if (_approvedCTokens.length == 0) revert LendingOptimizer__InvalidParameter();
+        if (numApprovedCTokens > MAX_MARKETS) revert LendingOptimizer__TooManyMarkets();
+        if (numApprovedCTokens == 0) revert LendingOptimizer__InvalidParameter();
         // Revert if constructor's arrays mismatch in length.
-        if (_approvedCTokens.length != _allocationCapsBps.length) revert LendingOptimizer__ArrayLengthMismatch();
+        if (numApprovedCTokens != _allocationCapsBps.length) revert LendingOptimizer__ArrayLengthMismatch();
         // Revert if the performance fee is more than the allowed max.
         if (_feeBps > MAX_FEE_BPS) revert LendingOptimizer__FeeTooHigh();
 
@@ -213,7 +217,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 totalAllocation;
 
         // Loop through all cTokens and validate.
-        for (uint256 i; i < _approvedCTokens.length; ++i) {
+        for (uint256 i; i < numApprovedCTokens; ++i) {
             // Revert if allocation cap is 0 which would cause a dead market,
             // and also prevent allocating cap > 100% to cause dirty allocation math.
             if (_allocationCapsBps[i] == 0 || _allocationCapsBps[i] > BPS)
@@ -308,7 +312,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // trackedAssets = sum of recoverable values after cToken rounding.
         uint256[] memory perMarket = _calculateDepositProRata(assets, false);
         uint256 trackedAssets;
-        for (uint256 i; i < approvedCTokensList.length; ++i) {
+        uint256 numApprovedCTokens = approvedCTokensList.length;
+        for (uint256 i; i < numApprovedCTokens; ++i) {
             // Skip deposits that would round to zero cToken shares.
             if (perMarket[i] == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(perMarket[i]) == 0) continue;
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
@@ -349,14 +354,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // favor of the user at the expense of existing depositors.
         uint256[] memory perMarket = _calculateDepositProRata(assets, true);
         assets = 0;
-        for (uint256 i; i < approvedCTokensList.length; ++i) {
+        uint256 numApprovedCTokens = approvedCTokensList.length;
+        for (uint256 i; i < numApprovedCTokens; ++i) {
             assets += perMarket[i];
         }
 
         // Pull the (potentially inflated) assets and deposit to markets.
         SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
         uint256 trackedAssets;
-        for (uint256 i; i < approvedCTokensList.length; ++i) {
+        for (uint256 i; i < numApprovedCTokens; ++i) {
             // Skip deposits that would round to zero cToken shares.
             if (perMarket[i] == 0 || IBorrowableCToken(approvedCTokensList[i]).convertToShares(perMarket[i]) == 0) continue;
             trackedAssets += _depositToMarket(approvedCTokensList[i], perMarket[i]);
@@ -364,6 +370,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Track recoverable value only; rounding excess from the per-market
         // roundtrip stays as idle balance, recoverable by DAO via `skim()`.
+        if (convertToShares(trackedAssets) < shares) {
+            revert LendingOptimizer__AssetMismatch();
+        }
         _totalAssets += trackedAssets;
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -546,13 +555,17 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Revert if the caller does not have market permissions.
         _hasMarketPermissions();
 
-        // Revert if there is only one market.
-        if (approvedCTokensList.length == 1) revert LendingOptimizer__InvalidParameter();
-        // Always require an explicit reallocation plan so donated cToken shares
-        // cannot grief an otherwise empty market removal.
-        if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
-        // Bounds must match the post-removal market count.
-        if (bounds.length != approvedCTokensList.length - 1) revert LendingOptimizer__ArrayLengthMismatch();
+        {
+            uint256 numApprovedCTokens = approvedCTokensList.length;
+
+            // Revert if there is only one market.
+            if (numApprovedCTokens == 1) revert LendingOptimizer__InvalidParameter();
+            // Always require an explicit reallocation plan so donated cToken
+            // shares cannot grief an otherwise empty market removal.
+            if (removeActions.length == 0) revert LendingOptimizer__InvalidParameter();
+            // Bounds must match the post-removal market count.
+            if (bounds.length != numApprovedCTokens - 1) revert LendingOptimizer__ArrayLengthMismatch();
+        }
 
         // Revert if the market to remove is not approved.
         if (!_isApprovedMarket(cTokenToRemove)) revert LendingOptimizer__MarketNotApproved();
@@ -1324,7 +1337,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 if (currentRate > highRate) {
                     // Round up to prevent fee undercharge on dust profits.
                     uint256 profit = rawTa - FixedPointMathLib.fullMulDivUp(highRate, supply, WAD);
-                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, _bpsToWad(fee), WAD);
+                    uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, fee, BPS);
 
                     if (feeAssets > 0) {
                         uint256 feeShares = FixedPointMathLib.fullMulDiv(

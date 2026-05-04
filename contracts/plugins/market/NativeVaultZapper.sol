@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
-import { ICentralRegistry, SwapperLib, ICToken } from "contracts/plugins/BaseZapper.sol";
+import { ICentralRegistry, SwapperLib } from "contracts/plugins/BaseZapper.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
@@ -69,11 +69,13 @@ contract NativeVaultZapper is SimpleZapper {
         bool collateralizeFor,
         address receiver
     ) external override payable nonReentrant returns (uint256 outAmount) {
-        _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
-
         if (!CommonLib._isNative(swapAction.outputToken)) {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
+
+        address vault = _getValidatedCTokenAsset(cToken);
+
+        _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 
         if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;        
@@ -85,8 +87,6 @@ contract NativeVaultZapper is SimpleZapper {
             // Execute swap into cToken asset.
             outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
-
-        address vault = ICToken(cToken).asset();
 
         // Deposit into vault.
         outAmount = IVault(vault)
