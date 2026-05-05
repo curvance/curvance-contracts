@@ -666,12 +666,15 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         {
             uint256 l = approvedCTokensList.length;
             uint256 removeIndex;
+            bool found;
             for (uint256 i; i < l; ++i) {
                 if (approvedCTokensList[i] == cTokenToRemove) {
                     removeIndex = i;
+                    found = true;
                     break;
                 }
             }
+            if (!found) revert LendingOptimizer__MarketNotApproved();
 
             // Update approved markets list using swap and pop.
             uint256 swapIndex = l - 1;

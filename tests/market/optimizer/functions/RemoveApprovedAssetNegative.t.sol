@@ -31,6 +31,27 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
         optimizer.removeApprovedAsset(address(0xdead), actions, bounds);
     }
 
+    function test_reverts_capSetButMarketMissingFromList() public {
+        _setUpTwoMarkets();
+
+        LendingOptimizerHarness(address(optimizer)).exposed_setAllocationCap(
+            cUSDC_WETH_MARKET,
+            1e18
+        );
+
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](1);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(10000)
+        );
+
+        LendingOptimizer.AllocationBound[] memory bounds =
+            new LendingOptimizer.AllocationBound[](1);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
+    }
+
     function test_reverts_noReallocationTargets_withAssets() public {
         // Use 3 markets so removal leaves caps >= 100%.
         _setUpThreeMarkets();

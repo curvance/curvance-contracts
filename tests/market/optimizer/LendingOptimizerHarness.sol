@@ -47,6 +47,11 @@ contract LendingOptimizerHarness is LendingOptimizer {
         return _calculateDepositProRata(assets, conversionRoundtrip);
     }
 
+    /// @notice Test-only: corrupts local cap state to exercise invariant guards.
+    function exposed_setAllocationCap(address cToken, uint256 cap) external {
+        allocationCaps[cToken] = cap;
+    }
+
     /// @notice Returns shares using the original ERC4626 previewDeposit
     ///         (without the -2 adjustment) for comparison testing.
     function oldPreviewDeposit(uint256 assets) external view returns (uint256) {
