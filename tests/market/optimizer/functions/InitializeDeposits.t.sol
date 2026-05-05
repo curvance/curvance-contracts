@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -125,6 +126,37 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         );
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
         optimizer.initializeDeposits(address(1));
+    }
+
+    function test_lendingOptimizer_initializeDeposits_fail_whenCapSetButMarketMissingFromList() public {
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        LendingOptimizerHarness harness = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
+        optimizer = harness;
+
+        harness.exposed_setAllocationCap(cUSDC_WETH_MARKET, 1e18);
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.initializeDeposits(cUSDC_WETH_MARKET);
     }
 
     function test_lendingOptimizer_deposit_fail_whenNotInitialized() public {

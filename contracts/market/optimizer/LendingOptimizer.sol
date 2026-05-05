@@ -264,6 +264,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         if (mintPaused != 0) revert LendingOptimizer__AlreadyInitialized();
         // Revert if the target market is not approved.
         if (!_isApprovedMarket(targetMarket)) revert LendingOptimizer__MarketNotApproved();
+        _approvedMarketIndex(targetMarket, approvedCTokensList.length);
 
         // Transfer _BASE_UNDERLYING_RESERVE assets.
         uint256 assets = _BASE_UNDERLYING_RESERVE;
@@ -619,6 +620,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                         if (cTokenAddress == cTokenToRemove) revert LendingOptimizer__InvalidParameter();
                         // Revert if the reallocation target is not an approved market.
                         if (!_isApprovedMarket(cTokenAddress)) revert LendingOptimizer__MarketNotApproved();
+                        _approvedMarketIndex(cTokenAddress, approvedCTokensList.length);
                         // Revert if duplicate reallocation target.
                         for (uint256 j; j < i; ++j) {
                             if (address(removeActions[j].cToken) == cTokenAddress) revert LendingOptimizer__InvalidParameter();
@@ -665,16 +667,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Find the index of the cToken to remove.
         {
             uint256 l = approvedCTokensList.length;
-            uint256 removeIndex;
-            bool found;
-            for (uint256 i; i < l; ++i) {
-                if (approvedCTokensList[i] == cTokenToRemove) {
-                    removeIndex = i;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) revert LendingOptimizer__MarketNotApproved();
+            uint256 removeIndex = _approvedMarketIndex(cTokenToRemove, l);
 
             // Update approved markets list using swap and pop.
             uint256 swapIndex = l - 1;
@@ -1236,6 +1229,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @return True if the market has a non-zero allocation cap.
     function _isApprovedMarket(address market) internal view returns (bool) {
         return allocationCaps[market] != 0;
+    }
+
+    /// @dev Returns a market's approved-list index or reverts if absent.
+    function _approvedMarketIndex(address market, uint256 l) internal view returns (uint256) {
+        for (uint256 i; i < l; ++i) {
+            if (approvedCTokensList[i] == market) return i;
+        }
+        revert LendingOptimizer__MarketNotApproved();
     }
 
     /// @dev Returns the current exchange rate in WAD. Returns WAD if no supply.
