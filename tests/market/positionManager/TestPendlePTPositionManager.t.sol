@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 import { PendlePTPositionManager } from "contracts/market/position-management/PendlePTPositionManager.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
@@ -1296,7 +1297,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // ZapAction: PT in, wstETH out. inputToken is the PT itself
         // (zapper transferFrom's it), outputToken is what `_exitPendle`
         // measures balance-of for delivery.
-        PendleZapper.ZapAction memory zapAction;
+        PendleZapperMinimal.ZapAction memory zapAction;
         zapAction.inputToken = _PT_STETH;
         zapAction.inputAmount = ptAmount;
         zapAction.outputToken = _WSTETH;

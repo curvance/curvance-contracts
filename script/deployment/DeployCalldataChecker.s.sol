@@ -4,11 +4,14 @@ pragma solidity 0.8.28;
 import { DeployScript } from "../utils/DeployScript.sol";
 
 import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberSwapChecker.sol";
+import { PendleZapperMinimalCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperMinimalCalldataChecker.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract DeployCalldataChecker is DeployScript {
     struct AvailableCheckers {
         address router;
+        address pendleZapperMinimal;
+        address pendleRouter;
     }
 
     address KYBER_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
@@ -18,17 +21,33 @@ contract DeployCalldataChecker is DeployScript {
         0x4a16958D2041044C67c8F33017a75693Cc58F7CC // new
     ];
 
-
-    function run(address registry, AvailableCheckers calldata checkerSelection) external recordEvents {
+    function run(
+        address registry,
+        AvailableCheckers calldata checkerSelection
+    ) external recordEvents {
         CentralRegistry cr = CentralRegistry(registry);
 
-        if(checkerSelection.router != address(0)) {
+        if (checkerSelection.router != address(0)) {
             KyberSwapChecker checker = new KyberSwapChecker(
-                checkerSelection.router, 
-                EXECUTORS, 
+                checkerSelection.router,
+                EXECUTORS,
                 address(cr)
             );
-            cr.setExternalCalldataChecker(checkerSelection.router, address(checker));
+            cr.setExternalCalldataChecker(
+                checkerSelection.router,
+                address(checker)
+            );
+        }
+
+        if (checkerSelection.pendleZapperMinimal != address(0)) {
+            PendleZapperMinimalCalldataChecker checker = new PendleZapperMinimalCalldataChecker(
+                    checkerSelection.pendleZapperMinimal,
+                    checkerSelection.pendleRouter
+                );
+            cr.setExternalCalldataChecker(
+                checkerSelection.pendleZapperMinimal,
+                address(checker)
+            );
         }
     }
 }

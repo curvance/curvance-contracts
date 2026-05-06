@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseZapper, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -27,133 +28,20 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 ///      erc20 tokens such as sUSDe/sUSDe-PT-dec-31-2025 LP tokens,
 ///      or sUSDe-PT-dec-31-2025 PT tokens.
 ///
-contract PendleZapper is BaseZapper {
-    /// TYPES ///
-
-    /// @param inputToken Address of input token to zap from.
-    /// @param inputAmount The amount of `inputToken` to zap.
-    /// @param outputToken Address of token to zap into.
-    /// @param minimumOut The minimum output amount of `outputToken`
-    ///                   acceptable from the zap.
-    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
-    ///                               token, indicates depositing native token
-    ///                               into wrapped version or not.
-    struct ZapAction {
-        address inputToken;
-        uint256 inputAmount;
-        address outputToken;
-        uint256 minimumOut;
-        bool depositAsWrappedNative;
-    }
-
+contract PendleZapper is PendleZapperMinimal {
     /// ERRORS ///
-
     error PendleZapper__SlippageError();
 
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param wNative The address of wrapped native token.
-    constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
+    constructor(
+        ICentralRegistry cr,
+        address wNative
+    ) PendleZapperMinimal(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Swaps then deposits `zapAction.inputToken` into Pendle
-    ///         market, and enters into Curvance position, for `receiver`.
-    /// @dev Requires plugin approval for collateralization.
-    /// @param strategyCToken The Curvance token address to enter into a
-    ///                       position.
-    /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
-    /// @param action Instructions for a Pendle action containing:
-    ///               approx The approximate price parameters for the Pendle
-    ///                      swap.
-    ///               input Represents the input parameters for a Pendle
-    ///                     action. Users start with `netTokenIn` amount of
-    ///                     `tokenIn`. If `tokenIn` differs from
-    ///                     `tokenMintSy`, a swap is performed using the
-    ///                     specified aggregator to convert `tokenIn` to
-    ///                     `tokenMintSy`, which is then used to mint SY
-    ///                     tokens.
-    ///               output Represents the output parameters for a Pendle
-    ///                      action. Users receive SY tokens, redeem them
-    ///                      to `tokenRedeemSy`, and may use an aggregator
-    ///                      to swap `tokenRedeemSy` to the desired
-    ///                      `tokenOut`.
-    ///               limit Contains parameters for executing limit orders.
-    /// @param zapAction Instructions for a zap action containing:
-    ///                  inputToken Address of input token to zap from.
-    ///                  inputAmount The amount of `inputToken` to zap.
-    ///                  outputToken Address of token to zap into.
-    ///                  minimumOut The minimum output amount of `outputToken`
-    ///                             acceptable from the zap.
-    ///                  depositAsWrappedNative Used when `inputToken` is the
-    ///                                         native gas token, indicates
-    ///                                         depositing native token into
-    ///                                         wrapped version or not.
-    /// @param swapActions Array of instructions for swap actions containing:
-    ///                    inputToken Address of input token to swap from.
-    ///                    inputAmount The amount of `inputToken` to swap.
-    ///                    outputToken Address of token to swap into.
-    ///                    target Address of the swapper, usually an
-    ///                           aggregator.
-    ///                    slippage The amount of value-loss acceptable from
-    ///                             swapping between tokens.
-    ///                    call Swap instruction calldata.
-    /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapActions.outputToken`
-    ///                       into `strategyCToken` position.
-    /// @param collateralizeFor Whether the deposit should be collateralized,
-    ///                         requires plugin approval.
-    /// @param receiver Address that should receive Zapped deposit.
-    /// @return outAmount The `strategyCToken` output shares received by
-    ///                   `receiver`.
-    function enterPendle(
-        address strategyCToken,
-        address router,
-        bool isPt,
-        PendleLib.PendleAction calldata action,
-        ZapAction calldata zapAction,
-        SwapperLib.Swap[] calldata swapActions,
-        uint256 expectedShares,
-        bool collateralizeFor,
-        address receiver
-    ) external payable nonReentrant returns (uint256 outAmount) {
-        // Redundant receiver == address(0) check so we fail fast if execution
-        // is impossible.
-        if (receiver == address(0) || expectedShares == 0) {
-            revert BaseZapper__ExecutionError();
-        }
-
-        _checkAddresses(strategyCToken, zapAction.outputToken);
-
-        // Swap input token for underlyings.
-        _swapForUnderlyings(
-            zapAction.inputToken,
-            zapAction.inputAmount,
-            swapActions,
-            zapAction.depositAsWrappedNative
-        );
-
-        // Enter Pendle position.
-        outAmount = PendleLib._enterPendle(
-            router,
-            isPt,
-            zapAction.outputToken,
-            zapAction.minimumOut,
-            action
-        );
-
-        // Enter Curvance position.
-        outAmount = _enterCurvance(
-            strategyCToken,
-            zapAction.outputToken,
-            outAmount,
-            expectedShares,
-            collateralizeFor,
-            receiver
-        );
-    }
 
     /// @notice Exits a Pendle market, and zaps it into zapAction.outputToken,
     ///         sending the proceeds to `receiver`.
@@ -398,45 +286,5 @@ contract PendleZapper is BaseZapper {
 
         // Transfer output tokens to `receiver`.
         _transferToRecipient(zapAction.outputToken, receiver, outAmount);
-    }
-
-    /// @notice Swap `inputToken` into desired underlying tokens.
-    /// @param inputToken The input token address.
-    /// @param inputAmount The amount of `inputToken` to swap for underlying
-    ///                    tokens.
-    /// @param swapActions Array of instructions for swap actions containing:
-    ///                    inputToken Address of input token to swap from.
-    ///                    inputAmount The amount of `inputToken` to swap.
-    ///                    outputToken Address of token to swap into.
-    ///                    target Address of the swapper, usually an
-    ///                           aggregator.
-    ///                    slippage The amount of value-loss acceptable from
-    ///                             swapping between tokens.
-    ///                    call Swap instruction calldata.
-    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
-    ///                               token, indicates depositing native token
-    ///                               into wrapped version or not.
-    function _swapForUnderlyings(
-        address inputToken,
-        uint256 inputAmount,
-        SwapperLib.Swap[] memory swapActions,
-        bool depositAsWrappedNative
-    ) internal {
-        _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
-
-        uint256 numTokenSwaps = swapActions.length;
-        // Swap `inputToken` into desired underlying tokens.
-        for (uint256 i; i < numTokenSwaps; ) {
-            if (
-                CommonLib._isNative(swapActions[i].inputToken) &&
-                depositAsWrappedNative
-            ) {
-                // Switch inputToken to wrapped native token address.
-                swapActions[i].inputToken = address(wrappedNative);
-            }
-
-            // Execute swap into underlying(s).
-            SwapperLib._swapSafe(centralRegistry, swapActions[i++]);
-        }
     }
 }

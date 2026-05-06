@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
@@ -34,13 +35,14 @@ contract TestPendleZapperCalldataChecker is Test {
             shares: 100,
             forceRedeemCollateral: false
         });
-        PendleZapper.ZapAction memory zapAction = PendleZapper.ZapAction({
-            inputToken: pendleToken,
-            inputAmount: 50,
-            outputToken: outputToken,
-            minimumOut: 1,
-            depositAsWrappedNative: false
-        });
+        PendleZapperMinimal.ZapAction memory zapAction = PendleZapperMinimal
+            .ZapAction({
+                inputToken: pendleToken,
+                inputAmount: 50,
+                outputToken: outputToken,
+                minimumOut: 1,
+                depositAsWrappedNative: false
+            });
 
         swapAction = SwapperLib.Swap({
             inputToken: cToken,
@@ -66,13 +68,14 @@ contract TestPendleZapperCalldataChecker is Test {
             shares: 100,
             forceRedeemCollateral: false
         });
-        PendleZapper.ZapAction memory zapAction = PendleZapper.ZapAction({
-            inputToken: pendleToken,
-            inputAmount: 50,
-            outputToken: outputToken,
-            minimumOut: 1,
-            depositAsWrappedNative: false
-        });
+        PendleZapperMinimal.ZapAction memory zapAction = PendleZapperMinimal
+            .ZapAction({
+                inputToken: pendleToken,
+                inputAmount: 50,
+                outputToken: outputToken,
+                minimumOut: 1,
+                depositAsWrappedNative: false
+            });
 
         swapAction = SwapperLib.Swap({
             inputToken: cToken,
@@ -91,7 +94,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_revertsWrongPendleRouter() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -117,7 +120,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_revertsWrongRecipient() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -136,7 +139,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_revertsZeroMinimumOut() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
         zapAction.minimumOut = 0;
 
         swapAction = SwapperLib.Swap({
@@ -156,7 +159,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_enterPendle_usesCTokenAsOutputWhenProvided() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
         uint256 expectedShares = 42;
 
         swapAction = SwapperLib.Swap({
@@ -173,7 +176,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_enterPendle_revertsWhenCTokenIsZero() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -192,7 +195,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_enterPendle_revertsWhenExpectedSharesIsZero() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -211,7 +214,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function test_enterPendle_revertsWhenPendleMinimumOutIsZero() public {
         PendleLib.PendleAction memory action;
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
         zapAction.minimumOut = 0;
 
         swapAction = SwapperLib.Swap({
@@ -229,12 +232,12 @@ contract TestPendleZapperCalldataChecker is Test {
         checker.checkCalldata(swapAction, receiver);
     }
 
-    function test_allowsPendleSdkAggregatorRoute() public {
+    function test_doesNotInspectPendleSdkAggregatorRoute() public {
         PendleLib.PendleAction memory action;
         action.output.pendleSwap = address(0xBEEF);
         action.output.swapData.swapType = SwapType.KYBERSWAP;
         action.output.swapData.extRouter = address(0xCAFE);
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -260,10 +263,10 @@ contract TestPendleZapperCalldataChecker is Test {
         );
     }
 
-    function test_allowsPendleLimitRouter() public {
+    function test_doesNotInspectPendleLimitRouter() public {
         PendleLib.PendleAction memory action;
         action.limit.limitRouter = address(0xBEEF);
-        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -292,10 +295,10 @@ contract TestPendleZapperCalldataChecker is Test {
     function _defaultZapAction()
         internal
         view
-        returns (PendleZapper.ZapAction memory)
+        returns (PendleZapperMinimal.ZapAction memory)
     {
         return
-            PendleZapper.ZapAction({
+            PendleZapperMinimal.ZapAction({
                 inputToken: pendleToken,
                 inputAmount: 100,
                 outputToken: outputToken,
@@ -307,12 +310,12 @@ contract TestPendleZapperCalldataChecker is Test {
     function _enterCalldata(
         address cToken_,
         PendleLib.PendleAction memory action,
-        PendleZapper.ZapAction memory zapAction,
+        PendleZapperMinimal.ZapAction memory zapAction,
         uint256 expectedShares
     ) internal view returns (bytes memory) {
         return
             abi.encodeWithSelector(
-                PendleZapper.enterPendle.selector,
+                PendleZapperMinimal.enterPendle.selector,
                 cToken_,
                 pendleRouter,
                 false,
@@ -327,7 +330,7 @@ contract TestPendleZapperCalldataChecker is Test {
 
     function _exitCalldata(
         PendleLib.PendleAction memory action,
-        PendleZapper.ZapAction memory zapAction
+        PendleZapperMinimal.ZapAction memory zapAction
     ) internal view returns (bytes memory) {
         return
             abi.encodeWithSelector(
@@ -345,7 +348,7 @@ contract TestPendleZapperCalldataChecker is Test {
     function _redeemAndExitCalldata(
         PendleLib.PendleAction memory action,
         BaseZapper.RedeemAction memory redeemAction,
-        PendleZapper.ZapAction memory zapAction
+        PendleZapperMinimal.ZapAction memory zapAction
     ) internal view returns (bytes memory) {
         return
             abi.encodeWithSelector(

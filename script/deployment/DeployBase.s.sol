@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import { DeployScript } from "../utils/DeployScript.sol";
-import { AddChainLinkSupport } from './AddChainLinkSupport.s.sol';
-import { AddRedstoneSupport } from './AddRedstoneSupport.s.sol';
+import { AddChainLinkSupport } from "./AddChainLinkSupport.s.sol";
+import { AddRedstoneSupport } from "./AddRedstoneSupport.s.sol";
 
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -11,9 +11,10 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
-contract DeployBase is DeployScript  {
+contract DeployBase is DeployScript {
     struct Config {
         address daoAddress;
         address emergencyCouncil;
@@ -65,22 +66,25 @@ contract DeployBase is DeployScript  {
     }
 
     function deployMockOracle(
-        ICentralRegistry icr, 
-        OracleManager oracleManager, 
+        ICentralRegistry icr,
+        OracleManager oracleManager,
         string memory name,
         bool testnet
     ) public useDeployer {
         if (testnet) {
             MockOracleAdaptor adaptor = new MockOracleAdaptor(icr, name);
             oracleManager.addApprovedAdaptor(address(adaptor));
-            emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
+            emit ContractDeployed(
+                address(adaptor),
+                string.concat("MockOracle")
+            );
         }
     }
 
     function deployAdaptors(
         ICentralRegistry icr,
         CentralRegistry registry,
-        Adaptors memory adaptors, 
+        Adaptors memory adaptors,
         OracleManager oracleManager
     ) public useDeployer {
         if (adaptors.chainlink) {
@@ -92,12 +96,22 @@ contract DeployBase is DeployScript  {
         }
 
         if (adaptors.redstonePull) {
-            redstoneSupport.deployRedstoneCoreAdaptor(registry, icr, oracleManager);
+            redstoneSupport.deployRedstoneCoreAdaptor(
+                registry,
+                icr,
+                oracleManager
+            );
         }
     }
 
-    function deployZappers(ICentralRegistry icr, address wrappedNative) public useDeployer {
-        NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
+    function deployZappers(
+        ICentralRegistry icr,
+        address wrappedNative
+    ) public useDeployer {
+        NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(
+            icr,
+            wrappedNative
+        );
         emit ContractDeployed(
             address(nativeVaultZapper),
             string.concat("zappers.nativeVaultZapper")
@@ -108,11 +122,20 @@ contract DeployBase is DeployScript  {
             address(vaultZapper),
             string.concat("zappers.vaultZapper")
         );
-        
+
         SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
         emit ContractDeployed(
             address(simpleZapper),
             string.concat("zappers.simpleZapper")
+        );
+
+        PendleZapperMinimal pendleZapperMinimal = new PendleZapperMinimal(
+            icr,
+            wrappedNative
+        );
+        emit ContractDeployed(
+            address(pendleZapperMinimal),
+            string.concat("zappers.pendleZapperMinimal")
         );
     }
 }
