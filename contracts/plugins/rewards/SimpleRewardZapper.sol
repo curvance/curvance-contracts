@@ -7,7 +7,6 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract SimpleRewardZapper is BaseZapper {
     /// CONSTANTS ///
@@ -143,6 +142,8 @@ contract SimpleRewardZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
+        _checkAddresses(cToken, swapAction.outputToken);
+
         // We do not need to check for an output token approval here since all
         // cTokens are natively authorized.
 
@@ -157,7 +158,7 @@ contract SimpleRewardZapper is BaseZapper {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
-        outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
+            outAmount = SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance cToken position.
@@ -219,6 +220,9 @@ contract SimpleRewardZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
+        // Validate `borrowableCToken` before claiming rewards.
+        address debtAsset = _getValidatedCTokenAsset(borrowableCToken);
+
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
 
@@ -226,10 +230,6 @@ contract SimpleRewardZapper is BaseZapper {
         if (swapAction.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
-        
-        // Cache `borrowableCToken` asset to minimize external calls.
-        address debtAsset = ICToken(borrowableCToken).asset();
-
         if (rewardToken != debtAsset) {
             // Validate that if we are swapping that the output token
             // matches `debtAsset`.
@@ -238,7 +238,7 @@ contract SimpleRewardZapper is BaseZapper {
             }
 
             // Swap from `rewardToken` into `debtAsset`.
-                swapAction.inputAmount = SwapperLib._swapSafe(
+            swapAction.inputAmount = SwapperLib._swapSafe(
                 centralRegistry,
                 swapAction
             );

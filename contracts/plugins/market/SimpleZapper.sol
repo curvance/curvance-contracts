@@ -63,6 +63,8 @@ contract SimpleZapper is BaseZapper {
         bool collateralizeFor,
         address receiver
     ) external virtual payable nonReentrant returns (uint256 outAmount) {
+        _checkAddresses(cToken, swapAction.outputToken);
+
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -129,6 +131,8 @@ contract SimpleZapper is BaseZapper {
         if (repayAssets == 0) {
             revert BaseZapper__InvalidRepaymentAmount();
         }
+
+        _checkAddresses(borrowableCToken, swapAction.outputToken);
 
         _prepareSwap(
             swapAction.inputToken,
@@ -238,6 +242,8 @@ contract SimpleZapper is BaseZapper {
         bool collateralizeFor,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
+        _checkAddresses(cToken, swapAction.outputToken);
+
         // Exit Curvance position.
         _exitCurvance(
             redeemAction.cToken,

@@ -11,12 +11,11 @@ import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.
 /// @dev NOTE: Currently built for Router V3.
 contract OdosV3CalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
-
     /// @notice Native token placeholder address that Odos does not recognize.
-    address immutable public INVALID_NATIVE_PLACEHOLDER;
+    address public immutable INVALID_NATIVE_PLACEHOLDER;
 
     /// @notice The address of the Odos Executor on this chain.
-    address immutable public ODOS_EXECUTOR;
+    address public immutable ODOS_EXECUTOR;
 
     /// ERRORS ///
 
@@ -62,15 +61,15 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
         if (funcSigHash == IOdosRouterV3.swap.selector) {
             (
                 IOdosRouterV3.swapTokenInfo memory tokenInfo,
-                bytes memory pathDefinition, 
-                address exec, 
+                bytes memory pathDefinition,
+                address exec,
                 IOdosRouterV3.swapReferralInfo memory ref
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        IOdosRouterV3.swapTokenInfo, 
-                        bytes, 
-                        address, 
+                        IOdosRouterV3.swapTokenInfo,
+                        bytes,
+                        address,
                         IOdosRouterV3.swapReferralInfo
                     )
                 );
@@ -122,6 +121,10 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
 
         if (referralInfo.code != 0) {
             revert CalldataChecker__ReferralError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }

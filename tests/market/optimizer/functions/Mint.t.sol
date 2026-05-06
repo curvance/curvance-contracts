@@ -74,8 +74,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 assets = optimizer.mint(sharesToMint, user1);
 
         assertApproxEqAbs(assets, expectedAssets, 3, "Assets deposited should match preview");
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint, 2, "User balance should approximately equal shares");
+        assertEq(optimizer.balanceOf(user1), sharesToMint, "User balance should equal requested shares");
         assertApproxEqAbs(optimizer.totalAssets(), totalAssetsBefore + assets, 2, "Total assets should approximately increase");
 
         vm.stopPrank();
@@ -92,8 +91,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
 
         uint256 assets = optimizer.mint(sharesToMint, user2);
 
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user2), sharesToMint, 2, "Receiver should get approximately shares");
+        assertEq(optimizer.balanceOf(user2), sharesToMint, "Receiver should get requested shares");
         assertEq(optimizer.balanceOf(user1), 0, "Minter should have no shares");
 
         vm.stopPrank();
@@ -108,7 +106,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         deal(USDC_MONAD, user1, expectedAssets * 2, true);
         IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
 
-        // Only check indexed parameters since shares may differ by 1-2 wei due to cToken rounding.
+        // Assets can differ from preview by cToken roundtrip rounding.
         vm.expectEmit(true, true, false, false);
         emit Deposit(user1, user1, 0, 0);
 
@@ -159,8 +157,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
             uint256 assets = optimizer.mint(sharesToMint, user1);
 
             assertGt(assets, 0, "Should deposit assets");
-            // Allow 0-2 wei variance in shares due to cToken rounding.
-            assertApproxEqAbs(optimizer.balanceOf(user1), sharesBefore + sharesToMint, 2, "Shares should approximately accumulate");
+            assertEq(optimizer.balanceOf(user1), sharesBefore + sharesToMint, "Shares should accumulate exactly");
             vm.stopPrank();
         }
     }
@@ -178,8 +175,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 assets = optimizer.mint(sharesToMint, user1);
 
         assertGt(assets, 0, "Should deposit assets even for small mint");
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint, 2, "Should receive approximately shares");
+        assertEq(optimizer.balanceOf(user1), sharesToMint, "Should receive requested shares");
 
         vm.stopPrank();
     }
@@ -197,8 +193,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 assets = optimizer.mint(sharesToMint, user1);
 
         assertApproxEqAbs(assets, expectedAssets, 3, "Large mint should deposit correct assets");
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint, 2, "Should receive approximately shares");
+        assertEq(optimizer.balanceOf(user1), sharesToMint, "Should receive requested shares");
 
         vm.stopPrank();
     }
@@ -222,9 +217,8 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         optimizer.mint(sharesToMint, user2);
         vm.stopPrank();
 
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint, 2, "User1 should have approximately shares");
-        assertApproxEqAbs(optimizer.balanceOf(user2), sharesToMint, 2, "User2 should have approximately shares");
+        assertEq(optimizer.balanceOf(user1), sharesToMint, "User1 should have requested shares");
+        assertEq(optimizer.balanceOf(user2), sharesToMint, "User2 should have requested shares");
     }
 
     function test_lendingOptimizer_mint_success_afterTimePasses() public {
@@ -253,9 +247,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets2 * 2);
         uint256 assets2 = optimizer.mint(sharesToMint, user1);
 
-        // Both mints should mint approximately the shares requested.
-        // Allow 0-4 wei variance due to cToken rounding across 2 mints.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint * 2, 4, "Should have approximately shares from both mints");
+        assertEq(optimizer.balanceOf(user1), sharesToMint * 2, "Should have requested shares from both mints");
 
         // Second mint should require MORE assets (exchange rate increased)
         assertGt(assets2, assets1, "Should require same or more assets after yield vests");
@@ -302,8 +294,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         // Verify assets increased by deposited amount (allow 1-2 wei for cToken rounding).
         assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore + assets, 2, "Assets should approximately increase by deposited amount");
 
-        // Verify supply increased by approximately shares minted (allow 0-2 wei due to cToken rounding).
-        assertApproxEqAbs(totalSupplyAfter, totalSupplyBefore + sharesToMint, 2, "Supply should approximately increase by shares");
+        assertEq(totalSupplyAfter, totalSupplyBefore + sharesToMint, "Supply should increase by requested shares");
 
         vm.stopPrank();
     }
@@ -345,6 +336,34 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
 
         // Mint should give exactly the requested shares.
         assertEq(sharesAfter - sharesBefore, sharesToMint, "Must mint exact shares requested");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_mint_invariant_recoverableAssetsCoverShares() public {
+        vm.startPrank(user1);
+
+        uint256 sharesToMint = 1000e6;
+
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+
+        uint256 expectedAssets = optimizer.previewMint(sharesToMint);
+        deal(USDC_MONAD, user1, expectedAssets * 2, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
+
+        optimizer.mint(sharesToMint, user1);
+
+        uint256 trackedAssets = optimizer.totalAssets() - totalAssetsBefore;
+        uint256 backedShares =
+            (trackedAssets * totalSupplyBefore) / totalAssetsBefore;
+
+        assertGe(
+            backedShares,
+            sharesToMint,
+            "Recoverable assets should cover minted shares"
+        );
 
         vm.stopPrank();
     }
@@ -424,8 +443,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 assets = optimizer.mint(sharesToMint, user1);
 
         assertApproxEqAbs(assets, expectedAssets, 3, "Assets should match preview");
-        // Allow 0-2 wei variance in shares due to cToken rounding.
-        assertApproxEqAbs(optimizer.balanceOf(user1), sharesToMint, 2, "Balance should approximately equal shares");
+        assertEq(optimizer.balanceOf(user1), sharesToMint, "Balance should equal requested shares");
 
         vm.stopPrank();
     }
@@ -444,9 +462,7 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         optimizer.mint(sharesToMint, user1);
         uint256 sharesAfter = optimizer.balanceOf(user1);
 
-        // Allow 0-2 wei variance due to cToken rounding.
-        // Note: This is a known deviation from strict ERC4626 compliance.
-        assertApproxEqAbs(sharesAfter - sharesBefore, sharesToMint, 2, "Should mint approximately requested shares");
+        assertEq(sharesAfter - sharesBefore, sharesToMint, "Should mint requested shares");
 
         vm.stopPrank();
     }

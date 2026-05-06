@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
-import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
-import { LendingOptimizerHandler } from "./LendingOptimizerHandler.sol";
-import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import {TestBaseLendingOptimizer} from "../TestBaseLendingOptimizer.sol";
+import {LendingOptimizerHarness} from "../LendingOptimizerHarness.sol";
+import {LendingOptimizerHandler} from "./LendingOptimizerHandler.sol";
+import {LendingOptimizer} from "contracts/market/optimizer/LendingOptimizer.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {WAD} from "contracts/libraries/ConstantsLib.sol";
+import {FixedPointMathLib} from "contracts/libraries/external/FixedPointMathLib.sol";
 
 /// @title InvariantStateful
 /// @notice Stateful invariant tests for LendingOptimizer using a handler-based approach.
 /// @dev The fuzzer randomly calls handler actions and then checks invariants after each sequence.
 contract InvariantStateful is TestBaseLendingOptimizer {
-
     LendingOptimizerHarness public harness;
     LendingOptimizerHandler public handler;
 
@@ -72,12 +71,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         actors.push(address(1000005));
 
         // Deploy handler.
-        handler = new LendingOptimizerHandler(
-            harness,
-            IERC20(USDC_MONAD),
-            liveCentralRegistry,
-            actors
-        );
+        handler = new LendingOptimizerHandler(harness, IERC20(USDC_MONAD), liveCentralRegistry, actors);
 
         // Configure invariant testing targets.
         targetContract(address(handler));
@@ -92,15 +86,22 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     // INVARIANTS
     // ========================================================================
 
-    /// @notice totalAssets() must always be >= the indexed total.
-    /// @dev totalAssets should be >= _totalAssets (indexed).
-    function invariant_totalAssetsGeIndexed() public view {
-        uint256 ta = harness.totalAssets();
-        uint256 indexedAssets = harness.exposed_totalAssetsIndexed();
-        assertGe(
-            ta,
-            indexedAssets,
-            "INVARIANT VIOLATED: totalAssets() < _totalAssets (indexed)"
+    /// @notice Idle underlying donations must not enter optimizer share pricing.
+    /// @dev The optimizer accounts listed market positions only; direct
+    ///      underlying transfers are idle excess recoverable by DAO via skim().
+    function invariant_idleUnderlyingIsUntracked() public view {
+        uint256 idleUnderlying = IERC20(USDC_MONAD).balanceOf(address(harness));
+        uint256 donated = handler.ghost_underlyingDonated();
+        uint256 roundingBudget =
+            (handler.ghost_depositCount() + handler.ghost_rebalanceCount() + handler.ghost_withdrawCount())
+                * harness.numApprovedMarkets();
+
+        assertLe(idleUnderlying, donated + roundingBudget, "INVARIANT VIOLATED: unexpected idle underlying");
+
+        assertEq(
+            harness.totalAssets(),
+            harness.exposed_totalAssetsIndexed(),
+            "INVARIANT VIOLATED: totalAssets must remain cached accounting"
         );
     }
 
@@ -114,11 +115,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 currentRate = FixedPointMathLib.mulDiv(WAD, harness.totalAssets(), supply);
         uint256 lastRate = handler.ghost_lastExchangeRate();
 
-        assertGe(
-            currentRate + 1,
-            lastRate,
-            "INVARIANT VIOLATED: exchange rate decreased"
-        );
+        assertGe(currentRate + 1, lastRate, "INVARIANT VIOLATED: exchange rate decreased");
     }
 
     /// @notice Sum of all allocation caps must be >= 1e18 (100%).
@@ -130,11 +127,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
             totalCaps += harness.allocationCaps(market);
         }
 
-        assertGe(
-            totalCaps,
-            WAD,
-            "INVARIANT VIOLATED: sum of allocation caps < 100%"
-        );
+        assertGe(totalCaps, WAD, "INVARIANT VIOLATED: sum of allocation caps < 100%");
     }
 
     /// @notice After any rebalance, each market allocation must not exceed its cap.
@@ -153,53 +146,38 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 numMarkets = harness.numApprovedMarkets();
         for (uint256 i; i < numMarkets; ++i) {
             address market = harness.approvedCTokensList(i);
-            uint256 marketAssets = IBorrowableCToken(market).convertToAssets(
-                IBorrowableCToken(market).balanceOf(address(harness))
-            );
+            uint256 marketAssets =
+                IBorrowableCToken(market).convertToAssets(IBorrowableCToken(market).balanceOf(address(harness)));
             uint256 currentAllocation = FixedPointMathLib.mulDiv(marketAssets, WAD, ta);
 
             // Soft check: no single market should ever hold > 100%.
             // Allow a tiny epsilon (1e-10) for accumulated rounding across
             // many cToken convertToAssets calls and multi-market accounting.
-            assertLe(
-                currentAllocation,
-                WAD + 1e8,
-                "INVARIANT VIOLATED: market holds more than total assets"
-            );
+            assertLe(currentAllocation, WAD + 1e8, "INVARIANT VIOLATED: market holds more than total assets");
         }
     }
 
-    /// @notice totalAssets should track the actual sum of market values closely.
-    /// @dev Checks both directions of drift: totalAssets above or below the
-    ///      actual sum of market values.
+    /// @notice Cached totalAssets should tightly track listed-market ground truth.
+    /// @dev Every handler action that can change market value either accrues first
+    ///      or re-syncs after execution. Any large drift here means user shares can
+    ///      be priced against stale or untracked assets.
     function invariant_totalAssetsTracking() public view {
-        uint256 numMarkets = harness.numApprovedMarkets();
-        uint256 sumMarkets;
-        for (uint256 i; i < numMarkets; ++i) {
-            address market = harness.approvedCTokensList(i);
-            sumMarkets += IBorrowableCToken(market).convertToAssets(
-                IBorrowableCToken(market).balanceOf(address(harness))
-            );
-        }
-
+        uint256 sumMarkets = _sumListedMarketAssets();
         uint256 ta = harness.totalAssets();
 
-        // totalAssets may lag behind sumMarkets (new yield not yet detected)
-        // or may be slightly above due to accrual timing.
-        // Check both directions with 1% tolerance.
         if (ta > sumMarkets) {
             assertLe(
                 ta - sumMarkets,
-                ta / 100, // Allow 1% for yield detection timing difference
-                "INVARIANT VIOLATED: totalAssets far exceeds actual market sum"
+                harness.numApprovedMarkets(),
+                "INVARIANT VIOLATED: totalAssets exceeds listed market sum"
             );
         }
 
         if (sumMarkets > ta) {
             assertLe(
                 sumMarkets - ta,
-                sumMarkets / 100, // Allow 1% for yield not yet absorbed
-                "INVARIANT VIOLATED: actual market sum far exceeds totalAssets"
+                harness.numApprovedMarkets(),
+                "INVARIANT VIOLATED: listed market sum exceeds totalAssets"
             );
         }
     }
@@ -209,11 +187,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 indexedAssets = harness.exposed_totalAssetsIndexed();
         for (uint256 i; i < actors.length; ++i) {
             uint256 mw = harness.maxWithdraw(actors[i]);
-            assertLe(
-                mw,
-                indexedAssets,
-                "INVARIANT VIOLATED: maxWithdraw(user) > _totalAssets"
-            );
+            assertLe(mw, indexedAssets, "INVARIANT VIOLATED: maxWithdraw(user) > _totalAssets");
         }
     }
 
@@ -227,22 +201,14 @@ contract InvariantStateful is TestBaseLendingOptimizer {
             uint256 redeemAssets = harness.previewRedeem(mr);
             uint256 mw = harness.maxWithdraw(actors[i]);
 
-            assertLe(
-                redeemAssets,
-                mw + 1,
-                "INVARIANT VIOLATED: previewRedeem(maxRedeem) > maxWithdraw + 1"
-            );
+            assertLe(redeemAssets, mw + 1, "INVARIANT VIOLATED: previewRedeem(maxRedeem) > maxWithdraw + 1");
         }
     }
 
     /// @notice Dead shares at address(0) must always exist after initialization.
     function invariant_deadSharesExist() public view {
         uint256 deadShares = harness.balanceOf(address(0));
-        assertGt(
-            deadShares,
-            0,
-            "INVARIANT VIOLATED: dead shares at address(0) are zero"
-        );
+        assertGt(deadShares, 0, "INVARIANT VIOLATED: dead shares at address(0) are zero");
     }
 
     /// @notice No user should profit from a round trip (deposit then full withdrawal)
@@ -266,7 +232,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
             assertLe(
                 withdrawn,
                 maxAllowedWithdrawal,
-                "INVARIANT VIOLATED: user withdrew more than deposited + 5% yield allowance"
+                "INVARIANT VIOLATED: user withdrew more than deposited + yield allowance"
             );
         }
     }
@@ -274,10 +240,33 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @notice totalSupply should be consistent: dead shares + user shares.
     function invariant_totalSupplyConsistency() public view {
         uint256 supply = harness.totalSupply();
-        assertGt(
-            supply,
-            0,
-            "INVARIANT VIOLATED: total supply is zero (dead shares should prevent this)"
+        assertGt(supply, 0, "INVARIANT VIOLATED: total supply is zero (dead shares should prevent this)");
+    }
+
+    /// @notice All optimizer shares must be held by known stateful actors.
+    /// @dev Valid holders in this harness are dead shares, the test contract
+    ///      seed/DAO holder, and the fuzz actors. A mismatch means shares were
+    ///      minted to an unexpected holder or totalSupply drifted from balances.
+    function invariant_totalSupplyMatchesKnownHolders() public view {
+        uint256 knownShares =
+            harness.balanceOf(address(0)) + harness.balanceOf(address(this)) + _sumActorShareBalances();
+
+        assertEq(knownShares, harness.totalSupply(), "INVARIANT VIOLATED: totalSupply has unknown share holder");
+    }
+
+    /// @notice Actor balances must equal successful actor mints less burns.
+    /// @dev Transfers between actors preserve the actor aggregate, while DAO fee
+    ///      shares accrue to the test contract and stay outside this sum.
+    function invariant_actorSharesMatchGhostNetMints() public view {
+        uint256 minted = handler.ghost_totalSharesMinted();
+        uint256 burned = handler.ghost_totalSharesBurned();
+
+        assertGe(minted, burned, "INVARIANT VIOLATED: ghost burned more actor shares than minted");
+
+        assertEq(
+            _sumActorShareBalances(),
+            minted - burned,
+            "INVARIANT VIOLATED: actor share balances drifted from ghost mints"
         );
     }
 
@@ -296,19 +285,14 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 numMarkets = harness.numApprovedMarkets();
         for (uint256 i; i < numMarkets; ++i) {
             address market = harness.approvedCTokensList(i);
-            uint256 marketAssets = IBorrowableCToken(market).convertToAssets(
-                IBorrowableCToken(market).balanceOf(address(harness))
-            );
+            uint256 marketAssets =
+                IBorrowableCToken(market).convertToAssets(IBorrowableCToken(market).balanceOf(address(harness)));
             uint256 currentAllocation = FixedPointMathLib.mulDiv(marketAssets, WAD, ta);
 
             // Hard invariant: no market can ever hold more than 100%.
             // Allow a tiny epsilon (1e-10) for accumulated rounding across
             // many cToken convertToAssets calls and multi-market accounting.
-            assertLe(
-                currentAllocation,
-                WAD + 1e8,
-                "INVARIANT VIOLATED: market allocation exceeds 100%"
-            );
+            assertLe(currentAllocation, WAD + 1e8, "INVARIANT VIOLATED: market allocation exceeds 100%");
 
             // Note: deposits route to the optimal market without cap
             // enforcement, and updateCap can lower caps below current
@@ -327,20 +311,31 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         uint256 supply = harness.totalSupply();
 
         // Dead shares from initializeDeposits guarantee supply > 0.
-        assertGt(
-            supply,
-            0,
-            "INVARIANT VIOLATED: totalSupply is zero (dead shares should prevent this)"
-        );
+        assertGt(supply, 0, "INVARIANT VIOLATED: totalSupply is zero (dead shares should prevent this)");
 
         // If somehow supply were zero, assets must also be zero.
         // This is a defensive check complementing invariant_deadSharesExist.
         if (supply == 0) {
-            assertEq(
-                harness.totalAssets(),
-                0,
-                "INVARIANT VIOLATED: totalSupply == 0 but totalAssets > 0"
-            );
+            assertEq(harness.totalAssets(), 0, "INVARIANT VIOLATED: totalSupply == 0 but totalAssets > 0");
+        }
+    }
+
+    // ========================================================================
+    // HELPERS
+    // ========================================================================
+
+    function _sumActorShareBalances() internal view returns (uint256 actorShares) {
+        for (uint256 i; i < actors.length; ++i) {
+            actorShares += harness.balanceOf(actors[i]);
+        }
+    }
+
+    function _sumListedMarketAssets() internal view returns (uint256 sumMarkets) {
+        uint256 numMarkets = harness.numApprovedMarkets();
+        for (uint256 i; i < numMarkets; ++i) {
+            address market = harness.approvedCTokensList(i);
+            sumMarkets += IBorrowableCToken(market)
+                .convertToAssets(IBorrowableCToken(market).balanceOf(address(harness)));
         }
     }
 }

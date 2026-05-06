@@ -318,6 +318,19 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
     /// @param cToken The Curvance cToken address.
     /// @param asset The input token address, should match `cToken`.asset().
     function _checkAddresses(address cToken, address asset) internal view {
+        // Validate `asset` matches asset of cToken contract.
+        if (asset != _getValidatedCTokenAsset(cToken)) {
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
+        }
+    }
+
+    /// @notice Validates `cToken` is a listed Curvance token and returns its
+    ///         underlying asset.
+    /// @param cToken The Curvance cToken address.
+    /// @return asset The `asset()` token of `cToken`.
+    function _getValidatedCTokenAsset(
+        address cToken
+    ) internal view returns (address asset) {
         // Validate `cToken` is not the zero address.
         if (cToken == address(0)) {
             revert BaseZapper__ExecutionError();
@@ -332,10 +345,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
             revert BaseZapper__Unauthorized();
         }
 
-        // Validate `asset` matches asset of cToken contract.
-        if (asset != ICToken(cToken).asset()) {
-            revert BaseZapper__UnderlyingTokenIsNotInputToken();
-        }
+        asset = ICToken(cToken).asset();
     }
 
     /// @notice Helper function for efficiently transferring tokens

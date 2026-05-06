@@ -72,13 +72,15 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _deployChainlinkAdaptors();
         _deployMarketManager();
 
-        chainlinkAdaptor.addAsset(
+        chainlinkAdaptor.addAsset(_STETH, true, _CHAINLINK_STETH_USD, 0);
+        oracleManager.addAssetPricingAdaptor(
             _STETH,
-            true,
-            _CHAINLINK_STETH_USD,
-            0
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
         );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50, 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -100,7 +102,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         adaptor.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _PT_STETH,
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
+        );
 
         owner = address(this);
         user = user1;
@@ -127,13 +136,15 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             pendlePT.approve(address(cPendlePTSTETH), 1 ether);
             // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(cPendlePTSTETH));
-
         }
 
-        marketManagerIsolated.listTokens(address(cPendlePTSTETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(
+            address(cPendlePTSTETH),
+            address(borrowableCDAI)
+        );
 
-         _setCTokenConfigBasic(address(cPendlePTSTETH), 100_000e18, 0);
-         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
+        _setCTokenConfigBasic(address(cPendlePTSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         positionManager = new PendlePTPositionManager(
             ICentralRegistry(address(centralRegistry)),
@@ -170,7 +181,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(cPendlePTSTETH.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        
+
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
@@ -182,7 +193,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         PendlePTPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(cPendlePTSTETH));
         PendleLib.PendleAction memory action;
@@ -192,7 +205,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.approx.maxIteration = 30;
         action.approx.eps = 1e15;
         action.input.tokenIn = _DAI_ADDRESS;
-        action.input.netTokenIn = amountForLeverage;
+        // Intentionally stale: the PM must derive no-pre-swap input amount
+        // from `borrowAssets`, not caller-supplied Pendle aux data.
+        action.input.netTokenIn = 1;
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
@@ -210,9 +225,13 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
 
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI
+            .getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+        assertEq(
+            borrowableCDAISnapshot.debtBalance,
+            100 ether + amountForLeverage
+        );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
@@ -231,12 +250,16 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageAction memory deleverageAction;
-        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI
+            .getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH
+            .getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
         deleverageAction.collateralAssets = 1 ether;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         deleverageAction.repayAssets = 3.141e21;
 
         PendleLib.PendleAction memory action;
@@ -259,9 +282,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
 
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI
+            .getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
         assertGe(repaid, deleverageAction.repayAssets);
         assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI);
 
@@ -269,7 +294,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             .getSnapshot(user);
         assertEq(
             cPendlePTSTETHSnapshot.collateralPosted,
-            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
+            cPendlePTSTETHBeforeSnapshot.collateralPosted -
+                deleverageAction.collateralAssets
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 
@@ -288,7 +314,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(cPendlePTSTETH.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        
+
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
@@ -300,7 +326,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         PendlePTPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(cPendlePTSTETH));
         PendleLib.PendleAction memory action;
@@ -310,7 +338,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.approx.maxIteration = 30;
         action.approx.eps = 1e15;
         action.input.tokenIn = _DAI_ADDRESS;
-        action.input.netTokenIn = amountForLeverage;
+        // Intentionally stale: the PM must derive no-pre-swap input amount
+        // from `borrowAssets`, not caller-supplied Pendle aux data.
+        action.input.netTokenIn = 1;
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
@@ -332,9 +362,13 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.leverageFor(leverageAction, user, 0.05e18); // 5% slippage
 
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI
+            .getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+        assertEq(
+            borrowableCDAISnapshot.debtBalance,
+            100 ether + amountForLeverage
+        );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
@@ -353,12 +387,16 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageAction memory deleverageAction;
-        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI
+            .getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH
+            .getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
         deleverageAction.collateralAssets = 1 ether;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         deleverageAction.repayAssets = 3.141e21;
 
         PendleLib.PendleAction memory action;
@@ -385,9 +423,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.deleverageFor(deleverageAction, user, 0.05e18); // 5% slippage
 
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI
+            .getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance - borrowableCDAISnapshot.debtBalance;
+        uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance -
+            borrowableCDAISnapshot.debtBalance;
         assertGe(repaid, deleverageAction.repayAssets);
         assertEq(repaid, _EXPECTED_DELEVERAGE_REPAID_DAI);
 
@@ -395,7 +435,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             .getSnapshot(user);
         assertEq(
             cPendlePTSTETHSnapshot.collateralPosted,
-            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
+            cPendlePTSTETHBeforeSnapshot.collateralPosted -
+                deleverageAction.collateralAssets
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 
@@ -412,22 +453,24 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // Mint cPendlePTSTETH.
         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
         cPendlePTSTETH.postCollateral(1 ether);
-        
+
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
-        
+
         // Try leveraging with 50% of limit.
         uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
-        
+
         // Create leverage action with valid Pendle settings
         PendlePTPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(cPendlePTSTETH));
-        
+
         PendleLib.PendleAction memory action;
         action.approx.guessMin = 5e17;
         action.approx.guessMax = 1.2e18;
@@ -439,10 +482,13 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
-        action.input.swapData.extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        action
+            .input
+            .swapData
+            .extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
         action.input.swapData.needScale = false;
-        
-        // Invalid swap configuration 
+
+        // Invalid swap configuration
         leverageAction.swapAction.call = new bytes(1); // Non-empty call to trigger validation
         leverageAction.swapAction.target = address(0); // Invalid target
         leverageAction.swapAction.inputToken = address(69); // Invalid input token
@@ -450,9 +496,61 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.outputToken = address(420); // Invalid output token
         leverageAction.auxData = abi.encode(_LP_STETH, 1, action);
         // Expect the call to revert with BasePositionManager__InvalidParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
         positionManager.leverage(leverageAction, 0.05e18);
-        
+
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageNoSwapPendleInputMustUseBorrowedAsset()
+        public
+    {
+        vm.startPrank(user);
+
+        _preparePT(user, 1 ether);
+        pendlePT.approve(address(cPendlePTSTETH), 1 ether);
+
+        assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+        cPendlePTSTETH.postCollateral(1 ether);
+        borrowableCDAI.borrow(100 ether, user);
+
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        PendlePTPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(cPendlePTSTETH));
+
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 5e17;
+        action.approx.guessMax = 1.2e18;
+        action.approx.guessOffchain = 1.2e18;
+        action.approx.maxIteration = 30;
+        action.approx.eps = 1e15;
+        action.input.tokenIn = _WSTETH;
+        action.input.netTokenIn = amountForLeverage;
+        action.input.tokenMintSy = _WSTETH;
+        action.input.pendleSwap = _PENDLE_SWAP;
+        action.input.swapData.swapType = SwapType.KYBERSWAP;
+        action
+            .input
+            .swapData
+            .extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        action.input.swapData.needScale = false;
+        leverageAction.auxData = abi.encode(_LP_STETH, 1, action);
+
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
+        positionManager.leverage(leverageAction, 0.05e18);
+
         vm.stopPrank();
     }
 
@@ -465,22 +563,24 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // Mint cPendlePTSTETH.
         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
         cPendlePTSTETH.postCollateral(1 ether);
-        
+
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
-        
+
         // Try leveraging with 50% of limit.
         uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
-        
+
         // Create leverage action
         PendlePTPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(cPendlePTSTETH));
-        
+
         PendleLib.PendleAction memory action;
         action.approx.guessMin = 5e17;
         action.approx.guessMax = 1.2e18;
@@ -492,20 +592,25 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.input.tokenMintSy = _WSTETH;
         action.input.pendleSwap = _PENDLE_SWAP;
         action.input.swapData.swapType = SwapType.KYBERSWAP;
-        action.input.swapData.extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        action
+            .input
+            .swapData
+            .extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
         action.input.swapData.needScale = false;
-        
+
         // ETHx (Stader) 25 Dec 2024 market
         // Valid PT market at the same block height as PT-stETH-26DEC24
         address differentPTMarket = 0xFf262396f2A35Cd7Aa24b7255E7d3f45f057Cdba;
-        
-        // Encode with the different PT market 
+
+        // Encode with the different PT market
         leverageAction.auxData = abi.encode(differentPTMarket, 1, action);
-        
+
         // This call should revert with BasePositionManager__InvalidParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
-        
+
         vm.stopPrank();
     }
 
@@ -544,15 +649,21 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
     ///      the new tests: exit to wstETH (no aggregator swap chain), no
     ///      `swapActions` follow-up. The wstETH residue stays on the PM
     ///      per the router-residue doctrine.
-    function _buildPostExpiryDeleverageAction(uint256 collateralAssets, uint256 repayAssets)
+    function _buildPostExpiryDeleverageAction(
+        uint256 collateralAssets,
+        uint256 repayAssets
+    )
         internal
         view
-        returns (PendlePTPositionManager.DeleverageAction memory deleverageAction)
+        returns (
+            PendlePTPositionManager.DeleverageAction memory deleverageAction
+        )
     {
         deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
         deleverageAction.collateralAssets = collateralAssets;
-        deleverageAction.borrowableCToken =
-            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         deleverageAction.repayAssets = repayAssets;
 
         PendleLib.PendleAction memory action;
@@ -694,21 +805,13 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _ROUTER.redeemPyToToken(holder, yt, ptAmount, output);
     }
 
-    /// @notice Integration: post-expiry, the full PM-routed deleverage
-    ///         flow (cToken.withdrawByPositionManager → PM.onRedeem →
-    ///         PendleLib._exitPendle (post-expiry branch) → repay →
-    ///         residue refund) completes WITHOUT reverting AND delivers
-    ///         the redeemed wstETH back to the position owner.
+    /// @notice Integration: post-expiry PT redemption to a non-debt token
+    ///         MUST include a follow-up swap into the debt asset.
     /// @dev Pre-fix: PendleLib._exitPendle's `isPt=true` branch only calls
     ///      `swapExactPtForToken`, which reverts post-expiry with
     ///      `Errors.MarketExpired` (vendored Pendle math). This test
     ///      MUST fail before the fix lands, and pass after.
-    /// @dev Repay leg uses a pre-funded DAI balance on the PM rather than
-    ///      a wstETH→DAI swap, so the test is decoupled from time-
-    ///      sensitive aggregator calldata. The Pendle exit path is the
-    ///      load-bearing piece under test; the swap-chain leg is exercised
-    ///      by the existing `testDeLeverage`.
-    function test_DeLeverage_PostExpiry_routesViaRedeemPyToToken() public {
+    function testRevert_DeLeverage_PostExpiryNoSwapNonDebtOutput() public {
         // 1. Set up the leveraged PT position (pre-expiry).
         testLeverage();
 
@@ -742,62 +845,37 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         // 4. Build deleverage action via helper (exit to wstETH, no
         //    aggregator swap, no swapActions chain).
-        PendlePTPositionManager.DeleverageAction memory deleverageAction =
-            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+        PendlePTPositionManager.DeleverageAction
+            memory deleverageAction = _buildPostExpiryDeleverageAction(
+                1 ether,
+                fullDebt
+            );
 
-        uint256 pmWstethBefore =
-            IERC20(_WSTETH).balanceOf(address(positionManager));
-
-        // 5. Execute deleverage. Generous slippage tolerance (100%)
-        //    because the protocol-tracked valueOut differs from valueIn
-        //    in this test setup (we sourced repay DAI externally rather
-        //    than via a wstETH→DAI swap). In production the wstETH
-        //    would be swapped to DAI for repay, keeping protocol-tracked
-        //    value balanced.
         vm.startPrank(user);
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
         positionManager.deleverage(deleverageAction, 1e18);
         vm.stopPrank();
 
-        // 6. Strict invariants on the outcome.
-
-        // Collateral: 1 PT worth of cToken shares burned.
         AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
         assertEq(
             ptAfter.collateralPosted,
-            ptBefore.collateralPosted - deleverageAction.collateralAssets,
-            "cToken collateral MUST decrease by collateralAssets"
+            ptBefore.collateralPosted,
+            "cToken collateral MUST be unchanged"
         );
 
-        // Debt: fully cleared by the prefunded DAI.
         AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
         assertEq(
             borrowAfter.debtBalance,
+            borrowBefore.debtBalance,
+            "debt MUST be unchanged"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(positionManager)),
             0,
-            "debt MUST be fully cleared after prefund-funded repay"
-        );
-        assertEq(
-            borrowBefore.debtBalance - borrowAfter.debtBalance,
-            fullDebt,
-            "repay MUST equal pre-deleverage debt balance"
-        );
-
-        // Underlying delivery (full proof): the post-expiry redemption
-        // produced exactly the empirically-pinned amount of wstETH AND
-        // it landed on the PM. `onRedeem`'s residue refund leg only
-        // covers debtAsset (DAI), collateralAsset (PT — already burned),
-        // and `swapActions` outputs; wstETH is none of these on this
-        // test path, so it stays on the PM as router residue per the
-        // doctrine block at `BasePositionManager.sol:56-84`. In
-        // production flow the user includes a `swapActions` chain
-        // converting wstETH→debtAsset which both repays debt AND
-        // refunds residue via the swap-residue leg (`onRedeem:526-539`).
-        uint256 pmWstethAfter =
-            IERC20(_WSTETH).balanceOf(address(positionManager));
-        assertEq(
-            pmWstethAfter - pmWstethBefore,
-            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
-            "PM MUST receive exactly the post-expiry redemption amount"
+            "PM MUST not retain wstETH after reverted deleverage"
         );
     }
 
@@ -896,15 +974,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         );
     }
 
-    /// @notice Boundary: deleverage at EXACTLY `block.timestamp ==
-    ///         PT.expiry()`. Both `IPPrincipalToken.isExpired()` and
-    ///         `MarketMathCore.isExpired()` use `>=`, so the AMM swap
-    ///         path reverts at exactly the boundary, but our fix's
-    ///         `if (isExpired())` check also returns true at the
-    ///         boundary, routing through `redeemPyToToken` cleanly.
-    ///         Verifies no off-by-one between the two `isExpired()`
-    ///         predicates.
-    function test_DeLeverage_AtExpiryBoundary_routesViaRedeem() public {
+    /// @notice Boundary: at exactly `block.timestamp == PT.expiry()`,
+    ///         no-swap deleverage still rejects a non-debt Pendle output.
+    function testRevert_DeLeverage_AtExpiryBoundaryNoSwapNonDebtOutput()
+        public
+    {
         testLeverage();
         vm.warp(block.timestamp + 20 minutes);
         borrowableCDAI.accrueIfNeeded();
@@ -927,39 +1001,37 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
         _prepareDAI(address(positionManager), fullDebt);
 
-        PendlePTPositionManager.DeleverageAction memory deleverageAction =
-            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
-
-        uint256 pmWstethBefore =
-            IERC20(_WSTETH).balanceOf(address(positionManager));
+        PendlePTPositionManager.DeleverageAction
+            memory deleverageAction = _buildPostExpiryDeleverageAction(
+                1 ether,
+                fullDebt
+            );
 
         vm.startPrank(user);
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
         positionManager.deleverage(deleverageAction, 1e18);
         vm.stopPrank();
 
-        // Despite `block.timestamp == expiry` (the AMM-revert boundary),
-        // the redeem path executed cleanly.
         AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
         assertEq(
             ptAfter.collateralPosted,
-            ptBefore.collateralPosted - 1 ether,
-            "cToken collateral MUST decrease by collateralAssets"
+            ptBefore.collateralPosted,
+            "cToken collateral MUST be unchanged"
         );
 
         AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowAfter.debtBalance, 0, "debt cleared");
         assertEq(
-            borrowBefore.debtBalance - borrowAfter.debtBalance,
-            fullDebt,
-            "repay MUST equal pre-deleverage debt balance"
+            borrowAfter.debtBalance,
+            borrowBefore.debtBalance,
+            "debt MUST be unchanged"
         );
-
-        // wstETH from redemption landed on the PM (router-residue doctrine).
         assertEq(
-            IERC20(_WSTETH).balanceOf(address(positionManager)) - pmWstethBefore,
-            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
-            "PM MUST receive exactly the post-expiry redemption amount"
+            IERC20(_WSTETH).balanceOf(address(positionManager)),
+            0,
+            "PM MUST not retain wstETH after reverted deleverage"
         );
     }
 
@@ -1132,8 +1204,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         PendlePTPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
         deleverageAction.collateralAssets = 1 ether;
-        deleverageAction.borrowableCToken =
-            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(
+            address(borrowableCDAI)
+        );
         deleverageAction.repayAssets = fullDebt;
 
         PendleLib.PendleAction memory action;
@@ -1278,7 +1351,9 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
     ///         only (no YT) MUST revert — confirms the post-expiry pathway
     ///         is the ONLY safe path for our PT-only custody pattern, and
     ///         that wrapping in `if (isExpired())` is load-bearing.
-    function test_EMPIRICAL_redeemPyToTokenPreExpiry_revertsWithoutYT() public {
+    function test_EMPIRICAL_redeemPyToTokenPreExpiry_revertsWithoutYT()
+        public
+    {
         // No warp — fork block has PT pre-expiry.
         assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
 
@@ -1320,5 +1395,4 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.stopPrank();
     }
-
 }

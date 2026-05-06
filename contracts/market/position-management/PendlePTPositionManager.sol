@@ -37,10 +37,9 @@ import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStanda
 ///      Pendle principal tokens such as sUSDe-PT-dec-31-2025.
 ///
 contract PendlePTPositionManager is BasePositionManager {
-    /// STORAGE /// 
-
+    /// STORAGE ///
     /// @notice The address of the Pendle router.
-    IPendleRouter public router;
+    IPendleRouter public immutable router;
 
     /// CONSTRUCTOR ///
 
@@ -55,6 +54,10 @@ contract PendlePTPositionManager is BasePositionManager {
         address wNative,
         IPendleRouter router_
     ) BasePositionManager(cr, mm, wNative) {
+        if (address(router_) == address(0)) {
+            revert BasePositionManager__InvalidParam();
+        }
+
         router = router_;
     }
 
@@ -123,6 +126,12 @@ contract PendlePTPositionManager is BasePositionManager {
             }
 
             SwapperLib._swapSafe(centralRegistry, swapAction);
+        } else {
+            if (pendleAction.input.tokenIn != debtAsset) {
+                revert BasePositionManager__InvalidParam();
+            }
+
+            pendleAction.input.netTokenIn = action.borrowAssets;
         }
 
         // Enter Pendle position.
@@ -163,13 +172,8 @@ contract PendlePTPositionManager is BasePositionManager {
         SwapperLib.Swap[] memory swapActions = action.swapActions;
 
         // Decode Pendle data.
-        (
-            address lpToken,
-            PendleLib.PendleAction memory pendleAction
-        ) = abi.decode(
-            action.auxData,
-            (address, PendleLib.PendleAction)
-        );
+        (address lpToken, PendleLib.PendleAction memory pendleAction) = abi
+            .decode(action.auxData, (address, PendleLib.PendleAction));
 
         (
             IStandardizedYield _SY,
@@ -214,6 +218,8 @@ contract PendlePTPositionManager is BasePositionManager {
             for (uint256 i; i < numSwaps; ++i) {
                 SwapperLib._swapSafe(centralRegistry, swapActions[i]);
             }
+        } else if (pendleAction.output.tokenOut != debtAsset) {
+            revert BasePositionManager__InvalidParam();
         }
     }
 }

@@ -6,6 +6,7 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title Negative path tests for removeApprovedAsset
 /// @notice Covers revert branches that are uncovered in the main test file.
@@ -29,6 +30,27 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
         optimizer.removeApprovedAsset(address(0xdead), actions, bounds);
+    }
+
+    function test_reverts_capSetButMarketMissingFromList() public {
+        _setUpTwoMarkets();
+
+        LendingOptimizerHarness(address(optimizer)).exposed_setAllocationCap(
+            cUSDC_WETH_MARKET,
+            1e18
+        );
+
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](1);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET), int256(10000)
+        );
+
+        LendingOptimizer.AllocationBound[] memory bounds =
+            new LendingOptimizer.AllocationBound[](1);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
     }
 
     function test_reverts_noReallocationTargets_withAssets() public {
@@ -91,6 +113,36 @@ contract TestRemoveApprovedAssetNegative is TestBaseLendingOptimizer {
 
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
         optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, actions, bounds);
+    }
+
+    function test_reverts_capSetButReallocationTargetMissingFromList() public {
+        _setUpTwoMarkets();
+
+        LendingOptimizerHarness harness = LendingOptimizerHarness(address(optimizer));
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        optimizer.updateCap(cUSDC_WMON_MARKET, 10_000);
+        harness.exposed_setAllocationCap(cUSDC_WETH_MARKET, 1e18);
+
+        deal(USDC_MONAD, address(this), 1_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 1_000e6);
+        harness.depositToMarket(1_000e6, address(this), cUSDC_WBTC_MARKET);
+
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](1);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET), int256(10000)
+        );
+
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WBTC_MARKET);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__MarketNotApproved.selector);
+        optimizer.removeApprovedAsset(cUSDC_WBTC_MARKET, actions, bounds);
     }
 
     function test_reverts_bpsNotHundredPercent() public {

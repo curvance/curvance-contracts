@@ -6,7 +6,6 @@ import { SimpleZapper, ICentralRegistry } from "contracts/plugins/market/SimpleZ
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
 /// @title Curvance Vault Zapper.
@@ -72,6 +71,13 @@ contract VaultZapper is SimpleZapper {
         bool collateralizeFor,
         address receiver
     ) external override payable nonReentrant returns (uint256 outAmount) {
+        IVault vault = IVault(_getValidatedCTokenAsset(cToken));
+        address asset = address(vault.asset());
+
+        if (asset != swapAction.outputToken) {
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
+        }
+
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -84,13 +90,6 @@ contract VaultZapper is SimpleZapper {
         if (CommonLib._isNative(swapAction.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapAction.inputToken = address(wrappedNative);
-        }
-
-        IVault vault = IVault(ICToken(cToken).asset());
-        address asset = address(vault.asset());
-
-        if (asset != swapAction.outputToken) {
-            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
         if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {

@@ -125,6 +125,8 @@ contract PendleZapper is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
+        _checkAddresses(strategyCToken, zapAction.outputToken);
+
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapAction.inputToken,

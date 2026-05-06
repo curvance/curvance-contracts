@@ -961,7 +961,7 @@ contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
         vm.stopPrank();
 
         assertGt(actualAssets, 0, "mint should succeed and spend assets when active");
-        assertApproxEqAbs(harness.balanceOf(user1Addr), sharesToMint, 2, "mint should produce approximately exact shares");
+        assertEq(harness.balanceOf(user1Addr), sharesToMint, "mint should produce exact shares");
     }
 
     // =====================================================================
