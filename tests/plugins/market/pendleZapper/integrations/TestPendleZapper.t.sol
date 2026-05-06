@@ -465,6 +465,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assertEq(outAmount, cTokenDelta);
         assertGe(outAmount, expectedShares);
         assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness)), pendleLpBefore);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), outAmount);
+        assertEq(pendleCTokenSTETH.balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        AccountSnapshot memory snapshot = pendleCTokenSTETH.getSnapshot(address(swapperHarness));
+        assertEq(snapshot.collateralPosted, 0);
+        assertEq(snapshot.debtBalance, 0);
         assertEq(address(swapperHarness).balance, 0);
     }
 
@@ -496,6 +502,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__OutputTokenError.selector);
         swapperHarness.swapUnsafe(ICentralRegistry(address(centralRegistry)), swapAction);
+        assertEq(address(swapperHarness).balance, ethAmount);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness)), 0);
     }
 
     function testSwapperLibRedeemAndExitE2EInputIsCTokenShares() public {
@@ -522,6 +531,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(cTokenBefore - pendleCTokenSTETH.balanceOf(address(swapperHarness)), shares);
         assertEq(outAmount, IERC20(_STETH).balanceOf(address(swapperHarness)) - stEthBefore);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), 0);
+        assertEq(pendleCTokenSTETH.balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
         assertGt(outAmount, 0);
     }
 
@@ -544,6 +556,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__InputAmountError.selector);
         swapperHarness.swapUnsafe(ICentralRegistry(address(centralRegistry)), swapAction);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), shares);
+        assertEq(IERC20(_STETH).balanceOf(address(swapperHarness)), 0);
     }
 
     function testEnterPendle_fail_InsufficientExpectedShares() public {

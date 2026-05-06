@@ -355,6 +355,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI
             .getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(borrowableCDAISnapshot.debtBalance, 0);
         uint256 repaid = borrowableCDAIBeforeSnapshot.debtBalance -
             borrowableCDAISnapshot.debtBalance;
         // repayAssets is a minimum
