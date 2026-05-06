@@ -373,6 +373,8 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
                 deleverageAction.collateralAssets
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
+        assertEq(dai.balanceOf(address(positionManager)), 0);
+        assertEq(pendlePT.balanceOf(address(positionManager)), 0);
 
         vm.stopPrank();
     }
