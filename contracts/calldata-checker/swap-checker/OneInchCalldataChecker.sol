@@ -12,7 +12,6 @@ import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggre
 /// @dev NOTE: Currently built for Aggregation Router V5.
 contract OneInchCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
-
     /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     /// @notice The mask for the reverse flag
@@ -116,10 +115,11 @@ contract OneInchCalldataChecker is BaseSwapChecker {
         } else if (
             funcSigHash == IAggregationRouterV5.uniswapV3Swap.selector
         ) {
-            (uint256 amount, uint256 minReturn, uint256[] memory pools) = abi.decode(
-                _getFuncParams(swapAction.call),
-                (uint256, uint256, uint256[])
-            );
+            (uint256 amount, uint256 minReturn, uint256[] memory pools) = abi
+                .decode(
+                    _getFuncParams(swapAction.call),
+                    (uint256, uint256, uint256[])
+                );
 
             recipient = expectedRecipient;
             inputAmount = amount;
@@ -180,8 +180,12 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 ? UniswapV3Pool(address(uint160(pool))).token1()
                 : UniswapV3Pool(address(uint160(pool))).token0();
         } else if (funcSigHash == IAggregationRouterV5.unoswap.selector) {
-            (address srcToken, uint256 amount, uint256 minReturn, uint256[] memory pools) = abi
-                .decode(
+            (
+                address srcToken,
+                uint256 amount,
+                uint256 minReturn,
+                uint256[] memory pools
+            ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (address, uint256, uint256, uint256[])
                 );
@@ -213,6 +217,10 @@ contract OneInchCalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }

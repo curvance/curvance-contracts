@@ -17,7 +17,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      is rejected — all swaps must pay the protocol fee.
 contract KyberSwapChecker is BaseSwapChecker {
     /// CONSTANTS ///
-
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -71,7 +70,6 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__Unauthorized();
     error KyberSwapChecker__InvalidApproveTarget();
     error KyberSwapChecker__InvalidSrcConfig();
-    error KyberSwapChecker__InvalidMinReturn();
 
     /// CONSTRUCTOR ///
 
@@ -121,17 +119,21 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        if (_getFuncSigHash(swapAction.call) != IMetaAggregationRouterV2.swap.selector) {
+        if (
+            _getFuncSigHash(swapAction.call) !=
+            IMetaAggregationRouterV2.swap.selector
+        ) {
             revert CalldataChecker__InvalidFuncSig();
         }
 
         // Decode the full execution params.
-        IMetaAggregationRouterV2.SwapExecutionParams memory execution =
-            abi.decode(
+        IMetaAggregationRouterV2.SwapExecutionParams memory execution = abi
+            .decode(
                 _getFuncParams(swapAction.call),
                 (IMetaAggregationRouterV2.SwapExecutionParams)
             );
-        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc = execution.desc;
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc = execution
+            .desc;
 
         // Kyberswap's MetaAggregationRouterV2 treats `dstReceiver == address(0)`
         // as a shortcut for sending output to `msg.sender`.
@@ -225,7 +227,7 @@ contract KyberSwapChecker is BaseSwapChecker {
         // with a guaranteed-revert configuration.
         minOutAmount = desc.minReturnAmount;
         if (minOutAmount == 0) {
-            revert KyberSwapChecker__InvalidMinReturn();
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 

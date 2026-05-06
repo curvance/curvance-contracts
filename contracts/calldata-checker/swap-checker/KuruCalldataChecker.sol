@@ -11,7 +11,7 @@ import { IKuruFlowRouter } from "contracts/interfaces/external/kuru/IKuruRouter.
 contract KuruCalldataChecker is BaseSwapChecker {
     address public immutable collector;
     address public immutable dao;
-    
+
     /// CONSTANTS ///
 
     /// @notice Native token placeholder address that Kuru does not recognize.
@@ -25,7 +25,11 @@ contract KuruCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Kuru Router contract.
-    constructor(address _target, address _collector, address _dao) BaseSwapChecker(_target) {
+    constructor(
+        address _target,
+        address _collector,
+        address _dao
+    ) BaseSwapChecker(_target) {
         collector = _collector;
         dao = _dao;
     }
@@ -59,14 +63,13 @@ contract KuruCalldataChecker is BaseSwapChecker {
                 IKuruFlowRouter.SwapIntent memory swapIntent,
                 IKuruFlowRouter.FeeCollection memory feeCollection,
             ) = abi.decode(
-                _getFuncParams(swapAction.call),
-                (
-                    IKuruFlowRouter.SwapIntent,
-                    IKuruFlowRouter.FeeCollection,
-                    bytes
-                )
-            );
-
+                    _getFuncParams(swapAction.call),
+                    (
+                        IKuruFlowRouter.SwapIntent,
+                        IKuruFlowRouter.FeeCollection,
+                        bytes
+                    )
+                );
 
             recipient = msg.sender;
             inputToken = swapIntent.tokenUserSells;
@@ -78,7 +81,7 @@ contract KuruCalldataChecker is BaseSwapChecker {
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
-        
+
         if (recipient != expectedRecipient) {
             revert CalldataChecker__RecipientError();
         }
@@ -111,6 +114,10 @@ contract KuruCalldataChecker is BaseSwapChecker {
 
         if (referrerAddress != dao) {
             revert CalldataChecker__ReferralError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }

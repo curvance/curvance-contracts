@@ -10,10 +10,24 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 /// @notice Inspects the calldata for a PendleZapper zap action.
 contract PendleZapperCalldataChecker is BaseSwapChecker {
+    /// STORAGE ///
+    /// @notice The only Pendle Router this checker permits the zapper to call.
+    address public immutable pendleRouter;
+
     /// CONSTRUCTOR ///
 
-    /// @param _target The address of the Pendle swap contract.
-    constructor(address _target) BaseSwapChecker(_target) {}
+    /// @param _target The address of the Pendle zapper contract.
+    /// @param _pendleRouter The Pendle Router address allowed by this checker.
+    constructor(
+        address _target,
+        address _pendleRouter
+    ) BaseSwapChecker(_target) {
+        if (_pendleRouter == address(0)) {
+            revert CalldataChecker__TargetError();
+        }
+
+        pendleRouter = _pendleRouter;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -37,10 +51,20 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
+        address router;
 
         if (funcSigHash == PendleZapper.enterPendle.selector) {
-            (address cToken,,,, PendleZapper.ZapAction memory desc,,,,address receiver) =
-                abi.decode(
+            (
+                address cToken,
+                address routerParam,
+                ,
+                ,
+                PendleZapper.ZapAction memory desc,
+                ,
+                ,
+                ,
+                address receiver
+            ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -59,9 +83,17 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputAmount = desc.inputAmount;
             outputToken = cToken == address(0) ? desc.outputToken : cToken;
             minOutAmount = desc.minimumOut;
+            router = routerParam;
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
-            (,,,, PendleZapper.ZapAction memory desc,, address receiver) =
-                abi.decode(
+            (
+                ,
+                address routerParam,
+                ,
+                ,
+                PendleZapper.ZapAction memory desc,
+                ,
+                address receiver
+            ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -78,9 +110,18 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
             minOutAmount = desc.minimumOut;
+            router = routerParam;
         } else if (funcSigHash == PendleZapper.redeemAndExitPendle.selector) {
-            (,,,, BaseZapper.RedeemAction memory redeemAction, PendleZapper.ZapAction memory desc,, address receiver) =
-                abi.decode(
+            (
+                ,
+                address routerParam,
+                ,
+                ,
+                BaseZapper.RedeemAction memory redeemAction,
+                PendleZapper.ZapAction memory desc,
+                ,
+                address receiver
+            ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -95,11 +136,16 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 );
             recipient = receiver;
             inputToken = redeemAction.cToken;
-            inputAmount = desc.inputAmount;
+            inputAmount = redeemAction.shares;
             outputToken = desc.outputToken;
             minOutAmount = desc.minimumOut;
+            router = routerParam;
         } else {
             revert CalldataChecker__InvalidFuncSig();
+        }
+
+        if (router != pendleRouter) {
+            revert CalldataChecker__TargetError();
         }
 
         if (recipient != expectedRecipient) {
@@ -116,6 +162,10 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }
