@@ -157,6 +157,7 @@ contract TestPendleZapperCalldataChecker is Test {
     function test_enterPendle_usesCTokenAsOutputWhenProvided() public {
         PendleLib.PendleAction memory action;
         PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        uint256 expectedShares = 42;
 
         swapAction = SwapperLib.Swap({
             inputToken: zapAction.inputToken,
@@ -164,16 +165,13 @@ contract TestPendleZapperCalldataChecker is Test {
             outputToken: cToken,
             target: pendleZapper,
             slippage: 0,
-            call: _enterCalldata(cToken, action, zapAction)
+            call: _enterCalldata(cToken, action, zapAction, expectedShares)
         });
 
-        assertEq(
-            checker.checkCalldata(swapAction, receiver),
-            zapAction.minimumOut
-        );
+        assertEq(checker.checkCalldata(swapAction, receiver), expectedShares);
     }
 
-    function test_enterPendle_usesZapOutputWhenNoCTokenProvided() public {
+    function test_enterPendle_revertsWhenCTokenIsZero() public {
         PendleLib.PendleAction memory action;
         PendleZapper.ZapAction memory zapAction = _defaultZapAction();
 
@@ -183,13 +181,52 @@ contract TestPendleZapperCalldataChecker is Test {
             outputToken: zapAction.outputToken,
             target: pendleZapper,
             slippage: 0,
-            call: _enterCalldata(address(0), action, zapAction)
+            call: _enterCalldata(address(0), action, zapAction, 42)
         });
 
-        assertEq(
-            checker.checkCalldata(swapAction, receiver),
-            zapAction.minimumOut
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__OutputTokenError.selector
         );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
+    function test_enterPendle_revertsWhenExpectedSharesIsZero() public {
+        PendleLib.PendleAction memory action;
+        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+
+        swapAction = SwapperLib.Swap({
+            inputToken: zapAction.inputToken,
+            inputAmount: zapAction.inputAmount,
+            outputToken: cToken,
+            target: pendleZapper,
+            slippage: 0,
+            call: _enterCalldata(cToken, action, zapAction, 0)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InvalidMinOut.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
+    function test_enterPendle_revertsWhenPendleMinimumOutIsZero() public {
+        PendleLib.PendleAction memory action;
+        PendleZapper.ZapAction memory zapAction = _defaultZapAction();
+        zapAction.minimumOut = 0;
+
+        swapAction = SwapperLib.Swap({
+            inputToken: zapAction.inputToken,
+            inputAmount: zapAction.inputAmount,
+            outputToken: cToken,
+            target: pendleZapper,
+            slippage: 0,
+            call: _enterCalldata(cToken, action, zapAction, 42)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InvalidMinOut.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
     }
 
     function test_allowsPendleSdkAggregatorRoute() public {
@@ -270,7 +307,8 @@ contract TestPendleZapperCalldataChecker is Test {
     function _enterCalldata(
         address cToken_,
         PendleLib.PendleAction memory action,
-        PendleZapper.ZapAction memory zapAction
+        PendleZapper.ZapAction memory zapAction,
+        uint256 expectedShares
     ) internal view returns (bytes memory) {
         return
             abi.encodeWithSelector(
@@ -281,7 +319,7 @@ contract TestPendleZapperCalldataChecker is Test {
                 action,
                 zapAction,
                 new SwapperLib.Swap[](0),
-                0,
+                expectedShares,
                 false,
                 receiver
             );

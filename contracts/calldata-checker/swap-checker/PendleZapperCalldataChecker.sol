@@ -61,7 +61,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 ,
                 PendleZapper.ZapAction memory desc,
                 ,
-                ,
+                uint256 expectedShares,
                 ,
                 address receiver
             ) = abi.decode(
@@ -81,9 +81,17 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             recipient = receiver;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = cToken == address(0) ? desc.outputToken : cToken;
-            minOutAmount = desc.minimumOut;
+            outputToken = cToken;
+            minOutAmount = expectedShares;
             router = routerParam;
+
+            if (cToken == address(0)) {
+                revert CalldataChecker__OutputTokenError();
+            }
+
+            if (desc.minimumOut == 0) {
+                revert CalldataChecker__InvalidMinOut();
+            }
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
             (
                 ,
