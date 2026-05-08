@@ -504,7 +504,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _canModifyState();
+        _canModifyLocks();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, action, params, aux);
@@ -566,6 +566,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
             lock = locks[i];
 
             if (lock.unlockTime != CONTINUOUS_LOCK_VALUE) {
+                if (lock.unlockTime < block.timestamp) {
+                    _revert(_INVALID_LOCK_SELECTOR);
+                }
+
                 // Remove previous token unlock data.
                 _reduceTokenUnlocks(
                     msg.sender,
@@ -670,10 +674,23 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _canModifyState();
+        bool shutdownMode = isShutdown == 2;
+        if (!shutdownMode) {
+            _canModifyState();
 
-        // Claim any pending rewards.
-        _claimRewards(msg.sender, action, params, aux);
+            // Claim any pending rewards.
+            _claimRewards(msg.sender, action, params, aux);
+        } else {
+            // Shutdown is an exit-only mode: settle delivered rewards as the
+            // base reward token before mutating lock points, but do not allow
+            // reward swaps, compounding, or relocking side effects.
+            _claimRewards(
+                msg.sender,
+                ClaimAction(false, false, false, false),
+                "",
+                0
+            );
+        }
 
         // Need to cache after _claimRewards as the user could have
         // created or modified their locks with their pending rewards.
@@ -684,7 +701,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
-        if (block.timestamp < locks[lockIndex].unlockTime && isShutdown != 2) {
+        if (block.timestamp < locks[lockIndex].unlockTime && !shutdownMode) {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
@@ -707,7 +724,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // if necessary. Likely point adjustments do not matter after a
         // Reward Manager's shutdown but best to avoid invariant errors in
         // all forms.
-        if (isShutdown == 2) {
+        if (shutdownMode) {
             relock = false;
         }
 
@@ -740,7 +757,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             // Check whether the user has no remaining locks and reset their
             // index, that way if in the future they create a new lock,
             // they do not need to claim epochs they have no rewards for.
-            if (locks.length == 0 && isShutdown != 2) {
+            if (locks.length == 0 && !shutdownMode) {
                 _getRewardManager().resetUserClaimIndex(msg.sender);
             }
         }
@@ -915,8 +932,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      userUnlocksByEpoch[user][epoch] > 0 so we do not need to check
     ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
-        _canModifyState();
         _validateCallbackFromRewardManager();
+
+        if (isShutdown != 2) {
+            _canModifyState();
+        }
 
         userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
         delete userUnlocksByEpoch[user][epoch];

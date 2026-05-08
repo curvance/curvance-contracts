@@ -402,6 +402,11 @@ contract MessagingHub is QueryResponse {
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));
 
+            if (veCVE.isShutdown() == 2) {
+                cve.completeBridge(recipient, amount);
+                return;
+            }
+
             cve.mintLockedTokens(recipient, amount);
             SwapperLib._approveIfNeeded(address(cve), address(veCVE), amount);
 

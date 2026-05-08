@@ -440,23 +440,20 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         uint256 aux
     ) internal {
         uint256 rewards = _calculateRewards(user, epochs);
+        bool shutdownMode = isShutdown == 2;
 
         // Process rewards and bubble up the amount of rewards received in
         // `action.desiredRewardToken`.
-        uint256 rewardAmount = _processRewards(
-            recipient,
-            rewards,
-            action,
-            params,
-            aux
-        );
+        uint256 rewardAmount = shutdownMode
+            ? _processRewardsAsFeeToken(recipient, rewards)
+            : _processRewards(recipient, rewards, action, params, aux);
 
         // Only emit an event if they actually had rewards,
         // do not wanna revert to maintain composability.
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                action.asCVE ? _getCVE() : _getFeeToken(),
+                shutdownMode || !action.asCVE ? _getFeeToken() : _getCVE(),
                 rewardAmount
             );
         }
@@ -620,6 +617,23 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Transfer rewards then return.
         SafeTransferLib.safeTransfer(rewardToken, recipient, rewards);
+        return rewards;
+    }
+
+    /// @notice Processes rewards as the base fee token, without side effects.
+    /// @param recipient The address receiving rewards.
+    /// @param rewards The amount of rewards to process for `recipient`.
+    /// @return The amount of fee token received by `recipient`.
+    function _processRewardsAsFeeToken(
+        address recipient,
+        uint256 rewards
+    ) internal returns (uint256) {
+        // If there are no rewards we can return immediately.
+        if (rewards == 0) {
+            return 0;
+        }
+
+        SafeTransferLib.safeTransfer(_getFeeToken(), recipient, rewards);
         return rewards;
     }
 

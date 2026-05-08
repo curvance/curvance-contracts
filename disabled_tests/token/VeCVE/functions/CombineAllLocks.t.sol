@@ -47,6 +47,20 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         veCVE.combineAllLocks(true, action, "", 0);
     }
 
+    function test_combineAllLocks_fail_whenAnyNonContinuousLockIsExpired()
+        public
+    {
+        _deal(_INITIAL_AMOUNT);
+        veCVE.createLock(_INITIAL_AMOUNT, false, action, "", 0);
+
+        (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+        vm.warp(unlockTime + uint40(veCVE.RESTRICTION_DURATION()) + 1);
+        _recordEpochsBeforeCurrent();
+
+        vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
+        veCVE.combineAllLocks(true, action, "", 0);
+    }
+
     function test_combineAllLocks_success_withContinuousLock(
         bool shouldLock,
         bool isFreshLock,
@@ -106,6 +120,14 @@ contract CombineAllLocksTest is TestBaseVeCVE {
     function _deal(uint256 amount) internal {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
+    }
+
+    function _recordEpochsBeforeCurrent() internal {
+        uint256 currentEpoch = veCVE.currentEpoch(block.timestamp);
+        while (rewardManager.nextEpochToDeliver() < currentEpoch) {
+            vm.prank(address(messagingHub));
+            rewardManager.recordEpochRewards(1e6);
+        }
     }
 
     function test_combineAllLocks_all_continuous_to_continuous_lock(

@@ -127,6 +127,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256 rewards = amount /= 1e12;
 
         _prepareUSDC(address(rewardManager), rewards);
+        _refreshMockFeeds();
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -136,6 +137,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         swapAction.outputToken = _WETH_ADDRESS;
         swapAction.target = _UNISWAP_V2_ROUTER;
         swapAction.inputAmount = rewards;
+        swapAction.slippage = 1e16;
         swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
@@ -193,6 +195,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256 rewards = amount /= 1e12;
 
         _prepareUSDC(address(rewardManager), rewards);
+        _refreshMockFeeds();
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -202,6 +205,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         swapAction.outputToken = _WETH_ADDRESS;
         swapAction.target = _UNISWAP_V2_ROUTER;
         swapAction.inputAmount = rewards;
+        swapAction.slippage = 1e16;
         swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,

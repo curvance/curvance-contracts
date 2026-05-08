@@ -37,6 +37,13 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         veCVE.disableContinuousLock(1, action, "", 0);
     }
 
+    function test_disableContinuousLock_fail_whenVeCVEIsShutdown() public {
+        veCVE.shutdown();
+
+        vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
+        veCVE.disableContinuousLock(0, action, "", 0);
+    }
+
     function test_disableContinuousLock_success(
         bool shouldLock,
         bool isFreshLock,

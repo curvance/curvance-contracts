@@ -13,12 +13,11 @@ contract MintLockBoostTest is TestBaseRemoteCVE {
     }
 
     function test_mintLockBoost_success() public {
-        centralRegistry.addLockingPermissions(user1);
-        assertTrue(centralRegistry.hasLockingPermissions(user1));
+        address gaugeManager = centralRegistry.gaugeManager();
 
-        assertEq(remoteCVE.balanceOf(user1), 0);
-        vm.prank(user1);
+        assertEq(remoteCVE.balanceOf(gaugeManager), 0);
+        vm.prank(gaugeManager);
         remoteCVE.mintLockBoost(1000);
-        assertEq(remoteCVE.balanceOf(user1), 1000);
+        assertEq(remoteCVE.balanceOf(gaugeManager), 1000);
     }
 }

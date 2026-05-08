@@ -13,12 +13,11 @@ contract MintLockBoostTest is TestBaseMarketIsolated {
     }
 
     function test_mintLockBoost_success() public {
-        centralRegistry.addLockingPermissions(user1);
-        assertTrue(centralRegistry.hasLockingPermissions(user1));
+        address gaugeManager = centralRegistry.gaugeManager();
 
-        assertEq(cve.balanceOf(user1), 0);
-        vm.prank(user1);
+        assertEq(cve.balanceOf(gaugeManager), 0);
+        vm.prank(gaugeManager);
         cve.mintLockBoost(1000);
-        assertEq(cve.balanceOf(user1), 1000);
+        assertEq(cve.balanceOf(gaugeManager), 1000);
     }
 }

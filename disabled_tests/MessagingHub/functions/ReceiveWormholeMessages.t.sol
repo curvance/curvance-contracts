@@ -387,4 +387,52 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         assertEq(cve.balanceOf(address(messagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), amount);
     }
+
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs4AndVeCVEShutdown()
+        public
+    {
+        _skipRestrictionDuration();
+
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
+        assertEq(cve.balanceOf(user1), 0);
+        assertEq(veCVE.balanceOf(user1), 0);
+
+        address recipient = user1;
+        uint256 amount = _ONE;
+        bool continuousLock = true;
+
+        veCVE.shutdown();
+
+        vm.prank(_CROSSCHAIN_RELAYER);
+        messagingHub.receiveWormholeMessages(
+            abi.encode(4, recipient, amount, continuousLock),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("shutdown lock bridge")
+        );
+
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
+        assertEq(cve.balanceOf(user1), amount);
+        assertEq(veCVE.balanceOf(user1), 0);
+
+        vm.prank(_CROSSCHAIN_RELAYER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MessagingHub.MessagingHub__MessageHashIsAlreadyDelivered
+                    .selector,
+                bytes32("shutdown lock bridge")
+            )
+        );
+        messagingHub.receiveWormholeMessages(
+            abi.encode(4, recipient, amount, continuousLock),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("shutdown lock bridge")
+        );
+
+        assertEq(cve.balanceOf(user1), amount);
+        assertEq(veCVE.balanceOf(user1), 0);
+    }
 }
