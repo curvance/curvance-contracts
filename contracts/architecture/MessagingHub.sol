@@ -713,12 +713,36 @@ contract MessagingHub is QueryResponse {
         // chain's points.
         totalPoints += currentChainId;
 
+        IRewardManager rewardManager = _rewardManager();
+        ChainConfig memory config;
+
+        if (totalPoints == 0) {
+            if (feeTokensHeld > 0) {
+                _transferFeeTokens(feeTokensHeld, _daoAddress());
+            }
+
+            if (!_checkRewardManagerStatus(rewardManager)) {
+                _recordEpochRewards(rewardManager, 0);
+                // Notify the other chains of the per epoch rewards.
+                for (uint256 i; i < numChains; ++i) {
+                    currentChainId = chainIds[i];
+                    config = _chainConfig(currentChainId);
+                    _sendPayload(
+                        config.messagingChainId,
+                        config.messagingHub,
+                        abi.encode(3, epochToDeliver, 0),
+                        gasLimit,
+                        quoteMessageFee(currentChainId, gasLimit)
+                    );
+                }
+            }
+
+            return;
+        }
+
         // Calculate rewards per veCVE point.
         uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
-
-        IRewardManager rewardManager = _rewardManager();
-        ChainConfig memory config;
 
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere
