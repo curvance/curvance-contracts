@@ -352,13 +352,22 @@ contract MessagingHub is QueryResponse {
             (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
                 .decode(payload, (uint8, uint256, uint256));
 
+            uint256 nextEpochToDeliver = _nextEpochToDeliver(rewardManager);
+
+            if (
+                !_checkRewardManagerStatus(rewardManager) &&
+                nextEpochToDeliver < epochToDeliver
+            ) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
             // If the reward per point ratio is 0, theres no rewards to
             // distribute this epoch, and we'd expect there to be no CCTP
             // message as well.
             if (epochRewardsPerPoint == 0) {
                 if (
                     !_checkRewardManagerStatus(rewardManager) &&
-                    _nextEpochToDeliver(rewardManager) == epochToDeliver
+                    nextEpochToDeliver == epochToDeliver
                 ) {
                     _recordEpochRewards(rewardManager, 0);
                 }
@@ -377,7 +386,7 @@ contract MessagingHub is QueryResponse {
             // rewards.
             if (
                 _checkRewardManagerStatus(rewardManager) ||
-                _nextEpochToDeliver(rewardManager) != epochToDeliver
+                nextEpochToDeliver != epochToDeliver
             ) {
                 _transferFeeTokens(amountReceived, _daoAddress());
             } else {
