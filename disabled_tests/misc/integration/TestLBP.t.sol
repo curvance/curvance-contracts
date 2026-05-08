@@ -102,6 +102,19 @@ contract TestLBP is TestBaseMarketIsolated {
         );
     }
 
+    function testStartRevertWhenSaleIsUnderfunded() public {
+        LBP underfunded = new LBP(ICentralRegistry(address(centralRegistry)));
+
+        vm.expectRevert(LBP.LBP__InsufficientCVEForSale.selector);
+        underfunded.start(
+            block.timestamp,
+            softPrice,
+            hardPrice,
+            cveAmountForSale,
+            _WETH_ADDRESS
+        );
+    }
+
     function testCommitRevertWhenlbpNotStarted() public {
         _prepareCommit(address(this), 1e18);
 
@@ -263,5 +276,67 @@ contract TestLBP is TestBaseMarketIsolated {
         assertEq(lbp.saleCommitted(), commitAmount);
         assertEq(lbp.userCommitted(address(1)), commitAmount);
         assertEq(lbp.currentPrice(), lbp.softPriceInpaymentToken());
+    }
+
+    function testSwapAndCommitForRevertWhenCommitExceedsRemainingCapacity()
+        public
+    {
+        testStartSuccess();
+
+        uint256 remainingCapacity = lbp.hardCap();
+        _prepareCommit(address(this), remainingCapacity - 1e18);
+        lbp.commit(remainingCapacity - 1e18);
+
+        uint256 daiAmount = 10000e18;
+        deal(address(dai), address(this), daiAmount);
+        dai.approve(address(lbp), daiAmount);
+
+        SwapperLib.Swap memory swapperData = _buildDaiToWethSwap(daiAmount);
+
+        vm.expectRevert(LBP.LBP__InvalidSwapAction.selector);
+        lbp.swapAndCommitFor(swapperData, 2e18, address(1));
+
+        assertEq(dai.balanceOf(address(this)), daiAmount);
+        assertEq(lbp.saleCommitted(), remainingCapacity - 1e18);
+    }
+
+    function testSwapAndCommitForRevertWhenERC20InputIncludesNativeValue()
+        public
+    {
+        testStartSuccess();
+
+        uint256 daiAmount = 10000e18;
+        deal(address(dai), address(this), daiAmount);
+        dai.approve(address(lbp), daiAmount);
+        vm.deal(address(this), 1 ether);
+
+        SwapperLib.Swap memory swapperData = _buildDaiToWethSwap(daiAmount);
+
+        vm.expectRevert(LBP.LBP__InvalidSwapAction.selector);
+        lbp.swapAndCommitFor{ value: 1 }(swapperData, 1e18, address(1));
+
+        assertEq(dai.balanceOf(address(this)), daiAmount);
+        assertEq(address(lbp).balance, 0);
+    }
+
+    function _buildDaiToWethSwap(
+        uint256 daiAmount
+    ) internal view returns (SwapperLib.Swap memory swapperData) {
+        swapperData.inputToken = address(dai);
+        swapperData.inputAmount = daiAmount;
+        swapperData.outputToken = _WETH_ADDRESS;
+        swapperData.target = _UNISWAP_V2_ROUTER;
+        swapperData.slippage = 50e16;
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = _WETH_ADDRESS;
+        swapperData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            daiAmount,
+            0,
+            path,
+            address(lbp),
+            block.timestamp
+        );
     }
 }
