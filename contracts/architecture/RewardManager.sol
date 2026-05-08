@@ -132,6 +132,13 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             revert RewardManager__EpochDeliveryOverrideUnavailable();
         }
 
+        IVeCVE veCVE = _getVeCVE();
+        if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
+            // If the chain has tokens unlocking this epoch we need to
+            // decrease chainPoints, even when no rewards were delivered.
+            veCVE.updateChainPoints(epoch);
+        }
+
         // We can skip updating `epochRewardsPerPoint` as uint256 values
         // default to a value of 0 already, so we can just emit the
         // expected event and increment the `nextEpochToDeliver` invariant.

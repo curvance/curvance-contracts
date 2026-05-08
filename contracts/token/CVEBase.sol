@@ -87,7 +87,7 @@ abstract contract CVEBase is ERC20 {
     ///         lock boost.
     /// @param amount The amount of tokens to be minted.
     function mintLockBoost(uint256 amount) external {
-        if (!centralRegistry.hasLockingPermissions(msg.sender)) {
+        if (msg.sender != centralRegistry.gaugeManager()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

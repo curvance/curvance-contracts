@@ -690,6 +690,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         Lock memory lock = locks[lockIndex];
         uint256 amount = lock.amount;
+        uint256 unlockTime = lock.unlockTime;
+
+        if (
+            _getRewardManager().userNextClaimIndex(msg.sender) <=
+            currentEpoch(unlockTime)
+        ) {
+            // Reward delivery can lag unlock processing. If the unlock epoch
+            // has not been claimed yet, remove the expired lock's points now
+            // so exiting or relocking cannot leave stale veCVE accounting.
+            _updateDataFromEarlyUnlock(msg.sender, amount, unlockTime);
+        }
 
         // If the Reward Manager is shutdown, do not allow them to relock,
         // we will want them to exit locked positions. Decrease points only
@@ -698,20 +709,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // all forms.
         if (isShutdown == 2) {
             relock = false;
-            uint256 unlockTime = lock.unlockTime;
-            // This check could also be on `nextEpochToDeliver`, the global
-            // variable. But, we check user's value directly here incase
-            // somehow they broke post condition _claimRewards
-            // nextEpochToDeliver == userNextClaimIndex invariant.
-            // Next claim is the current epoch + 1 so we check <= instead of
-            // < for whether unlock epoch has been processed or not.
-            if (
-                _getRewardManager().userNextClaimIndex(msg.sender) <=
-                currentEpoch(unlockTime)
-            ) {
-                // Update their points to reflect the removed lock.
-                _updateDataFromEarlyUnlock(msg.sender, amount, unlockTime);
-            }
         }
 
         if (relock) {

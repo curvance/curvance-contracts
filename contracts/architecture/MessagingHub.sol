@@ -338,7 +338,7 @@ contract MessagingHub is QueryResponse {
                 emissionData.emissionTotal
             );
 
-            // Set upcoming epoch emissions for voted configuration.
+            // Apply this payload's incremental epoch emissions.
             cachedGaugeManager.setEmissionRates(
                 epoch,
                 emissionData.tokens,
@@ -443,17 +443,17 @@ contract MessagingHub is QueryResponse {
         );
     }
 
-    /// @notice Sends token emissions configuration to the Messaging Hub
-    ///         on `dstChainId`.
+    /// @notice Sends incremental token emissions configuration to the
+    ///         Messaging Hub on `dstChainId`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
     ///                     1. The total amount of token emissions to allocate
-    ///                        to the Gauge Manager.
+    ///                        to the Gauge Manager in this payload.
     ///                     2. The token contract addresses receiving
     ///                        emissions.
     ///                     3. The emission amounts that each token should
-    ///                        receive.
+    ///                        receive in this payload.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.
     /// @param gasLimit Gas limit value for each remote chain message,
