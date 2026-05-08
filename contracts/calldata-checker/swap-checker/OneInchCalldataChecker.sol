@@ -46,8 +46,12 @@ contract OneInchCalldataChecker is BaseSwapChecker {
         uint256 inputAmount;
         address outputToken;
         if (funcSigHash == IAggregationRouterV5.swap.selector) {
-            (, IAggregationRouterV5.SwapDescription memory desc, , ) = abi
-                .decode(
+            (
+                ,
+                IAggregationRouterV5.SwapDescription memory desc,
+                bytes memory permit,
+
+            ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -61,6 +65,10 @@ contract OneInchCalldataChecker is BaseSwapChecker {
             inputAmount = desc.amount;
             outputToken = desc.dstToken;
             minOutAmount = desc.minReturnAmount;
+
+            if (permit.length != 0) {
+                revert CalldataChecker__InvalidFuncSig();
+            }
         } else if (
             funcSigHash ==
             IAggregationRouterV5.uniswapV3SwapToWithPermit.selector
@@ -71,7 +79,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 uint256 amount,
                 uint256 minReturn,
                 uint256[] memory pools,
-
+                bytes memory permitData
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (address, address, uint256, uint256, uint256[], bytes)
@@ -81,6 +89,10 @@ contract OneInchCalldataChecker is BaseSwapChecker {
             inputToken = srcToken;
             inputAmount = amount;
             minOutAmount = minReturn;
+
+            if (permitData.length != 0) {
+                revert CalldataChecker__InvalidFuncSig();
+            }
 
             uint256 pool = pools[pools.length - 1];
             outputToken = (pool & _ONE_FOR_ZERO_MASK == 0)
@@ -143,7 +155,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 uint256 amount,
                 uint256 minReturn,
                 uint256[] memory pools,
-
+                bytes memory permitData
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (address, address, uint256, uint256, uint256[], bytes)
@@ -153,6 +165,10 @@ contract OneInchCalldataChecker is BaseSwapChecker {
             inputToken = srcToken;
             inputAmount = amount;
             minOutAmount = minReturn;
+
+            if (permitData.length != 0) {
+                revert CalldataChecker__InvalidFuncSig();
+            }
 
             uint256 pool = pools[pools.length - 1];
             outputToken = (pool & _REVERSE_MASK == 0)
