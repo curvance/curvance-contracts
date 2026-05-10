@@ -8,6 +8,8 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { CombinedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/CombinedAggregator.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract Oracle {
     address internal constant _FXS_TOKEN =
@@ -164,6 +166,54 @@ contract GetPriceTest is TestBaseOracleManager {
             true,
             true
         );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_singleCombinedAggregatorBubblesBadSourceOnNegativeLeg()
+        public
+    {
+        MockV3Aggregator primaryAggregator =
+            new MockV3Aggregator(8, int256(4000e8));
+        MockV3Aggregator secondaryAggregator =
+            new MockV3Aggregator(8, int256(1.5e8));
+        CombinedAggregator combinedAggregator = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAggregator),
+            address(secondaryAggregator),
+            0,
+            "wrapped/USD"
+        );
+
+        ChainlinkAdaptor wrappedAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(wrappedAdaptor));
+        wrappedAdaptor.addAsset(_USDC_ADDRESS, true, address(combinedAggregator), 0);
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(wrappedAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        vm.mockCall(
+            address(secondaryAggregator),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(-1),
+                uint256(0),
+                block.timestamp,
+                uint80(1)
+            )
+        );
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
 
         assertEq(price, 0);
         assertEq(errorCode, BAD_SOURCE);
