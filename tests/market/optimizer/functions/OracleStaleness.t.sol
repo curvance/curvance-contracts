@@ -33,7 +33,6 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
         super.setUp();
         reader = new OptimizerReader(
             ICentralRegistry(address(liveCentralRegistry)),
-            new OptimizerReader.CollateralGuardConfig[](0),
             MULTIPLIER_1_5X
         );
     }
@@ -97,7 +96,6 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
         // Deploy a reader with staleness disabled.
         OptimizerReader readerNoStaleness = new OptimizerReader(
             ICentralRegistry(address(liveCentralRegistry)),
-            new OptimizerReader.CollateralGuardConfig[](0),
             0
         );
 
@@ -169,7 +167,6 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
     function test_isBad_staleness_1xMultiplier() public {
         OptimizerReader reader1x = new OptimizerReader(
             ICentralRegistry(address(liveCentralRegistry)),
-            new OptimizerReader.CollateralGuardConfig[](0),
             10000 // 1x
         );
 
@@ -191,7 +188,6 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
     function test_isBad_staleness_3xMultiplier() public {
         OptimizerReader reader3x = new OptimizerReader(
             ICentralRegistry(address(liveCentralRegistry)),
-            new OptimizerReader.CollateralGuardConfig[](0),
             30000 // 3x
         );
 

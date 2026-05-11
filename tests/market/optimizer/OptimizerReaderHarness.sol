@@ -12,7 +12,6 @@ contract OptimizerReaderHarness is OptimizerReader {
         ICentralRegistry _centralRegistry
     ) OptimizerReader(
         _centralRegistry,
-        new CollateralGuardConfig[](0),
         0
     ) {}
 

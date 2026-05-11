@@ -16,7 +16,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { ICombinedAggregator } from "contracts/interfaces/ICombinedAggregator.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 
@@ -76,26 +75,13 @@ contract OptimizerReader {
         IDynamicIRM irm;
     }
 
-    /// @notice Config for monitoring a collateral asset's price guard.
-    /// @param cToken The collateral cToken in the isolated market
-    ///               (the non-optimizer side, e.g., earnAUSD cToken).
-    /// @param guardType 0 = no guard, 1 = adaptor-level, 2 = aggregator-level.
-    struct CollateralGuardConfig {
-        address cToken;
-        uint256 guardType;
-    }
-
     /// ERRORS ///
 
     error OptimizerReader__Unauthorized();
     error OptimizerReader__InvalidMultiplier();
-    error OptimizerReader__GuardConfigAlreadyExists();
-    error OptimizerReader__GuardConfigDoesNotExist();
 
     /// EVENTS ///
 
-    event GuardConfigAdded(address indexed cToken, uint256 guardType);
-    event GuardConfigRemoved(address indexed cToken);
     event StalenessMultiplierUpdated(uint256 oldMultiplier, uint256 newMultiplier);
 
     /// CONSTANTS ///
@@ -112,15 +98,6 @@ contract OptimizerReader {
     /// @notice Curvance Protocol Central Registry, used for permissioning.
     ICentralRegistry public immutable centralRegistry;
 
-    /// STORAGE ///
-
-    CollateralGuardConfig[] public guardConfigs;
-
-    /// @notice Collateral cToken => index in guardConfigs.
-    /// @dev Maps a collateral cToken to its position in guardConfigs.
-    mapping(address => uint256) internal _guardIndex;
-    mapping(address => bool) internal _hasGuardConfig;
-
     /// @notice Multiplier in BPS applied to each oracle's configured heartbeat
     ///         to determine the staleness threshold. 0 = staleness check disabled.
     ///         e.g., 15000 (1.5x) means a feed with a 1h heartbeat is stale after 1.5h.
@@ -130,70 +107,14 @@ contract OptimizerReader {
 
     constructor(
         ICentralRegistry _centralRegistry,
-        CollateralGuardConfig[] memory configs,
         uint256 _stalenessMultiplier
     ) {
         centralRegistry = _centralRegistry;
         ORACLE_MANAGER = IOracleManager(_centralRegistry.oracleManager());
         stalenessMultiplierBps = _stalenessMultiplier;
-
-        for (uint256 i; i < configs.length; ++i) {
-            guardConfigs.push(configs[i]);
-            _guardIndex[configs[i].cToken] = i;
-            _hasGuardConfig[configs[i].cToken] = true;
-        }
     }
 
     /// PERMISSIONED FUNCTIONS ///
-
-    /// @notice Adds a collateral guard config for `cToken`.
-    /// @dev Only callable by an address with elevated permissions.
-    function addGuardConfig(
-        address cToken,
-        uint256 guardType
-    ) external {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert OptimizerReader__Unauthorized();
-        }
-        if (_hasGuardConfig[cToken]) {
-            revert OptimizerReader__GuardConfigAlreadyExists();
-        }
-
-        _guardIndex[cToken] = guardConfigs.length;
-        _hasGuardConfig[cToken] = true;
-        guardConfigs.push(
-            CollateralGuardConfig({ cToken: cToken, guardType: guardType })
-        );
-
-        emit GuardConfigAdded(cToken, guardType);
-    }
-
-    /// @notice Removes the collateral guard config for `cToken`.
-    /// @dev Only callable by an address with elevated permissions.
-    ///      Uses swap-and-pop to keep the array compact.
-    function removeGuardConfig(address cToken) external {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert OptimizerReader__Unauthorized();
-        }
-        if (!_hasGuardConfig[cToken]) {
-            revert OptimizerReader__GuardConfigDoesNotExist();
-        }
-
-        uint256 idx = _guardIndex[cToken];
-        uint256 lastIdx = guardConfigs.length - 1;
-
-        if (idx != lastIdx) {
-            CollateralGuardConfig memory last = guardConfigs[lastIdx];
-            guardConfigs[idx] = last;
-            _guardIndex[last.cToken] = idx;
-        }
-
-        guardConfigs.pop();
-        delete _guardIndex[cToken];
-        delete _hasGuardConfig[cToken];
-
-        emit GuardConfigRemoved(cToken);
-    }
 
     /// @notice Updates the global staleness multiplier.
     /// @dev Only callable by an address with elevated permissions.
@@ -232,17 +153,17 @@ contract OptimizerReader {
     }
 
     /// @notice Checks whether any approved market should be considered
-    ///         unsafe due to a collateral price guard breach or a stale
-    ///         oracle feed.
+    ///         unsafe due to a stale oracle feed or breached PriceGuard.
     /// @dev For each approved market in the optimizer:
     ///      1. Checks if the collateral's oracle feed is stale (if
     ///         stalenessMultiplier > 0).
-    ///      2. Checks if the collateral's price has breached its
-    ///         configured price guard floor (if a guard config exists).
+    ///      2. Checks if the collateral's adjusted price is zero. Curvance
+    ///         PriceGuards return zero when the guarded price breaches the
+    ///         configured floor, so this acts as the PriceGuard breach check.
     ///      A market is flagged if either condition is met.
     /// @param optimizer The LendingOptimizer address.
     /// @return bad Array of optimizer cToken addresses whose
-    ///         collateral has a stale oracle or breached price guard.
+    ///         collateral has a stale oracle or breached PriceGuard.
     function isBad(
         address optimizer
     ) external view returns (address[] memory bad) {
@@ -268,8 +189,7 @@ contract OptimizerReader {
                 // is the collateral.
                 if (listed[j] == markets[i]) continue;
 
-                address collateralCToken = listed[j];
-                address collateralAsset = ICToken(collateralCToken).asset();
+                address collateralAsset = ICToken(listed[j]).asset();
 
                 // Check oracle staleness (applies to all markets).
                 if (_stalenessMultiplierBps > 0 &&
@@ -279,16 +199,9 @@ contract OptimizerReader {
                     break;
                 }
 
-                // Check price guard breach (only if configured).
-                if (!_hasGuardConfig[collateralCToken]) continue;
-
-                CollateralGuardConfig storage cfg =
-                    guardConfigs[_guardIndex[collateralCToken]];
-
-                // guardType: 0 = none, 1 = adaptor, 2 = aggregator.
-                if (cfg.guardType == 0) continue;
-
-                if (_isGuardBreached(collateralAsset, cfg.guardType)) {
+                // A zero adjusted price is the simplified PriceGuard breach
+                // signal emitted by oracle adaptors and wrapped aggregators.
+                if (_isOraclePriceZero(collateralAsset)) {
                     flagged = true;
                     break;
                 }
@@ -831,71 +744,28 @@ contract OptimizerReader {
 
         (,,, uint256 updatedAt,) = IChainlink(aggregatorProxy).latestRoundData();
 
-        return block.timestamp - updatedAt >
-            uint256(heartbeat) * multiplierBps / 10000;
+        unchecked {
+            return block.timestamp - updatedAt >
+                uint256(heartbeat) * multiplierBps / 10000;
+        }
     }
 
-    /// @dev Checks whether a collateral asset's price has breached its
-    ///      price guard floor.
-    /// @param collateralAsset The underlying collateral asset address.
-    /// @param guardType 1 = adaptor-level guard, 2 = aggregator-level guard.
-    /// @return True if the price guard has been breached.
-    function _isGuardBreached(
-        address collateralAsset,
-        uint256 guardType
+    /// @dev Checks whether a collateral asset's adjusted oracle price is zero,
+    ///      which indicates a PriceGuard floor breach in Curvance adaptors.
+    function _isOraclePriceZero(
+        address collateralAsset
     ) internal view returns (bool) {
-        // Get the pricing adaptor for this asset.
         address[] memory adaptors = ORACLE_MANAGER.getPricingAdaptors(
             collateralAsset
         );
 
-        address adaptor = adaptors[0];
-
-        uint40 timestampStart;
-        uint40 ips;
-        uint88 basePrice;
-        uint88 minPrice;
-
-        if (guardType == 1) {
-            // Adaptor-level price guard.
-            IOracleAdaptor.PriceGuard memory pg = IOracleAdaptor(adaptor)
-                .getPriceGuard(collateralAsset, true);
-            timestampStart = pg.timestampStart;
-            ips = pg.ips;
-            basePrice = pg.basePrice;
-            minPrice = pg.minPrice;
-        } else {
-            // Aggregator-level price guard (CombinedAggregator).
-            // Get the aggregator proxy from the adaptor's asset config.
-            (, address aggregatorProxy,,) = IChainlinkAdaptor(adaptor)
-                .assetConfig(collateralAsset, true);
-            (timestampStart, ips, basePrice, minPrice) =
-                ICombinedAggregator(aggregatorProxy).pg();
-        }
-
-        // No guard configured if basePrice is 0.
-        if (basePrice == 0) return false;
-
-        // Compute effective minimum.
-        uint256 effectiveMin;
-        if (ips == 0) {
-            // Static guard.
-            effectiveMin = minPrice;
-        } else {
-            // Dynamic guard
-            uint256 timePassed = block.timestamp - timestampStart;
-            effectiveMin = FixedPointMathLib.fullMulDiv(
-                minPrice,
-                (timePassed * uint256(ips)) + WAD,
-                WAD
+        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptors[0])
+            .getPrice(
+                collateralAsset,
+                true,
+                true
             );
-        }
 
-        // Get current price.
-        (uint256 price,) = ORACLE_MANAGER.getPrice(
-            collateralAsset, true, true
-        );
-
-        return price <= effectiveMin;
+        return result.price == 0;
     }
 }

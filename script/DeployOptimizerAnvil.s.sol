@@ -25,7 +25,6 @@ contract DeployOptimizerAnvil is Script {
 
         OptimizerReader reader = new OptimizerReader(
             ICentralRegistry(CENTRAL_REGISTRY),
-            new OptimizerReader.CollateralGuardConfig[](0),
             0
         );
 
