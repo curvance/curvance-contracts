@@ -439,7 +439,7 @@ contract OptimizerReader {
 
         _buildActionsAndBounds(markets, idealAssets, currentAssets, totalAssets, slippageBps, actions, bounds);
 
-        {
+        if (badMarkets.length == 0) {
             address underlying = ILendingOptimizer(optimizer).asset();
             (uint256 price, uint256 errorCode) = ORACLE_MANAGER.getPrice(underlying, true, true);
 

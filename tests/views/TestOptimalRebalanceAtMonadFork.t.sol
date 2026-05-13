@@ -37,6 +37,9 @@ contract TestOptimalRebalanceAtMonadFork is Test {
     address constant CENTRAL_REGISTRY =
         0x1310f352f1389969Ece6741671c4B919523912fF;
 
+    // Monad mainnet block 74421938, timestamp 2026-05-13 23:44:37 UTC.
+    uint256 constant FORK_BLOCK = 74_421_938;
+
     uint256 constant DEFAULT_SLIPPAGE_BPS = 100;
     uint256 constant DEFAULT_STALENESS_MULTIPLIER_BPS = 11000;
 
@@ -50,7 +53,7 @@ contract TestOptimalRebalanceAtMonadFork is Test {
     uint256 assetDecimals;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_MAINNET"));
+        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_MAINNET"), FORK_BLOCK);
 
         optimizer = LendingOptimizer(LENDING_OPTIMIZER);
         centralRegistry = ICentralRegistryExt(CENTRAL_REGISTRY);
