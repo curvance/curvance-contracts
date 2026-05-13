@@ -99,7 +99,7 @@ contract OptimizerReader {
 
     /// @notice Minimum total rebalance value in USD (WAD) below which
     ///         optimalRebalance returns empty arrays. 1e18 = $1.
-    uint256 public constant USD_THRESHOLD = 1e18;
+    uint256 public constant USD_THRESHOLD = 100e18;
 
     /// @notice Default cap headroom used by optimalRebalance planning.
     uint256 public constant CAP_BUFFER_BPS = 5;

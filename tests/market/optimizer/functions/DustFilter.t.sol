@@ -180,7 +180,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
          LendingOptimizer.AllocationBound[] memory bounds) =
             reader.optimalRebalance(address(optimizer), 500);
 
-        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalAssetsBefore = _projectedOptimizerAssets();
 
         // Execute: should not revert (no dust actions that would trigger BaseCToken__ZeroAmount).
         if (actions.length > 0) {
@@ -214,7 +214,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
          LendingOptimizer.AllocationBound[] memory bounds) =
             reader.optimalRebalance(address(optimizer), 500);
 
-        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalAssetsBefore = _projectedOptimizerAssets();
 
         if (actions.length > 0) {
             optimizer.rebalance(actions, bounds);
@@ -638,6 +638,19 @@ contract TestDustFilter is TestBaseLendingOptimizer {
          LendingOptimizer.AllocationBound[] memory bounds) =
             reader.optimalRebalance(address(optimizer), 500);
         if (actions.length > 0) optimizer.rebalance(actions, bounds);
+    }
+
+    /// @dev Returns the reader's projected post-accrual optimizer assets.
+    function _projectedOptimizerAssets() internal view returns (uint256 totalAssets) {
+        address[] memory markets = optimizer.getApprovedMarkets();
+
+        for (uint256 i; i < markets.length; ++i) {
+            totalAssets += reader.assetsAtTimestamp(
+                address(optimizer),
+                markets[i],
+                block.timestamp
+            );
+        }
     }
 
     /// @dev Sets up 3 markets with 100% caps and harvest permissions mocked.

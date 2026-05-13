@@ -1491,7 +1491,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     }
 
     /// @notice A deposit large enough that the rebalance value exceeds
-    ///         USD_THRESHOLD ($1) should return non-empty arrays.
+    ///         USD_THRESHOLD ($100) should return non-empty arrays.
     function test_optimalRebalance_success_aboveUsdThreshold_returnsActions() public {
         _setUpThreeMarkets();
 
