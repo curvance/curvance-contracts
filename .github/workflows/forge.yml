@@ -10,10 +10,10 @@ env:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
           submodules: recursive
@@ -27,27 +27,38 @@ jobs:
             exit 1
           fi
           if git config --file .gitmodules --get-regexp '\.branch$'; then
-            echo "::error::.gitmodules must not contain branch-tracking hints; update submodule SHAs explicitly."
+            echo "::error::Root .gitmodules must not contain branch-tracking hints; update submodule SHAs explicitly."
             exit 1
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Restore pnpm store cache
+        id: pnpm-store-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .pnpm-store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
 
       - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
+        run: corepack pnpm install --frozen-lockfile --store-dir .pnpm-store
+
+      - name: Save pnpm store cache
+        if: success() && steps.pnpm-store-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .pnpm-store
+          key: ${{ steps.pnpm-store-cache.outputs.cache-primary-key }}
 
       - name: Install Foundry
         id: install-foundry
         continue-on-error: true
-        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
+        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d
         with:
           version: ${{ env.FOUNDRY_VERSION }}
           cache: false
@@ -59,7 +70,7 @@ jobs:
 
       - name: Install Foundry retry
         if: steps.install-foundry.outcome != 'success'
-        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
+        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d
         with:
           version: ${{ env.FOUNDRY_VERSION }}
           cache: false
@@ -71,22 +82,20 @@ jobs:
           anvil --version
 
       - name: Restore Forge build cache
+        id: forge-build-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             cache
             artifacts
-          key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
-          restore-keys: |
-            forge-build-
+          key: forge-build-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('foundry.toml', 'remappings.txt', 'foundry.lock', 'contracts/**/*.sol', 'tests/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
 
       - name: Restore Foundry RPC cache
+        id: foundry-rpc-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.foundry/cache/rpc
-          key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}
-          restore-keys: |
-            foundry-rpc-${{ runner.os }}-
+          key: foundry-rpc-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('foundry.toml', 'tests/**/*.sol') }}
 
       - name: Run test harness (with automatic retry after delay)
         shell: bash
@@ -117,17 +126,17 @@ jobs:
           MON_NODE_URI_MONAD_ARCHIVE: ${{ secrets.MON_NODE_URI_MONAD_ARCHIVE }}
 
       - name: Save Forge build cache
-        if: always()
+        if: success() && steps.forge-build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             cache
             artifacts
-          key: forge-build-${{ hashFiles('contracts/**/*.sol', 'foundry.toml') }}
+          key: ${{ steps.forge-build-cache.outputs.cache-primary-key }}
 
       - name: Save Foundry RPC cache
-        if: always()
+        if: success() && steps.foundry-rpc-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.foundry/cache/rpc
-          key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}
+          key: ${{ steps.foundry-rpc-cache.outputs.cache-primary-key }}
