@@ -97,6 +97,21 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_mint_reverts_zeroReceiver() public {
+        vm.startPrank(user1);
+
+        uint256 sharesToMint = 1000e6;
+        uint256 expectedAssets = optimizer.previewMint(sharesToMint);
+
+        deal(USDC_MONAD, user1, expectedAssets * 2, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.mint(sharesToMint, address(0));
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_mint_success_optimalMarketEmitsEvent() public {
         vm.startPrank(user1);
 

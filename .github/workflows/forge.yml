@@ -13,17 +13,41 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          persist-credentials: false
           submodules: recursive
 
-      - name: Install Yarn dependencies
-        run: yarn install --immutable || true
+      - name: Verify pinned submodules
+        shell: bash
+        run: |
+          git submodule status --recursive
+          if git submodule status --recursive | grep -E '^[+-U]'; then
+            echo "::error::Submodule checkout is missing, conflicted, or not at the committed gitlink SHA."
+            exit 1
+          fi
+          if git config --file .gitmodules --get-regexp '\.branch$'; then
+            echo "::error::.gitmodules must not contain branch-tracking hints; update submodule SHAs explicitly."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Install Foundry
         id: install-foundry
         continue-on-error: true
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
           cache: false
@@ -35,7 +59,7 @@ jobs:
 
       - name: Install Foundry retry
         if: steps.install-foundry.outcome != 'success'
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
           cache: false
@@ -46,20 +70,8 @@ jobs:
           cast --version
           anvil --version
 
-      - name: Install Forge dependencies
-        shell: bash
-        run: |
-          for attempt in 1 2 3; do
-            if forge install; then
-              exit 0
-            fi
-            echo "forge install failed on attempt ${attempt}; retrying after delay..."
-            sleep $((attempt * 30))
-          done
-          forge install
-
       - name: Restore Forge build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             cache
@@ -69,7 +81,7 @@ jobs:
             forge-build-
 
       - name: Restore Foundry RPC cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.foundry/cache/rpc
           key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}
@@ -106,7 +118,7 @@ jobs:
 
       - name: Save Forge build cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             cache
@@ -115,7 +127,7 @@ jobs:
 
       - name: Save Foundry RPC cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.foundry/cache/rpc
           key: foundry-rpc-${{ runner.os }}-${{ hashFiles('**/*.t.sol') }}

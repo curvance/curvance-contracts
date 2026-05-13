@@ -45,8 +45,10 @@ contract PendleZapper is PendleZapperMinimal {
 
     /// @notice Exits a Pendle market, and zaps it into zapAction.outputToken,
     ///         sending the proceeds to `receiver`.
-    /// @param pendleToken The underlying token address of the SY.
+    /// @param pendleToken The token being exited: PT when `isPt` is true,
+    ///                    otherwise the SY redeem token.
     /// @param router The Pendle router address.
+    /// @param pendleMarket The Pendle market used to exit the position.
     /// @param isPt Whether lp token is PT or not.
     /// @param action Instructions for a Pendle action containing:
     ///               approx The approximate price parameters for the Pendle
@@ -88,6 +90,7 @@ contract PendleZapper is PendleZapperMinimal {
     function exitPendle(
         address pendleToken,
         address router,
+        address pendleMarket,
         bool isPt,
         PendleLib.PendleAction calldata action,
         ZapAction calldata zapAction,
@@ -110,6 +113,7 @@ contract PendleZapper is PendleZapperMinimal {
         outAmount = _exitPendle(
             pendleToken,
             router,
+            pendleMarket,
             isPt,
             action,
             zapAction,
@@ -120,8 +124,10 @@ contract PendleZapper is PendleZapperMinimal {
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into `zapAction.outputToken`.
-    /// @param pendleToken The underlying token address of the SY.
+    /// @param pendleToken The token being exited: PT when `isPt` is true,
+    ///                    otherwise the SY redeem token.
     /// @param router The Pendle router address.
+    /// @param pendleMarket The Pendle market used to exit the position.
     /// @param isPt Whether lp token is PT or not.
     /// @param action Instructions for a Pendle action containing:
     ///               approx The approximate price parameters for the Pendle
@@ -171,6 +177,7 @@ contract PendleZapper is PendleZapperMinimal {
     function redeemAndExitPendle(
         address pendleToken,
         address router,
+        address pendleMarket,
         bool isPt,
         PendleLib.PendleAction calldata action,
         RedeemAction calldata redeemAction,
@@ -196,6 +203,7 @@ contract PendleZapper is PendleZapperMinimal {
         outAmount = _exitPendle(
             pendleToken,
             router,
+            pendleMarket,
             isPt,
             action,
             zapAction,
@@ -208,8 +216,10 @@ contract PendleZapper is PendleZapperMinimal {
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapAction.outputToken).
-    /// @param pendleToken The underlying token address of the SY.
+    /// @param pendleToken The token being exited: PT when `isPt` is true,
+    ///                    otherwise the SY redeem token.
     /// @param router The Pendle router address.
+    /// @param pendleMarket The Pendle market used to exit the position.
     /// @param isPt Whether lp token is PT or not.
     /// @param action Instructions for a Pendle action containing:
     ///               approx The approximate price parameters for the Pendle
@@ -251,21 +261,30 @@ contract PendleZapper is PendleZapperMinimal {
     function _exitPendle(
         address pendleToken,
         address router,
+        address pendleMarket,
         bool isPt,
         PendleLib.PendleAction calldata action,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
-        if (swapActions.length == 0 && zapAction.minimumOut == 0) {
+        if (zapAction.minimumOut == 0) {
             revert PendleZapper__SlippageError();
+        }
+
+        if (isPt) {
+            if (pendleToken != zapAction.inputToken) {
+                revert BaseZapper__ExecutionError();
+            }
+        } else if (pendleMarket != zapAction.inputToken) {
+            revert BaseZapper__ExecutionError();
         }
 
         // Exit Pendle position.
         PendleLib._exitPendle(
             router,
             isPt,
-            zapAction.inputToken,
+            pendleMarket,
             0,
             action,
             pendleToken,

@@ -302,6 +302,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver
     ) public override(ERC4626, ILendingOptimizer) nonReentrant returns (uint256 shares) {
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkMintPaused();
         _accrueIfNeeded();
 
@@ -339,6 +340,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 shares,
         address receiver
     ) public override nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkMintPaused();
         _accrueIfNeeded();
 
@@ -396,6 +398,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address owner
     ) public override nonReentrant returns (uint256 shares) {
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkRedeemPaused();
         _accrueIfNeeded();
 
@@ -433,6 +436,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver,
         address owner
     ) public override nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkRedeemPaused();
         _accrueIfNeeded();
 
@@ -874,7 +878,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @return Maximum withdrawable assets, or 0 if withdrawals are blocked.
     function maxWithdraw(address owner) public view override returns (uint256) {
         if (_anyMarketPaused(false)) return 0;
-        return convertToAssets(balanceOf(owner));
+        uint256 ownerAssets = convertToAssets(balanceOf(owner));
+        if (ownerAssets == 0) return 0;
+        uint256 availableAssets = _availableWithdrawLiquidity();
+        return ownerAssets < availableAssets ? ownerAssets : availableAssets;
     }
 
     /// @notice Returns the maximum amount of shares that `owner` can redeem.
@@ -883,7 +890,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @return Maximum redeemable shares, or 0 if withdrawals are blocked.
     function maxRedeem(address owner) public view override returns (uint256) {
         if (_anyMarketPaused(false)) return 0;
-        return balanceOf(owner);
+        uint256 ownerShares = balanceOf(owner);
+        uint256 ownerAssets = convertToAssets(ownerShares);
+        if (ownerAssets == 0) return 0;
+
+        uint256 availableAssets = _availableWithdrawLiquidity();
+        if (ownerAssets <= availableAssets) return ownerShares;
+
+        return convertToShares(availableAssets);
     }
 
     /// @notice Returns the number of approved markets.
@@ -977,6 +991,28 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
     }
 
+    /// @dev Returns the total underlying liquidity the optimizer can currently
+    ///      withdraw across approved markets, capped by this optimizer's shares.
+    function _availableWithdrawLiquidity()
+        internal
+        view
+        returns (uint256 availableAssets)
+    {
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
+            uint256 optimizerAssets = cToken.convertToAssets(
+                cToken.balanceOf(address(this))
+            );
+            if (optimizerAssets == 0) continue;
+
+            uint256 marketLiquidity = cToken.assetsHeld();
+            availableAssets += optimizerAssets < marketLiquidity
+                ? optimizerAssets
+                : marketLiquidity;
+        }
+    }
+
     /// @dev Deposits assets into a specific cToken market.
     /// @param cToken The cToken market to deposit into.
     /// @param assets The amount of assets to deposit.
@@ -1021,9 +1057,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // liquidityLimit[i]  = min(position, idle cash) — max withdrawable.
         for (uint256 i; i < l; ++i) {
             IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
-            uint256 optimizerAssets = cToken.convertToAssets(
-                cToken.balanceOf(address(this))
-            );
+            uint256 optimizerShares = cToken.balanceOf(address(this));
+            if (optimizerShares == 0) continue;
+
+            uint256 optimizerAssets = cToken.convertToAssets(optimizerShares);
+            if (optimizerAssets == 0) continue;
+
             uint256 marketLiquidity = cToken.assetsHeld();
 
             marketAssets[i] = optimizerAssets;
@@ -1031,6 +1070,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 ? optimizerAssets
                 : marketLiquidity;
             totalMarketAssets += optimizerAssets;
+        }
+        if (totalMarketAssets == 0) {
+            revert LendingOptimizer__InsufficientLiquidity();
         }
 
         // Split withdrawal pro-rata by position size, capped by each

@@ -6,6 +6,7 @@ import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.so
 import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -97,6 +98,19 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         uint256 assets = optimizer.redeem(sharesToRedeem, user2, user1);
 
         assertEq(IERC20(USDC_MONAD).balanceOf(user2), user2BalanceBefore + assets, "Receiver should get assets");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_redeem_reverts_zeroReceiver() public {
+        uint256 depositAmount = 10_000e6;
+        _depositForUser(user1, depositAmount);
+
+        vm.startPrank(user1);
+
+        uint256 sharesToRedeem = optimizer.balanceOf(user1) / 2;
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.redeem(sharesToRedeem, address(0), user1);
 
         vm.stopPrank();
     }
@@ -315,6 +329,20 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_redeem_fail_withoutOwnerAllowance() public {
+        uint256 depositAmount = 10_000e6;
+        _depositForUser(user1, depositAmount);
+
+        uint256 sharesToRedeem = optimizer.balanceOf(user1) / 2;
+
+        vm.prank(user2);
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
+        optimizer.redeem(sharesToRedeem, user2, user1);
+
+        assertEq(optimizer.allowance(user1, user2), 0, "allowance should remain zero");
+        assertEq(IERC20(USDC_MONAD).balanceOf(user2), 0, "unapproved caller should receive no assets");
+    }
+
     function test_lendingOptimizer_redeem_success_withAllowance() public {
         uint256 depositAmount = 10_000e6;
         _depositForUser(user1, depositAmount);
@@ -525,4 +553,3 @@ contract TestLendingOptimizerRedeem is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 }
-

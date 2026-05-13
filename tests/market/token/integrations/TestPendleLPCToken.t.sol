@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
-import { PendleLPCToken, IERC20 } from "contracts/market/token/PendleLPCToken.sol";
-import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
+import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {
+    IUniswapV3Router
+} from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import {
+    IPendleRouter,
+    ApproxParams,
+    LimitOrderData
+} from "contracts/interfaces/external/pendle/IPendleRouter.sol";
+import {IPMarket} from "contracts/interfaces/external/pendle/IPMarket.sol";
+import {
+    PendleLPCToken,
+    IERC20
+} from "contracts/market/token/PendleLPCToken.sol";
+import {StrategyCToken} from "contracts/market/token/StrategyCToken.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
+import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestPendleLPCToken is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
@@ -33,7 +42,6 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork(20287400);
 
-        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -46,12 +54,11 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
 
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18);
         chainlinkAdaptor.addAsset(
-            _PENDLE,
-            true,
-            address(chainlinkPendleUsd),
-            0
+            _PENDLE, true, address(chainlinkPendleUsd), 0
         );
-        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor),100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _PENDLE, address(chainlinkAdaptor), 100, 50, 100, 50
+        );
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -81,7 +88,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
-        marketManagerIsolated.listTokens(address(pendleCTokenSTETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(
+            address(pendleCTokenSTETH), address(borrowableCDAI)
+        );
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), assets);
@@ -122,8 +131,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
         swaps[0].call = abi.encodeWithSelector(
-            IUniswapV3Router.exactInputSingle.selector,
-            params
+            IUniswapV3Router.exactInputSingle.selector, params
         );
 
         ApproxParams memory approx;
@@ -162,7 +170,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
-        marketManagerIsolated.listTokens(address(pendleCTokenSTETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(
+            address(pendleCTokenSTETH), address(borrowableCDAI)
+        );
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), assets);
@@ -222,8 +232,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
 
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
         marketManagerIsolated.listTokens(
-            address(pendleCTokenSTETH),
-            address(borrowableCDAI)
+            address(pendleCTokenSTETH), address(borrowableCDAI)
         );
 
         vm.prank(user1);
@@ -249,6 +258,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         // contract per `_deployCentralRegistry()`.
         address daoAddr = centralRegistry.daoAddress();
         uint256 daoBalanceBefore = IERC20(_PENDLE).balanceOf(daoAddr);
+        uint256 totalAssetsBefore = pendleCTokenSTETH.totalAssets();
+        uint256 lpBalanceBefore =
+            IERC20(_LP_STETH).balanceOf(address(pendleCTokenSTETH));
 
         // Harvest data is unused on the post-expiry path; pass dummy values.
         SwapperLib.Swap[] memory emptySwaps;
@@ -275,6 +287,16 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
             0,
             "expected zero reward residue on cToken"
         );
+        assertEq(
+            pendleCTokenSTETH.totalAssets(),
+            totalAssetsBefore,
+            "post-expiry reward sweep MUST NOT increase share assets"
+        );
+        assertEq(
+            IERC20(_LP_STETH).balanceOf(address(pendleCTokenSTETH)),
+            lpBalanceBefore,
+            "post-expiry reward sweep MUST NOT consume principal LP"
+        );
 
         // Harvest must remain callable so newly-accrued post-expiry SY-side
         // rewards can be swept. Pre-stage a second reward batch to simulate
@@ -286,7 +308,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
             abi.encode(emptySwaps, uint256(0), approx, limit)
         );
 
-        assertEq(yield2, 0, "expected zero yield on subsequent post-expiry harvest");
+        assertEq(
+            yield2, 0, "expected zero yield on subsequent post-expiry harvest"
+        );
         assertEq(
             IERC20(_PENDLE).balanceOf(daoAddr) - daoBalanceBefore,
             rewardBalance + secondBatch,
@@ -308,8 +332,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
 
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
         marketManagerIsolated.listTokens(
-            address(pendleCTokenSTETH),
-            address(borrowableCDAI)
+            address(pendleCTokenSTETH), address(borrowableCDAI)
         );
 
         vm.prank(user1);

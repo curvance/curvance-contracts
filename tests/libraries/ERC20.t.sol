@@ -420,6 +420,34 @@ contract ERC20Test is SoladyTest {
         _permit(t);
     }
 
+    function testPermitWrongVerifyingContractReverts(uint256) public {
+        _TestTemps memory t = _testTemps();
+        if (t.deadline < block.timestamp) t.deadline = block.timestamp;
+        _signPermit(t);
+
+        MockERC20 otherToken = new MockERC20("Token", "TKN", 18);
+
+        vm.expectRevert(ERC20.InvalidPermit.selector);
+        otherToken.permit(t.owner, t.to, t.amount, t.deadline, t.v, t.r, t.s);
+
+        assertEq(otherToken.allowance(t.owner, t.to), 0);
+        assertEq(otherToken.nonces(t.owner), 0);
+    }
+
+    function testPermitWrongChainIdReverts(uint256) public {
+        _TestTemps memory t = _testTemps();
+        if (t.deadline < block.timestamp) t.deadline = block.timestamp;
+        _signPermit(t);
+
+        vm.chainId(block.chainid + 1);
+
+        vm.expectRevert(ERC20.InvalidPermit.selector);
+        _permit(t);
+
+        assertEq(token.allowance(t.owner, t.to), 0);
+        assertEq(token.nonces(t.owner), 0);
+    }
+
     function _signPermit(_TestTemps memory t) internal view {
         bytes32 innerHash = keccak256(
             abi.encode(

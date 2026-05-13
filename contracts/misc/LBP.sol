@@ -74,6 +74,7 @@ contract LBP {
     error LBP__InvalidSwapAction();
     error LBP__InvalidSwapOutput();
     error LBP__InsufficientCVEForSale();
+    error LBP__InvalidRecipient();
 
     /// EVENTS ///
 
@@ -180,6 +181,7 @@ contract LBP {
     function commitFor(uint256 amount, address recipient) external {
         // Validate that LBP is active.
         _canCommit();
+        _checkRecipient(recipient);
 
         // Users can only commit up to the remaining sale capacity.
         amount = _capCommitAmount(amount);
@@ -203,6 +205,7 @@ contract LBP {
     ) external payable {
         // Validate that LBP is active.
         _canCommit();
+        _checkRecipient(recipient);
 
         if (swapperData.outputToken != paymentToken) {
             revert LBP__InvalidSwapAction();
@@ -417,10 +420,18 @@ contract LBP {
     /// @param recipient The address of the user who should benefit from
     ///                  the commitment.
     function _commit(uint256 amount, address recipient) internal {
+        _checkRecipient(recipient);
+
         userCommitted[recipient] += amount;
         saleCommitted += amount;
 
         emit Committed(recipient, amount);
+    }
+
+    function _checkRecipient(address recipient) internal pure {
+        if (recipient == address(0)) {
+            revert LBP__InvalidRecipient();
+        }
     }
 
     /// @notice Returns the commitment amount capped to the remaining sale

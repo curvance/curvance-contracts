@@ -518,6 +518,42 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         assertApproxEqAbs(optimizer.balanceOf(address(0)), initAssets, 1);
     }
 
+    function test_lendingOptimizer_initializeDeposits_fail_withoutMarketPermissions() public {
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        optimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
+
+        uint256 initAssets = 77777;
+        address randomUser = makeAddr("randomUserNoPermission");
+
+        deal(USDC_MONAD, randomUser, initAssets);
+
+        vm.startPrank(randomUser);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, randomUser),
+            abi.encode(false)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+        vm.stopPrank();
+
+        assertEq(optimizer.totalSupply(), 0);
+        assertEq(optimizer.balanceOf(address(0)), 0);
+    }
+
     function test_lendingOptimizer_initializeDeposits_transfersExactAmount() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;

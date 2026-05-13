@@ -3,8 +3,10 @@ pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { BPS, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract UpdateTokenConfigTest is TestBaseMarketIsolated {
 
@@ -397,6 +399,88 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    function test_updateTokenConfig_success_whenCTokenOracleInCaution() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        _setUsdcDualFeedAnswer(1.016e8, CAUTION);
+        (, uint256 cTokenErrorCode) =
+            oracleManager.getPrice(address(borrowableCUSDC), true, true);
+        assertEq(cTokenErrorCode, CAUTION, "cToken should inherit CAUTION");
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig =
+            _validBorrowableTokenConfig(address(borrowableCUSDC));
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
+            marketManagerIsolated.collConfig(address(borrowableCUSDC));
+        assertEq(collRatio, tokenConfig.collRatio);
+        assertEq(collReqSoft, tokenConfig.collReqSoft + BPS);
+        assertEq(collReqHard, tokenConfig.collReqHard + BPS);
+    }
+
+    function test_updateTokenConfig_fail_whenCTokenOracleInBadSource() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        _setUsdcDualFeedAnswer(1.03e8, BAD_SOURCE);
+        (, uint256 cTokenErrorCode) =
+            oracleManager.getPrice(address(borrowableCUSDC), true, true);
+        assertEq(cTokenErrorCode, BAD_SOURCE, "cToken should inherit BAD_SOURCE");
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig =
+            _validBorrowableTokenConfig(address(borrowableCUSDC));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_whenCTokenOracleFeedIsStale() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        _makeDefaultUsdcFeedsStale(BAD_SOURCE);
+        (, uint256 cTokenErrorCode) =
+            oracleManager.getPrice(address(borrowableCUSDC), true, true);
+        assertEq(cTokenErrorCode, BAD_SOURCE, "cToken should inherit stale BAD_SOURCE");
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig =
+            _validBorrowableTokenConfig(address(borrowableCUSDC));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_whenCTokenOraclePriceGuardFlagsBadSource()
+        public
+    {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            99e16
+        );
+        dualChainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            99e16
+        );
+
+        mockUsdcFeed.setMockAnswer(0.98e8);
+        _setUsdcDualFeedAnswer(0.98e8, BAD_SOURCE);
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig =
+            _validBorrowableTokenConfig(address(borrowableCUSDC));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
     function test_updateTokenConfig_fail_whenCollateralCapTurnedOnWithoutCollateralization() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
@@ -635,6 +719,53 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
 
+    }
+
+    function _validBorrowableTokenConfig(
+        address cToken
+    ) internal pure returns (MarketManagerIsolated.TokenConfig memory tokenConfig) {
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 100_000e18;
+    }
+
+    function _setUsdcDualFeedAnswer(
+        int256 answer,
+        uint256 expectedErrorCode
+    ) internal {
+        MockV3Aggregator usdcFeed = new MockV3Aggregator(8, answer);
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(usdcFeed),
+            0
+        );
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected USDC oracle status");
+    }
+
+    function _makeDefaultUsdcFeedsStale(
+        uint256 expectedErrorCode
+    ) internal {
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected stale USDC status");
     }
 
 }

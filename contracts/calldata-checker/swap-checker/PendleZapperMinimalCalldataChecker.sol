@@ -55,6 +55,7 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
             address routerParam,
             ,
             ,
+            ,
             PendleZapperMinimal.ZapAction memory desc,
             ,
             uint256 expectedShares,
@@ -63,6 +64,7 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
         ) = abi.decode(
                 _getFuncParams(swapAction.call),
                 (
+                    address,
                     address,
                     address,
                     bool,

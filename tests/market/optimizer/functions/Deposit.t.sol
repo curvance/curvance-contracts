@@ -99,6 +99,19 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_deposit_reverts_zeroReceiver() public {
+        vm.startPrank(user1);
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.deposit(depositAmount, address(0));
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_deposit_success_optimalMarketEmitsEvent() public {
         vm.startPrank(user1);
 

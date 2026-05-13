@@ -4,8 +4,10 @@ pragma solidity 0.8.28;
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -95,6 +97,19 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         optimizer.withdraw(assetsToWithdraw, user2, user1);
 
         assertEq(IERC20(USDC_MONAD).balanceOf(user2), user2BalanceBefore + assetsToWithdraw, "Receiver should get exact assets");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_withdraw_reverts_zeroReceiver() public {
+        uint256 depositAmount = 10_000e6;
+        _depositForUser(user1, depositAmount);
+
+        vm.startPrank(user1);
+
+        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.withdraw(assetsToWithdraw, address(0), user1);
 
         vm.stopPrank();
     }
@@ -330,6 +345,21 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_withdraw_fail_withoutOwnerAllowance() public {
+        uint256 depositAmount = 10_000e6;
+        _depositForUser(user1, depositAmount);
+
+        optimizer.accrueIfNeeded();
+        uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
+
+        vm.prank(user2);
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
+        optimizer.withdraw(assetsToWithdraw, user2, user1);
+
+        assertEq(optimizer.allowance(user1, user2), 0, "allowance should remain zero");
+        assertEq(IERC20(USDC_MONAD).balanceOf(user2), 0, "unapproved caller should receive no assets");
+    }
+
     function test_lendingOptimizer_withdraw_success_withAllowance() public {
         uint256 depositAmount = 10_000e6;
         _depositForUser(user1, depositAmount);
@@ -558,5 +588,40 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
         assertEq(balanceAfter - balanceBefore, assetsToWithdraw, "Must always receive exact assets");
 
         vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_maxWithdrawCapsToAvailableMarketLiquidityAfterBorrow() public {
+        uint256 depositAmount = 500_000e6;
+        _depositForUser(user1, depositAmount);
+
+        _configureToken(
+            MarketManagerIsolated(_marketMgrs[cUSDC_WMON_MARKET]),
+            _collCTokens[cUSDC_WMON_MARKET],
+            7000,
+            10_000_000e18,
+            0
+        );
+        _seedAndBorrow(cUSDC_WMON_MARKET, 1e6, 899_000e6);
+        optimizer.accrueIfNeeded();
+
+        uint256 maxAssets = optimizer.maxWithdraw(user1);
+        uint256 ownerAssets = optimizer.convertToAssets(
+            optimizer.balanceOf(user1)
+        );
+        assertLt(
+            maxAssets,
+            ownerAssets,
+            "maxWithdraw should cap below illiquid owner assets"
+        );
+
+        uint256 maxShares = optimizer.maxRedeem(user1);
+        assertLt(
+            maxShares,
+            optimizer.balanceOf(user1),
+            "maxRedeem should cap below illiquid owner shares"
+        );
+
+        vm.prank(user1);
+        optimizer.withdraw(maxAssets, user1, user1);
     }
 }

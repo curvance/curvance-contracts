@@ -71,6 +71,39 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         assertEq(optimizer.approvedCTokensList(1), cUSDC_WBTC_MARKET, "Market 1 should be WBTC");
     }
 
+    function test_lendingOptimizer_removeApprovedAsset_success_thenReaddUsesFreshCap() public {
+        _setUpThreeMarkets();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        deal(USDC_MONAD, address(this), 21_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 21_000e6);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(1_000e6, address(this), cUSDC_WETH_MARKET);
+
+        LendingOptimizer.ReallocationAction[] memory removeActions = new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(10_000)
+        );
+
+        optimizer.removeApprovedAsset(cUSDC_WETH_MARKET, removeActions, _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET));
+
+        assertEq(optimizer.numApprovedMarkets(), 2, "removed market should leave approved list");
+        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 0, "removed market cap should be cleared");
+
+        optimizer.addApprovedAsset(cUSDC_WETH_MARKET, 7_500);
+
+        assertEq(optimizer.numApprovedMarkets(), 3, "readded market should return to approved list");
+        assertEq(optimizer.approvedCTokensList(2), cUSDC_WETH_MARKET, "readded market should append after removal");
+        assertEq(optimizer.allocationCaps(cUSDC_WETH_MARKET), 7_500 * 1e14, "readd should use new explicit cap");
+    }
+
     function test_lendingOptimizer_removeApprovedAsset_fail_whenOnlyOneMarket() public {
         // Setup with only one market.
         _setUpOneMarket();

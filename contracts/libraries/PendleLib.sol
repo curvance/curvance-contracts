@@ -6,6 +6,7 @@ import { IPendleRouter, ApproxParams, TokenInput, TokenOutput, LimitOrderData } 
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
+import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Pendle Library.
@@ -36,12 +37,16 @@ library PendleLib {
         LimitOrderData limit;
     }
 
+    /// ERRORS ///
+
+    error PendleLib__InvalidMarket();
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Enters a Pendle position.
     /// @param router The Pendle router address to use on action.
     /// @param isPt Whether pendle token is PT or not.
-    /// @param lpToken The Pendle lp token address.
+    /// @param market The Pendle market address.
     /// @param minOutAmount The minimum output amount acceptable.
     /// @param action Instructions for a Pendle action containing:
     ///               approx The approximate price parameters for the Pendle
@@ -59,15 +64,20 @@ library PendleLib {
     ///                      to swap `tokenRedeemSy` to the desired
     ///                      `tokenOut`.
     ///               limit Contains parameters for executing limit orders.
+    /// @param pendleToken If isPt = false then the LP/market token address,
+    ///                    if not then the PT address.
     /// @return outAmount The lp/pt output amount of Pendle lp received.
     function _enterPendle(
         address router,
         bool isPt,
-        address lpToken,
+        address market,
         uint256 minOutAmount,
-        PendleAction memory action
+        PendleAction memory action,
+        address pendleToken
     ) internal returns (uint256 outAmount) {
         if (isPt) {
+            _validatePrincipalTokenMarket(market, pendleToken);
+
             // Swap `tokenIn` to principal token.
             SwapperLib._approveIfNeeded(
                 action.input.tokenIn,
@@ -76,14 +86,18 @@ library PendleLib {
             );
             (outAmount,, ) = IPendleRouter(router).swapExactTokenForPt(
                 address(this),
-                lpToken,
+                market,
                 minOutAmount,
                 action.approx,
                 action.input,
                 action.limit
             );
         } else {
-            (IStandardizedYield sy,, ) = IPMarket(lpToken).readTokens();
+            if (market != pendleToken) {
+                revert PendleLib__InvalidMarket();
+            }
+
+            (IStandardizedYield sy,, ) = IPMarket(market).readTokens();
             address[] memory tokens = sy.getTokensIn();
             uint256 numTokens = tokens.length;
             address token;
@@ -123,7 +137,7 @@ library PendleLib {
             // Add liquidity to Pendle lp via SY.
             (outAmount, ) = IPendleRouter(router).addLiquiditySingleSy(
                 address(this),
-                lpToken,
+                market,
                 balance,
                 minOutAmount,
                 action.approx,
@@ -135,7 +149,7 @@ library PendleLib {
     /// @notice Exits a Pendle position.
     /// @param router The Pendle router address to use on action.
     /// @param isPt Whether pendle token is PT or not.
-    /// @param lpToken The Pendle lp token address.
+    /// @param market The Pendle market address.
     /// @param minOutAmount The minimum output amount acceptable.
     /// @param action Instructions for a Pendle action containing:
     ///               router The Pendle router address to use on action.
@@ -161,13 +175,15 @@ library PendleLib {
     function _exitPendle(
         address router,
         bool isPt,
-        address lpToken,
+        address market,
         uint256 minOutAmount,
         PendleAction memory action,
         address pendleToken,
         uint256 amount
     ) internal {
         if (isPt) {
+            _validatePrincipalTokenMarket(market, pendleToken);
+
             SwapperLib._approveIfNeeded(pendleToken, router, amount);
 
             if (IPPrincipalToken(pendleToken).isExpired()) {
@@ -192,26 +208,42 @@ library PendleLib {
             } else {
                 IPendleRouter(router).swapExactPtForToken(
                     address(this),
-                    lpToken,
+                    market,
                     amount,
                     action.output,
                     action.limit
                 );
             }
         } else {
-            SwapperLib._approveIfNeeded(lpToken, router, amount);
+            SwapperLib._approveIfNeeded(market, router, amount);
 
             (uint256 balance, ) = IPendleRouter(router)
                 .removeLiquiditySingleSy(
                     address(this),
-                    lpToken,
+                    market,
                     amount,
                     0,
                     action.limit
                 );
 
-            (IStandardizedYield sy,, ) = IPMarket(lpToken).readTokens();
+            (IStandardizedYield sy,, ) = IPMarket(market).readTokens();
             sy.redeem(address(this), balance, pendleToken, minOutAmount, false);
+        }
+    }
+
+    function _validatePrincipalTokenMarket(
+        address market,
+        address pendleToken
+    ) private view {
+        (IStandardizedYield sy, IPPrincipalToken pt, IPYieldToken yt) =
+            IPMarket(market).readTokens();
+
+        if (
+            address(pt) != pendleToken ||
+            IPPrincipalToken(pendleToken).SY() != address(sy) ||
+            IPPrincipalToken(pendleToken).YT() != address(yt)
+        ) {
+            revert PendleLib__InvalidMarket();
         }
     }
 }

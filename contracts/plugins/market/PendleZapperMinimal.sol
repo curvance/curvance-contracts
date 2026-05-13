@@ -45,23 +45,23 @@ contract PendleZapperMinimal is BaseZapper {
     /// @notice Swaps then deposits `zapAction.inputToken` into Pendle
     ///         market, and enters into Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
-    /// @param strategyCToken The Curvance token address to enter into a
-    ///                       position.
+    /// @param cToken The Curvance token address to enter into a position.
     /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
+    /// @param pendleMarket The Pendle market used to enter the position.
+    /// @param isPt Whether `zapAction.outputToken` is a PT or not.
     /// @param action Instructions for a Pendle action.
     /// @param zapAction Instructions for a zap action.
     /// @param swapActions Array of pre-Pendle swap instructions.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing into `strategyCToken`.
+    ///                       from depositing into `cToken`.
     /// @param collateralizeFor Whether the deposit should be collateralized,
     ///                         requires plugin approval.
     /// @param receiver Address that should receive Zapped deposit.
-    /// @return outAmount The `strategyCToken` output shares received by
-    ///                   `receiver`.
+    /// @return outAmount The `cToken` output shares received by `receiver`.
     function enterPendle(
-        address strategyCToken,
+        address cToken,
         address router,
+        address pendleMarket,
         bool isPt,
         PendleLib.PendleAction calldata action,
         ZapAction calldata zapAction,
@@ -76,7 +76,9 @@ contract PendleZapperMinimal is BaseZapper {
             revert BaseZapper__ExecutionError();
         }
 
-        _checkAddresses(strategyCToken, zapAction.outputToken);
+        address pendleToken = zapAction.outputToken;
+
+        _checkAddresses(cToken, pendleToken);
 
         // Swap input token for underlyings.
         _swapForUnderlyings(
@@ -90,15 +92,16 @@ contract PendleZapperMinimal is BaseZapper {
         outAmount = PendleLib._enterPendle(
             router,
             isPt,
-            zapAction.outputToken,
+            pendleMarket,
             zapAction.minimumOut,
-            action
+            action,
+            pendleToken
         );
 
         // Enter Curvance position.
         outAmount = _enterCurvance(
-            strategyCToken,
-            zapAction.outputToken,
+            cToken,
+            pendleToken,
             outAmount,
             expectedShares,
             collateralizeFor,

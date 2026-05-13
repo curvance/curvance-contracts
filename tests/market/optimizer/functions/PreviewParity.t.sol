@@ -26,6 +26,24 @@ contract TestLendingOptimizerPreviewParity is TestBaseLendingOptimizer {
         assertGt(actualAssets, previewedAssets, "expected mint to require more assets than previewMint");
     }
 
+    function test_lendingOptimizer_conversionPreviewsRoundAgainstCaller()
+        public
+    {
+        uint256 assets = 123_456_789;
+        uint256 shares = 987_654_321;
+
+        assertGe(
+            optimizer.previewWithdraw(assets),
+            optimizer.convertToShares(assets),
+            "withdraw preview should round shares up vs convertToShares"
+        );
+        assertGe(
+            optimizer.previewMint(shares),
+            optimizer.convertToAssets(shares),
+            "mint preview should round assets up vs convertToAssets"
+        );
+    }
+
     function test_lendingOptimizer_previewRedeem_canOverquoteActualAssets() public {
         uint256 depositAmount = 5_000_000e6;
         deal(USDC_MONAD, depositor, depositAmount);

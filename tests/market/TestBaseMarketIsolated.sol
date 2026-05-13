@@ -740,10 +740,21 @@ contract TestBaseMarketIsolated is TestBase {
             ICentralRegistry(address(centralRegistry)),
             _WETH_ADDRESS
         );
+        address allowedRouter = block.chainid == 10
+            ? 0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858
+            : address(1);
+        address allowedFactory = block.chainid == 10
+            ? 0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a
+            : address(1);
+
         centralRegistry.setExternalCalldataChecker(
             address(velodromeZapper),
             address(
-                new VelodromeZapperCalldataChecker(address(velodromeZapper))
+                new VelodromeZapperCalldataChecker(
+                    address(velodromeZapper),
+                    allowedRouter,
+                    allowedFactory
+                )
             )
         );
         return velodromeZapper;

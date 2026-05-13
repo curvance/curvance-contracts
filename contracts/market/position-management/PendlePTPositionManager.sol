@@ -140,7 +140,8 @@ contract PendlePTPositionManager is BasePositionManager {
             true,
             lpToken,
             minPtAmount,
-            pendleAction
+            pendleAction,
+            ptToken
         );
     }
 

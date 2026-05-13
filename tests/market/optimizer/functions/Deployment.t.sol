@@ -255,6 +255,36 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
     }
 
+    function test_lendingOptimizer_deployment_fail_whenInitialMarketIsNotBorrowable() public {
+        address mockCToken = address(0xBEEF);
+
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("asset()"),
+            abi.encode(USDC_MONAD)
+        );
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("isBorrowable()"),
+            abi.encode(false)
+        );
+
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = mockCToken;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
+    }
+
     function test_lendingOptimizer_deployment_fail_whenInvalidMarketManager() public {
         // Deploy a mock cToken that returns the correct underlying but
         // has a market manager that is NOT registered in the central registry.
