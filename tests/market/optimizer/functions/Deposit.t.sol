@@ -99,6 +99,42 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_deposit_success_differentReceiverAfterAccrual() public {
+        uint256 seedDeposit = 1000e6;
+        deal(USDC_MONAD, user2, seedDeposit, true);
+        vm.startPrank(user2);
+        IERC20(USDC_MONAD).approve(address(optimizer), seedDeposit);
+        optimizer.deposit(seedDeposit, user2);
+        vm.stopPrank();
+
+        skip(7 days);
+        optimizer.accrueIfNeeded();
+
+        uint256 depositAmount = 1000e6;
+        deal(USDC_MONAD, user1, depositAmount, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 callerSharesBefore = optimizer.balanceOf(user1);
+        uint256 receiverSharesBefore = optimizer.balanceOf(user2);
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        uint256 shares = optimizer.deposit(depositAmount, user2);
+
+        assertEq(optimizer.balanceOf(user1), callerSharesBefore, "Caller should not receive shares");
+        assertEq(optimizer.balanceOf(user2), receiverSharesBefore + shares, "Receiver should receive minted shares");
+        assertEq(optimizer.totalSupply(), totalSupplyBefore + shares, "Supply should increase by minted shares");
+        assertApproxEqAbs(
+            optimizer.totalAssets(),
+            totalAssetsBefore + depositAmount,
+            2,
+            "Assets should approximately increase by deposit"
+        );
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_deposit_reverts_zeroReceiver() public {
         vm.startPrank(user1);
 

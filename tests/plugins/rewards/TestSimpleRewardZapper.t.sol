@@ -334,6 +334,83 @@ contract TestSimpleRewardZapper is TestBaseMarketIsolated {
         _assertSimpleRewardZapperHasNoResidue();
     }
 
+    function test_authorizedOutputTokenCannotBeMutatedByUnauthorizedCaller()
+        public
+    {
+        address unauthorized = makeAddr("unauthorized");
+
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_DAI_ADDRESS),
+            2,
+            "DAI starts authorized"
+        );
+
+        vm.prank(unauthorized);
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        simpleRewardZapper.removeAuthorizedOutputToken(_DAI_ADDRESS);
+
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_DAI_ADDRESS),
+            2,
+            "unauthorized remove should not change state"
+        );
+
+        vm.prank(unauthorized);
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
+
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_WETH_ADDRESS),
+            0,
+            "unauthorized add should not change state"
+        );
+    }
+
+    function test_authorizedOutputTokenReaddRequiresElevatedPermissions()
+        public
+    {
+        address newEmergencyCouncil = makeAddr("newEmergencyCouncil");
+
+        centralRegistry.transferEmergencyCouncil(newEmergencyCouncil);
+        assertTrue(
+            centralRegistry.hasDaoPermissions(address(this)),
+            "test contract retains DAO permissions"
+        );
+        assertFalse(
+            centralRegistry.hasElevatedPermissions(address(this)),
+            "test contract loses elevated permissions"
+        );
+        assertTrue(
+            centralRegistry.hasElevatedPermissions(newEmergencyCouncil),
+            "new council receives elevated permissions"
+        );
+
+        simpleRewardZapper.removeAuthorizedOutputToken(_DAI_ADDRESS);
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_DAI_ADDRESS),
+            1,
+            "DAO can remove authorized output"
+        );
+
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        simpleRewardZapper.addAuthorizedOutputToken(_DAI_ADDRESS);
+
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_DAI_ADDRESS),
+            1,
+            "DAO-only readd should not change state"
+        );
+
+        vm.prank(newEmergencyCouncil);
+        simpleRewardZapper.addAuthorizedOutputToken(_DAI_ADDRESS);
+
+        assertEq(
+            simpleRewardZapper.authorizedOutputToken(_DAI_ADDRESS),
+            2,
+            "elevated caller can reauthorize output"
+        );
+    }
+
     function test_claimSwapAndRepay_fail_unlistedCTokenBeforeAssetLookup()
         public
     {

@@ -97,6 +97,44 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_mint_success_differentReceiverAfterAccrual() public {
+        uint256 seedShares = 1000e6;
+        uint256 seedAssets = optimizer.previewMint(seedShares);
+        deal(USDC_MONAD, user2, seedAssets * 2, true);
+        vm.startPrank(user2);
+        IERC20(USDC_MONAD).approve(address(optimizer), seedAssets * 2);
+        optimizer.mint(seedShares, user2);
+        vm.stopPrank();
+
+        skip(7 days);
+        optimizer.accrueIfNeeded();
+
+        uint256 sharesToMint = 1000e6;
+        uint256 expectedAssets = optimizer.previewMint(sharesToMint);
+        deal(USDC_MONAD, user1, expectedAssets * 2, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
+
+        uint256 callerSharesBefore = optimizer.balanceOf(user1);
+        uint256 receiverSharesBefore = optimizer.balanceOf(user2);
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        uint256 assets = optimizer.mint(sharesToMint, user2);
+
+        assertEq(optimizer.balanceOf(user1), callerSharesBefore, "Caller should not receive shares");
+        assertEq(optimizer.balanceOf(user2), receiverSharesBefore + sharesToMint, "Receiver should receive requested shares");
+        assertEq(optimizer.totalSupply(), totalSupplyBefore + sharesToMint, "Supply should increase by requested shares");
+        assertApproxEqAbs(
+            optimizer.totalAssets(),
+            totalAssetsBefore + assets,
+            2,
+            "Assets should approximately increase by deposited amount"
+        );
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_mint_reverts_zeroReceiver() public {
         vm.startPrank(user1);
 
