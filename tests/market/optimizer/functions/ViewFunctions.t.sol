@@ -12,7 +12,7 @@ import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 /// @title View Function Tests & optimalRebalance Edge Cases
 /// @notice Tests for getOptimizerAPY, getOptimizerMarketData,
@@ -191,6 +191,43 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
             data[0].markets.length, // 1 wei rounding per market
             "Sum of allocated assets should match totalAssets"
         );
+    }
+
+    /// @notice Per-market allocation cap fields match optimizer state.
+    function test_getOptimizerMarketData_allocationCapFieldsMatch() public {
+        _setUpThreeMarkets();
+
+        address[] memory optimizers = new address[](1);
+        optimizers[0] = address(optimizer);
+
+        OptimizerReader.OptimizerMarketData[] memory data =
+            reader.getOptimizerMarketData(optimizers);
+
+        for (uint256 i; i < data[0].markets.length; ++i) {
+            uint256 maxAllocation = FixedPointMathLib.mulDiv(
+                data[0].totalAssets,
+                data[0].markets[i].allocationCap,
+                WAD
+            );
+            uint256 expectedUtilizationBps = maxAllocation == 0
+                ? 0
+                : FixedPointMathLib.mulDiv(
+                    data[0].markets[i].allocatedAssets,
+                    BPS,
+                    maxAllocation
+                );
+
+            assertEq(
+                data[0].markets[i].allocationCap,
+                optimizer.allocationCaps(data[0].markets[i]._address),
+                "Allocation cap should match optimizer"
+            );
+            assertEq(
+                data[0].markets[i].allocationCapUtilizationBps,
+                expectedUtilizationBps,
+                "Allocation cap utilization should match"
+            );
+        }
     }
 
     /// @notice totalLiquidity is the sum of per-market liquidity.

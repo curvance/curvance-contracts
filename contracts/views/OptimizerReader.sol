@@ -34,6 +34,11 @@ contract OptimizerReader {
         uint256 allocatedAssets;
         /// @notice Idle (non-loaned) liquidity available in this cToken market.
         uint256 liquidity;
+        /// @notice Allocation cap for this cToken in WAD (1e18 = 100%).
+        uint256 allocationCap;
+        /// @notice Current allocation relative to the theoretical max allocation
+        ///         allowed by the cap, in BPS. 10000 = at cap.
+        uint256 allocationCapUtilizationBps;
     }
 
     struct OptimizerMarketData {
@@ -103,6 +108,9 @@ contract OptimizerReader {
 
     /// @notice Default cap headroom used by optimalRebalance planning.
     uint256 public constant CAP_BUFFER_BPS = 5;
+
+    /// @notice Number of chunks used by optimalRebalance greedy allocation.
+    uint256 public constant REBALANCE_CHUNKS = 100;
 
     /// @dev BorrowableCToken base reserve held in every initialized market.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
@@ -269,11 +277,22 @@ contract OptimizerReader {
                     _balanceOf(address(cToken), optimizers[i])
                 );
                 uint256 liquidity = _assetsHeld(cToken);
+                uint256 allocationCap = opt.allocationCaps(cTokens[j]);
+                uint256 maxAllocation = FixedPointMathLib.mulDiv(
+                    data[i].totalAssets,
+                    allocationCap,
+                    WAD
+                );
+                uint256 allocationCapUtilizationBps = maxAllocation == 0
+                    ? 0
+                    : FixedPointMathLib.mulDiv(allocated, BPS, maxAllocation);
 
                 data[i].markets[j] = OptimizerCTokenData({
                     _address: cTokens[j],
                     allocatedAssets: allocated,
-                    liquidity: liquidity
+                    liquidity: liquidity,
+                    allocationCap: allocationCap,
+                    allocationCapUtilizationBps: allocationCapUtilizationBps
                 });
                 data[i].totalLiquidity += liquidity;
             }
@@ -556,11 +575,11 @@ contract OptimizerReader {
         // Subtract locked assets from the distributable total.
         ta -= lockedAssets;
 
-        // Chunked greedy allocation: split distributable total into 20 chunks.
-        uint256 chunkSize = ta / 20;
+        // Chunked greedy allocation: split distributable total into fixed-size chunks.
+        uint256 chunkSize = ta / REBALANCE_CHUNKS;
 
-        for (uint256 c; c < 20; ++c) {
-            uint256 chunk = (c == 19) ? ta - (chunkSize * 19) : chunkSize;
+        for (uint256 c; c < REBALANCE_CHUNKS; ++c) {
+            uint256 chunk = (c == REBALANCE_CHUNKS - 1) ? ta - (chunkSize * (REBALANCE_CHUNKS - 1)) : chunkSize;
             if (chunk == 0) continue;
 
             uint256 bestRate;
