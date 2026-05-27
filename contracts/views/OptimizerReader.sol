@@ -114,7 +114,7 @@ contract OptimizerReader {
     uint256 public constant CAP_BUFFER_BPS = 5;
 
     /// @notice Number of chunks used by optimalRebalance greedy allocation.
-    uint256 public constant REBALANCE_CHUNKS = 100;
+    uint256 public constant REBALANCE_CHUNKS = 20;
 
     /// @dev BorrowableCToken base reserve held in every initialized market.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
