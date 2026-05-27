@@ -137,6 +137,16 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         assertEq(data[0]._address, address(optimizer), "Address mismatch");
         assertEq(data[0].asset, USDC_MONAD, "Asset mismatch");
         assertEq(data[0].markets.length, 3, "Should have 3 markets");
+        assertEq(
+            data[0].numApprovedMarkets,
+            optimizer.numApprovedMarkets(),
+            "numApprovedMarkets should match optimizer"
+        );
+        assertEq(
+            data[0].exchangeRateHighWatermark,
+            optimizer.exchangeRateHighWatermark(),
+            "high watermark should match optimizer"
+        );
         // apy matches the standalone getOptimizerAPY path (merged in-loop).
         assertEq(
             data[0].apy,

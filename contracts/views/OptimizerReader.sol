@@ -54,8 +54,12 @@ contract OptimizerReader {
         uint256 totalLiquidity;
         /// @notice Optimizer share price (exchange rate) in WAD.
         uint256 sharePrice;
+        /// @notice Optimizer high-watermark exchange rate used for performance fees.
+        uint256 exchangeRateHighWatermark;
         /// @notice Performance fee in BPS.
         uint256 performanceFee;
+        /// @notice Number of approved cToken markets for this optimizer.
+        uint256 numApprovedMarkets;
         /// @notice Annualized weighted-average supply APY in WAD (1e18 = 100%),
         ///         pre-performance-fee. Matches getOptimizerAPY() semantics.
         uint256 apy;
@@ -264,11 +268,13 @@ contract OptimizerReader {
             // display. Callers needing post-accrual precision should call
             // opt.exchangeRateUpdated() directly.
             data[i].sharePrice = opt.exchangeRate();
+            data[i].exchangeRateHighWatermark = opt.exchangeRateHighWatermark();
             data[i].performanceFee = opt.fee();
             data[i].apy = getOptimizerAPY(optimizers[i]);
 
             address[] memory cTokens = opt.getApprovedMarkets();
             uint256 l = cTokens.length;
+            data[i].numApprovedMarkets = l;
             data[i].markets = new OptimizerCTokenData[](l);
 
             for (uint256 j; j < l; ++j) {
