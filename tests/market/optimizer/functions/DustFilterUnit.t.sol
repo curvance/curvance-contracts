@@ -33,7 +33,7 @@ contract TestDustFilterUnit is Test {
             abi.encodeWithSelector(ICentralRegistry.oracleManager.selector),
             abi.encode(address(0xDA))
         );
-        harness = new OptimizerReaderHarness(ICentralRegistry(mockRegistry));
+        harness = new OptimizerReaderHarness(ICentralRegistry(mockRegistry), 20);
     }
 
     // ==================== Helpers ====================

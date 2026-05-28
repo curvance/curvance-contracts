@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 
-import {OptimizerReader} from "contracts/views/OptimizerReader.sol";
 import {LendingOptimizer} from "contracts/market/optimizer/LendingOptimizer.sol";
+import {OptimizerReaderHarness} from "tests/market/optimizer/OptimizerReaderHarness.sol";
 
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
@@ -24,7 +24,7 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
     uint256 constant DEFAULT_SLIPPAGE_BPS = 100;
     uint256 constant FULL_CAP_BPS = 10_000;
 
-    OptimizerReader reader;
+    OptimizerReaderHarness reader;
     LendingOptimizer optimizer;
     ICentralRegistryHighChunksExt centralRegistry;
 
@@ -33,7 +33,7 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
 
         optimizer = LendingOptimizer(LENDING_OPTIMIZER);
         centralRegistry = ICentralRegistryHighChunksExt(CENTRAL_REGISTRY);
-        reader = new OptimizerReader(ICentralRegistry(CENTRAL_REGISTRY), 11_000);
+        reader = new OptimizerReaderHarness(ICentralRegistry(CENTRAL_REGISTRY), 100);
 
         address ec = centralRegistry.emergencyCouncil();
         address[] memory markets = optimizer.getApprovedMarkets();
