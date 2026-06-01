@@ -10,7 +10,6 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 /// @notice Inspects the calldata for a VelodromeZapper zap action.
 contract VelodromeZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
-
     /// @param _target The address of the Velodrome Router contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
@@ -127,6 +126,10 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }

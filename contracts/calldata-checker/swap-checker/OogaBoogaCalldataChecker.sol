@@ -9,7 +9,6 @@ import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
 /// @notice WARNING: Currently built for Router V1.
 contract OogaBoogaCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
-
     /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     /// @notice The mask for the reverse flag
@@ -71,6 +70,10 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
         }
     }
 }

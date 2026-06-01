@@ -14,7 +14,7 @@ import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldata
 ///      - A standardized interface for all swap checkers.
 ///      - Access to core calldata examination utilities.
 ///      - A reference to the target swap contract for validation.
-///      
+///
 ///      The primary purpose of swap checkers is to secure token swap
 ///      operations by:
 ///      - Verifying the target contract matches the expected action router.
@@ -23,17 +23,17 @@ import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldata
 ///        instructions.
 ///      - Ensuring input amounts match the declared values.
 ///      - Checking that function signatures are valid for the target action.
-///      
+///
 ///      Preventing:
 ///      - Token theft through unauthorized recipients.
 ///      - Swapping incorrect tokens or amounts.
 ///      - Calling unauthorized functions or contracts.
 ///      - Other malicious manipulation of swap parameters.
-///      
+///
 ///      Specific implementations like OneInchCalldataChecker, OdosCalldataChecker,
 ///      PendleZapperCalldataChecker, etc. extend this base contract to provide
 ///      action-specific validation logic.
-///      
+///
 ///      The `SwapperLib` uses these checkers when processing swaps to ensure
 ///      calldata integrity before execution.
 ///
@@ -42,17 +42,17 @@ abstract contract BaseSwapChecker is
     BaseCalldataChecker
 {
     /// ERRORS ///
-
     error CalldataChecker__TargetError();
     error CalldataChecker__RecipientError();
     error CalldataChecker__InputTokenError();
     error CalldataChecker__InputAmountError();
     error CalldataChecker__OutputTokenError();
+    error CalldataChecker__InvalidMinOut();
     error CalldataChecker__InvalidFuncSig();
     error CalldataChecker__ReferralError();
 
     /// STORAGE ///
-    
+
     /// @notice The address of the target swap contract
     address public immutable target;
 
