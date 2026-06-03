@@ -26,6 +26,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -71,6 +73,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -108,6 +112,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -168,6 +174,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -199,6 +207,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -234,6 +244,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -270,6 +282,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -306,6 +320,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -340,6 +356,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -372,6 +390,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -401,6 +421,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -431,6 +453,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -461,6 +485,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -490,6 +516,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -527,6 +555,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -563,6 +593,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -604,6 +636,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -637,6 +671,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -669,6 +705,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -707,6 +745,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -742,6 +782,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -771,6 +813,8 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,

@@ -22,6 +22,8 @@ contract LendingOptimizerHarness is LendingOptimizer {
     )
         LendingOptimizer(
             asset_,
+            "Flagship",
+            "Flag",
             _centralRegistry,
             _approvedCTokens,
             _allocationCapsBps,

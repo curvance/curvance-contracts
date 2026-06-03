@@ -70,6 +70,8 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         optimizer = new LendingOptimizer(
             usdc,
+            "Flagship",
+            "Flag",
             ICentralRegistry(address(centralRegistry)),
             cTokens,
             caps,
@@ -215,7 +217,13 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         caps[0] = 10000;
 
         LendingOptimizer wethOptimizer = new LendingOptimizer(
-            weth, ICentralRegistry(address(centralRegistry)), cTokens, caps, 0
+            weth,
+            "Flagship",
+            "Flag",
+            ICentralRegistry(address(centralRegistry)),
+            cTokens,
+            caps,
+            0
         );
 
         _prepareWETH(address(this), 77777);
@@ -602,7 +610,13 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         caps[1] = 5000; // 50%
 
         LendingOptimizer optimizer2 = new LendingOptimizer(
-            usdc, ICentralRegistry(address(centralRegistry)), cTokens, caps, 0
+            usdc,
+            "Flagship",
+            "Flag",
+            ICentralRegistry(address(centralRegistry)),
+            cTokens,
+            caps,
+            0
         );
 
         // Initialize the optimizer.

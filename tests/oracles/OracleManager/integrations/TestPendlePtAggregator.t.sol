@@ -48,6 +48,15 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
         );
     }
 
+    function test_fail_InvalidDiscountedOneYearAtOneHundredPercent() public {
+        vm.expectRevert(
+            BaseWrappedAggregator.BaseWrappedAggregator__InvalidConfig.selector
+        );
+        aggregator = new PendlePTAggregator(
+            PT_weETH_25JUN2026, eETH, CHAINLINK_weETH_ETH, 10_000, "100"
+        );
+    }
+
     function test_fail_InvalidTimeToExpiry() public {
         vm.mockCall(
             address(IPPrincipalToken(PT_weETH_25JUN2026)),

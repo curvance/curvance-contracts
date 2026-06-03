@@ -107,6 +107,20 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         assertGt(errorCode, 0, "expected OracleManager PT error code");
     }
 
+    function testRuntimePendleTwapErrorBubblesHadError() public {
+        _setUpPriceablePrincipalToken();
+
+        vm.mockCallRevert(_LP_STETH, abi.encodeWithSelector(IPMarket.observe.selector), "observe failed");
+
+        IOracleAdaptor.PricingResult memory adaptorResult = adapter.getPrice(_PT_STETH, true, false);
+        assertTrue(adaptorResult.hadError, "expected PT adaptor to convert Pendle TWAP failure into hadError");
+        assertEq(adaptorResult.price, 0, "expected PT adaptor price to zero on Pendle TWAP failure");
+
+        (uint256 price, uint256 errorCode) = _getPtUsdQuote();
+        assertEq(price, 0, "expected OracleManager PT price to zero");
+        assertGt(errorCode, 0, "expected OracleManager PT error code");
+    }
+
     function testPriceGuard_finalPtUsdQuoteClampsThroughBaseAdjustPrice()
         public
     {

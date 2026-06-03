@@ -39,7 +39,7 @@ contract PendleZapper is PendleZapperMinimal {
     constructor(
         ICentralRegistry cr,
         address wNative
-    ) PendleZapperMinimal(cr, wNative) {}
+    ) PendleZapperMinimal(cr, wNative, false) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -134,6 +134,8 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
 
         LendingOptimizer freshOptimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             caps,

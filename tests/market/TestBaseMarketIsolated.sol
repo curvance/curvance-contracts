@@ -715,7 +715,8 @@ contract TestBaseMarketIsolated is TestBase {
             block.chainid
         ] = new PendleZapperMinimal(
             ICentralRegistry(address(centralRegistry)),
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            true
         );
         centralRegistry.setExternalCalldataChecker(
             address(pendleZapperMinimal),

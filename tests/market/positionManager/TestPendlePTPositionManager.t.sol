@@ -1444,7 +1444,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
 
         PendleZapperMinimal zapper = new PendleZapperMinimal(
-            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
         );
 
         address holder = makeAddr("ptZapperEntryUser");
@@ -1489,7 +1489,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
 
         PendleZapperMinimal zapper = new PendleZapperMinimal(
-            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
         );
 
         address holder = makeAddr("ptZapperEntryMismatchUser");
@@ -1538,7 +1538,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
 
         PendleZapperMinimal zapper = new PendleZapperMinimal(
-            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
         );
 
         address holder = makeAddr("ptZapperFakeMarketUser");
@@ -1590,7 +1590,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
 
         PendleZapperMinimal zapper = new PendleZapperMinimal(
-            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
         );
         PendlePTSwapperLibHarness harness = new PendlePTSwapperLibHarness();
         centralRegistry.setExternalCalldataChecker(

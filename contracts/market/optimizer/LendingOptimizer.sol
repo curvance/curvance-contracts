@@ -20,7 +20,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 
-/// @title Curvance Lending Optimizer.
+/// @title Curvance Lending Optimizer Vault.
 /// @notice Optimizes yield across multiple Curvance lending markets
 ///         for a single underlying asset.
 /// @dev This contract is ERC4626-like with multi-market allocation
@@ -30,6 +30,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      Preview methods are estimates, not exact settlement guarantees:
 ///      state-changing entrypoints accrue underlying markets before routing,
 ///      so preview values can differ from actual results.
+///      The share token is intentionally not vanilla ERC20:
+///      zero-amount transfers and self-transfers revert, and share movement
+///      accrues underlying market NAV before execution.
 ///
 ///      Deposits and withdrawals are routed pro-rata across approved
 ///      markets to maintain current allocation percentages. Only
@@ -173,7 +176,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///         per-market cap range (0 < cap <= 100%), no duplicates, correct
     ///         underlying asset, and registered market manager for each cToken.
     ///      2. ERC20 metadata -- derives the share token name/symbol/decimals
-    ///         from the underlying asset.
+    ///         from offchain-managed vault labels and the underlying asset symbol.
     ///      3. Market registration -- converts each allocation cap from BPS to
     ///         WAD and stores the approved cToken list. Reverts if total caps
     ///         sum to less than 100%.
@@ -183,12 +186,16 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      After construction the optimizer is NOT yet active; `initializeDeposits()`
     ///      must be called to mint dead shares and enable deposits.
     /// @param asset_ The underlying ERC20 asset (e.g. USDC).
+    /// @param vaultNamePrefix_ Vault name prefix (e.g. Flagship, Prime).
+    /// @param vaultSymbolPrefix_ Vault symbol prefix (e.g. Flag, Prime).
     /// @param _centralRegistry Protocol registry for permissions and market manager lookups.
     /// @param _approvedCTokens Initial set of Curvance cToken markets (max 8).
     /// @param _allocationCapsBps Per-market allocation caps in BPS (1-10000). Must sum >= 10000.
     /// @param _feeBps Performance fee in BPS charged on yield above the high watermark (max 5000).
     constructor(
         IERC20 asset_,
+        string memory vaultNamePrefix_,
+        string memory vaultSymbolPrefix_,
         ICentralRegistry _centralRegistry,
         address[] memory _approvedCTokens,
         uint256[] memory _allocationCapsBps,
@@ -207,8 +214,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Set essential storage slots.
         centralRegistry = _centralRegistry;
         _asset = asset_;
-        _name = string.concat("Curvance ", asset_.name(), " Optimizer");
-        _symbol = string.concat("c", asset_.symbol(), "+");
+        _name = string.concat(vaultNamePrefix_, " ", asset_.symbol(), " Vault");
+        _symbol = string.concat("v", vaultSymbolPrefix_, asset_.symbol());
         _decimals = asset_.decimals();
         // Store fee as BPS.
         fee = _feeBps;
@@ -455,6 +462,33 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /// @notice Transfers optimizer shares after synchronizing underlying market NAV.
+    /// @dev Unlike vanilla ERC20, zero-amount transfers and self-transfers revert.
+    /// @param to The address receiving shares.
+    /// @param amount The amount of shares to transfer.
+    /// @return Whether or not the transfer succeeded.
+    function transfer(address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        if (amount == 0) revert LendingOptimizer__ZeroAmount();
+        if (msg.sender == to) revert LendingOptimizer__InvalidParameter();
+
+        return super.transfer(to, amount);
+    }
+
+    /// @notice Transfers optimizer shares from `from` after synchronizing underlying market NAV.
+    /// @dev Unlike vanilla ERC20, zero-amount transfers and self-transfers revert.
+    /// @param from The address transferring shares.
+    /// @param to The address receiving shares.
+    /// @param amount The amount of shares to transfer.
+    /// @return Whether or not the transfer succeeded.
+    function transferFrom(address from, address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        if (amount == 0) revert LendingOptimizer__ZeroAmount();
+        if (from == to) revert LendingOptimizer__InvalidParameter();
+
+        return super.transferFrom(from, to, amount);
     }
 
     /// @notice Rebalances assets across approved markets.
@@ -941,7 +975,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override returns (bool result) {
-        result = interfaceId == type(IERC20).interfaceId ||
+        result = interfaceId == type(ILendingOptimizer).interfaceId ||
+            interfaceId == type(IERC20).interfaceId ||
             interfaceId == type(ERC4626).interfaceId ||
             super.supportsInterface(interfaceId);
     }

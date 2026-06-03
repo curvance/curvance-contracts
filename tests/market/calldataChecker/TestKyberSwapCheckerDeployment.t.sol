@@ -87,6 +87,30 @@ contract TestKyberSwapCheckerDeployment is Test {
         new KyberSwapChecker(KYBER_ROUTER, _executors(), dao);
     }
 
+    function test_kyberSwapChecker_rejectsZeroExecutorInConstructor() public {
+        address[] memory executors = new address[](1);
+        executors[0] = address(0);
+
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        new KyberSwapChecker(KYBER_ROUTER, executors, address(registry));
+    }
+
+    function test_kyberSwapChecker_rejectsZeroExecutorAdminUpdate() public {
+        vm.prank(dao);
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        correctChecker.setExecutorApproval(address(0), true);
+
+        vm.prank(dao);
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        correctChecker.setExecutorApproval(address(0), false);
+    }
+
     function _swapAction() internal view returns (SwapperLib.Swap memory swapAction) {
         swapAction.target = KYBER_ROUTER;
         swapAction.inputToken = inputToken;
@@ -115,7 +139,7 @@ contract TestKyberSwapCheckerDeployment is Test {
         desc.srcReceivers = new address[](1);
         desc.srcReceivers[0] = KYBER_EXECUTOR;
         desc.srcAmounts = new uint256[](1);
-        desc.srcAmounts[0] = 1e18;
+        desc.srcAmounts[0] = 1e18 - ((1e18 * 4) / 10_000);
 
         IMetaAggregationRouterV2.SwapExecutionParams memory execution;
         execution.callTarget = KYBER_EXECUTOR;

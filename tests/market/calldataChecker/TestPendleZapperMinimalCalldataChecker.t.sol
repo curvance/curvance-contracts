@@ -83,6 +83,34 @@ contract TestPendleZapperMinimalCalldataChecker is Test {
         );
     }
 
+    function test_enterPendle_revertsLpMode() public {
+        PendleLib.PendleAction memory action;
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
+
+        swapAction = SwapperLib.Swap({
+            inputToken: zapAction.inputToken,
+            inputAmount: zapAction.inputAmount,
+            outputToken: cToken,
+            target: pendleZapper,
+            slippage: 0,
+            call: _enterCalldataWithRoute(
+                cToken,
+                action,
+                zapAction,
+                42,
+                pendleMarket,
+                false
+            )
+        });
+
+        vm.expectRevert(
+            PendleZapperMinimalCalldataChecker
+                .PendleZapperMinimalCalldataChecker__InvalidPendleMode
+                .selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
     function test_revertsExitPendle() public {
         PendleLib.PendleAction memory action;
         PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
@@ -308,7 +336,7 @@ contract TestPendleZapperMinimalCalldataChecker is Test {
         uint256 expectedShares
     ) internal view returns (bytes memory) {
         return _enterCalldataWithRoute(
-            cToken_, action, zapAction, expectedShares, pendleMarket, false
+            cToken_, action, zapAction, expectedShares, pendleMarket, true
         );
     }
 

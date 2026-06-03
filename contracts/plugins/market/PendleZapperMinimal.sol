@@ -31,14 +31,23 @@ contract PendleZapperMinimal is BaseZapper {
         bool depositAsWrappedNative;
     }
 
+    /// IMMUTABLES ///
+
+    /// @notice Whether this zapper deployment only supports PT entry.
+    bool public immutable ptOnly;
+
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param wNative The address of wrapped native token.
+    /// @param ptOnly_ Whether to reject LP-mode Pendle entry.
     constructor(
         ICentralRegistry cr,
-        address wNative
-    ) BaseZapper(cr, wNative) {}
+        address wNative,
+        bool ptOnly_
+    ) BaseZapper(cr, wNative) {
+        ptOnly = ptOnly_;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -73,6 +82,10 @@ contract PendleZapperMinimal is BaseZapper {
         // Redundant receiver == address(0) check so we fail fast if execution
         // is impossible.
         if (receiver == address(0) || expectedShares == 0) {
+            revert BaseZapper__ExecutionError();
+        }
+
+        if (ptOnly && !isPt) {
             revert BaseZapper__ExecutionError();
         }
 

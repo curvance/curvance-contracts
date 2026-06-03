@@ -39,6 +39,8 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         // Create an uninitialized optimizer for testing revert cases
         uninitializedOptimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,

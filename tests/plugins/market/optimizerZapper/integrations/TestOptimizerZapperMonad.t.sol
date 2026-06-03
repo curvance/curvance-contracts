@@ -109,6 +109,8 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_ADDRESS_MONAD),
+            "Flagship",
+            "Flag",
             ICentralRegistry(address(centralRegistry)),
             cTokens,
             caps,

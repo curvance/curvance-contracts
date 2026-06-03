@@ -306,6 +306,56 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testRevert_PendleZapperMinimal_PtOnlyRejectsLpMode() public {
+        PendleZapperMinimal zapper = new PendleZapperMinimal(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
+        );
+        assertTrue(zapper.ptOnly(), "minimal zapper should be PT-only");
+
+        uint256 ethAmount = 1 ether;
+        vm.deal(user1, ethAmount);
+
+        vm.startPrank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        zapper.enterPendle{value: ethAmount}(
+            address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            false,
+            _defaultPendleAction(),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
+            new SwapperLib.Swap[](0),
+            1,
+            false,
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(
+            user1.balance,
+            ethAmount,
+            "PT-only rejection MUST roll back native input"
+        );
+        assertEq(address(zapper).balance, 0, "zapper MUST hold no native residue");
+        assertEq(
+            IERC20(_WETH_ADDRESS).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no WETH residue"
+        );
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no LP residue"
+        );
+        assertEq(
+            IERC20(address(pendleCTokenSTETH)).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no cToken residue"
+        );
+    }
+
     function testEnterPendle_fail_unlistedCTokenBeforeAssetLookup() public {
         address fakeCToken = address(0xBEEF);
 

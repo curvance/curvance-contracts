@@ -5,6 +5,7 @@ import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwa
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { IMetaAggregationRouterV2 } from "contracts/interfaces/external/kyberswap/IMetaAggregationRouterV2.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -70,6 +71,7 @@ contract KyberSwapChecker is BaseSwapChecker {
     error KyberSwapChecker__Unauthorized();
     error KyberSwapChecker__InvalidApproveTarget();
     error KyberSwapChecker__InvalidSrcConfig();
+    error KyberSwapChecker__InvalidExecutor();
 
     /// CONSTRUCTOR ///
 
@@ -93,8 +95,7 @@ contract KyberSwapChecker is BaseSwapChecker {
 
         uint256 numExecutors = kyberSwapExecutors.length;
         for (uint256 i; i < numExecutors; ++i) {
-            isApprovedExecutor[kyberSwapExecutors[i]] = true;
-            emit SwapExecutorUpdated(kyberSwapExecutors[i], true);
+            _setExecutorApproval(kyberSwapExecutors[i], true);
         }
     }
 
@@ -201,13 +202,10 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidApproveTarget();
         }
 
-        // Structural validity of srcReceivers/srcAmounts — the router's
-        // _transferFromToTarget sends input tokens (post-fee) to these
-        // addresses. Malformed arrays would revert in the router, but
-        // catching them here gives Curvance-specific errors and prevents
-        // malformed calldata from reaching external code.
+        // Source-token custody validation: the router sends post-fee input
+        // tokens to srcReceivers before executing targetData.
         uint256 srcReceiversLength = desc.srcReceivers.length;
-        if (srcReceiversLength == 0) {
+        if (srcReceiversLength != 1) {
             revert KyberSwapChecker__InvalidSrcConfig();
         }
 
@@ -215,12 +213,11 @@ contract KyberSwapChecker is BaseSwapChecker {
             revert KyberSwapChecker__InvalidSrcConfig();
         }
 
-        for (uint256 i; i < srcReceiversLength; ++i) {
-            // Prevent token burns via address(0) srcReceiver.
-            if (desc.srcReceivers[i] == address(0)) {
-                revert KyberSwapChecker__InvalidSrcConfig();
-            }
+        if (desc.srcReceivers[0] != execution.callTarget) {
+            revert KyberSwapChecker__InvalidSrcConfig();
         }
+
+        _validateSrcAmount(desc.amount, desc.srcAmounts[0]);
 
         // Belt-and-suspenders: the router checks minReturnAmount > 0 but
         // catching it here prevents execution from reaching external code
@@ -240,11 +237,22 @@ contract KyberSwapChecker is BaseSwapChecker {
     function setExecutorApproval(address executor, bool approved) external {
         _hasDaoPermissions();
 
-        isApprovedExecutor[executor] = approved;
-        emit SwapExecutorUpdated(executor, approved);
+        _setExecutorApproval(executor, approved);
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Sets executor approval after validating the executor address.
+    /// @param executor The Kyber executor address to update.
+    /// @param approved Whether `executor` should be allowlisted.
+    function _setExecutorApproval(address executor, bool approved) internal {
+        if (executor == address(0)) {
+            revert KyberSwapChecker__InvalidExecutor();
+        }
+
+        isApprovedExecutor[executor] = approved;
+        emit SwapExecutorUpdated(executor, approved);
+    }
 
     /// @notice Validates fee receiver and amount configuration.
     /// @dev    Every swap must include exactly one fee receiver which is
@@ -271,6 +279,24 @@ contract KyberSwapChecker is BaseSwapChecker {
         // Fee must be exactly the configured BPS value.
         if (feeAmounts[0] != FEE_BPS) {
             revert KyberSwapChecker__InvalidFeeConfig();
+        }
+    }
+
+    /// @notice Validates that only the enforced input-side DAO fee is withheld.
+    /// @dev Kyber floors the input-side BPS fee for current SDK-generated
+    ///      `chargeFeeBy=currency_in` routes.
+    function _validateSrcAmount(uint256 amount, uint256 srcAmount) internal pure {
+        if (srcAmount > amount) {
+            revert KyberSwapChecker__InvalidSrcConfig();
+        }
+
+        uint256 feeDelta = amount - srcAmount;
+        uint256 quotient = amount / BPS;
+        uint256 remainder = amount % BPS;
+        uint256 expectedFee = quotient * FEE_BPS + (remainder * FEE_BPS) / BPS;
+
+        if (feeDelta != expectedFee) {
+            revert KyberSwapChecker__InvalidSrcConfig();
         }
     }
 

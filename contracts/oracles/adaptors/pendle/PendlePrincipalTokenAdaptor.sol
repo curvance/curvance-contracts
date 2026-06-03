@@ -58,6 +58,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     error PendlePrincipalTokenAdaptor__CallIncreaseCardinality();
     error PendlePrincipalTokenAdaptor__OldestObservationIsNotSatisfied();
     error PendlePrincipalTokenAdaptor__QuoteAssetIsNotSupported();
+    error PendlePrincipalTokenAdaptor__Unauthorized();
 
     /// CONSTRUCTOR ///
 
@@ -95,7 +96,13 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
         AssetConfig memory config = assetConfig[asset];
         // Get PT to underlying asset ratio conversion.
-        uint256 ptRate = config.market.getPtToAssetRate(config.twapDuration);
+        uint256 ptRate;
+        try this.fetchPtToAssetRate(config.market, config.twapDuration) returns (uint256 rate) {
+            ptRate = rate;
+        } catch {
+            result.hadError = true;
+            return result;
+        }
 
         (uint256 price, uint256 errorCode) =
             CommonLib._oracleManager(centralRegistry)
@@ -119,6 +126,16 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         if (result.price == 0) {
             result.hadError = true;
         }
+    }
+
+    /// @notice Fetches the Pendle PT rate behind an external self-call so
+    ///         runtime oracle failures can be converted into `hadError`.
+    function fetchPtToAssetRate(IPMarket market, uint32 twapDuration) external view returns (uint256) {
+        if (msg.sender != address(this)) {
+            revert PendlePrincipalTokenAdaptor__Unauthorized();
+        }
+
+        return market.getPtToAssetRate(twapDuration);
     }
 
     /// @notice Adds pricing support for `asset`, a Pendle principal token.

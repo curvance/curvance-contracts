@@ -131,7 +131,8 @@ contract DeployBase is DeployScript {
 
         PendleZapperMinimal pendleZapperMinimal = new PendleZapperMinimal(
             icr,
-            wrappedNative
+            wrappedNative,
+            true
         );
         emit ContractDeployed(
             address(pendleZapperMinimal),

@@ -163,7 +163,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
     /// @param receiver The account who will receive the borrowed assets.
-    function borrow(uint256 assets, address receiver) external nonReentrant {
+    function borrow(uint256 assets, address receiver) external virtual nonReentrant {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
@@ -195,7 +195,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         _checkDelegate(owner, msg.sender);
 
         // Accrue interest if needed.
@@ -238,7 +238,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 assets,
         address owner,
         IPositionManager.LeverageAction memory action
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -356,7 +356,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of `asset()` loaned during the flashloan.
     /// @param data Arbitrary calldata passed to flashloan callback to execute
     ///             desired action during the flashloan.
-    function flashLoan(uint256 assets, bytes calldata data) external {
+    function flashLoan(uint256 assets, bytes calldata data) external virtual {
         _accrueIfNeeded();
 
         _checkZeroAmount(assets);
@@ -769,7 +769,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Can accrue interest yield, configure next interest accrual
     ///         period, and updates vesting data, if needed.
     /// @dev May emit a {RatesAdjusted} event.
-    function _accrueIfNeeded() internal override {
+    function _accrueIfNeeded() internal virtual override {
         // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);

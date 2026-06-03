@@ -13,6 +13,10 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
     /// @notice The only Pendle Router this checker permits the zapper to call.
     address public immutable pendleRouter;
 
+    /// ERRORS ///
+
+    error PendleZapperMinimalCalldataChecker__InvalidPendleMode();
+
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Pendle zapper contract.
@@ -54,7 +58,7 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
             address cToken,
             address routerParam,
             ,
-            ,
+            bool isPt,
             ,
             PendleZapperMinimal.ZapAction memory desc,
             ,
@@ -79,6 +83,10 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
 
         if (routerParam != pendleRouter) {
             revert CalldataChecker__TargetError();
+        }
+
+        if (!isPt) {
+            revert PendleZapperMinimalCalldataChecker__InvalidPendleMode();
         }
 
         if (receiver != expectedRecipient) {

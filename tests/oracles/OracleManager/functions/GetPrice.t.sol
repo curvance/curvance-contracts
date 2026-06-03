@@ -46,6 +46,61 @@ contract Oracle {
     }
 }
 
+contract MutableDenominationOracle {
+    struct PriceConfig {
+        uint256 price;
+        bool inUSD;
+        bool hadError;
+        bool supported;
+    }
+
+    mapping(address => PriceConfig) public prices;
+
+    function setPrice(
+        address asset,
+        uint256 price,
+        bool inUSD,
+        bool hadError
+    ) external {
+        prices[asset] = PriceConfig({
+            price: price,
+            inUSD: inUSD,
+            hadError: hadError,
+            supported: true
+        });
+    }
+
+    function isSupportedAsset(address asset) external view returns (bool) {
+        return prices[asset].supported;
+    }
+
+    function getPrice(
+        address asset,
+        bool,
+        bool
+    ) external view returns (IOracleAdaptor.PricingResult memory) {
+        PriceConfig memory price = prices[asset];
+        if (!price.supported) {
+            return IOracleAdaptor.PricingResult(0, true, true);
+        }
+
+        return IOracleAdaptor.PricingResult(
+            price.price,
+            price.inUSD,
+            price.hadError
+        );
+    }
+
+    function getPriceGuard(
+        address,
+        bool
+    ) external pure returns (IOracleAdaptor.PriceGuard memory guard) {}
+
+    function adaptorType() external pure returns (uint256) {
+        return 0;
+    }
+}
+
 contract GetPriceTest is TestBaseOracleManager {
     address internal constant _FXS_TOKEN =
         0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
@@ -268,5 +323,105 @@ contract GetPriceTest is TestBaseOracleManager {
 
         assertEq(price, 0);
         assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_addAssetPricingAdaptor_rejectsNativeUsdWhenAdaptorReturnsNativeDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 1e18, false, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+
+        vm.expectRevert(OracleManager.OracleManager__InvalidParameter.selector);
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+    }
+
+    function test_getPrice_nativeUsdReturnsBadSourceWhenAdaptorDriftsToNativeDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        feed.setPrice(_ETH_ADDRESS, 1e18, false, false);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _ETH_ADDRESS,
+            true,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_nativeNativeReturnsBadSourceWhenAdaptorReturnsUsdDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _ETH_ADDRESS,
+            false,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_nonNativeFallbackConversionStillWorks() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+        feed.setPrice(_FXS_TOKEN, 6e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _FXS_TOKEN,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _FXS_TOKEN,
+            false,
+            true
+        );
+
+        assertEq(price, 1_500_000_000_000_000);
+        assertEq(errorCode, 0);
     }
 }

@@ -5,6 +5,7 @@ import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BPS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -374,18 +375,25 @@ contract OracleManager is IOracleManager {
     function addCTokenSupport(address newCToken) external {
         _checkElevatedPermissions();
 
-        // We call a Curvance-specific token function as a sanity check.
-        ICToken(newCToken).isBorrowable();
+        ICToken cToken = ICToken(newCToken);
+
+        if (!ERC165Checker.supportsInterface(newCToken, type(ICToken).interfaceId)) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        if (!centralRegistry.isMarketManager(address(cToken.marketManager()))) {
+            revert OracleManager__InvalidParameter();
+        }
 
         // Validate `newCToken` has not already been registered as a cToken,
         // and that `newUnderlying` is not address(0) as that is how we check
         // whether a token is a cToken or not.
-        address newUnderlying = ICToken(newCToken).asset();
+        address newUnderlying = cToken.asset();
         if (cTokens[newCToken] != address(0) || newUnderlying == address(0)) {
             revert OracleManager__InvalidParameter();
         }
 
-        cTokens[newCToken]= newUnderlying;
+        cTokens[newCToken] = newUnderlying;
     }
 
     /// @notice Removes a Curvance token's support in the Oracle Manager.
@@ -611,6 +619,7 @@ contract OracleManager is IOracleManager {
             revert OracleManager__NotSupported();
         }
 
+        uint256 collateralTokenExchangeRate = ICToken(collateralToken).exchangeRateUpdated();
         (collateralSharesPrice, errorCode) = _getPrice(
             underlying,
             true,
@@ -619,7 +628,7 @@ contract OracleManager is IOracleManager {
 
         collateralSharesPrice = FixedPointMathLib.mulDiv(
             collateralSharesPrice,
-            ICToken(collateralToken).exchangeRateUpdated(),
+            collateralTokenExchangeRate,
             WAD
         );
 
@@ -818,7 +827,11 @@ contract OracleManager is IOracleManager {
         IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptor)
             .getPrice(asset, true, true);
 
-        if (result.price == 0 || result.hadError) {
+        if (
+            result.price == 0 ||
+            result.hadError ||
+            (asset == native && !result.inUSD)
+        ) {
             revert OracleManager__InvalidParameter();
         }
 
@@ -826,7 +839,11 @@ contract OracleManager is IOracleManager {
         // by sampling a price call with `getLower` = false.
         result = IOracleAdaptor(adaptor).getPrice(asset, true, false);
 
-        if (result.price == 0 || result.hadError) {
+        if (
+            result.price == 0 ||
+            result.hadError ||
+            (asset == native && !result.inUSD)
+        ) {
             revert OracleManager__InvalidParameter();
         }
 
@@ -967,6 +984,10 @@ contract OracleManager is IOracleManager {
             return (0, true);
         }
 
+        if (asset == native && result.inUSD != inUSD) {
+            return (0, true);
+        }
+
         // If the adaptor's price denomination is not in the proper form,
         // modify it.
         if (result.inUSD != inUSD) {
@@ -1072,7 +1093,7 @@ contract OracleManager is IOracleManager {
         if (getLower) {
             return FixedPointMathLib.mulDiv(currentPrice, WAD, conversionRate);
         }
-        
+
         return FixedPointMathLib.mulDivUp(currentPrice, WAD, conversionRate);
     }
 
