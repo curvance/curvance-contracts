@@ -925,6 +925,34 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         _assertSimpleZapperHasNoResidue();
     }
 
+    function test_Multicall_fail_nonPriceCallCannotTargetExternalRouter()
+        public
+    {
+        Multicall.MulticallAction[] memory calls =
+            new Multicall.MulticallAction[](1);
+        calls[0].target = _UNISWAP_V3_SWAP_ROUTER;
+        calls[0].isPriceUpdate = false;
+        calls[0].data = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector
+        );
+
+        vm.expectRevert(Multicall.Multicall__InvalidTarget.selector);
+        simpleZapper.multicall(calls);
+    }
+
+    function test_Multicall_fail_priceUpdateRequiresRegisteredChecker()
+        public
+    {
+        Multicall.MulticallAction[] memory calls =
+            new Multicall.MulticallAction[](1);
+        calls[0].target = makeAddr("unregistered price target");
+        calls[0].isPriceUpdate = true;
+        calls[0].data = "";
+
+        vm.expectRevert(Multicall.Multicall__UnknownCalldata.selector);
+        simpleZapper.multicall(calls);
+    }
+
     function test_Multicall_fail_native_doubleZap() public {
         uint256 ethAmount = 1 ether;
         vm.deal(user1, ethAmount);
