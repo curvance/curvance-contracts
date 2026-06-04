@@ -51,7 +51,6 @@ contract AddChainlinkVaultAggSupport is DeployScript {
         );
 
         chainlink.addAsset(vaultToken, inUSD, vaultAgg, heartbeat);
-        oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
 
         if(guardConfig.enabled) {
             chainlink.setGuardedPriceConfig(
@@ -63,5 +62,7 @@ contract AddChainlinkVaultAggSupport is DeployScript {
                 guardConfig.minPrice
             );
         }
+
+        oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
     }
 }

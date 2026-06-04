@@ -15,6 +15,7 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
@@ -1290,7 +1291,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @dev Validates cToken has correct underlying, is borrowable,
-    ///      has a registered market manager, and is listed in that manager.
+    ///      has a registered market manager, is listed in that manager,
+    ///      and is not paired with this optimizer's share token.
     /// @param cToken The cToken market address to validate.
     function _validateCToken(address cToken) internal view {
         if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
@@ -1299,6 +1301,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address marketManager = address(IBorrowableCToken(cToken).marketManager());
         if (!centralRegistry.isMarketManager(marketManager)) revert LendingOptimizer__InvalidMarketManager();
         if (!IMarketManager(marketManager).isListed(cToken)) revert LendingOptimizer__InvalidMarketManager();
+
+        address[] memory listedTokens = IMarketManager(marketManager).queryTokensListed();
+        for (uint256 i; i < listedTokens.length; ++i) {
+            if (listedTokens[i] != cToken && ICToken(listedTokens[i]).asset() == address(this)) {
+                revert LendingOptimizer__InvalidMarketManager();
+            }
+        }
     }
 
     /// @dev Returns whether a market is approved for allocation.

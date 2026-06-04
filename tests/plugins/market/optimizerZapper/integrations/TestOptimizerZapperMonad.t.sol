@@ -149,7 +149,7 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             address(optimizer),
             false,
             swapAction,
-            0,
+            1,
             user1
         );
         vm.stopPrank();

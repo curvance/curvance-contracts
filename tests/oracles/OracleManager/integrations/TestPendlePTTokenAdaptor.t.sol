@@ -121,6 +121,32 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         assertGt(errorCode, 0, "expected OracleManager PT error code");
     }
 
+    function testPostExpiryPtQuoteBypassesMarketObserve() public {
+        _setUpPriceablePrincipalToken();
+
+        vm.warp(IPMarket(_LP_STETH).expiry() + 1);
+        vm.mockCall(
+            _CHAINLINK_ETH_USD,
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(1e8),
+                block.timestamp,
+                block.timestamp,
+                uint80(1)
+            )
+        );
+        vm.mockCallRevert(
+            _LP_STETH,
+            abi.encodeWithSelector(IPMarket.observe.selector),
+            "observe failed"
+        );
+
+        (uint256 price, uint256 errorCode) = _getPtUsdQuote();
+        assertEq(errorCode, 0, "post-expiry PT quote should not depend on observe");
+        assertGt(price, 0, "expected post-expiry PT quote");
+    }
+
     function testPriceGuard_finalPtUsdQuoteClampsThroughBaseAdjustPrice()
         public
     {

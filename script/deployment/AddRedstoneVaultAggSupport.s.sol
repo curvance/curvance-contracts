@@ -51,7 +51,6 @@ contract AddRedstoneVaultAggSupport is DeployScript {
         );
 
         redstone.addAsset(vaultToken, inUSD, vaultAgg, 0, feedId);
-        oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
 
         if(guardConfig.enabled) {
             redstone.setGuardedPriceConfig(
@@ -63,5 +62,7 @@ contract AddRedstoneVaultAggSupport is DeployScript {
                 guardConfig.minPrice
             );
         }
+
+        oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
     }
 }

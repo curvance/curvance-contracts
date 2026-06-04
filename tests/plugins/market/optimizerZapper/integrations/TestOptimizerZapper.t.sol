@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
+import {BaseSwapChecker} from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import {OptimizerZapper} from "contracts/plugins/market/OptimizerZapper.sol";
 import {
     LendingOptimizer
@@ -20,6 +21,59 @@ import {
 
 import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+
+contract TestUniswapV3ExactInputSingleChecker is BaseSwapChecker {
+    address internal immutable _wrappedNative;
+
+    constructor(address target_, address wrappedNative_) BaseSwapChecker(target_) {
+        _wrappedNative = wrappedNative_;
+    }
+
+    function checkCalldata(
+        SwapperLib.Swap memory swapAction,
+        address expectedRecipient
+    ) external view override returns (uint256 minOutAmount) {
+        if (swapAction.target != target) {
+            revert CalldataChecker__TargetError();
+        }
+
+        if (
+            _getFuncSigHash(swapAction.call)
+                != IUniswapV3Router.exactInputSingle.selector
+        ) {
+            revert CalldataChecker__InvalidFuncSig();
+        }
+
+        IUniswapV3Router.ExactInputSingleParams memory params = abi.decode(
+            _getFuncParams(swapAction.call),
+            (IUniswapV3Router.ExactInputSingleParams)
+        );
+
+        address expectedInputToken = swapAction.inputToken == SwapperLib.native
+            ? _wrappedNative
+            : swapAction.inputToken;
+        if (params.tokenIn != expectedInputToken) {
+            revert CalldataChecker__InputTokenError();
+        }
+
+        if (params.amountIn != swapAction.inputAmount) {
+            revert CalldataChecker__InputAmountError();
+        }
+
+        if (params.tokenOut != swapAction.outputToken) {
+            revert CalldataChecker__OutputTokenError();
+        }
+
+        if (params.recipient != expectedRecipient) {
+            revert CalldataChecker__RecipientError();
+        }
+
+        minOutAmount = params.amountOutMinimum;
+        if (minOutAmount == 0) {
+            revert CalldataChecker__InvalidMinOut();
+        }
+    }
+}
 
 contract TestOptimizerZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
@@ -119,7 +173,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         vm.prank(user1);
         uint256 shares = optimizerZapper.swapAndDeposit{value: ethAmount}(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
 
         assertEq(user1.balance, 0, "User should have spent all ETH");
@@ -129,6 +183,51 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             shares,
             "Balance should match returned shares"
         );
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
+    }
+
+    function testSwapAndDeposit_UniswapCheckerValidatesRecipientAndMinOut()
+        public
+    {
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(
+                new TestUniswapV3ExactInputSingleChecker(
+                    _UNISWAP_V3_SWAP_ROUTER,
+                    _WETH_ADDRESS
+                )
+            )
+        );
+
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = SwapperLib.native;
+        swapAction.inputAmount = ethAmount;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _WETH_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(optimizerZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = ethAmount;
+        params.amountOutMinimum = 1;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector, params
+        );
+
+        vm.prank(user1);
+        uint256 shares = optimizerZapper.swapAndDeposit{value: ethAmount}(
+            address(optimizer), false, swapAction, 1, user1
+        );
+
+        assertGt(shares, 0, "Should receive optimizer shares");
+        assertEq(optimizer.balanceOf(user1), shares, "shares");
         _assertOptimizerZapperHasNoResidue(address(optimizer));
     }
 
@@ -146,7 +245,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         uint256 expectedShares = optimizer.previewDeposit(amount);
         uint256 shares = optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, expectedShares, user1
         );
         vm.stopPrank();
 
@@ -186,7 +285,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         usdc.approve(address(optimizerZapper), amount);
 
         uint256 shares = optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, expectedShares, user1
         );
         vm.stopPrank();
 
@@ -238,7 +337,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         uint256 expectedShares = wethOptimizer.previewDeposit(amount);
         vm.prank(user1);
         uint256 shares = optimizerZapper.swapAndDeposit{value: amount}(
-            address(wethOptimizer), true, swapAction, 0, user1
+            address(wethOptimizer), true, swapAction, 1, user1
         );
 
         assertEq(user1.balance, 0, "User should have spent all ETH");
@@ -268,7 +367,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         uint256 expectedShares = optimizer.previewDeposit(amount);
         uint256 shares = optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user2
+            address(optimizer), false, swapAction, expectedShares, user2
         );
         vm.stopPrank();
 
@@ -301,8 +400,34 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             OptimizerZapper.OptimizerZapper__ExecutionError.selector
         );
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, address(0)
+            address(optimizer), false, swapAction, 1, address(0)
         );
+        vm.stopPrank();
+    }
+
+    function testSwapAndDeposit_fail_ZeroExpectedShares() public {
+        uint256 amount = 1000e6;
+        _prepareUSDC(user1, amount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        vm.startPrank(user1);
+        usdc.approve(address(optimizerZapper), amount);
+        uint256 userBalanceBefore = usdc.balanceOf(user1);
+
+        vm.expectRevert(
+            OptimizerZapper.OptimizerZapper__ExecutionError.selector
+        );
+        optimizerZapper.swapAndDeposit(
+            address(optimizer), false, swapAction, 0, user1
+        );
+
+        assertEq(usdc.balanceOf(user1), userBalanceBefore);
+        assertEq(optimizer.balanceOf(user1), 0);
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
         vm.stopPrank();
     }
 
@@ -323,7 +448,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             OptimizerZapper.OptimizerZapper__AssetMismatch.selector
         );
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
         vm.stopPrank();
     }
@@ -342,12 +467,29 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         dai.approve(address(optimizerZapper), amount);
 
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 optimizerSharesBefore = optimizer.balanceOf(user1);
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        vm.expectCall(
+            _DAI_ADDRESS,
+            abi.encodeWithSelector(
+                IERC20.transferFrom.selector, user1, address(optimizerZapper), amount
+            ),
+            0
+        );
+        vm.expectCall(address(0xBEEF), swapAction.call, 0);
         vm.expectRevert(
             OptimizerZapper.OptimizerZapper__AssetMismatch.selector
         );
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
+
+        assertEq(dai.balanceOf(user1), userDaiBefore);
+        assertEq(optimizer.balanceOf(user1), optimizerSharesBefore);
+        assertEq(optimizer.totalAssets(), totalAssetsBefore);
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
         vm.stopPrank();
     }
 
@@ -382,6 +524,49 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testSwapAndDeposit_fail_ExternalSwapInsufficientSharesRollsBack()
+        public
+    {
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = SwapperLib.native;
+        swapAction.inputAmount = ethAmount;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _WETH_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(optimizerZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = ethAmount;
+        params.amountOutMinimum = 1;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector, params
+        );
+
+        uint256 userEthBefore = user1.balance;
+        uint256 optimizerSharesBefore = optimizer.balanceOf(user1);
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        vm.prank(user1);
+        vm.expectRevert(
+            OptimizerZapper.OptimizerZapper__ExecutionError.selector
+        );
+        optimizerZapper.swapAndDeposit{value: ethAmount}(
+            address(optimizer), false, swapAction, type(uint256).max, user1
+        );
+
+        assertEq(user1.balance, userEthBefore);
+        assertEq(optimizer.balanceOf(user1), optimizerSharesBefore);
+        assertEq(optimizer.totalAssets(), totalAssetsBefore);
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
+    }
+
     function testSwapAndDeposit_fail_TightSwapSafeSlippage() public {
         uint256 amount = 1000e18;
         _prepareDAI(user1, amount);
@@ -411,7 +596,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
         vm.stopPrank();
     }
@@ -436,7 +621,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
 
         vm.expectRevert(SwapperLib.SwapperLib__UnknownCalldata.selector);
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
 
         assertEq(dai.balanceOf(user1), userDaiBefore);
@@ -485,7 +670,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             )
         );
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
 
         assertEq(dai.balanceOf(user1), userDaiBefore);
@@ -493,6 +678,62 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         assertEq(optimizer.totalAssets(), totalAssetsBefore);
         _assertOptimizerZapperHasNoResidue(address(optimizer));
         vm.stopPrank();
+    }
+
+    function testSwapAndDeposit_fail_UniswapCheckerRecipientMismatchRollsBack()
+        public
+    {
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(
+                new TestUniswapV3ExactInputSingleChecker(
+                    _UNISWAP_V3_SWAP_ROUTER,
+                    _WETH_ADDRESS
+                )
+            )
+        );
+
+        uint256 amount = 1000e18;
+        _prepareDAI(user1, amount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = 0.999e18;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = user1;
+        params.deadline = block.timestamp;
+        params.amountIn = amount;
+        params.amountOutMinimum = 1;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector, params
+        );
+
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 userUsdcBefore = usdc.balanceOf(user1);
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+
+        vm.startPrank(user1);
+        dai.approve(address(optimizerZapper), amount);
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__RecipientError.selector
+        );
+        optimizerZapper.swapAndDeposit(
+            address(optimizer), false, swapAction, 1, user1
+        );
+        vm.stopPrank();
+
+        assertEq(dai.balanceOf(user1), userDaiBefore);
+        assertEq(usdc.balanceOf(user1), userUsdcBefore);
+        assertEq(optimizer.totalAssets(), totalAssetsBefore);
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
     }
 
     function testSwapAndDeposit_fail_MsgValueWithERC20() public {
@@ -512,7 +753,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             OptimizerZapper.OptimizerZapper__ExecutionError.selector
         );
         optimizerZapper.swapAndDeposit{value: 1 ether}(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
         vm.stopPrank();
     }
@@ -533,7 +774,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             OptimizerZapper.OptimizerZapper__ExecutionError.selector
         );
         optimizerZapper.swapAndDeposit{value: amount - 1}(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
 
         assertEq(user1.balance, amount);
@@ -640,7 +881,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         usdc.approve(address(optimizerZapper), amount);
 
         uint256 shares = optimizerZapper.swapAndDeposit(
-            address(optimizer2), false, swapAction, 0, user1
+            address(optimizer2), false, swapAction, 1, user1
         );
         vm.stopPrank();
 
@@ -676,7 +917,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         // Optimizer's deposit reverts with MintPaused — propagates through zapper.
         vm.expectRevert(LendingOptimizer.LendingOptimizer__MintPaused.selector);
         optimizerZapper.swapAndDeposit(
-            address(optimizer), false, swapAction, 0, user1
+            address(optimizer), false, swapAction, 1, user1
         );
         assertEq(usdc.balanceOf(address(optimizerZapper)), 0);
         vm.stopPrank();

@@ -56,6 +56,16 @@ contract AddCTokenSupportTest is TestBaseOracleManager {
         oracleManager.addCTokenSupport(address(fake));
     }
 
+    function test_addCTokenSupport_fail_whenICTokenShapeHasZeroAsset() public {
+        MockERC165CTokenLiar fake = new MockERC165CTokenLiar(
+            address(0),
+            address(marketManagerIsolated)
+        );
+
+        vm.expectRevert(OracleManager.OracleManager__InvalidParameter.selector);
+        oracleManager.addCTokenSupport(address(fake));
+    }
+
     function test_addCTokenSupport_success_whenRegisteredMarketManagerTokenIsUnlisted() public {
         assertFalse(marketManagerIsolated.isListed(address(borrowableCUSDC)));
 

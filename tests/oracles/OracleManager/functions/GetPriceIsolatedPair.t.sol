@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
@@ -245,6 +246,20 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
             address(borrowableCDAI),
             address(borrowableCUSDC),
             2
+        );
+    }
+}
+
+contract GetPriceIsolatedPairSequencerTest is TestBaseOracleManager {
+
+    function test_getPriceIsolatedPair_fail_whenSequencerStartedAtIsFuture() public {
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(borrowableCUSDC),
+            address(borrowableCUSDC),
+            BAD_SOURCE
         );
     }
 }

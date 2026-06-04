@@ -11,6 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
+import { OptimizerZapper } from "contracts/plugins/market/OptimizerZapper.sol";
 import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
@@ -108,6 +109,13 @@ contract DeployBase is DeployScript {
         ICentralRegistry icr,
         address wrappedNative
     ) public useDeployer {
+        _deployZappers(icr, wrappedNative);
+    }
+
+    function _deployZappers(
+        ICentralRegistry icr,
+        address wrappedNative
+    ) internal {
         NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(
             icr,
             wrappedNative
@@ -127,6 +135,15 @@ contract DeployBase is DeployScript {
         emit ContractDeployed(
             address(simpleZapper),
             string.concat("zappers.simpleZapper")
+        );
+
+        OptimizerZapper optimizerZapper = new OptimizerZapper(
+            icr,
+            wrappedNative
+        );
+        emit ContractDeployed(
+            address(optimizerZapper),
+            string.concat("zappers.optimizerZapper")
         );
 
         PendleZapperMinimal pendleZapperMinimal = new PendleZapperMinimal(

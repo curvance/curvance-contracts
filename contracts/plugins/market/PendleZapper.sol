@@ -8,6 +8,8 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { TokenOutput } from "contracts/interfaces/external/pendle/IPAllActionTypeV3.sol";
+import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 
 /// @title Curvance Pendle Zapper.
 /// @notice Pendle Asset-specific contract for executing zap related
@@ -280,6 +282,16 @@ contract PendleZapper is PendleZapperMinimal {
             revert BaseZapper__ExecutionError();
         }
 
+        if (isPt) {
+            _validateTokenOutput(action.output);
+        }
+
+        _validateExitEndpoints(
+            isPt ? action.output.tokenOut : pendleToken,
+            zapAction.outputToken,
+            swapActions
+        );
+
         // Exit Pendle position.
         PendleLib._exitPendle(
             router,
@@ -305,5 +317,39 @@ contract PendleZapper is PendleZapperMinimal {
 
         // Transfer output tokens to `receiver`.
         _transferToRecipient(zapAction.outputToken, receiver, outAmount);
+    }
+
+    function _validateExitEndpoints(
+        address pendleOutputToken,
+        address zapOutputToken,
+        SwapperLib.Swap[] calldata swapActions
+    ) internal pure {
+        uint256 numTokenSwaps = swapActions.length;
+
+        if (numTokenSwaps == 0) {
+            if (pendleOutputToken != zapOutputToken) {
+                revert BaseZapper__ExecutionError();
+            }
+
+            return;
+        }
+
+        if (
+            swapActions[0].inputToken != pendleOutputToken ||
+            swapActions[numTokenSwaps - 1].outputToken != zapOutputToken
+        ) {
+            revert BaseZapper__ExecutionError();
+        }
+    }
+
+    function _validateTokenOutput(
+        TokenOutput calldata output
+    ) internal pure {
+        if (
+            output.swapData.swapType == SwapType.NONE &&
+            output.tokenOut != output.tokenRedeemSy
+        ) {
+            revert BaseZapper__ExecutionError();
+        }
     }
 }

@@ -140,6 +140,27 @@ contract GetPriceTest is TestBaseOracleManager {
         assertEq(errorCode, BAD_SOURCE);
     }
 
+    function test_getPrice_success_withBadSourceErrorCode_whenSequencerStartedAtIsFuture()
+        public
+    {
+        _addSinglePriceFeed();
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _USDC_ADDRESS,
+            true,
+            true
+        );
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_isSequencerValid_fail_whenSequencerStartedAtIsFuture() public {
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        assertFalse(oracleManager.isSequencerValid());
+    }
+
     function test_getPrice_success() public {
         _addSinglePriceFeed();
 

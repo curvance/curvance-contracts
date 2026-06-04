@@ -13,8 +13,8 @@ import {
 } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import {PendleZapper} from "contracts/plugins/market/PendleZapper.sol";
 import {
-    PendleZapperCalldataChecker
-} from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+    PendleZapperMinimalCalldataChecker
+} from "contracts/calldata-checker/swap-checker/PendleZapperMinimalCalldataChecker.sol";
 import {BaseZapper} from "contracts/plugins/BaseZapper.sol";
 import {
     PendlePrincipalTokenAdaptor
@@ -50,6 +50,7 @@ import {IWstETH} from "contracts/interfaces/external/lido/IWstETH.sol";
 import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 import {
     SafeTransferLib
 } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -888,6 +889,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         deleverageAction.auxData = abi.encode(_LP_STETH, action);
     }
 
+    function _addWstEthPricingForMockSwap() internal {
+        MockV3Aggregator wstEthUsd = new MockV3Aggregator(8, 3_000e8);
+        chainlinkAdaptor.addAsset(_WSTETH, true, address(wstEthUsd), 0);
+        oracleManager.addAssetPricingAdaptor(
+            _WSTETH, address(chainlinkAdaptor), 100, 50, 100, 50
+        );
+    }
+
     /// @notice Empirical: post-expiry, calling Pendle's `redeemPyToToken`
     ///         against the live mainnet PT-stETH-26DEC24 + YT + SY contracts
     ///         redeems PT to wstETH WITHOUT requiring YT (Curvance never
@@ -1018,10 +1027,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
     /// @notice Integration: post-expiry PT redemption to a non-debt token
     ///         MUST include a follow-up swap into the debt asset.
-    /// @dev Pre-fix: PendleLib._exitPendle's `isPt=true` branch only calls
-    ///      `swapExactPtForToken`, which reverts post-expiry with
-    ///      `Errors.MarketExpired` (vendored Pendle math). This test
-    ///      MUST fail before the fix lands, and pass after.
+    /// @dev The PM should reject local endpoint mismatch before calling
+    ///      Pendle's router exit path.
     function testRevert_DeLeverage_PostExpiryNoSwapNonDebtOutput() public {
         // 1. Set up the leveraged PT position (pre-expiry).
         testLeverage();
@@ -1061,6 +1068,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.redeemPyToToken.selector),
+            0
+        );
         vm.expectRevert(
             bytes4(keccak256("BasePositionManager__InvalidParam()"))
         );
@@ -1085,6 +1097,205 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             0,
             "PM MUST not retain wstETH after reverted deleverage"
         );
+    }
+
+    /// @notice Endpoint validation: invalid follow-up swap endpoints should
+    ///         fail before the PM calls Pendle's router.
+    function testRevert_DeLeverage_InvalidSwapEndpointBeforePendleExit()
+        public
+    {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].target = _UNISWAP_V2_ROUTER;
+        swapActions[0].inputToken = _DAI_ADDRESS;
+        swapActions[0].inputAmount = 1;
+        swapActions[0].outputToken = _DAI_ADDRESS;
+        swapActions[0].call = hex"01";
+        deleverageAction.swapActions = swapActions;
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.redeemPyToToken.selector),
+            0
+        );
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+    }
+
+    function testRevert_DeLeverage_InvalidTerminalSwapOutputBeforePendleExit()
+        public
+    {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].target = _UNISWAP_V2_ROUTER;
+        swapActions[0].inputToken = _WSTETH;
+        swapActions[0].inputAmount = _EXPECTED_POST_EXPIRY_WSTETH_OUT;
+        swapActions[0].outputToken = _WETH_ADDRESS;
+        swapActions[0].call = hex"01";
+        deleverageAction.swapActions = swapActions;
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.redeemPyToToken.selector),
+            0
+        );
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(positionManager)),
+            0,
+            "PM MUST not redeem before terminal-output validation"
+        );
+    }
+
+    function testRevert_DeLeverage_NoAggregatorRejectsInconsistentTokenOutputBeforePendleExit()
+        public
+    {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        _refreshChainlinkOracles();
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        _prepareDAI(address(positionManager), fullDebt);
+
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        PendleLib.PendleAction memory action;
+        action.output.tokenOut = _DAI_ADDRESS;
+        action.output.minTokenOut = 1;
+        action.output.tokenRedeemSy = _WSTETH;
+        deleverageAction.auxData = abi.encode(_LP_STETH, action);
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.redeemPyToToken.selector),
+            0
+        );
+        vm.expectRevert(
+            bytes4(keccak256("BasePositionManager__InvalidParam()"))
+        );
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+    }
+
+    function test_DeLeverage_PostExpiryFollowUpSwapRepaysDebt() public {
+        testLeverage();
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 expiry = IPPrincipalToken(_PT_STETH).expiry();
+        vm.warp(expiry + 1 hours);
+
+        _refreshChainlinkOracles();
+        _addWstEthPricingForMockSwap();
+        borrowableCDAI.accrueIfNeeded();
+
+        uint256 fullDebt = borrowableCDAI.debtBalanceUpdated(user);
+        AccountSnapshot memory borrowBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory ptBefore = cPendlePTSTETH.getSnapshot(user);
+
+        MockExactOutSwapTarget swapTarget = new MockExactOutSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(swapTarget),
+            address(new MockCalldataChecker(address(swapTarget)))
+        );
+        _prepareDAI(address(swapTarget), fullDebt);
+
+        PendlePTPositionManager.DeleverageAction memory deleverageAction =
+            _buildPostExpiryDeleverageAction(1 ether, fullDebt);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0] = SwapperLib.Swap({
+            inputToken: _WSTETH,
+            inputAmount: _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            outputToken: _DAI_ADDRESS,
+            target: address(swapTarget),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                MockExactOutSwapTarget.swap.selector,
+                _WSTETH,
+                _DAI_ADDRESS,
+                _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+                fullDebt
+            )
+        });
+        deleverageAction.swapActions = swapActions;
+
+        vm.startPrank(user);
+        cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        positionManager.deleverage(deleverageAction, 1e18);
+        vm.stopPrank();
+
+        AccountSnapshot memory borrowAfter = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowAfter.debtBalance, 0, "debt MUST be fully repaid");
+        assertEq(
+            borrowBefore.debtBalance - borrowAfter.debtBalance,
+            fullDebt,
+            "debt delta MUST equal requested repay"
+        );
+
+        AccountSnapshot memory ptAfter = cPendlePTSTETH.getSnapshot(user);
+        assertEq(
+            ptAfter.collateralPosted,
+            ptBefore.collateralPosted - 1 ether,
+            "collateral MUST be removed"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(swapTarget)),
+            _EXPECTED_POST_EXPIRY_WSTETH_OUT,
+            "mock swap target MUST receive redeemed wstETH"
+        );
+        _assertNoPositionManagerResidue();
     }
 
     /// @notice Drift sentinel: redeeming the same PT amount at two
@@ -1206,6 +1417,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.redeemPyToToken.selector),
+            0
+        );
         vm.expectRevert(
             bytes4(keccak256("BasePositionManager__InvalidParam()"))
         );
@@ -1397,6 +1613,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         action.output.minTokenOut = type(uint256).max;
         action.output.tokenRedeemSy = _WSTETH;
         deleverageAction.auxData = abi.encode(_LP_STETH, action);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].target = _UNISWAP_V2_ROUTER;
+        swapActions[0].inputToken = _WSTETH;
+        swapActions[0].inputAmount = 1;
+        swapActions[0].outputToken = _DAI_ADDRESS;
+        swapActions[0].call = hex"01";
+        deleverageAction.swapActions = swapActions;
 
         vm.startPrank(user);
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
@@ -1596,7 +1820,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         centralRegistry.setExternalCalldataChecker(
             address(zapper),
             address(
-                new PendleZapperCalldataChecker(
+                new PendleZapperMinimalCalldataChecker(
                     address(zapper), address(_ROUTER)
                 )
             )
@@ -1718,6 +1942,57 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             IERC20(_WSTETH).balanceOf(address(zapper)),
             0,
             "zapper MUST hold no residual wstETH"
+        );
+    }
+
+    function testRevert_PendleZapper_ExitPendle_PT_NoAggregatorRejectsInconsistentTokenOutput()
+        public
+    {
+        assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
+
+        PendleZapper zapper = new PendleZapper(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+        );
+
+        address holder = makeAddr("ptZapperExitRedeemSyMismatchUser");
+        uint256 ptAmount = 1 ether;
+        _preparePT(holder, ptAmount);
+
+        PendleLib.PendleAction memory action;
+        action.output.tokenOut = _WSTETH;
+        action.output.minTokenOut = 1;
+        action.output.tokenRedeemSy = _DAI_ADDRESS;
+
+        PendleZapperMinimal.ZapAction memory zapAction;
+        zapAction.inputToken = _PT_STETH;
+        zapAction.inputAmount = ptAmount;
+        zapAction.outputToken = _WSTETH;
+        zapAction.minimumOut = 1;
+
+        vm.startPrank(holder);
+        IERC20(_PT_STETH).approve(address(zapper), ptAmount);
+        vm.expectCall(
+            address(_ROUTER),
+            abi.encodeWithSelector(IPendleRouter.swapExactPtForToken.selector),
+            0
+        );
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        zapper.exitPendle(
+            _PT_STETH,
+            address(_ROUTER),
+            _LP_STETH,
+            true,
+            action,
+            zapAction,
+            new SwapperLib.Swap[](0),
+            holder
+        );
+        vm.stopPrank();
+
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(holder),
+            ptAmount,
+            "inconsistent token output MUST roll back PT"
         );
     }
 
@@ -2347,6 +2622,18 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(IERC20(_WSTETH).balanceOf(address(positionManager)), 0);
         assertEq(pendlePT.balanceOf(address(positionManager)), 0);
         assertEq(cPendlePTSTETH.balanceOf(address(positionManager)), 0);
+    }
+}
+
+contract MockExactOutSwapTarget {
+    function swap(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external {
+        IERC20(inputToken).transferFrom(msg.sender, address(this), inputAmount);
+        IERC20(outputToken).transfer(msg.sender, outputAmount);
     }
 }
 

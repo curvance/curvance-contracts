@@ -1049,6 +1049,9 @@ contract OracleManager is IOracleManager {
                 return false;
             }
 
+            if (startedAt > block.timestamp) {
+                return false;
+            }
             uint256 timeSinceUp = block.timestamp - startedAt;
             if (answer != 0 || timeSinceUp <= GRACE_PERIOD_TIME) {
                 return false;

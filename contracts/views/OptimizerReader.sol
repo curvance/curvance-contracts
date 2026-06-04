@@ -76,8 +76,8 @@ contract OptimizerReader {
 
             data[i]._address = optimizers[i];
             data[i].asset = opt.asset();
-            data[i].totalAssets = opt.totalAssets();
             data[i].sharePrice = opt.exchangeRateUpdated();
+            data[i].totalAssets = opt.totalAssets();
             data[i].performanceFee = opt.fee();
 
             address[] memory cTokens = opt.getApprovedMarkets();
@@ -174,6 +174,36 @@ contract OptimizerReader {
         LendingOptimizer.ReallocationAction[] memory actions,
         LendingOptimizer.AllocationBound[] memory bounds
     ) {
+        return _optimalRebalance(optimizer, slippageBps);
+    }
+
+    /// @notice Accrues optimizer state before computing optimal rebalance actions.
+    /// @dev Intended for offchain `eth_call` usage when callers need a plan
+    ///      from the same accrued state that LendingOptimizer.rebalance()
+    ///      will use at execution. If sent as a transaction, this only accrues
+    ///      the optimizer and returns the computed plan.
+    /// @param optimizer The LendingOptimizer address.
+    /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
+    /// @return actions The rebalance actions array matching approvedCTokensList order.
+    /// @return bounds The allocation bounds array matching approvedCTokensList order.
+    function optimalRebalanceUpdated(
+        address optimizer,
+        uint256 slippageBps
+    ) external returns (
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) {
+        ILendingOptimizer(optimizer).accrueIfNeeded();
+        return _optimalRebalance(optimizer, slippageBps);
+    }
+
+    function _optimalRebalance(
+        address optimizer,
+        uint256 slippageBps
+    ) internal view returns (
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) {
         address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
 
         actions = new LendingOptimizer.ReallocationAction[](markets.length);
@@ -188,7 +218,10 @@ contract OptimizerReader {
             (idealAssets, currentAssets, m) =
                 _computeIdealAllocation(optimizer, markets);
 
-            uint256 ta = ILendingOptimizer(optimizer).totalAssets();
+            uint256 ta;
+            for (uint256 i; i < markets.length; ++i) {
+                ta += currentAssets[i];
+            }
 
             // Diff ideal vs current to produce deposit/withdraw actions,
             // and compute bounds around the ideal allocation percentage.
