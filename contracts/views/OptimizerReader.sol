@@ -15,6 +15,8 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 
 contract OptimizerReader {
+    error OptimizerReader__InsufficientAllocationHeadroom();
+
     struct OptimizerCTokenData {
         /// @notice The cToken address.
         address _address;
@@ -306,8 +308,8 @@ contract OptimizerReader {
             ILendingOptimizer opt = ILendingOptimizer(optimizer);
             for (uint256 i; i < numMarkets; ++i) {
                 uint256 current = currentAssets[i];
-                m[i].maxAllocation = FixedPointMathLib.mulDiv(
-                    ta, opt.allocationCaps(markets[i]), WAD
+                m[i].maxAllocation = _maxAllocationForCap(
+                    ta, opt.allocationCaps(markets[i])
                 );
 
                 MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
@@ -331,6 +333,7 @@ contract OptimizerReader {
 
         // Subtract locked assets from the distributable total.
         ta -= lockedAssets;
+        uint256 targetAssets = ta + lockedAssets;
 
         // Chunked greedy allocation: split distributable total into 20 chunks.
         uint256 chunkSize = ta / 20;
@@ -339,31 +342,83 @@ contract OptimizerReader {
             uint256 chunk = (c == 19) ? ta - (chunkSize * 19) : chunkSize;
             if (chunk == 0) continue;
 
-            uint256 bestRate;
-            uint256 bestIdx;
-            bool found;
+            _allocateChunk(idealAssets, m, chunk);
+        }
 
-            for (uint256 i; i < numMarkets; ++i) {
-                if (idealAssets[i] + chunk > m[i].maxAllocation) continue;
+        _fillResidualAllocation(idealAssets, m, targetAssets);
+    }
 
-                uint256 rate = m[i].irm.supplyRate(
-                    m[i].simAssetsHeld + chunk,
-                    m[i].debt,
-                    m[i].fees
-                );
+    function _allocateChunk(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 chunk
+    ) internal view {
+        uint256 bestRate;
+        uint256 bestIdx;
+        bool found;
+        uint256 numMarkets = idealAssets.length;
 
-                if (!found || rate > bestRate) {
-                    bestRate = rate;
-                    bestIdx = i;
-                    found = true;
-                }
-            }
+        for (uint256 i; i < numMarkets; ++i) {
+            if (idealAssets[i] + chunk > m[i].maxAllocation) continue;
 
-            if (found) {
-                idealAssets[bestIdx] += chunk;
-                m[bestIdx].simAssetsHeld += chunk;
+            uint256 rate = m[i].irm.supplyRate(
+                m[i].simAssetsHeld + chunk,
+                m[i].debt,
+                m[i].fees
+            );
+
+            if (!found || rate > bestRate) {
+                bestRate = rate;
+                bestIdx = i;
+                found = true;
             }
         }
+
+        if (found) {
+            idealAssets[bestIdx] += chunk;
+            m[bestIdx].simAssetsHeld += chunk;
+        }
+    }
+
+    /// @dev Fills any remainder left by whole-chunk allocation. This preserves
+    ///      executable rebalance actions for valid caps that are not aligned to
+    ///      the reader's 5% chunks.
+    function _fillResidualAllocation(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 targetAssets
+    ) internal pure {
+        uint256 allocated;
+        uint256 numMarkets = idealAssets.length;
+        for (uint256 i; i < numMarkets; ++i) {
+            allocated += idealAssets[i];
+        }
+
+        uint256 remaining = targetAssets - allocated;
+        for (uint256 i; remaining > 0 && i < numMarkets; ++i) {
+            if (idealAssets[i] >= m[i].maxAllocation) continue;
+
+            uint256 amount = m[i].maxAllocation - idealAssets[i];
+            if (amount > remaining) amount = remaining;
+
+            idealAssets[i] += amount;
+            m[i].simAssetsHeld += amount;
+            remaining -= amount;
+        }
+
+        if (remaining > 0) revert OptimizerReader__InsufficientAllocationHeadroom();
+    }
+
+    function _maxAllocationForCap(
+        uint256 totalAssets_,
+        uint256 capWad
+    ) internal pure returns (uint256) {
+        if (capWad >= WAD) return totalAssets_;
+
+        uint256 maxAllocation =
+            FixedPointMathLib.fullMulDivUp(capWad + 1, totalAssets_, WAD) - 1;
+
+        return maxAllocation == 0 ? 0 : maxAllocation - 1;
     }
 
     function _balanceOf(

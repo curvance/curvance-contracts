@@ -1533,4 +1533,92 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         optimizer.rebalance(actions, bounds);
     }
+
+    function test_optimalRebalance_success_readerResultsExecuteWithNonChunkAlignedCaps() public {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 5_100;
+        caps[1] = 5_000;
+
+        optimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 1_000
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        uint256 depositAmount = 100_000e6 + 23;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount, address(this), cUSDC_WMON_MARKET
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+
+        uint256 totalDeposits;
+        uint256 totalWithdrawals;
+        for (uint256 i; i < actions.length; ++i) {
+            if (actions[i].assetsOrBps > 0) {
+                totalDeposits += uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                totalWithdrawals += uint256(-actions[i].assetsOrBps);
+            }
+        }
+
+        assertEq(totalDeposits, totalWithdrawals, "reader actions must balance exactly");
+        optimizer.rebalance(actions, bounds);
+    }
+
+    function test_optimalRebalance_fail_exactCapsWithoutIntegerHeadroom() public {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 5_100;
+        caps[1] = 4_900;
+
+        optimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 1_000
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        uint256 depositAmount = 100_000e6 + 23;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount, address(this), cUSDC_WMON_MARKET
+        );
+
+        vm.expectRevert(OptimizerReader.OptimizerReader__InsufficientAllocationHeadroom.selector);
+        reader.optimalRebalance(address(optimizer), 500);
+    }
+
 }

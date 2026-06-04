@@ -567,17 +567,40 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertEq(debtCToken.asset(), USDC_MONAD);
         assertTrue(shareCToken.isBorrowable(), "DynamicIRM-compatible identity");
         assertTrue(debtCToken.isBorrowable(), "paired debt side is borrowable");
+        assertEq(_oracleManager.cTokens(address(shareCToken)), address(optimizer));
+        assertEq(_oracleManager.cTokens(address(debtCToken)), USDC_MONAD);
 
-        assertGt(optimizerMarket.collateralCaps(address(shareCToken)), 0);
+        address[] memory listedTokens = optimizerMarket.queryTokensListed();
+        assertEq(listedTokens.length, 2);
+        assertEq(listedTokens[0], address(shareCToken));
+        assertEq(listedTokens[1], address(debtCToken));
+
+        assertEq(optimizerMarket.collateralCaps(address(shareCToken)), 1_000_000e6);
         assertEq(optimizerMarket.debtCaps(address(shareCToken)), 0);
         assertEq(optimizerMarket.collateralCaps(address(debtCToken)), 0);
-        assertGt(optimizerMarket.debtCaps(address(debtCToken)), 0);
+        assertEq(optimizerMarket.debtCaps(address(debtCToken)), 1_000_000e6);
 
         IOracleAdaptor.PriceGuard memory guard = _chainlinkAdaptor.getPriceGuard(address(optimizer), true);
         assertEq(uint256(guard.minPrice), 0);
         assertEq(uint256(guard.basePrice), WAD);
         assertEq(uint256(guard.ips), 0);
         assertEq(uint256(guard.timestampStart), 0);
+    }
+
+    function test_lendingOptimizerShareCToken_priceGuardCapsUpsideAndAllowsDownside() public {
+        _deployOptimizerShareLaunchMarket();
+
+        _setOptimizerVaultFeedAnswer(2e8);
+        (uint256 cappedPrice, uint256 cappedErrorCode) =
+            _oracleManager.getPrice(address(optimizer), true, false);
+        assertEq(cappedErrorCode, 0);
+        assertEq(cappedPrice, WAD, "optimizer share price should be capped at basePrice");
+
+        _setOptimizerVaultFeedAnswer(0.5e8);
+        (uint256 downsidePrice, uint256 downsideErrorCode) =
+            _oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(downsideErrorCode, 0);
+        assertEq(downsidePrice, WAD / 2, "minPrice zero must not block downside pricing");
     }
 
     function test_lendingOptimizer_rejectsApprovedDebtMarketPairedWithOptimizerShares() public {
@@ -951,6 +974,18 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
             0,
             0
         );
+    }
+
+    function _setOptimizerVaultFeedAnswer(int256 answer) internal {
+        MockV3Aggregator usdcFeed = new MockV3Aggregator(8, answer);
+        VaultAggregator optimizerVaultFeed = new VaultAggregator(
+            address(optimizer),
+            USDC_MONAD,
+            address(usdcFeed),
+            "optimizer/USD"
+        );
+
+        _chainlinkAdaptor.addAsset(address(optimizer), true, address(optimizerVaultFeed), 0);
     }
 
     function _refreshUsdcPriceFeed() internal {

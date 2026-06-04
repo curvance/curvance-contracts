@@ -18,6 +18,9 @@ contract AddCombinedAggregator is DeployScript {
         uint256 minPrice;
     }
 
+    error AddCombinedAggregator__UnsupportedOracleRoute();
+    error AddCombinedAggregator__Unauthorized();
+
     function run(
         address asset,
         // ====== CombinedAggregator Parameters ======
@@ -32,6 +35,12 @@ contract AddCombinedAggregator is DeployScript {
         uint256 heartbeat
     ) external recordEvents {
         IERC20 token = IERC20(asset);
+        _checkOracleManagerRoutesThroughAdaptor(
+            OracleManager(ICentralRegistry(centralRegistry).oracleManager()),
+            asset,
+            adaptorAddress
+        );
+        _checkDeploymentPermissions(ICentralRegistry(centralRegistry));
 
         // ====== Deploy and configure CombinedAggregator ======
         address agg = address(
@@ -59,12 +68,36 @@ contract AddCombinedAggregator is DeployScript {
 
         // Start adaptor instance
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
-        
-        // remove priceguard from adaptor level
-        adaptor.disableGuardedPriceConfig(asset, true);
-        
+
         // Update adaptor to use new CombinedAggregator
         adaptor.addAsset(asset, true, agg, heartbeat);
-        
+
+        // remove priceguard from adaptor level
+        adaptor.disableGuardedPriceConfig(asset, true);
+    }
+
+    function _checkOracleManagerRoutesThroughAdaptor(
+        OracleManager oracleManager,
+        address asset,
+        address adaptorAddress
+    ) internal view {
+        address[] memory adaptors = oracleManager.getPricingAdaptors(asset);
+        if (adaptors.length > 0 && adaptors[0] == adaptorAddress) {
+            return;
+        }
+
+        revert AddCombinedAggregator__UnsupportedOracleRoute();
+    }
+
+    function _checkDeploymentPermissions(
+        ICentralRegistry centralRegistry
+    ) internal {
+        (, address deploymentCaller, ) = vm.readCallers();
+        if (
+            !centralRegistry.hasElevatedPermissions(deploymentCaller) ||
+            !centralRegistry.hasMarketPermissions(deploymentCaller)
+        ) {
+            revert AddCombinedAggregator__Unauthorized();
+        }
     }
 }

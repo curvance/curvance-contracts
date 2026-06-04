@@ -1808,6 +1808,79 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         );
     }
 
+    function test_SwapperLibMinimalEnterPendle_PT_MintsCTokenShares()
+        public
+    {
+        assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
+
+        PendleZapperMinimal zapper = new PendleZapperMinimal(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
+        );
+        PendlePTSwapperLibHarness harness = new PendlePTSwapperLibHarness();
+        centralRegistry.setExternalCalldataChecker(
+            address(zapper),
+            address(
+                new PendleZapperMinimalCalldataChecker(
+                    address(zapper), address(_ROUTER)
+                )
+            )
+        );
+
+        uint256 wstEthAmount = 1 ether;
+        deal(_WSTETH, address(harness), wstEthAmount);
+
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: _WSTETH,
+            inputAmount: wstEthAmount,
+            outputToken: address(cPendlePTSTETH),
+            target: address(zapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(cPendlePTSTETH),
+                address(_ROUTER),
+                _LP_STETH,
+                true,
+                _buildDirectWstEthPtEntryAction(wstEthAmount),
+                _buildPtEntryZapAction(wstEthAmount),
+                new SwapperLib.Swap[](0),
+                1,
+                false,
+                address(harness)
+            )
+        });
+
+        uint256 cTokenBefore = cPendlePTSTETH.balanceOf(address(harness));
+        uint256 outAmount = harness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+        uint256 cTokenDelta =
+            cPendlePTSTETH.balanceOf(address(harness)) - cTokenBefore;
+
+        assertGt(outAmount, 0, "composed minimal PT route MUST mint shares");
+        assertEq(outAmount, cTokenDelta, "SwapperLib output MUST match cPT delta");
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(harness)),
+            0,
+            "harness wstETH MUST be consumed"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST retain no wstETH"
+        );
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST retain no PT"
+        );
+        assertEq(
+            cPendlePTSTETH.balanceOf(address(zapper)),
+            0,
+            "zapper MUST retain no cPT shares"
+        );
+    }
+
     function testRevert_SwapperLibEnterPendle_PT_InvalidMarketAfterCheckerPass()
         public
     {

@@ -96,6 +96,37 @@ contract TestPendleZapperCalldataChecker is Test {
         checker.checkCalldata(swapAction, receiver);
     }
 
+    function test_redeemAndExit_revertsWhenFinalOutputDoesNotMatchZapOutput()
+        public
+    {
+        PendleLib.PendleAction memory action;
+        BaseZapper.RedeemAction memory redeemAction = BaseZapper.RedeemAction({
+            cToken: cToken, shares: 100, forceRedeemCollateral: false
+        });
+        PendleZapperMinimal.ZapAction memory zapAction =
+            PendleZapperMinimal.ZapAction({
+                inputToken: pendleToken,
+                inputAmount: 50,
+                outputToken: outputToken,
+                minimumOut: 1,
+                depositAsWrappedNative: false
+            });
+
+        swapAction = SwapperLib.Swap({
+            inputToken: cToken,
+            inputAmount: redeemAction.shares,
+            outputToken: address(0xBAD),
+            target: pendleZapper,
+            slippage: 0,
+            call: _redeemAndExitCalldata(action, redeemAction, zapAction)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__OutputTokenError.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
     function test_revertsWrongPendleRouter() public {
         PendleLib.PendleAction memory action;
         PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
@@ -158,6 +189,27 @@ contract TestPendleZapperCalldataChecker is Test {
 
         vm.expectRevert(
             BaseSwapChecker.CalldataChecker__InvalidMinOut.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
+    function test_exitPendle_revertsWhenFinalOutputDoesNotMatchZapOutput()
+        public
+    {
+        PendleLib.PendleAction memory action;
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
+
+        swapAction = SwapperLib.Swap({
+            inputToken: zapAction.inputToken,
+            inputAmount: zapAction.inputAmount,
+            outputToken: address(0xBAD),
+            target: pendleZapper,
+            slippage: 0,
+            call: _exitCalldata(action, zapAction)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapAction, receiver);
     }

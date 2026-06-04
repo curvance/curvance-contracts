@@ -7,6 +7,7 @@ import { KyberSwapChecker } from "contracts/calldata-checker/swap-checker/KyberS
 import { PendleZapperMinimalCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperMinimalCalldataChecker.sol";
 import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract DeployCalldataChecker is DeployScript {
     struct AvailableCheckers {
@@ -44,6 +45,10 @@ contract DeployCalldataChecker is DeployScript {
                 EXECUTORS,
                 address(cr)
             );
+            emit ContractDeployed(
+                address(checker),
+                string.concat("calldataCheckers.kyberSwapChecker")
+            );
             cr.setExternalCalldataChecker(
                 checkerSelection.router,
                 address(checker)
@@ -61,14 +66,25 @@ contract DeployCalldataChecker is DeployScript {
             } catch {
                 revert DeployCalldataChecker__InvalidPendleZapperMinimal();
             }
+            try pendleZapperMinimal.centralRegistry() returns (ICentralRegistry zapperRegistry) {
+                if (address(zapperRegistry) != address(cr)) {
+                    revert DeployCalldataChecker__InvalidPendleZapperMinimal();
+                }
+            } catch {
+                revert DeployCalldataChecker__InvalidPendleZapperMinimal();
+            }
             if (checkerSelection.pendleRouter != PENDLE_ROUTER) {
                 revert DeployCalldataChecker__InvalidPendleRouter();
             }
 
             PendleZapperMinimalCalldataChecker checker = new PendleZapperMinimalCalldataChecker(
-                    checkerSelection.pendleZapperMinimal,
-                    checkerSelection.pendleRouter
-                );
+                checkerSelection.pendleZapperMinimal,
+                checkerSelection.pendleRouter
+            );
+            emit ContractDeployed(
+                address(checker),
+                string.concat("calldataCheckers.pendleZapperMinimalChecker")
+            );
             cr.setExternalCalldataChecker(
                 checkerSelection.pendleZapperMinimal,
                 address(checker)
