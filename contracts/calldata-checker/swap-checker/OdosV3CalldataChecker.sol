@@ -81,6 +81,9 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
             path = pathDefinition;
             referralInfo = ref;
             minOutAmount = tokenInfo.outputMin;
+            if (tokenInfo.inputReceiver != ODOS_EXECUTOR) {
+                revert CalldataChecker__RecipientError();
+            }
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

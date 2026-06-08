@@ -292,6 +292,66 @@ contract TestCombinedAggregator is Test {
         );
     }
 
+    /// @notice A negative primary answer in a wrapped aggregator should
+    ///         bubble through ChainlinkAdaptor as `hadError`.
+    function test_chainlinkAdaptor_wrappingCombinedAggregator_negativePrimaryBubblesHadError()
+        public
+    {
+        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        address asset = makeAddr("negativePrimaryAsset");
+        adaptor.addAsset(asset, true, address(combined), 0);
+
+        vm.mockCall(
+            address(primaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(-1),
+                uint256(0),
+                block.timestamp,
+                uint80(1)
+            )
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(asset, true, false);
+
+        assertEq(result.price, 0, "negative primary should zero price");
+        assertTrue(result.hadError, "negative primary should bubble hadError");
+    }
+
+    /// @notice A negative secondary answer in a wrapped aggregator should
+    ///         bubble through ChainlinkAdaptor as `hadError`.
+    function test_chainlinkAdaptor_wrappingCombinedAggregator_negativeSecondaryBubblesHadError()
+        public
+    {
+        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        address asset = makeAddr("negativeSecondaryAsset");
+        adaptor.addAsset(asset, true, address(combined), 0);
+
+        vm.mockCall(
+            address(secondaryAgg),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(-1),
+                uint256(0),
+                block.timestamp,
+                uint80(1)
+            )
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            adaptor.getPrice(asset, true, false);
+
+        assertEq(result.price, 0, "negative secondary should zero price");
+        assertTrue(result.hadError, "negative secondary should bubble hadError");
+    }
+
     /// @notice Pre-fix: future-dated secondary `updatedAt` panicked the
     ///         guard config setter. Post-fix: typed revert.
     function test_combinedAggregator_setGuardedPriceConfig_revertsOnFutureDatedSecondary() public {

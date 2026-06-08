@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 
 contract ProcessExpiredLockTest is TestBaseVeCVE {
@@ -152,6 +153,157 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
             "",
             0
         );
+    }
+
+    function test_processExpiredLock_success_afterShutdownWhenEpochNotDelivered()
+        public
+    {
+        uint256 claimIndex = rewardManager.userNextClaimIndex(address(this));
+        while (rewardManager.nextEpochToDeliver() <= claimIndex) {
+            vm.prank(address(messagingHub));
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        uint256 finalDeliveredEpoch = rewardManager.nextEpochToDeliver();
+        uint256 rewardBalance = usdc.balanceOf(address(this));
+
+        skip(veCVE.EPOCH_DURATION() * 2);
+
+        assertNotEq(
+            rewardManager.nextEpochToDeliver(),
+            veCVE.currentEpoch(block.timestamp)
+        );
+
+        veCVE.shutdown();
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit Unlocked(address(this), 30e18);
+
+        veCVE.processExpiredLock(
+            0,
+            true,
+            true,
+            ClaimAction(true, true, true, true),
+            "",
+            0
+        );
+
+        assertEq(veCVE.balanceOf(address(this)), 0);
+        assertEq(cve.balanceOf(address(veCVE)), 0);
+        assertEq(
+            rewardManager.userNextClaimIndex(address(this)),
+            finalDeliveredEpoch
+        );
+        assertGt(rewardManager.userNextClaimIndex(address(this)), claimIndex);
+        assertGt(usdc.balanceOf(address(this)), rewardBalance);
+    }
+
+    function test_processExpiredLock_success_afterShutdownWhenUnlockEpochDelivered()
+        public
+    {
+        _recordEpochs();
+
+        uint256 claimIndex = rewardManager.userNextClaimIndex(address(this));
+        (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+        uint256 unlockEpoch = veCVE.currentEpoch(unlockTime);
+        while (rewardManager.nextEpochToDeliver() <= unlockEpoch) {
+            vm.prank(address(messagingHub));
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        uint256 finalDeliveredEpoch = rewardManager.nextEpochToDeliver();
+        uint256 rewardBalance = usdc.balanceOf(address(this));
+
+        vm.warp(unlockTime + uint40(veCVE.EPOCH_DURATION() * 2));
+
+        assertGt(finalDeliveredEpoch, unlockEpoch);
+        assertGt(veCVE.currentEpoch(block.timestamp), finalDeliveredEpoch);
+
+        veCVE.shutdown();
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit Unlocked(address(this), 30e18);
+
+        veCVE.processExpiredLock(
+            0,
+            false,
+            false,
+            ClaimAction(true, true, true, true),
+            "",
+            0
+        );
+
+        assertEq(veCVE.balanceOf(address(this)), 0);
+        assertEq(cve.balanceOf(address(veCVE)), 0);
+        assertEq(
+            rewardManager.userNextClaimIndex(address(this)),
+            finalDeliveredEpoch
+        );
+        assertGt(rewardManager.userNextClaimIndex(address(this)), claimIndex);
+        assertEq(veCVE.userPoints(address(this)), 0);
+        assertEq(
+            veCVE.userUnlocksByEpoch(
+                address(this),
+                unlockEpoch
+            ),
+            0
+        );
+        assertGt(usdc.balanceOf(address(this)), rewardBalance);
+    }
+
+    function test_processExpiredLock_success_afterShutdownWithContinuousLock()
+        public
+    {
+        veCVE.createLock(
+            30e18,
+            true,
+            ClaimAction(false, false, false, false),
+            "",
+            0
+        );
+
+        uint256 claimIndex = rewardManager.userNextClaimIndex(address(this));
+        while (rewardManager.nextEpochToDeliver() <= claimIndex) {
+            vm.prank(address(messagingHub));
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        uint256 finalDeliveredEpoch = rewardManager.nextEpochToDeliver();
+        uint256 rewardBalance = usdc.balanceOf(address(this));
+        uint256 userCveBalance = cve.balanceOf(address(this));
+        uint256 userPoints = veCVE.userPoints(address(this));
+        uint256 chainPoints = veCVE.chainPoints();
+        uint256 continuousPoints = 30e18 * veCVE.CL_POINT_MULTIPLIER();
+
+        veCVE.shutdown();
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit Unlocked(address(this), 30e18);
+
+        veCVE.processExpiredLock(
+            1,
+            true,
+            true,
+            ClaimAction(true, true, true, true),
+            "",
+            0
+        );
+
+        (uint256[] memory lockAmounts,) = veCVE.queryUserLocks(address(this));
+
+        assertEq(lockAmounts.length, 1);
+        assertEq(lockAmounts[0], 30e18);
+        assertEq(veCVE.balanceOf(address(this)), 30e18);
+        assertEq(cve.balanceOf(address(veCVE)), 30e18);
+        assertEq(cve.balanceOf(address(this)), userCveBalance + 30e18);
+        assertEq(veCVE.userPoints(address(this)), userPoints - continuousPoints);
+        assertEq(veCVE.chainPoints(), chainPoints - continuousPoints);
+        assertEq(
+            rewardManager.userNextClaimIndex(address(this)),
+            finalDeliveredEpoch
+        );
+        assertGt(rewardManager.userNextClaimIndex(address(this)), claimIndex);
+        assertGt(usdc.balanceOf(address(this)), rewardBalance);
     }
 
     // cover L1117

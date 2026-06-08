@@ -169,13 +169,15 @@ contract GaugeManager is
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Sets emission rates of tokens of current epoch.
-    /// @dev Only the Messaging Hub and Voting Hub can call this.
-    /// @param epoch The epoch to set emission rates for, should be the next
-    ///              epoch.
-    /// @param tokens Array containing all tokens to set emission rates for.
+    /// @notice Applies token emission allocations for the current epoch.
+    /// @dev Only the Messaging Hub and Voting Hub can call this. Allocations
+    ///      are additive because VotingHub validates each payload against the
+    ///      epoch cap using cumulative emissions already allocated for the
+    ///      epoch, then mints and delivers only the new payload amount.
+    /// @param epoch The epoch to apply emission allocations for.
+    /// @param tokens Array containing tokens receiving this allocation.
     /// @param weights Gauge weights corresponding to DAO voted emission
-    ///                rates.
+    ///                allocations.
     function setEmissionRates(
         uint256 epoch,
         address[] calldata tokens,
@@ -239,8 +241,8 @@ contract GaugeManager is
             }
         }
 
-        // Pass 2: apply weight changes only after every affected pool has
-        // checkpointed against the old `totalWeights`.
+        // Pass 2: apply incremental weight changes only after every affected
+        // pool has checkpointed against the old `totalWeights`.
         for (uint256 i; i < numTokens; ++i) {
             address token = tokens[i];
             info.totalWeights = info.totalWeights + weights[i];
@@ -407,7 +409,7 @@ contract GaugeManager is
             return;
         }
 
-        SafeTransferLib.safeTransfer(_getCVE(), msg.sender, cveRewards);
+        SafeTransferLib.safeTransfer(_getCVE(), user, cveRewards);
     }
 
     /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
@@ -652,9 +654,11 @@ contract GaugeManager is
             return;
         }
 
-        // Is there are no deposits, there is nothing to update.
+        // If there are no deposits, checkpoint the idle interval so the next
+        // depositor cannot accrue rewards for time when nobody was staked.
         uint256 totalDeposited = totalSupply[token];
         if (totalDeposited == 0) {
+            poolLastRewardTimestamp[token] = block.timestamp;
             return;
         }
 

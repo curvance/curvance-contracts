@@ -111,6 +111,38 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
        
     }
 
+    function test_liquidate_single_seizedSharesRemainRedeemable() public {
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+
+        _prepareUSDC(user2, 6500e6);
+
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 6500e6);
+        borrowableCUSDC.liquidate(accounts, address(pendleStrategyCTokenSTETH));
+
+        uint256 seizedShares = pendleStrategyCTokenSTETH.balanceOf(user2);
+        uint256 expectedAssets = pendleStrategyCTokenSTETH.previewRedeem(seizedShares);
+        uint256 assetsBefore = LP_wstETH_24Dec2025.balanceOf(user2);
+
+        uint256 redeemedAssets =
+            pendleStrategyCTokenSTETH.redeem(seizedShares, user2, user2);
+        vm.stopPrank();
+
+        assertEq(seizedShares, _ONE - 1, "Liquidator seized shares mismatch");
+        assertEq(redeemedAssets, expectedAssets, "Redeemed assets should match preview");
+        assertEq(
+            LP_wstETH_24Dec2025.balanceOf(user2),
+            assetsBefore + redeemedAssets,
+            "Liquidator should receive redeemed underlying"
+        );
+        assertEq(
+            pendleStrategyCTokenSTETH.balanceOf(user2),
+            0,
+            "Liquidator cToken balance should be burned"
+        );
+    }
+
     function _prepareLiquidationCollateralDrop() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

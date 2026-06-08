@@ -182,6 +182,52 @@ contract TestRewardsDistribution is Test {
         distribution.claim(roots, amounts, proofs);
     }
 
+    function test_canClaim_returnsFalseForQueriedUserAfterClaimWhenCalledByObserver()
+        public
+    {
+        (
+            bytes32[] memory roots,
+            uint256[] memory amounts,
+            bytes32[][] memory proofs
+        ) = _buildClaimArgs();
+
+        distribution.claim(roots, amounts, proofs);
+
+        address observer = makeAddr("observer");
+        vm.prank(observer);
+        assertFalse(
+            distribution.canClaim(
+                address(this),
+                merkleRoot,
+                REWARD_AMOUNT,
+                emptyProof
+            ),
+            "canClaim should check the queried user's claimed state"
+        );
+    }
+
+    function test_canClaim_returnsFalseWhenRootBalanceCannotCoverLeaf() public {
+        address secondUser = makeAddr("secondUser");
+        uint256 secondAmount = 1e18;
+        (
+            bytes32 twoLeafRoot,
+            bytes32[] memory firstProof,
+            bytes32[] memory secondProof
+        ) = _addUnderfundedTwoLeafRoot(secondUser, secondAmount);
+
+        _claimRoot(twoLeafRoot, REWARD_AMOUNT, firstProof);
+
+        assertFalse(
+            distribution.canClaim(
+                secondUser,
+                twoLeafRoot,
+                secondAmount,
+                secondProof
+            ),
+            "canClaim should mirror claim's remaining reward balance gate"
+        );
+    }
+
     function test_canClaim_andClaim_consistentAfterWindowExpires() public {
         // Invariant: canClaim false ⇒ claim reverts. Both must agree post-expiry.
         vm.warp(claimEndTimestamp + 1);
@@ -329,5 +375,68 @@ contract TestRewardsDistribution is Test {
         amounts[0] = REWARD_AMOUNT;
         proofs = new bytes32[][](1);
         proofs[0] = emptyProof;
+    }
+
+    function _addUnderfundedTwoLeafRoot(
+        address secondUser,
+        uint256 secondAmount
+    )
+        internal
+        returns (
+            bytes32 twoLeafRoot,
+            bytes32[] memory firstProof,
+            bytes32[] memory secondProof
+        )
+    {
+        bytes32 firstLeaf = keccak256(
+            abi.encodePacked(address(this), address(rewardToken), REWARD_AMOUNT)
+        );
+        bytes32 secondLeaf = keccak256(
+            abi.encodePacked(secondUser, address(rewardToken), secondAmount)
+        );
+        twoLeafRoot = _hashPair(firstLeaf, secondLeaf);
+
+        rewardToken.mint(address(this), REWARD_AMOUNT);
+        rewardToken.approve(address(distribution), REWARD_AMOUNT);
+
+        bytes32[] memory roots = new bytes32[](1);
+        roots[0] = twoLeafRoot;
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rewardToken);
+        uint256[] memory addAmounts = new uint256[](1);
+        addAmounts[0] = REWARD_AMOUNT;
+        uint256[] memory ends = new uint256[](1);
+        ends[0] = block.timestamp + CLAIM_WINDOW;
+
+        distribution.addMerkleRoots(roots, tokens, addAmounts, ends);
+
+        firstProof = new bytes32[](1);
+        firstProof[0] = secondLeaf;
+        secondProof = new bytes32[](1);
+        secondProof[0] = firstLeaf;
+    }
+
+    function _claimRoot(
+        bytes32 root,
+        uint256 amount,
+        bytes32[] memory proof
+    ) internal {
+        bytes32[] memory roots = new bytes32[](1);
+        roots[0] = root;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount;
+        bytes32[][] memory proofs = new bytes32[][](1);
+        proofs[0] = proof;
+
+        distribution.claim(roots, amounts, proofs);
+    }
+
+    function _hashPair(
+        bytes32 a,
+        bytes32 b
+    ) internal pure returns (bytes32) {
+        return a < b
+            ? keccak256(abi.encodePacked(a, b))
+            : keccak256(abi.encodePacked(b, a));
     }
 }

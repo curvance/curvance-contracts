@@ -76,6 +76,9 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
             path = pathDefinition;
             referralCode = refCode;
             minOutAmount = tokenInfo.outputMin;
+            if (tokenInfo.inputReceiver != ODOS_EXECUTOR) {
+                revert CalldataChecker__RecipientError();
+            }
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }

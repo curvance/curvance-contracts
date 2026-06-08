@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
-import { WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
@@ -51,14 +51,13 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         uint256 _discountOneYearBPS,
         string memory id
     ) BaseWrappedAggregator(_aggregator, id) {
+        if (_discountOneYearBPS >= BPS || _discountOneYearBPS == 0) {
+            revert BaseWrappedAggregator__InvalidConfig();
+        }
+
         // Adjust input from `BPS` to `WAD` since we set protocol values in
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;
-
-        if (_discountOneYearBPS > WAD ||
-            _discountOneYearBPS == 0) {
-            revert BaseWrappedAggregator__InvalidConfig();
-        }
 
         _checkAssetConfig(_PT, _asset);
 
@@ -89,7 +88,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         int256 answer
     ) public view virtual override returns (int256 result) {
         // Adjust `answer` by current exchange rate normalized in `WAD`.
-        result = (answer * _toInt256(_getExchangeRate())) / int256(WAD);
+        result = (answer * _toInt256(_getExchangeRate())) / _toInt256(WAD);
     }
 
     /// INTERNAL FUNCTIONS ///

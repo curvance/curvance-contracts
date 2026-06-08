@@ -89,4 +89,24 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
 
         assertTrue(hasPosition);
     }
+
+    function test_canCollateralize_success_doesNotDuplicateExistingPosition() public {
+        _prepareUSDC(user1, 10e6);
+
+        vm.startPrank(user1);
+        usdc.approve(address(borrowableCUSDC), 1e6);
+        borrowableCUSDC.deposit(1e6, user1);
+        vm.stopPrank();
+
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e6, 100_000e6);
+
+        vm.startPrank(address(borrowableCUSDC));
+        marketManagerIsolated.canCollateralize(address(borrowableCUSDC), user1, 1e6);
+        marketManagerIsolated.canCollateralize(address(borrowableCUSDC), user1, 2e6);
+        vm.stopPrank();
+
+        address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
+        assertEq(accountAssets.length, 1);
+        assertEq(accountAssets[0], address(borrowableCUSDC));
+    }
 }

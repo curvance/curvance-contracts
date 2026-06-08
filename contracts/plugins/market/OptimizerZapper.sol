@@ -57,8 +57,9 @@ contract OptimizerZapper is ReentrancyGuard {
     ///                               indicates wrapping before swap/deposit.
     /// @param swapAction Swap instructions. If inputToken == outputToken the
     ///                   swap is skipped and the full inputAmount is deposited.
-    /// @param expectedShares Minimum shares the receiver must receive.
-    ///                       Reverts if actual shares < expectedShares.
+    /// @param expectedShares Nonzero minimum shares the receiver must
+    ///                       receive. Reverts if actual shares <
+    ///                       expectedShares.
     /// @param receiver Address that receives the minted optimizer shares.
     /// @return shares The amount of optimizer shares minted to `receiver`.
     function swapAndDeposit(
@@ -68,7 +69,7 @@ contract OptimizerZapper is ReentrancyGuard {
         uint256 expectedShares,
         address receiver
     ) external payable nonReentrant returns (uint256 shares) {
-        if (receiver == address(0)) revert OptimizerZapper__ExecutionError();
+        if (receiver == address(0) || expectedShares == 0) revert OptimizerZapper__ExecutionError();
 
         // Validate swap output matches the optimizer's underlying asset
         // before pulling user input or executing an external swap.

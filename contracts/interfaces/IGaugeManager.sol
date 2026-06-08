@@ -13,12 +13,14 @@ interface IGaugeManager {
     /// @notice Returns current epoch number.
     function currentEpoch() external view returns (uint256);
 
-    /// @notice Sets emission rates of tokens of next epoch.
-    /// @dev Only the messaging hub can call this.
-    /// @param epoch The epoch to set emission rates for, should be the next epoch.
-    /// @param tokens Array containing all tokens to set emission rates for.
+    /// @notice Applies token emission allocations for an epoch.
+    /// @dev Only the Messaging Hub or Voting Hub can call this. Allocations are
+    ///      additive for the epoch: repeated same-epoch deliveries increase the
+    ///      stored token and total weights rather than replacing prior weights.
+    /// @param epoch The epoch to apply emission allocations for.
+    /// @param tokens Array containing tokens receiving this allocation.
     /// @param poolWeights Gauge/Pool weights corresponding to DAO
-    ///                    voted emission rates.
+    ///                    voted emission allocations.
     function setEmissionRates(
         uint256 epoch,
         address[] memory tokens,

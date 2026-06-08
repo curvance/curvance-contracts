@@ -2,11 +2,13 @@
 pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
@@ -76,6 +78,44 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
 
         (uint256 usdcPrice, ) = oracleManager.getPrice(address(usdc), true, false);
         assertEq(debtUnderlyingPrice, usdcPrice);
+    }
+
+    function test_getPriceIsolatedPair_allowsCautionWhileMarketPriceVectorBlocks() public {
+        MockV3Aggregator cautionUsdcUsd = new MockV3Aggregator(8, 1.016e8);
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(cautionUsdcUsd),
+            0
+        );
+
+        (, uint256 errorCode) = oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(errorCode, CAUTION, "test setup should put USDC in CAUTION");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(borrowableCUSDC);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPricesForMarket(address(this), assets, CAUTION);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            CAUTION
+        );
+
+        (, uint256 debtUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            BAD_SOURCE
+        );
+
+        assertGt(
+            debtUnderlyingPrice,
+            WAD,
+            "liquidation pair pricing should use the higher debt price under CAUTION"
+        );
     }
 
     // Test that getPriceIsolatedPair properly accrues interest and includes it in exchange rate
@@ -206,6 +246,20 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
             address(borrowableCDAI),
             address(borrowableCUSDC),
             2
+        );
+    }
+}
+
+contract GetPriceIsolatedPairSequencerTest is TestBaseOracleManager {
+
+    function test_getPriceIsolatedPair_fail_whenSequencerStartedAtIsFuture() public {
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(borrowableCUSDC),
+            address(borrowableCUSDC),
+            BAD_SOURCE
         );
     }
 }

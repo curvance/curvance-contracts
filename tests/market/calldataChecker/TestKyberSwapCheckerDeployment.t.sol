@@ -31,6 +31,10 @@ contract TestKyberSwapCheckerDeployment is Test {
         0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address internal constant KYBER_EXECUTOR =
         0x63242A4Ea82847b20E506b63B0e2e2eFF0CC6cB0;
+    address internal constant PLANNED_KYBER_EXECUTOR =
+        0x4a16958D2041044C67c8F33017a75693Cc58F7CC;
+    address internal constant CURRENT_API_KYBER_EXECUTOR =
+        0x8F10B468b06c6FD214B65F87778827F7D113f996;
 
     address internal dao = address(0xDA0);
     address internal inputToken = address(0x1001);
@@ -87,12 +91,63 @@ contract TestKyberSwapCheckerDeployment is Test {
         new KyberSwapChecker(KYBER_ROUTER, _executors(), dao);
     }
 
+    function test_kyberSwapChecker_rejectsZeroExecutorInConstructor() public {
+        address[] memory executors = new address[](1);
+        executors[0] = address(0);
+
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        new KyberSwapChecker(KYBER_ROUTER, executors, address(registry));
+    }
+
+    function test_kyberSwapChecker_rejectsZeroExecutorAdminUpdate() public {
+        vm.prank(dao);
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        correctChecker.setExecutorApproval(address(0), true);
+
+        vm.prank(dao);
+        vm.expectRevert(
+            KyberSwapChecker.KyberSwapChecker__InvalidExecutor.selector
+        );
+        correctChecker.setExecutorApproval(address(0), false);
+    }
+
+    function test_kyberSwapChecker_launchExecutorListAcceptsCurrentApiExecutor() public {
+        KyberSwapChecker checker = new KyberSwapChecker(
+            KYBER_ROUTER,
+            _launchExecutors(),
+            address(registry)
+        );
+
+        assertTrue(checker.isApprovedExecutor(KYBER_EXECUTOR), "legacy executor");
+        assertTrue(checker.isApprovedExecutor(PLANNED_KYBER_EXECUTOR), "planned executor");
+        assertTrue(checker.isApprovedExecutor(CURRENT_API_KYBER_EXECUTOR), "current API executor");
+
+        assertEq(
+            checker.checkCalldata(
+                _swapActionForExecutor(CURRENT_API_KYBER_EXECUTOR),
+                recipient
+            ),
+            1,
+            "current API executor should be accepted by launch config"
+        );
+    }
+
     function _swapAction() internal view returns (SwapperLib.Swap memory swapAction) {
+        swapAction = _swapActionForExecutor(KYBER_EXECUTOR);
+    }
+
+    function _swapActionForExecutor(
+        address executor
+    ) internal view returns (SwapperLib.Swap memory swapAction) {
         swapAction.target = KYBER_ROUTER;
         swapAction.inputToken = inputToken;
         swapAction.inputAmount = 1e18;
         swapAction.outputToken = outputToken;
-        swapAction.call = _kyberCall();
+        swapAction.call = _kyberCall(executor);
     }
 
     function _executors() internal pure returns (address[] memory executors) {
@@ -100,7 +155,14 @@ contract TestKyberSwapCheckerDeployment is Test {
         executors[0] = KYBER_EXECUTOR;
     }
 
-    function _kyberCall() internal view returns (bytes memory) {
+    function _launchExecutors() internal pure returns (address[] memory executors) {
+        executors = new address[](3);
+        executors[0] = KYBER_EXECUTOR;
+        executors[1] = PLANNED_KYBER_EXECUTOR;
+        executors[2] = CURRENT_API_KYBER_EXECUTOR;
+    }
+
+    function _kyberCall(address executor) internal view returns (bytes memory) {
         IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
         desc.srcToken = IERC20(inputToken);
         desc.dstToken = IERC20(outputToken);
@@ -113,12 +175,12 @@ contract TestKyberSwapCheckerDeployment is Test {
         desc.feeAmounts = new uint256[](1);
         desc.feeAmounts[0] = 4;
         desc.srcReceivers = new address[](1);
-        desc.srcReceivers[0] = KYBER_EXECUTOR;
+        desc.srcReceivers[0] = executor;
         desc.srcAmounts = new uint256[](1);
-        desc.srcAmounts[0] = 1e18;
+        desc.srcAmounts[0] = 1e18 - ((1e18 * 4) / 10_000);
 
         IMetaAggregationRouterV2.SwapExecutionParams memory execution;
-        execution.callTarget = KYBER_EXECUTOR;
+        execution.callTarget = executor;
         execution.approveTarget = address(0);
         execution.targetData = hex"01";
         execution.desc = desc;

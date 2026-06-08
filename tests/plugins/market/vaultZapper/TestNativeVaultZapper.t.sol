@@ -1,39 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
-import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
+import {Multicall} from "contracts/libraries/Multicall.sol";
+import {
+    NativeVaultZapper
+} from "contracts/plugins/market/NativeVaultZapper.sol";
+import {BaseZapper} from "contracts/plugins/BaseZapper.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
+import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
 
-import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
-import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { IVault } from "contracts/interfaces/IVault.sol";
-import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
+import {SimpleCToken} from "contracts/market/token/SimpleCToken.sol";
+import {
+    IUniswapV3Router
+} from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import {IVault} from "contracts/interfaces/IVault.sol";
+import {IPluginDelegable} from "contracts/interfaces/IPluginDelegable.sol";
 
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import {
+    ChainlinkAdaptor
+} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
-
     NativeVaultZapper public vaultZapper;
     address public SHMON_ADDRESS = 0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
     address public WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
-    
+
     SimpleCToken public simpleCSHMON;
 
-    address public _CHAINLINK_ETH_USD_MONAD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
-    address public _CHAINLINK_USDC_USD_MONAD = 0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
+    address public _CHAINLINK_ETH_USD_MONAD =
+        0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
+    address public _CHAINLINK_USDC_USD_MONAD =
+        0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
 
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     function setUp() public override {
         _fork("MON_NODE_URI_MONAD_MAINNET");
-        
+
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -43,7 +51,9 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployBorrowableCUSDC();
 
-        vaultZapper = new NativeVaultZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
+        vaultZapper = new NativeVaultZapper(
+            ICentralRegistry(address(centralRegistry)), WMON_ADDRESS
+        );
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
@@ -51,47 +61,30 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
         );
 
         simpleCSHMON = new SimpleCToken(
-            ICentralRegistry(address(centralRegistry)), 
-            IERC20(SHMON_ADDRESS), 
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(SHMON_ADDRESS),
             address(marketManagerIsolated)
         );
 
-        chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
-        );
+        chainlinkAdaptor =
+            new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
-            SHMON_ADDRESS,
-            true,
-            _CHAINLINK_ETH_USD_MONAD,
-            0
+            SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0
         );
         oracleManager.addAssetPricingAdaptor(
-            SHMON_ADDRESS, 
-            address(chainlinkAdaptor), 
-            100,
-            50,
-            100,
-            50
-            );
+            SHMON_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50
+        );
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
         chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            _CHAINLINK_USDC_USD_MONAD,
-            0
+            _USDC_ADDRESS, true, _CHAINLINK_USDC_USD_MONAD, 0
         );
         oracleManager.addAssetPricingAdaptor(
-            _USDC_ADDRESS, 
-            address(chainlinkAdaptor), 
-            100, 
-            50,
-            100,
-            50
-            );
+            _USDC_ADDRESS, address(chainlinkAdaptor), 100, 50, 100, 50
+        );
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         deal(SHMON_ADDRESS, address(this), 77777 ether);
@@ -99,46 +92,157 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
         deal(_USDC_ADDRESS, address(this), 77777 ether);
         IERC20(_USDC_ADDRESS).approve(address(borrowableCUSDC), 77777 ether);
 
-        marketManagerIsolated.listTokens(address(simpleCSHMON), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(
+            address(simpleCSHMON), address(borrowableCUSDC)
+        );
 
         _setCTokenConfigBasic(address(simpleCSHMON), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e18);
     }
 
-    function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative() public {
-
+    function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative()
+        public
+    {
         // No swap in this test
 
         deal(user1, 100 ether);
 
-        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 previewDepositAmount =
+            IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
         uint256 initialEthBalance = user1.balance;
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
-        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         vm.startPrank(user1);
 
-        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
-        (
-            address(simpleCSHMON),
-            false,
-            swapAction,
-            0,
-            false,
-            user1
+        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}(
+            address(simpleCSHMON), false, swapAction, 0, false, user1
         );
 
         vm.stopPrank();
 
-        assertEq(user1.balance, initialEthBalance - 100 ether, "User ETH balance should decrease by input amount");
-        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
-        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
-        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
-        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
-        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold any ETH after operation");
+        assertEq(
+            user1.balance,
+            initialEthBalance - 100 ether,
+            "User ETH balance should decrease by input amount"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            previewDepositAmount,
+            "User cToken balance should increase, cToken exchange rate is 1:1 in this test"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            returnedShares,
+            "Returned shares should match user balance"
+        );
+        assertEq(
+            IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)),
+            previewDepositAmount + 77777,
+            "Vault balance in cToken should increase"
+        );
+        assertEq(
+            simpleCSHMON.totalAssets(),
+            previewDepositAmount + 77777,
+            "cToken totalAssets should increase"
+        );
+        _assertNativeVaultZapperHasNoResidue();
+    }
+
+    function test_vaultZapper_preExistingNativeResidueDoesNotMintExtraShares()
+        public
+    {
+        uint256 residue = 7 ether;
+        deal(address(vaultZapper), residue);
+        deal(user1, 100 ether);
+
+        uint256 previewDepositAmount =
+            IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        vm.prank(user1);
+        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}(
+            address(simpleCSHMON), false, swapAction, 0, false, user1
+        );
+
+        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount);
+        assertEq(returnedShares, previewDepositAmount);
+        assertEq(
+            address(vaultZapper).balance,
+            residue,
+            "pre-existing native residue should not be deposited"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(vaultZapper)),
+            0,
+            "zapper WMON residue"
+        );
+        assertEq(
+            IERC20(SHMON_ADDRESS).balanceOf(address(vaultZapper)),
+            0,
+            "zapper SHMON residue"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(address(vaultZapper)),
+            0,
+            "zapper cSHMON residue"
+        );
+    }
+
+    function test_vaultZapper_fail_expectedSharesTooHighRollsBackNativeDeposit()
+        public
+    {
+        deal(user1, 100 ether);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        uint256 userNativeBefore = user1.balance;
+        uint256 cTokenSharesBefore = simpleCSHMON.balanceOf(user1);
+        uint256 cTokenAssetsBefore = simpleCSHMON.totalAssets();
+
+        vm.prank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        vaultZapper.swapAndDeposit{value: 100 ether}(
+            address(simpleCSHMON),
+            false,
+            swapAction,
+            type(uint256).max,
+            false,
+            user1
+        );
+
+        assertEq(
+            user1.balance,
+            userNativeBefore,
+            "failed native vault zap should refund native value"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            cTokenSharesBefore,
+            "failed native vault zap should not mint shares"
+        );
+        assertEq(
+            simpleCSHMON.totalAssets(),
+            cTokenAssetsBefore,
+            "failed native vault zap should not change cToken assets"
+        );
+        _assertNativeVaultZapperHasNoResidue();
     }
 
     function test_vaultZapper_fail_swapAndDeposit_zeroReceiver() public {
@@ -146,70 +250,191 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
-        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         vm.startPrank(user1);
 
+        uint256 userNativeBefore = user1.balance;
+
         vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
-        vaultZapper.swapAndDeposit{value: 100 ether}
-        (
-            address(simpleCSHMON),
-            false,
-            swapAction,
-            0,
-            false,
-            address(0)
+        vaultZapper.swapAndDeposit{value: 100 ether}(
+            address(simpleCSHMON), false, swapAction, 0, false, address(0)
         );
 
         vm.stopPrank();
+
+        assertEq(user1.balance, userNativeBefore);
+        assertEq(simpleCSHMON.balanceOf(user1), 0);
+        _assertNativeVaultZapperHasNoResidue();
     }
 
-    function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative_WithCollateral() public {
+    function test_vaultZapper_fail_swapAndDeposit_nativeValueMismatch()
+        public
+    {
+        deal(user1, 100 ether);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        vm.startPrank(user1);
+
+        uint256 userNativeBefore = user1.balance;
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        vaultZapper.swapAndDeposit{value: 99 ether}(
+            address(simpleCSHMON), false, swapAction, 0, false, user1
+        );
+
+        vm.stopPrank();
+
+        assertEq(user1.balance, userNativeBefore);
+        assertEq(simpleCSHMON.balanceOf(user1), 0);
+        _assertNativeVaultZapperHasNoResidue();
+    }
+
+    function test_vaultZapper_fail_swapAndDeposit_outputMustBeNative() public {
+        deal(WMON_ADDRESS, user1, 100 ether);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.inputToken = WMON_ADDRESS;
+
+        vm.startPrank(user1);
+        IERC20(WMON_ADDRESS).approve(address(vaultZapper), 100 ether);
+
+        uint256 userWrappedBefore = IERC20(WMON_ADDRESS).balanceOf(user1);
+
+        vm.expectRevert(
+            BaseZapper.BaseZapper__UnderlyingTokenIsNotInputToken.selector
+        );
+        vaultZapper.swapAndDeposit(
+            address(simpleCSHMON), false, swapAction, 0, false, user1
+        );
+
+        vm.stopPrank();
+
+        assertEq(IERC20(WMON_ADDRESS).balanceOf(user1), userWrappedBefore);
+        assertEq(simpleCSHMON.balanceOf(user1), 0);
+        _assertNativeVaultZapperHasNoResidue();
+    }
+
+    function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative_WithCollateral()
+        public
+    {
         // No swap in this test
         deal(user1, 100 ether);
 
-        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 previewDepositAmount =
+            IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
         uint256 initialEthBalance = user1.balance;
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
-        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         vm.startPrank(user1);
 
-        IPluginDelegable(address(simpleCSHMON)).setDelegateApproval(address(vaultZapper), true);
-        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
-        (
-            address(simpleCSHMON),
-            false,
-            swapAction,
-            0,
-            true,
-            user1
+        IPluginDelegable(address(simpleCSHMON))
+            .setDelegateApproval(address(vaultZapper), true);
+        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}(
+            address(simpleCSHMON), false, swapAction, 0, true, user1
         );
 
         vm.stopPrank();
 
-        assertEq(user1.balance, initialEthBalance - 100 ether, "User ETH balance should decrease by input amount");
-        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
-        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
-        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
-        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
-        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold any ETH after operation");
+        assertEq(
+            user1.balance,
+            initialEthBalance - 100 ether,
+            "User ETH balance should decrease by input amount"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            previewDepositAmount,
+            "User cToken balance should increase, cToken exchange rate is 1:1 in this test"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            returnedShares,
+            "Returned shares should match user balance"
+        );
+        assertEq(
+            IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)),
+            previewDepositAmount + 77777,
+            "Vault balance in cToken should increase"
+        );
+        assertEq(
+            simpleCSHMON.totalAssets(),
+            previewDepositAmount + 77777,
+            "cToken totalAssets should increase"
+        );
+        _assertNativeVaultZapperHasNoResidue();
     }
 
-    function test_vaultZapper_success_swapAndDeposit_NoSwap_WrappedNative() public {
+    function test_vaultZapper_fail_multicallCannotCollateralizeForNonDelegate()
+        public
+    {
+        deal(WMON_ADDRESS, user2, 100 ether);
 
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken = WMON_ADDRESS;
+
+        Multicall.MulticallAction[] memory calls =
+            new Multicall.MulticallAction[](1);
+        calls[0] = Multicall.MulticallAction({
+            target: address(vaultZapper),
+            isPriceUpdate: false,
+            data: abi.encodeWithSelector(
+                vaultZapper.swapAndDeposit.selector,
+                address(simpleCSHMON),
+                false,
+                swapAction,
+                0,
+                true,
+                user1
+            )
+        });
+
+        uint256 user2BalanceBefore = IERC20(WMON_ADDRESS).balanceOf(user2);
+        uint256 user1CollateralBefore = simpleCSHMON.collateralPosted(user1);
+
+        vm.startPrank(user2);
+        IERC20(WMON_ADDRESS).approve(address(vaultZapper), 100 ether);
+        vm.expectRevert(BaseZapper.BaseZapper__Unauthorized.selector);
+        vaultZapper.multicall(calls);
+        vm.stopPrank();
+
+        assertEq(IERC20(WMON_ADDRESS).balanceOf(user2), user2BalanceBefore);
+        assertEq(simpleCSHMON.collateralPosted(user1), user1CollateralBefore);
+        assertEq(simpleCSHMON.balanceOf(user1), 0);
+        _assertNativeVaultZapperHasNoResidue();
+    }
+
+    function test_vaultZapper_success_swapAndDeposit_NoSwap_WrappedNative()
+        public
+    {
         deal(WMON_ADDRESS, user1, 100 ether);
 
-        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 previewDepositAmount =
+            IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
         uint256 initialWMONBalance = IERC20(WMON_ADDRESS).balanceOf(user1);
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
-        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.outputToken =
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         swapAction.inputToken = address(WMON_ADDRESS);
 
         vm.startPrank(user1);
@@ -217,22 +442,55 @@ contract TestNativeVaultZapperWithoutSwaps is TestBaseMarketIsolated {
         IERC20(WMON_ADDRESS).approve(address(vaultZapper), 100 ether);
 
         uint256 returnedShares = vaultZapper.swapAndDeposit(
-            address(simpleCSHMON),
-            false,
-            swapAction,
-            0,
-            false,
-            user1
+            address(simpleCSHMON), false, swapAction, 0, false, user1
         );
 
         vm.stopPrank();
 
-        assertEq(IERC20(WMON_ADDRESS).balanceOf(user1), initialWMONBalance - 100 ether, "User WMON balance should decrease by input amount");
-        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
-        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
-        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
-        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
-        assertEq(IERC20(WMON_ADDRESS).balanceOf(address(vaultZapper)), 0, "Zapper should not hold WMON after operation");
-        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold ETH after operation");
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(user1),
+            initialWMONBalance - 100 ether,
+            "User WMON balance should decrease by input amount"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            previewDepositAmount,
+            "User cToken balance should increase, cToken exchange rate is 1:1 in this test"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(user1),
+            returnedShares,
+            "Returned shares should match user balance"
+        );
+        assertEq(
+            IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)),
+            previewDepositAmount + 77777,
+            "Vault balance in cToken should increase"
+        );
+        assertEq(
+            simpleCSHMON.totalAssets(),
+            previewDepositAmount + 77777,
+            "cToken totalAssets should increase"
+        );
+        _assertNativeVaultZapperHasNoResidue();
+    }
+
+    function _assertNativeVaultZapperHasNoResidue() internal view {
+        assertEq(address(vaultZapper).balance, 0, "zapper native residue");
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(vaultZapper)),
+            0,
+            "zapper WMON residue"
+        );
+        assertEq(
+            IERC20(SHMON_ADDRESS).balanceOf(address(vaultZapper)),
+            0,
+            "zapper SHMON residue"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(address(vaultZapper)),
+            0,
+            "zapper cSHMON residue"
+        );
     }
 }

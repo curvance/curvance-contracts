@@ -1,28 +1,35 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import {
+    LendingOptimizer
+} from "contracts/market/optimizer/LendingOptimizer.sol";
+import {
+    SafeTransferLib
+} from "contracts/libraries/external/SafeTransferLib.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title LendingOptimizerHarness
 /// @notice Exposes internal functions and state for testing.
 contract LendingOptimizerHarness is LendingOptimizer {
-
     constructor(
         IERC20 asset_,
         ICentralRegistry _centralRegistry,
         address[] memory _approvedCTokens,
         uint256[] memory _allocationCapsBps,
         uint256 _feeBps
-    ) LendingOptimizer(
-        asset_,
-        _centralRegistry,
-        _approvedCTokens,
-        _allocationCapsBps,
-        _feeBps
-    ) {}
+    )
+        LendingOptimizer(
+            asset_,
+            "Flagship",
+            "Flag",
+            _centralRegistry,
+            _approvedCTokens,
+            _allocationCapsBps,
+            _feeBps
+        )
+    {}
 
     /// @notice Returns the indexed total assets.
     function exposed_totalAssetsIndexed() external view returns (uint256) {
@@ -52,9 +59,18 @@ contract LendingOptimizerHarness is LendingOptimizer {
         allocationCaps[cToken] = cap;
     }
 
+    /// @notice Test-only: sets indexed total assets for share math tests.
+    function exposed_setTotalAssets(uint256 assets) external {
+        _totalAssets = assets;
+    }
+
     /// @notice Returns shares using the original ERC4626 previewDeposit
     ///         (without the -2 adjustment) for comparison testing.
-    function oldPreviewDeposit(uint256 assets) external view returns (uint256) {
+    function oldPreviewDeposit(uint256 assets)
+        external
+        view
+        returns (uint256)
+    {
         return convertToShares(assets);
     }
 
@@ -69,7 +85,9 @@ contract LendingOptimizerHarness is LendingOptimizer {
         _checkMintPaused();
         _accrueIfNeeded();
 
-        SafeTransferLib.safeTransferFrom(address(_asset), msg.sender, address(this), assets);
+        SafeTransferLib.safeTransferFrom(
+            address(_asset), msg.sender, address(this), assets
+        );
         uint256 trackedAssets = _depositToMarket(targetMarket, assets);
 
         shares = convertToShares(trackedAssets);

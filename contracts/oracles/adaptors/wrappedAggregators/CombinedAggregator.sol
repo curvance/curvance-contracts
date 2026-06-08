@@ -310,6 +310,11 @@ contract CombinedAggregator is BaseWrappedAggregator {
             }
         }
 
+        if (answer <= 0 || secondaryAnswer <= 0) {
+            answer = 0;
+            return (roundId, answer, startedAt, updatedAt, answeredInRound);
+        }
+
         // Adjust `answer` by secondary answer to combine and divide by
         // secondary decimal precision.
         answer = _toInt256(FixedPointMathLib.fullMulDiv(
@@ -336,6 +341,10 @@ contract CombinedAggregator is BaseWrappedAggregator {
             if (block.timestamp - secondaryUpdatedAt > secondaryHeartbeat) {
                 return 0;
             }
+        }
+
+        if (answer <= 0 || secondaryAnswer <= 0) {
+            return 0;
         }
 
         // Adjust `answer` by secondary answer to combine and divide by

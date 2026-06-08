@@ -237,4 +237,36 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), 100e6 + compoundingFee);
     }
+
+    function test_executeEpoch_success_whenTotalPointsAreZero() public {
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            srcMessagingHub,
+            abi.encode(uint256(0))
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryLockPoints()")
+        );
+
+        deal(address(messagingHub), _ONE);
+        _prepareUSDC(address(feeManager), 100e6);
+
+        uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
+        assertEq(
+            usdc.balanceOf(centralRegistry.daoAddress()),
+            daoBalance + 100e6
+        );
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), 0);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
+    }
 }

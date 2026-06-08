@@ -3,18 +3,20 @@ pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import { LendingOptimizerShareCToken } from "contracts/market/token/LendingOptimizerShareCToken.sol";
 import { LendingOptimizerHarness } from "./LendingOptimizerHarness.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
+import { VaultAggregator } from "contracts/oracles/adaptors/wrappedAggregators/VaultAggregator.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { BAD_SOURCE, WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
 /// @title Bad Debt Stress Tests for LendingOptimizer
@@ -203,6 +205,240 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         optimizer.initializeDeposits(address(borrowableCUSDC));
     }
 
+    function _deployOptimizerShareCTokenForBadDebtPricing()
+        internal
+        returns (LendingOptimizerShareCToken shareCToken, MockV3Aggregator optimizerFeed)
+    {
+        DynamicIRM irm = new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000,
+            1000,
+            5000,
+            1000,
+            100,
+            100000
+        );
+        shareCToken = new LendingOptimizerShareCToken(
+            ICentralRegistry(address(centralRegistry)),
+            optimizer,
+            address(marketManagerIsolated),
+            address(irm)
+        );
+        irm.setLinkedToken(address(shareCToken));
+
+        optimizerFeed = new MockV3Aggregator(8, 1e8);
+        VaultAggregator optimizerVaultFeed = new VaultAggregator(
+            address(optimizer),
+            _USDC_ADDRESS,
+            address(optimizerFeed),
+            "optimizer/USD"
+        );
+        chainlinkAdaptor.addAsset(address(optimizer), true, address(optimizerVaultFeed), 0);
+        oracleManager.addAssetPricingAdaptor(
+            address(optimizer),
+            address(chainlinkAdaptor),
+            0,
+            0,
+            0,
+            0
+        );
+        oracleManager.addCTokenSupport(address(shareCToken));
+
+        _prepareUSDC(address(this), BASE_RESERVE);
+        usdc.approve(address(optimizer), BASE_RESERVE);
+        optimizer.deposit(BASE_RESERVE, address(this));
+
+        IERC20(address(optimizer)).approve(address(shareCToken), BASE_RESERVE);
+        vm.prank(address(marketManagerIsolated));
+        shareCToken.initializeDeposits(address(this));
+    }
+
+    function _deployOptimizerShareLaunchMarketForBadDebt()
+        internal
+        returns (
+            MarketManagerIsolated optimizerShareMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            MockV3Aggregator optimizerFeed
+        )
+    {
+        optimizerShareMarket = new MarketManagerIsolated(
+            ICentralRegistry(address(centralRegistry)),
+            10e18,
+            false
+        );
+        centralRegistry.addMarketManager(address(optimizerShareMarket));
+
+        DynamicIRM debtIrm = new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000,
+            1000,
+            5000,
+            1000,
+            100,
+            100000
+        );
+        debtCToken = new BorrowableCToken(
+            ICentralRegistry(address(centralRegistry)),
+            usdc,
+            address(optimizerShareMarket),
+            address(debtIrm)
+        );
+        debtIrm.setLinkedToken(address(debtCToken));
+
+        DynamicIRM shareIrm = new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000,
+            1000,
+            5000,
+            1000,
+            100,
+            100000
+        );
+        shareCToken = new LendingOptimizerShareCToken(
+            ICentralRegistry(address(centralRegistry)),
+            optimizer,
+            address(optimizerShareMarket),
+            address(shareIrm)
+        );
+        shareIrm.setLinkedToken(address(shareCToken));
+
+        optimizerFeed = new MockV3Aggregator(8, 1e8);
+        VaultAggregator optimizerVaultFeed = new VaultAggregator(
+            address(optimizer),
+            _USDC_ADDRESS,
+            address(optimizerFeed),
+            "optimizer/USD"
+        );
+        chainlinkAdaptor.addAsset(address(optimizer), true, address(optimizerVaultFeed), 0);
+        chainlinkAdaptor.setGuardedPriceConfig(address(optimizer), true, 0, 0, WAD, 0);
+        oracleManager.addAssetPricingAdaptor(
+            address(optimizer),
+            address(chainlinkAdaptor),
+            0,
+            0,
+            0,
+            0
+        );
+        oracleManager.addCTokenSupport(address(shareCToken));
+        oracleManager.addCTokenSupport(address(debtCToken));
+
+        _prepareUSDC(address(this), BASE_RESERVE * 2);
+        usdc.approve(address(optimizer), BASE_RESERVE);
+        optimizer.deposit(BASE_RESERVE, address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), BASE_RESERVE);
+        usdc.approve(address(debtCToken), BASE_RESERVE);
+        optimizerShareMarket.listTokens(address(shareCToken), address(debtCToken));
+        _setCTokenConfigForManager(optimizerShareMarket, address(shareCToken), 1_000_000e6, 0);
+        _setCTokenConfigForManager(optimizerShareMarket, address(debtCToken), 0, 1_000_000e6);
+    }
+
+    function _optimizerShareCollateralMaxDebtValue(
+        LendingOptimizerShareCToken shareCToken,
+        address account,
+        uint256 optimizerPrice
+    ) internal view returns (uint256) {
+        uint256 sharePrice = FixedPointMathLib.mulDiv(
+            optimizerPrice,
+            shareCToken.exchangeRate(),
+            WAD
+        );
+        uint256 collateralValue = FixedPointMathLib.mulDiv(
+            shareCToken.collateralPosted(account),
+            sharePrice,
+            10 ** shareCToken.decimals()
+        );
+
+        return FixedPointMathLib.mulDiv(collateralValue, 7000, BPS);
+    }
+
+    function _usdcDebtValue(uint256 assets) internal pure returns (uint256) {
+        return FixedPointMathLib.mulDiv(assets, WAD, 1e6);
+    }
+
+    function _prepareOptimizerShareAccountAfterBadDebt()
+        internal
+        returns (
+            MarketManagerIsolated optimizerShareMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            uint256 totalAssetsBeforeBadDebt
+        )
+    {
+        LendingOptimizerShareCToken deployedShareCToken;
+        MockV3Aggregator optimizerFeed;
+        (
+            optimizerShareMarket,
+            debtCToken,
+            deployedShareCToken,
+            optimizerFeed
+        ) = _deployOptimizerShareLaunchMarketForBadDebt();
+        shareCToken = deployedShareCToken;
+
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        uint256 optimizerShares = optimizer.balanceOf(depositor1);
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        shareCToken.depositAsCollateral(optimizerShares, depositor1);
+        vm.stopPrank();
+
+        _prepareUSDC(liquidityProvider, 100_000e6);
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(debtCToken), 100_000e6);
+        debtCToken.deposit(100_000e6, liquidityProvider);
+        vm.stopPrank();
+
+        (, uint256 maxDebtBeforeBadDebt,) = optimizerShareMarket.statusOf(depositor1);
+        uint256 initialBorrowAmount = FixedPointMathLib.mulDiv(
+            maxDebtBeforeBadDebt,
+            9970 * 1e6,
+            BPS * WAD
+        );
+
+        vm.prank(depositor1);
+        debtCToken.borrow(initialBorrowAmount, depositor1);
+
+        vm.warp(optimizerShareMarket.accountAssets(depositor1) + optimizerShareMarket.MIN_HOLD_PERIOD());
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        totalAssetsBeforeBadDebt = optimizer.totalAssets();
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(accounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "borrower debt should be cleared");
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "optimizer NAV must still be cached before market price path"
+        );
+    }
+
     /// @dev Provides liquidity to all markets for borrowing
     function _provideLiquidityToAllMarkets(uint256 amountPerMarket) internal {
         _prepareUSDC(liquidityProvider, amountPerMarket * 3);
@@ -379,6 +615,272 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
                 "Depositor loss should be proportional to total asset loss"
             );
         }
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtRepricesIsolatedPairThroughVaultAggregator() public {
+        (LendingOptimizerShareCToken shareCToken, MockV3Aggregator optimizerFeed) =
+            _deployOptimizerShareCTokenForBadDebtPricing();
+
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        (uint256 sharesPriceBefore,) = oracleManager.getPriceIsolatedPair(
+            address(shareCToken),
+            address(borrowableCUSDC),
+            BAD_SOURCE
+        );
+        uint256 totalAssetsBeforeBadDebt = optimizer.totalAssets();
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        skip(30 days);
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(accounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "borrower debt should be cleared");
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "optimizer NAV must still be cached before market price path"
+        );
+
+        (uint256 staleOptimizerPrice, uint256 staleErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(staleErrorCode, 0);
+
+        (uint256 sharesPriceAfter,) = oracleManager.getPriceIsolatedPair(
+            address(shareCToken),
+            address(borrowableCUSDC),
+            BAD_SOURCE
+        );
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "isolated pair price path must sync bad-debt NAV loss"
+        );
+        assertLt(sharesPriceAfter, sharesPriceBefore, "wrapper collateral price should fall after bad debt");
+
+        (uint256 freshOptimizerPrice, uint256 freshErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(freshErrorCode, 0);
+        assertLt(freshOptimizerPrice, staleOptimizerPrice, "direct cached optimizer price was stale high");
+
+        uint256 expectedSharesPrice = FixedPointMathLib.mulDiv(
+            freshOptimizerPrice,
+            shareCToken.exchangeRate(),
+            WAD
+        );
+        assertEq(sharesPriceAfter, expectedSharesPrice);
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtBlocksBorrowThroughFreshMarketPricing() public {
+        (
+            MarketManagerIsolated optimizerShareMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            MockV3Aggregator optimizerFeed
+        ) = _deployOptimizerShareLaunchMarketForBadDebt();
+
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        uint256 optimizerShares = optimizer.balanceOf(depositor1);
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        shareCToken.depositAsCollateral(optimizerShares, depositor1);
+        vm.stopPrank();
+
+        _prepareUSDC(liquidityProvider, 100_000e6);
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(debtCToken), 100_000e6);
+        debtCToken.deposit(100_000e6, liquidityProvider);
+        vm.stopPrank();
+
+        (, uint256 maxDebtBeforeBadDebt,) = optimizerShareMarket.statusOf(depositor1);
+        uint256 initialBorrowAmount = FixedPointMathLib.mulDiv(
+            maxDebtBeforeBadDebt,
+            9970 * 1e6,
+            BPS * WAD
+        );
+        uint256 additionalBorrowAmount = 100e6;
+        assertGt(
+            maxDebtBeforeBadDebt,
+            _usdcDebtValue(initialBorrowAmount + additionalBorrowAmount),
+            "pre-loss account should still have borrow room"
+        );
+
+        vm.prank(depositor1);
+        debtCToken.borrow(initialBorrowAmount, depositor1);
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        uint256 totalAssetsBeforeBadDebt = optimizer.totalAssets();
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(accounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "borrower debt should be cleared");
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "optimizer NAV must still be cached before market price path"
+        );
+
+        (uint256 staleOptimizerPrice, uint256 staleErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(staleErrorCode, 0);
+
+        uint256 staleMaxDebt =
+            _optimizerShareCollateralMaxDebtValue(shareCToken, depositor1, staleOptimizerPrice);
+        assertGt(
+            staleMaxDebt,
+            _usdcDebtValue(initialBorrowAmount + additionalBorrowAmount),
+            "stale NAV would leave room for the extra borrow"
+        );
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        debtCToken.borrow(additionalBorrowAmount, depositor1);
+
+        (, uint256 freshMaxDebt, uint256 freshDebt) = optimizerShareMarket.statusOf(depositor1);
+        assertLt(
+            freshMaxDebt,
+            freshDebt + _usdcDebtValue(additionalBorrowAmount),
+            "fresh market price should block the extra borrow"
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtBlocksCollateralMovementThroughFreshMarketPricing() public {
+        (,, LendingOptimizerShareCToken shareCToken, uint256 totalAssetsBeforeBadDebt) =
+            _prepareOptimizerShareAccountAfterBadDebt();
+        uint256 shares = 1;
+        address receiver = makeAddr("badDebtCollateralMovementReceiver");
+        address spender = makeAddr("badDebtCollateralMovementSpender");
+
+        assertGt(shareCToken.collateralPosted(depositor1), shares, "precondition: collateral was posted");
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.removeCollateral(shares);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.transfer(receiver, shares);
+
+        vm.prank(depositor1);
+        shareCToken.approve(spender, shares);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(spender);
+        shareCToken.transferFrom(depositor1, receiver, shares);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.redeem(shares, depositor1, depositor1);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.redeemCollateral(shares, depositor1, depositor1);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.withdraw(shares, depositor1, depositor1);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(depositor1);
+        shareCToken.withdrawCollateral(shares, depositor1, depositor1);
+
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "failed collateral movement must not commit optimizer accrual"
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtLiquidatesThroughFreshMarketPricing() public {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            uint256 totalAssetsBeforeBadDebt
+        ) = _prepareOptimizerShareAccountAfterBadDebt();
+
+        uint256 debtBefore = debtCToken.debtBalance(depositor1);
+        uint256 collateralBefore = shareCToken.collateralPosted(depositor1);
+
+        (uint256 staleOptimizerPrice, uint256 staleErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(staleErrorCode, 0);
+        uint256 staleMaxDebt =
+            _optimizerShareCollateralMaxDebtValue(shareCToken, depositor1, staleOptimizerPrice);
+        assertGt(staleMaxDebt, _usdcDebtValue(debtBefore), "stale NAV would not liquidate");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = depositor1;
+
+        _prepareUSDC(user2, debtBefore);
+        vm.startPrank(user2);
+        usdc.approve(address(debtCToken), debtBefore);
+        debtCToken.liquidate(accounts, address(shareCToken));
+        vm.stopPrank();
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "liquidation price path must sync optimizer NAV loss"
+        );
+        assertLt(debtCToken.debtBalance(depositor1), debtBefore, "liquidation should reduce debt");
+        assertLt(
+            shareCToken.collateralPosted(depositor1),
+            collateralBefore,
+            "liquidation should seize posted collateral"
+        );
+        assertGt(shareCToken.balanceOf(user2), 0, "liquidator should receive seized shares");
     }
 
     // ==================== MULTI-MARKET BAD DEBT ====================

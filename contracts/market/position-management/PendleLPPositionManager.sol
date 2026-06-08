@@ -36,9 +36,9 @@ import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStanda
 ///
 contract PendleLPPositionManager is BasePositionManager {
     /// STORAGE ///
-    
+
     /// @notice The address of the Pendle router.
-    IPendleRouter public router;
+    IPendleRouter public immutable router;
 
     /// CONSTRUCTOR ///
 
@@ -53,6 +53,10 @@ contract PendleLPPositionManager is BasePositionManager {
         address wNative,
         IPendleRouter router_
     ) BasePositionManager(cr, mm, wNative) {
+        if (address(router_) == address(0)) {
+            revert BasePositionManager__InvalidParam();
+        }
+
         router = router_;
     }
 
@@ -119,7 +123,8 @@ contract PendleLPPositionManager is BasePositionManager {
             false,
             lpToken,
             minLpAmount,
-            pendleAction
+            pendleAction,
+            lpToken
         );
     }
 

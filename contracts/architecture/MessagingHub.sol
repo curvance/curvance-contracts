@@ -338,7 +338,7 @@ contract MessagingHub is QueryResponse {
                 emissionData.emissionTotal
             );
 
-            // Set upcoming epoch emissions for voted configuration.
+            // Apply this payload's incremental epoch emissions.
             cachedGaugeManager.setEmissionRates(
                 epoch,
                 emissionData.tokens,
@@ -352,13 +352,22 @@ contract MessagingHub is QueryResponse {
             (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
                 .decode(payload, (uint8, uint256, uint256));
 
+            uint256 nextEpochToDeliver = _nextEpochToDeliver(rewardManager);
+
+            if (
+                !_checkRewardManagerStatus(rewardManager) &&
+                nextEpochToDeliver < epochToDeliver
+            ) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
             // If the reward per point ratio is 0, theres no rewards to
             // distribute this epoch, and we'd expect there to be no CCTP
             // message as well.
             if (epochRewardsPerPoint == 0) {
                 if (
                     !_checkRewardManagerStatus(rewardManager) &&
-                    _nextEpochToDeliver(rewardManager) == epochToDeliver
+                    nextEpochToDeliver == epochToDeliver
                 ) {
                     _recordEpochRewards(rewardManager, 0);
                 }
@@ -377,7 +386,7 @@ contract MessagingHub is QueryResponse {
             // rewards.
             if (
                 _checkRewardManagerStatus(rewardManager) ||
-                _nextEpochToDeliver(rewardManager) != epochToDeliver
+                nextEpochToDeliver != epochToDeliver
             ) {
                 _transferFeeTokens(amountReceived, _daoAddress());
             } else {
@@ -392,6 +401,11 @@ contract MessagingHub is QueryResponse {
 
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));
+
+            if (veCVE.isShutdown() == 2) {
+                cve.completeBridge(recipient, amount);
+                return;
+            }
 
             cve.mintLockedTokens(recipient, amount);
             SwapperLib._approveIfNeeded(address(cve), address(veCVE), amount);
@@ -443,17 +457,17 @@ contract MessagingHub is QueryResponse {
         );
     }
 
-    /// @notice Sends token emissions configuration to the Messaging Hub
-    ///         on `dstChainId`.
+    /// @notice Sends incremental token emissions configuration to the
+    ///         Messaging Hub on `dstChainId`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
     ///                     1. The total amount of token emissions to allocate
-    ///                        to the Gauge Manager.
+    ///                        to the Gauge Manager in this payload.
     ///                     2. The token contract addresses receiving
     ///                        emissions.
     ///                     3. The emission amounts that each token should
-    ///                        receive.
+    ///                        receive in this payload.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.
     /// @param gasLimit Gas limit value for each remote chain message,
@@ -713,12 +727,36 @@ contract MessagingHub is QueryResponse {
         // chain's points.
         totalPoints += currentChainId;
 
+        IRewardManager rewardManager = _rewardManager();
+        ChainConfig memory config;
+
+        if (totalPoints == 0) {
+            if (feeTokensHeld > 0) {
+                _transferFeeTokens(feeTokensHeld, _daoAddress());
+            }
+
+            if (!_checkRewardManagerStatus(rewardManager)) {
+                _recordEpochRewards(rewardManager, 0);
+                // Notify the other chains of the per epoch rewards.
+                for (uint256 i; i < numChains; ++i) {
+                    currentChainId = chainIds[i];
+                    config = _chainConfig(currentChainId);
+                    _sendPayload(
+                        config.messagingChainId,
+                        config.messagingHub,
+                        abi.encode(3, epochToDeliver, 0),
+                        gasLimit,
+                        quoteMessageFee(currentChainId, gasLimit)
+                    );
+                }
+            }
+
+            return;
+        }
+
         // Calculate rewards per veCVE point.
         uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
-
-        IRewardManager rewardManager = _rewardManager();
-        ChainConfig memory config;
 
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere

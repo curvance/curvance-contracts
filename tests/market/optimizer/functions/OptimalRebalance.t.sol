@@ -32,6 +32,75 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         assertEq(actions.length, 1, "Should have 1 market");
     }
 
+    function test_getOptimizerMarketData_accruesBeforeReportingTotalAssets() public {
+        _setUpOneMarket();
+
+        uint256 depositAmount = 100_000e6;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(depositAmount, address(this), cUSDC_WMON_MARKET);
+
+        uint256 cachedAssets = optimizer.totalAssets();
+        skip(30 days);
+
+        address[] memory optimizers = new address[](1);
+        optimizers[0] = address(optimizer);
+
+        OptimizerReader.OptimizerMarketData[] memory data = reader.getOptimizerMarketData(optimizers);
+        uint256 freshAssets = optimizer.totalAssets();
+
+        assertGt(freshAssets, cachedAssets, "test should create pending market yield");
+        assertEq(data[0].totalAssets, freshAssets, "reader should return post-accrual total assets");
+        assertEq(data[0].sharePrice, optimizer.exchangeRate(), "reader should return post-accrual share price");
+
+        uint256 allocatedAssets;
+        for (uint256 i; i < data[0].markets.length; ++i) {
+            allocatedAssets += data[0].markets[i].allocatedAssets;
+        }
+
+        assertEq(data[0].totalAssets, allocatedAssets, "reader total should match market allocations");
+    }
+
+    function test_optimalRebalanceUpdated_matchesManualAccrueAndExecutes() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+        skip(30 days);
+
+        uint256 cachedAssets = optimizer.totalAssets();
+        uint256 snapshotId = vm.snapshot();
+
+        (LendingOptimizer.ReallocationAction[] memory updatedActions,
+         LendingOptimizer.AllocationBound[] memory updatedBounds) =
+            reader.optimalRebalanceUpdated(address(optimizer), 500);
+        uint256 updatedAssets = optimizer.totalAssets();
+        assertGt(updatedAssets, cachedAssets, "updated quote should accrue optimizer assets");
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        _rebalance(optimizer, updatedActions, updatedBounds);
+
+        assertTrue(vm.revertTo(snapshotId), "revert to pre-updated quote");
+        optimizer.accrueIfNeeded();
+        assertEq(optimizer.totalAssets(), updatedAssets, "manual accrue should match updated quote state");
+
+        (LendingOptimizer.ReallocationAction[] memory manualActions,
+         LendingOptimizer.AllocationBound[] memory manualBounds) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(manualActions.length, updatedActions.length, "actions length");
+        assertEq(manualBounds.length, updatedBounds.length, "bounds length");
+        for (uint256 i; i < updatedActions.length; ++i) {
+            assertEq(address(manualActions[i].cToken), address(updatedActions[i].cToken), "action cToken");
+            assertEq(manualActions[i].assetsOrBps, updatedActions[i].assetsOrBps, "action amount");
+            assertEq(manualBounds[i].cToken, updatedBounds[i].cToken, "bound cToken");
+            assertEq(manualBounds[i].minBps, updatedBounds[i].minBps, "bound min");
+            assertEq(manualBounds[i].maxBps, updatedBounds[i].maxBps, "bound max");
+        }
+    }
+
     function test_optimalRebalance_success_returnsCorrectArrayLengths_twoMarkets() public {
         _setUpTwoMarkets();
 
@@ -1306,24 +1375,28 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
          LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 300);
 
         // Compute what the ideal post-rebalance allocation would be.
-        uint256 ta = optimizer.totalAssets();
         address[] memory markets = optimizer.getApprovedMarkets();
+        uint256[] memory currentAssets = new uint256[](markets.length);
+        uint256 ta;
 
         for (uint256 i; i < markets.length; ++i) {
-            uint256 currentAssets = IBorrowableCToken(markets[i]).convertToAssets(
+            currentAssets[i] = IBorrowableCToken(markets[i]).convertToAssets(
                 IBorrowableCToken(markets[i]).balanceOf(address(optimizer))
             );
+            ta += currentAssets[i];
+        }
 
+        for (uint256 i; i < markets.length; ++i) {
             uint256 idealAssets;
             if (actions[i].assetsOrBps > 0) {
-                idealAssets = currentAssets + uint256(actions[i].assetsOrBps);
+                idealAssets = currentAssets[i] + uint256(actions[i].assetsOrBps);
             } else if (actions[i].assetsOrBps < 0) {
-                idealAssets = currentAssets - uint256(-actions[i].assetsOrBps);
+                idealAssets = currentAssets[i] - uint256(-actions[i].assetsOrBps);
             } else {
-                idealAssets = currentAssets;
+                idealAssets = currentAssets[i];
             }
 
-            uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets, 10000, ta);
+            uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets, BPS, ta);
             assertGe(idealBps, bounds[i].minBps, "Ideal allocation below minBps");
             assertLe(idealBps, bounds[i].maxBps, "Ideal allocation above maxBps");
         }
@@ -1460,4 +1533,92 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         optimizer.rebalance(actions, bounds);
     }
+
+    function test_optimalRebalance_success_readerResultsExecuteWithNonChunkAlignedCaps() public {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 5_100;
+        caps[1] = 5_000;
+
+        optimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 1_000
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        uint256 depositAmount = 100_000e6 + 23;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount, address(this), cUSDC_WMON_MARKET
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+
+        uint256 totalDeposits;
+        uint256 totalWithdrawals;
+        for (uint256 i; i < actions.length; ++i) {
+            if (actions[i].assetsOrBps > 0) {
+                totalDeposits += uint256(actions[i].assetsOrBps);
+            } else if (actions[i].assetsOrBps < 0) {
+                totalWithdrawals += uint256(-actions[i].assetsOrBps);
+            }
+        }
+
+        assertEq(totalDeposits, totalWithdrawals, "reader actions must balance exactly");
+        optimizer.rebalance(actions, bounds);
+    }
+
+    function test_optimalRebalance_fail_exactCapsWithoutIntegerHeadroom() public {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 5_100;
+        caps[1] = 4_900;
+
+        optimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD), liveCentralRegistry, approvedCTokens, caps, 1_000
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        uint256 depositAmount = 100_000e6 + 23;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount, address(this), cUSDC_WMON_MARKET
+        );
+
+        vm.expectRevert(OptimizerReader.OptimizerReader__InsufficientAllocationHeadroom.selector);
+        reader.optimalRebalance(address(optimizer), 500);
+    }
+
 }

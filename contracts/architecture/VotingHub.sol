@@ -372,15 +372,15 @@ contract VotingHub is QueryResponse {
         return (cachedEmissionsAllocated, emissionData, remoteEmissionData);
     }
 
-    /// @dev Sets new token emissions values to Gauge Managers on this chain,
-    ///      for `epoch`.
+    /// @dev Applies new token emission allocations to Gauge Manager on this
+    ///      chain for `epoch`; allocations are additive within an epoch.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
     ///                     1. The total amount of token emissions to allocate
-    ///                        to the Gauge Manager.
+    ///                        to the Gauge Manager in this payload.
     ///                     2. The token contract addresses receiving
-    ///                        emissions.
+    ///                        emissions in this payload.
     ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param epoch The epoch having its token emission values set.
@@ -402,7 +402,7 @@ contract VotingHub is QueryResponse {
             emissionData.emissionTotal
         );
 
-        // Set upcoming epoch emissions for voted configuration.
+        // Apply this payload's incremental epoch emissions.
         cachedGaugeManager.setEmissionRates(
             epoch,
             emissionData.tokens,
@@ -410,17 +410,17 @@ contract VotingHub is QueryResponse {
         );
     }
 
-    /// @dev Sets new token emissions values to Gauge Managers on a remote chain,
-    ///      for `epoch`.
+    /// @dev Sends new token emission allocations to Gauge Manager on a remote
+    ///      chain for `epoch`; allocations are additive within an epoch.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
     ///                     1. The total amount of token emissions to allocate
-    ///                        to the Gauge Manager.
+    ///                        to the Gauge Manager in this payload.
     ///                     2. The token contract addresses receiving
     ///                        emissions.
     ///                     3. The emission amounts that each token should
-    ///                        receive.
+    ///                        receive in this payload.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.
     /// @param gasLimit Gas limit value for each remote chain message,

@@ -15,12 +15,13 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 
 
-/// @title Curvance Lending Optimizer.
+/// @title Curvance Lending Optimizer Vault.
 /// @notice Optimizes yield across multiple Curvance lending markets
 ///         for a single underlying asset.
 /// @dev This contract is ERC4626-like with multi-market allocation
@@ -30,6 +31,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      Preview methods are estimates, not exact settlement guarantees:
 ///      state-changing entrypoints accrue underlying markets before routing,
 ///      so preview values can differ from actual results.
+///      The share token is intentionally not vanilla ERC20:
+///      zero-amount transfers and self-transfers revert, and share movement
+///      accrues underlying market NAV before execution.
 ///
 ///      Deposits and withdrawals are routed pro-rata across approved
 ///      markets to maintain current allocation percentages. Only
@@ -173,7 +177,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///         per-market cap range (0 < cap <= 100%), no duplicates, correct
     ///         underlying asset, and registered market manager for each cToken.
     ///      2. ERC20 metadata -- derives the share token name/symbol/decimals
-    ///         from the underlying asset.
+    ///         from offchain-managed vault labels and the underlying asset symbol.
     ///      3. Market registration -- converts each allocation cap from BPS to
     ///         WAD and stores the approved cToken list. Reverts if total caps
     ///         sum to less than 100%.
@@ -183,12 +187,16 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      After construction the optimizer is NOT yet active; `initializeDeposits()`
     ///      must be called to mint dead shares and enable deposits.
     /// @param asset_ The underlying ERC20 asset (e.g. USDC).
+    /// @param vaultNamePrefix_ Vault name prefix (e.g. Flagship, Prime).
+    /// @param vaultSymbolPrefix_ Vault symbol prefix (e.g. Flag, Prime).
     /// @param _centralRegistry Protocol registry for permissions and market manager lookups.
     /// @param _approvedCTokens Initial set of Curvance cToken markets (max 8).
     /// @param _allocationCapsBps Per-market allocation caps in BPS (1-10000). Must sum >= 10000.
     /// @param _feeBps Performance fee in BPS charged on yield above the high watermark (max 5000).
     constructor(
         IERC20 asset_,
+        string memory vaultNamePrefix_,
+        string memory vaultSymbolPrefix_,
         ICentralRegistry _centralRegistry,
         address[] memory _approvedCTokens,
         uint256[] memory _allocationCapsBps,
@@ -207,8 +215,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // Set essential storage slots.
         centralRegistry = _centralRegistry;
         _asset = asset_;
-        _name = string.concat("Curvance ", asset_.name(), " Optimizer");
-        _symbol = string.concat("c", asset_.symbol(), "+");
+        _name = string.concat(vaultNamePrefix_, " ", asset_.symbol(), " Vault");
+        _symbol = string.concat("v", vaultSymbolPrefix_, asset_.symbol());
         _decimals = asset_.decimals();
         // Store fee as BPS.
         fee = _feeBps;
@@ -302,6 +310,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver
     ) public override(ERC4626, ILendingOptimizer) nonReentrant returns (uint256 shares) {
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkMintPaused();
         _accrueIfNeeded();
 
@@ -339,6 +348,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         uint256 shares,
         address receiver
     ) public override nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkMintPaused();
         _accrueIfNeeded();
 
@@ -396,6 +406,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address owner
     ) public override nonReentrant returns (uint256 shares) {
         if (assets == 0) revert LendingOptimizer__InvalidParameter();
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkRedeemPaused();
         _accrueIfNeeded();
 
@@ -433,6 +444,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address receiver,
         address owner
     ) public override nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) revert LendingOptimizer__InvalidParameter();
         _checkRedeemPaused();
         _accrueIfNeeded();
 
@@ -451,6 +463,33 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         SafeTransferLib.safeTransfer(address(_asset), receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /// @notice Transfers optimizer shares after synchronizing underlying market NAV.
+    /// @dev Unlike vanilla ERC20, zero-amount transfers and self-transfers revert.
+    /// @param to The address receiving shares.
+    /// @param amount The amount of shares to transfer.
+    /// @return Whether or not the transfer succeeded.
+    function transfer(address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        if (amount == 0) revert LendingOptimizer__ZeroAmount();
+        if (msg.sender == to) revert LendingOptimizer__InvalidParameter();
+
+        return super.transfer(to, amount);
+    }
+
+    /// @notice Transfers optimizer shares from `from` after synchronizing underlying market NAV.
+    /// @dev Unlike vanilla ERC20, zero-amount transfers and self-transfers revert.
+    /// @param from The address transferring shares.
+    /// @param to The address receiving shares.
+    /// @param amount The amount of shares to transfer.
+    /// @return Whether or not the transfer succeeded.
+    function transferFrom(address from, address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        if (amount == 0) revert LendingOptimizer__ZeroAmount();
+        if (from == to) revert LendingOptimizer__InvalidParameter();
+
+        return super.transferFrom(from, to, amount);
     }
 
     /// @notice Rebalances assets across approved markets.
@@ -874,7 +913,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @return Maximum withdrawable assets, or 0 if withdrawals are blocked.
     function maxWithdraw(address owner) public view override returns (uint256) {
         if (_anyMarketPaused(false)) return 0;
-        return convertToAssets(balanceOf(owner));
+        uint256 ownerAssets = convertToAssets(balanceOf(owner));
+        if (ownerAssets == 0) return 0;
+        uint256 availableAssets = _availableWithdrawLiquidity();
+        return ownerAssets < availableAssets ? ownerAssets : availableAssets;
     }
 
     /// @notice Returns the maximum amount of shares that `owner` can redeem.
@@ -883,7 +925,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @return Maximum redeemable shares, or 0 if withdrawals are blocked.
     function maxRedeem(address owner) public view override returns (uint256) {
         if (_anyMarketPaused(false)) return 0;
-        return balanceOf(owner);
+        uint256 ownerShares = balanceOf(owner);
+        uint256 ownerAssets = convertToAssets(ownerShares);
+        if (ownerAssets == 0) return 0;
+
+        uint256 availableAssets = _availableWithdrawLiquidity();
+        if (ownerAssets <= availableAssets) return ownerShares;
+
+        return convertToShares(availableAssets);
     }
 
     /// @notice Returns the number of approved markets.
@@ -927,7 +976,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override returns (bool result) {
-        result = interfaceId == type(IERC20).interfaceId ||
+        result = interfaceId == type(ILendingOptimizer).interfaceId ||
+            interfaceId == type(IERC20).interfaceId ||
             interfaceId == type(ERC4626).interfaceId ||
             super.supportsInterface(interfaceId);
     }
@@ -977,6 +1027,28 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         }
     }
 
+    /// @dev Returns the total underlying liquidity the optimizer can currently
+    ///      withdraw across approved markets, capped by this optimizer's shares.
+    function _availableWithdrawLiquidity()
+        internal
+        view
+        returns (uint256 availableAssets)
+    {
+        uint256 l = approvedCTokensList.length;
+        for (uint256 i; i < l; ++i) {
+            IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
+            uint256 optimizerAssets = cToken.convertToAssets(
+                cToken.balanceOf(address(this))
+            );
+            if (optimizerAssets == 0) continue;
+
+            uint256 marketLiquidity = cToken.assetsHeld();
+            availableAssets += optimizerAssets < marketLiquidity
+                ? optimizerAssets
+                : marketLiquidity;
+        }
+    }
+
     /// @dev Deposits assets into a specific cToken market.
     /// @param cToken The cToken market to deposit into.
     /// @param assets The amount of assets to deposit.
@@ -1021,9 +1093,12 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         // liquidityLimit[i]  = min(position, idle cash) — max withdrawable.
         for (uint256 i; i < l; ++i) {
             IBorrowableCToken cToken = IBorrowableCToken(approvedCTokensList[i]);
-            uint256 optimizerAssets = cToken.convertToAssets(
-                cToken.balanceOf(address(this))
-            );
+            uint256 optimizerShares = cToken.balanceOf(address(this));
+            if (optimizerShares == 0) continue;
+
+            uint256 optimizerAssets = cToken.convertToAssets(optimizerShares);
+            if (optimizerAssets == 0) continue;
+
             uint256 marketLiquidity = cToken.assetsHeld();
 
             marketAssets[i] = optimizerAssets;
@@ -1031,6 +1106,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 ? optimizerAssets
                 : marketLiquidity;
             totalMarketAssets += optimizerAssets;
+        }
+        if (totalMarketAssets == 0) {
+            revert LendingOptimizer__InsufficientLiquidity();
         }
 
         // Split withdrawal pro-rata by position size, capped by each
@@ -1213,7 +1291,8 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @dev Validates cToken has correct underlying, is borrowable,
-    ///      has a registered market manager, and is listed in that manager.
+    ///      has a registered market manager, is listed in that manager,
+    ///      and is not paired with this optimizer's share token.
     /// @param cToken The cToken market address to validate.
     function _validateCToken(address cToken) internal view {
         if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
@@ -1222,6 +1301,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         address marketManager = address(IBorrowableCToken(cToken).marketManager());
         if (!centralRegistry.isMarketManager(marketManager)) revert LendingOptimizer__InvalidMarketManager();
         if (!IMarketManager(marketManager).isListed(cToken)) revert LendingOptimizer__InvalidMarketManager();
+
+        address[] memory listedTokens = IMarketManager(marketManager).queryTokensListed();
+        for (uint256 i; i < listedTokens.length; ++i) {
+            if (listedTokens[i] != cToken && ICToken(listedTokens[i]).asset() == address(this)) {
+                revert LendingOptimizer__InvalidMarketManager();
+            }
+        }
     }
 
     /// @dev Returns whether a market is approved for allocation.

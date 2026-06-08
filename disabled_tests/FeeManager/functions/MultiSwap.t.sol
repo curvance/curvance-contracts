@@ -33,7 +33,7 @@ contract MultiSwapTest is TestBaseFeeManager {
                     address(feeManager),
                     block.timestamp
                 ),
-                slippage: 60e16
+                slippage: centralRegistry.slippageLimit()
             })
         );
 
@@ -134,6 +134,18 @@ contract MultiSwapTest is TestBaseFeeManager {
 
         vm.prank(harvester);
         feeManager.multiSwap(abi.encode(swapActions), tokens);
+    }
+
+    function test_multiSwap_fail_whenSlippageExceedsProtocolLimit() public {
+        _prepareWETH(address(feeManager), _ONE);
+        swapActions[0].slippage = centralRegistry.slippageLimit() + 1;
+
+        vm.expectRevert(FeeManager.FeeManager__SlippageInputError.selector);
+
+        vm.prank(harvester);
+        feeManager.multiSwap(abi.encode(swapActions), tokens);
+
+        assertEq(weth.balanceOf(address(feeManager)), _ONE);
     }
 
     function test_multiSwap_fail_whenFeeManagerHasNoEnoughToken() public {

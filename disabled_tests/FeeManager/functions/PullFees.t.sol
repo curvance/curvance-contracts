@@ -43,4 +43,25 @@ contract PullFeesTest is TestBaseFeeManager {
         );
         assertEq(usdc.balanceOf(address(feeManager)), 0);
     }
+
+    function test_pullFees_success_whenProtocolHarvestFeeIsZero() public {
+        centralRegistry.setProtocolCompoundFee(0);
+        centralRegistry.setProtocolYieldFee(0);
+        assertEq(centralRegistry.protocolHarvestFee(), 0);
+
+        _prepareUSDC(address(feeManager), 100e6);
+
+        uint256 messagingHubBalance = usdc.balanceOf(address(messagingHub));
+        uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
+
+        vm.prank(address(messagingHub));
+        feeManager.pullFees(100e6);
+
+        assertEq(
+            usdc.balanceOf(address(messagingHub)),
+            messagingHubBalance + 100e6
+        );
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), daoBalance);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
+    }
 }

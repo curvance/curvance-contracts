@@ -8,10 +8,11 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD, WAD_SQUARED, BPS, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED, BPS, WAD_SQUARED_BPS_OFFSET, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -25,6 +26,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
+    uint32 internal constant _PT_TWAP_DURATION = 12;
 
     PendlePrincipalTokenAdaptor public adapter;
 
@@ -46,7 +48,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         );
         PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.market = IPMarket(_LP_STETH);
-        assetConfig.twapDuration = 12;
+        assetConfig.twapDuration = _PT_TWAP_DURATION;
         assetConfig.quoteAsset = _STETH;
         assetConfig.quoteAssetDecimals = 18;
         adapter.addAsset(_PT_STETH, assetConfig);
@@ -112,6 +114,47 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         pendlePT.approve(address(pendleCTokenPTSTETH), 10 ether);
         pendleCTokenPTSTETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
+    }
+
+    function _mockPtRateFailure() internal {
+        vm.mockCallRevert(
+            address(adapter),
+            abi.encodeWithSelector(
+                PendlePrincipalTokenAdaptor.fetchPtToAssetRate.selector,
+                IPMarket(_LP_STETH),
+                _PT_TWAP_DURATION
+            ),
+            "rate failed"
+        );
+    }
+
+    function testPendlePTSimpleCToken_getPricesForMarketRevertsOnPtRateFailure() public {
+        _preparePT(user1, 1 ether);
+
+        vm.startPrank(user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
+        vm.stopPrank();
+
+        _mockPtRateFailure();
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(pendleCTokenPTSTETH);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPricesForMarket(user1, assets, BAD_SOURCE);
+    }
+
+    function testPendlePTSimpleCToken_getPriceIsolatedPairRevertsOnPtRateFailure() public {
+        _mockPtRateFailure();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPriceIsolatedPair(
+            address(pendleCTokenPTSTETH),
+            address(borrowableCUSDC),
+            BAD_SOURCE
+        );
     }
 
     function testPendlePTSimpleCToken_SimpleCTokenMintRedeem() public {

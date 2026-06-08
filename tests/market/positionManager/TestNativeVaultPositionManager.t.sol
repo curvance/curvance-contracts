@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { NativeVaultPositionManager } from "contracts/market/position-management/NativeVaultPositionManager.sol";
-import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IVault } from "contracts/interfaces/IVault.sol";
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import {
+    NativeVaultPositionManager
+} from "contracts/market/position-management/NativeVaultPositionManager.sol";
+import {SimpleCToken} from "contracts/market/token/SimpleCToken.sol";
+import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
+import {ICToken, AccountSnapshot} from "contracts/interfaces/ICToken.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {IVault} from "contracts/interfaces/IVault.sol";
+import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
+import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { BasePositionManager } from "contracts/market/position-management/BasePositionManager.sol";
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
+import {
+    ChainlinkAdaptor
+} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import {
+    IUniswapV3Router
+} from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import {
+    BasePositionManager
+} from "contracts/market/position-management/BasePositionManager.sol";
 
-import { console2 } from "forge-std/console2.sol";
+import {console2} from "forge-std/console2.sol";
 
 /// @dev
 /// Test overview:
@@ -56,29 +64,33 @@ import { console2 } from "forge-std/console2.sol";
 contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
     NativeVaultPositionManager public positionManager;
 
-    address public constant SHMON_ADDRESS = 0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
-    address public constant WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
+    address public constant SHMON_ADDRESS =
+        0x1B68626dCa36c7fE922fD2d55E4f631d962dE19c;
+    address public constant WMON_ADDRESS =
+        0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
-    address public constant _CHAINLINK_ETH_USD_MONAD = 0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
+    address public constant _CHAINLINK_ETH_USD_MONAD =
+        0x1B1414782B859871781bA3E4B0979b9ca57A0A04;
 
-    address public constant _CHAINLINK_USDC_USD_MONAD = 0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
+    address public constant _CHAINLINK_USDC_USD_MONAD =
+        0xf5F15f188AbCB0d165D1Edb7f37F7d6fA2fCebec;
 
-    address public constant _USDC_ADDRESS_MONAD = 0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
+    address public constant _USDC_ADDRESS_MONAD =
+        0x754704Bc059F8C67012fEd69BC8A327a5aafb603;
 
     SimpleCToken public simpleCSHMON;
     BorrowableCToken public borrowableCWMON;
     BorrowableCToken public borrowableCUSDC_monad;
 
-    address internal _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address internal _UNISWAP_V3_SWAP_ROUTER =
+        0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     receive() external payable {}
     fallback() external payable {}
 
-    function setUp() public override {
-    }
+    function setUp() public override {}
 
     function testLeverage_BorrowedWrappedNative_NoSwaps() public {
-
         _setUpSHMON_WMON_Market();
 
         deal(SHMON_ADDRESS, user1, 500e18);
@@ -90,64 +102,86 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCWMON.borrow(1 ether, user1);
 
-        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
-            user1,
-            address(borrowableCWMON)
-        ) / 2;
+        uint256 amountForLeverage =
+            _maxRemainingLeverageOfHelper(user1, address(borrowableCWMON)) / 2;
 
         console2.log("amountForLeverage", amountForLeverage);
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCWMON));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
 
+        AccountSnapshot memory collBefore = simpleCSHMON.getSnapshot(user1);
+        uint256 expectedVaultShares =
+            IVault(SHMON_ADDRESS).previewDeposit(amountForLeverage);
         positionManager.leverage(leverageAction, 0.5e18);
 
         AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
         AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
 
-        assertGt(debtSnap.debtBalance, 1 ether, "Debt should increase after leverage");
-        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+        assertEq(
+            debtSnap.debtBalance,
+            1 ether + amountForLeverage,
+            "native no-swap leverage debt should increase by borrow amount"
+        );
+        assertEq(
+            collSnap.collateralPosted - collBefore.collateralPosted,
+            expectedVaultShares,
+            "native no-swap collateral delta should match vault preview"
+        );
+        _assertNativeVaultPositionManagerMonadHasNoResidue();
 
         vm.stopPrank();
     }
 
     function testDepositAndLeverage_BorrowedWrappedNative() public {
-
         _setUpSHMON_WMON_Market();
 
         vm.startPrank(user1);
 
         deal(SHMON_ADDRESS, user1, 500e18);
-        IERC20(SHMON_ADDRESS).approve(address(positionManager), type(uint256).max);
+        IERC20(SHMON_ADDRESS)
+            .approve(address(positionManager), type(uint256).max);
 
         uint256 amountForLeverage = 100 ether;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCWMON));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
 
-        positionManager.depositAndLeverage(500e18, leverageAction, 0.10e18);
+        uint256 expectedVaultShares =
+            IVault(SHMON_ADDRESS).previewDeposit(amountForLeverage);
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.1e18);
 
         AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
         AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
 
-        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
-        assertGt(debtSnap.debtBalance, 0, "Debt should be incurred");
+        assertEq(
+            collSnap.collateralPosted,
+            500e18 + expectedVaultShares,
+            "native deposit-and-leverage collateral should include deposit and preview"
+        );
+        assertEq(
+            debtSnap.debtBalance,
+            amountForLeverage,
+            "native deposit-and-leverage debt should match borrow amount"
+        );
+        _assertNativeVaultPositionManagerMonadHasNoResidue();
 
         vm.stopPrank();
     }
 
     function testDeleverage() public {
-
         _setUpUSDC_DAIPool_Eth();
 
         deal(address(usdc), user1, 1000e6);
 
         vm.startPrank(user1);
-        
+
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
         borrowableCUSDC.depositAsCollateral(1000e6, user1);
@@ -163,29 +197,27 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         NativeVaultPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
         deleverageAction.repayAssets = debtBefore.debtBalance / 10;
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = address(usdc);
-        deleverageAction.swapActions[0].inputAmount = collBefore.collateralPosted / 5;
+        deleverageAction.swapActions[0].inputAmount =
+            collBefore.collateralPosted / 5;
         deleverageAction.swapActions[0].outputToken = address(dai);
         deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
 
         IUniswapV3Router.ExactInputParams memory params;
-        params.path = abi.encodePacked(
-            address(usdc),
-            uint24(3000),
-            address(dai)
-        );
+        params.path =
+            abi.encodePacked(address(usdc), uint24(3000), address(dai));
         params.recipient = address(positionManager);
         params.deadline = block.timestamp + 1 hours;
         params.amountIn = collBefore.collateralPosted / 5;
         params.amountOutMinimum = 0;
 
         deleverageAction.swapActions[0].call = abi.encodeWithSelector(
-            IUniswapV3Router.exactInput.selector,
-            params
+            IUniswapV3Router.exactInput.selector, params
         );
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
@@ -196,8 +228,87 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user1);
         AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user1);
 
-        assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
-        assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
+        assertLt(
+            debtAfter.debtBalance,
+            debtBefore.debtBalance,
+            "Debt should be reduced after deleverage"
+        );
+        assertLt(
+            collAfter.collateralPosted,
+            collBefore.collateralPosted,
+            "Collateral should be reduced after deleverage"
+        );
+        _assertNativeVaultPositionManagerEthHasNoResidue();
+
+        vm.stopPrank();
+    }
+
+    function testDeleverage_fail_InsufficientRepayRollsBack() public {
+        _setUpUSDC_DAIPool_Eth();
+
+        deal(address(usdc), user1, 1000e6);
+
+        vm.startPrank(user1);
+
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.depositAsCollateral(1000e6, user1);
+        borrowableCDAI.borrow(600e18, user1);
+
+        skip(20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user1);
+        uint256 cTokenBalanceBefore = borrowableCUSDC.balanceOf(user1);
+        uint256 marketCollateralBefore =
+            borrowableCUSDC.marketCollateralPosted();
+
+        uint256 collateralAssets = collBefore.collateralPosted / 5;
+
+        NativeVaultPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = collateralAssets;
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.repayAssets = type(uint256).max;
+
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = collateralAssets;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path =
+            abi.encodePacked(address(usdc), uint24(3000), address(dai));
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = collateralAssets;
+        params.amountOutMinimum = 0;
+
+        deleverageAction.swapActions[0].call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        deleverageAction.swapActions[0].slippage = 0.5e18;
+
+        borrowableCUSDC.approve(address(positionManager), type(uint256).max);
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InsufficientAssetsForRepayment
+                .selector
+        );
+        positionManager.deleverage(deleverageAction, 0.5e18);
+
+        AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user1);
+
+        assertEq(debtAfter.debtBalance, debtBefore.debtBalance);
+        assertEq(collAfter.collateralPosted, collBefore.collateralPosted);
+        assertEq(borrowableCUSDC.balanceOf(user1), cTokenBalanceBefore);
+        assertEq(
+            borrowableCUSDC.marketCollateralPosted(), marketCollateralBefore
+        );
+        _assertNativeVaultPositionManagerEthHasNoResidue();
 
         vm.stopPrank();
     }
@@ -221,10 +332,11 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_monad));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCUSDC_monad));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
-        
+
         leverageAction.swapAction.inputToken = _USDC_ADDRESS_MONAD;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _USDC_ADDRESS_MONAD;
@@ -232,7 +344,9 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = "";
         leverageAction.swapAction.slippage = 0.5e18;
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidParam.selector
+        );
         positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
     }
@@ -254,18 +368,22 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_monad));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCUSDC_monad));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
-        
+
         leverageAction.swapAction.inputToken = _USDC_ADDRESS_MONAD;
         leverageAction.swapAction.inputAmount = amountForLeverage;
-        leverageAction.swapAction.outputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        leverageAction.swapAction.outputToken =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         leverageAction.swapAction.target = address(0);
         leverageAction.swapAction.call = "skibidi";
         leverageAction.swapAction.slippage = 0.5e18;
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidParam.selector
+        );
         positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
     }
@@ -287,10 +405,11 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_monad));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCUSDC_monad));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
-        
+
         leverageAction.swapAction.inputToken = _USDC_ADDRESS_MONAD;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
@@ -298,8 +417,21 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = "skibidi";
         leverageAction.swapAction.slippage = 0.5e18;
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        AccountSnapshot memory debtBefore =
+            borrowableCUSDC_monad.getSnapshot(user1);
+        AccountSnapshot memory collBefore = simpleCSHMON.getSnapshot(user1);
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidParam.selector
+        );
         positionManager.leverage(leverageAction, 0.5e18);
+
+        AccountSnapshot memory debtAfter =
+            borrowableCUSDC_monad.getSnapshot(user1);
+        AccountSnapshot memory collAfter = simpleCSHMON.getSnapshot(user1);
+        assertEq(debtAfter.debtBalance, debtBefore.debtBalance);
+        assertEq(collAfter.collateralPosted, collBefore.collateralPosted);
+        _assertNativeVaultPositionManagerMonadHasNoResidue();
         vm.stopPrank();
     }
 
@@ -320,10 +452,11 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ) / 2;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_monad));
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCUSDC_monad));
         leverageAction.borrowAssets = amountForLeverage;
         leverageAction.cToken = ICToken(address(simpleCSHMON));
-        
+
         leverageAction.swapAction.inputToken = _USDC_ADDRESS_MONAD;
         leverageAction.swapAction.inputAmount = amountForLeverage - 1;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
@@ -331,12 +464,61 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = "skibidi";
         leverageAction.swapAction.slippage = 0.5e18;
 
-        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidParam.selector
+        );
         positionManager.leverage(leverageAction, 0.5e18);
         vm.stopPrank();
     }
 
     /// Market setup helpers ///
+
+    function _assertNativeVaultPositionManagerMonadHasNoResidue()
+        internal
+        view
+    {
+        assertEq(address(positionManager).balance, 0, "PM native residue");
+        assertEq(
+            IERC20(SHMON_ADDRESS).balanceOf(address(positionManager)),
+            0,
+            "PM SHMON residue"
+        );
+        assertEq(
+            IERC20(WMON_ADDRESS).balanceOf(address(positionManager)),
+            0,
+            "PM WMON residue"
+        );
+        assertEq(
+            simpleCSHMON.balanceOf(address(positionManager)),
+            0,
+            "PM cSHMON residue"
+        );
+        if (address(borrowableCWMON) != address(0)) {
+            assertEq(
+                borrowableCWMON.balanceOf(address(positionManager)),
+                0,
+                "PM cWMON residue"
+            );
+        }
+    }
+
+    function _assertNativeVaultPositionManagerEthHasNoResidue() internal view {
+        assertEq(address(positionManager).balance, 0, "PM native residue");
+        assertEq(
+            usdc.balanceOf(address(positionManager)), 0, "PM USDC residue"
+        );
+        assertEq(dai.balanceOf(address(positionManager)), 0, "PM DAI residue");
+        assertEq(
+            borrowableCUSDC.balanceOf(address(positionManager)),
+            0,
+            "PM cUSDC residue"
+        );
+        assertEq(
+            borrowableCDAI.balanceOf(address(positionManager)),
+            0,
+            "PM cDAI residue"
+        );
+    }
 
     function _setUpSHMON_WMON_Market() internal {
         _fork("MON_NODE_URI_MONAD_MAINNET");
@@ -364,15 +546,20 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
             address(marketManagerIsolated)
         );
 
-        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ChainlinkAdaptor adaptor =
+            new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));
 
         adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50
+        );
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
         adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            WMON_ADDRESS, address(adaptor), 100, 50, 100, 50
+        );
 
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCWMON));
@@ -382,22 +569,26 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         deal(WMON_ADDRESS, address(this), 77777 ether);
         IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 77777 ether);
 
-        marketManagerIsolated.listTokens(address(simpleCSHMON), address(borrowableCWMON));
+        marketManagerIsolated.listTokens(
+            address(simpleCSHMON), address(borrowableCWMON)
+        );
 
         _setCTokenConfigBasic(address(simpleCSHMON), 1_000_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCWMON), 1_000_000e18, 1_000_000e18);
+        _setCTokenConfigBasic(
+            address(borrowableCWMON), 1_000_000e18, 1_000_000e18
+        );
 
         // Provide WMON liquidity
         address liquidityProvider = makeAddr("liquidityProvider");
         deal(WMON_ADDRESS, liquidityProvider, 1_000_000 ether);
         vm.startPrank(liquidityProvider);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), type(uint256).max);
+        IERC20(WMON_ADDRESS)
+            .approve(address(borrowableCWMON), type(uint256).max);
         borrowableCWMON.deposit(1_000_000 ether, liquidityProvider);
         vm.stopPrank();
     }
 
     function _setUpUSDC_DAIPool_Eth() internal {
-
         super.setUp();
 
         centralRegistry.setExternalCalldataChecker(
@@ -411,10 +602,16 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         deal(_DAI_ADDRESS, address(this), 77777);
         IERC20(_DAI_ADDRESS).approve(address(borrowableCDAI), 77777);
 
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(
+            address(borrowableCUSDC), address(borrowableCDAI)
+        );
 
-        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
-        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC), 1_000_000e6, 1_000_000e6
+        );
+        _setCTokenConfigBasic(
+            address(borrowableCDAI), 1_000_000e18, 1_000_000e18
+        );
 
         positionManager = new NativeVaultPositionManager(
             ICentralRegistry(address(centralRegistry)),
@@ -459,15 +656,22 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
             address(marketManagerIsolated)
         );
 
-        ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ChainlinkAdaptor adaptor =
+            new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));
 
         adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
-        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            SHMON_ADDRESS, address(adaptor), 100, 50, 100, 50
+        );
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
-        adaptor.addAsset(_USDC_ADDRESS_MONAD, true, _CHAINLINK_USDC_USD_MONAD, 0);
-        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS_MONAD, address(adaptor), 100, 50, 100, 50);
+        adaptor.addAsset(
+            _USDC_ADDRESS_MONAD, true, _CHAINLINK_USDC_USD_MONAD, 0
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS_MONAD, address(adaptor), 100, 50, 100, 50
+        );
 
         borrowableCUSDC_monad = _deployBorrowableCToken(_USDC_ADDRESS_MONAD);
         oracleManager.addCTokenSupport(address(borrowableCUSDC_monad));
@@ -475,21 +679,25 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         deal(SHMON_ADDRESS, address(this), 77777 ether);
         IERC20(SHMON_ADDRESS).approve(address(simpleCSHMON), 77777 ether);
         deal(_USDC_ADDRESS_MONAD, address(this), 77777 ether);
-        IERC20(_USDC_ADDRESS_MONAD).approve(address(borrowableCUSDC_monad), 77777 ether);
+        IERC20(_USDC_ADDRESS_MONAD)
+            .approve(address(borrowableCUSDC_monad), 77777 ether);
 
-        marketManagerIsolated.listTokens(address(simpleCSHMON), address(borrowableCUSDC_monad));
+        marketManagerIsolated.listTokens(
+            address(simpleCSHMON), address(borrowableCUSDC_monad)
+        );
 
         _setCTokenConfigBasic(address(simpleCSHMON), 1_000_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC_monad), 1_000_000e6, 1_000_000e6);
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC_monad), 1_000_000e6, 1_000_000e6
+        );
 
         // Provide WMON liquidity
         address liquidityProvider = makeAddr("liquidityProvider");
         deal(_USDC_ADDRESS_MONAD, liquidityProvider, 1_000_000 ether);
         vm.startPrank(liquidityProvider);
-        IERC20(_USDC_ADDRESS_MONAD).approve(address(borrowableCUSDC_monad), type(uint256).max);
+        IERC20(_USDC_ADDRESS_MONAD)
+            .approve(address(borrowableCUSDC_monad), type(uint256).max);
         borrowableCUSDC_monad.deposit(1_000_000 ether, liquidityProvider);
         vm.stopPrank();
     }
-
-
 }

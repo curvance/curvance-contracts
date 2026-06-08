@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
@@ -53,13 +54,14 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
         address outputToken;
         address router;
 
-        if (funcSigHash == PendleZapper.enterPendle.selector) {
+        if (funcSigHash == PendleZapperMinimal.enterPendle.selector) {
             (
                 address cToken,
                 address routerParam,
                 ,
                 ,
-                PendleZapper.ZapAction memory desc,
+                ,
+                PendleZapperMinimal.ZapAction memory desc,
                 ,
                 uint256 expectedShares,
                 ,
@@ -69,9 +71,10 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                     (
                         address,
                         address,
+                        address,
                         bool,
                         PendleLib.PendleAction,
-                        PendleZapper.ZapAction,
+                        PendleZapperMinimal.ZapAction,
                         SwapperLib.Swap[],
                         uint256,
                         bool,
@@ -98,7 +101,8 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 address routerParam,
                 ,
                 ,
-                PendleZapper.ZapAction memory desc,
+                ,
+                PendleZapperMinimal.ZapAction memory desc,
                 ,
                 address receiver
             ) = abi.decode(
@@ -106,9 +110,10 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                     (
                         address,
                         address,
+                        address,
                         bool,
                         PendleLib.PendleAction,
-                        PendleZapper.ZapAction,
+                        PendleZapperMinimal.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
@@ -125,8 +130,9 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 address routerParam,
                 ,
                 ,
+                ,
                 BaseZapper.RedeemAction memory redeemAction,
-                PendleZapper.ZapAction memory desc,
+                PendleZapperMinimal.ZapAction memory desc,
                 ,
                 address receiver
             ) = abi.decode(
@@ -134,10 +140,11 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                     (
                         address,
                         address,
+                        address,
                         bool,
                         PendleLib.PendleAction,
                         BaseZapper.RedeemAction,
-                        PendleZapper.ZapAction,
+                        PendleZapperMinimal.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )

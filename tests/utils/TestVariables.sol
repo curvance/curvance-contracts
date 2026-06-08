@@ -18,6 +18,7 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -118,7 +119,8 @@ contract TestVariables {
     AuraCToken public strategyCBALRETH;
     MockAuraCTokenWithExitFee public strategyCBALRETHWithExitFee;
     PendleLPCToken public pendleStrategyCTokenSTETH;
-    IERC20 public LP_wstETH_24Dec2025 = IERC20(0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2);
+    IERC20 public LP_wstETH_24Dec2025 =
+        IERC20(0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2);
 
     IERC20 public usdc;
     IERC20 public dai;
@@ -126,7 +128,7 @@ contract TestVariables {
     IERC20 public wbtc;
     IERC20 public balRETH;
     IERC20 public stETH;
-    
+
     MockV3Aggregator public chainlinkUsdcUsd;
     MockV3Aggregator public chainlinkUsdcEth;
     MockV3Aggregator public chainlinkDaiUsd;
@@ -134,13 +136,13 @@ contract TestVariables {
     MockV3Aggregator public chainlinkEthUsd;
     MockV3Aggregator public chainlinkRethEth;
     MockV3Aggregator public chainlinkBalEthReth;
-    
 
     address[] public redstoneSigners;
     bytes32[] public redstoneSignerKeys;
 
     MockToken public rewardToken;
     GaugeManager public gaugeManager;
+    PendleZapperMinimal public pendleZapperMinimal;
     PendleZapper public pendleZapper;
     VelodromeZapper public velodromeZapper;
 
@@ -165,7 +167,8 @@ contract TestVariables {
     mapping(uint256 => BorrowableCToken) public borrowableCWETHs;
 
     mapping(uint256 => AuraCToken) public strategyCBALRETHs;
-    mapping(uint256 => MockAuraCTokenWithExitFee) public strategyCBALRETHWithExitFees;
+    mapping(uint256 => MockAuraCTokenWithExitFee)
+        public strategyCBALRETHWithExitFees;
     mapping(uint256 => PendleLPCToken) public pendleStrategyCTokens;
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
@@ -180,6 +183,7 @@ contract TestVariables {
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
+    mapping(uint256 => PendleZapperMinimal) public pendleZapperMinimals;
     mapping(uint256 => PendleZapper) public pendleZappers;
     mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
@@ -206,12 +210,11 @@ contract TestVariables {
     MockDataFeed public mockBALFeed;
     MockDataFeed public mockAURAFeed;
     MockDataFeed public mockPendleLPFeed;
-    
+
     MockV3Aggregator public mockWbtcFeed;
-    
+
     address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
-    address public _AURA_ADDRESS =
-        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
+    address public _AURA_ADDRESS = 0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
@@ -275,7 +278,9 @@ contract TestVariables {
         ] = 0x1e19cf2d73a72ef1332c882f20534b6519be0276000200000000000000000112;
         _AURA_BOOSTERS[chainId] = 0xA57b8d98dAE62B26Ec3bcC4a365338157060B234;
         _REWARDERS[chainId] = 0xDd1fE5AD401D4777cE89959b7fa587e569Bf125D;
-        _CROSSCHAIN_CORES[chainId] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
+        _CROSSCHAIN_CORES[
+            chainId
+        ] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
         _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
@@ -307,7 +312,9 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
-        _CROSSCHAIN_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
+        _CROSSCHAIN_CORES[
+            chainId
+        ] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
         _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
@@ -338,7 +345,9 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-        _CROSSCHAIN_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
+        _CROSSCHAIN_CORES[
+            chainId
+        ] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
         _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
@@ -442,6 +451,7 @@ contract TestVariables {
 
         rewardToken = rewardTokens[chainId];
         gaugeManager = gaugeManagers[chainId];
+        pendleZapperMinimal = pendleZapperMinimals[chainId];
         pendleZapper = pendleZappers[chainId];
         velodromeZapper = velodromeZappers[chainId];
     }

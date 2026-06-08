@@ -5,6 +5,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -42,6 +43,15 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_fail_whenMarketNotStarted() public {
         vm.expectRevert();
         oracleManager.getPricesForMarket(address(this), assets, 1);
+    }
+
+    function test_getPricesForMarket_revertsErrorCodeFlagged_whenSequencerStartedAtIsFuture() public {
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        vm.expectRevert(
+            OracleManager.OracleManager__ErrorCodeFlagged.selector
+        );
+        oracleManager.getPricesForMarket(address(this), assets, BAD_SOURCE);
     }
 
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {

@@ -10,6 +10,7 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
@@ -369,6 +370,36 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             nativeUniversalBalance.userBalances(user1);
 
         assertLt(sittingAfter + lentAfter, sittingBefore + lentBefore);
+    }
+
+    function testZapperMulticallRejectsApprovedDelegateUserFundedPythUpdate()
+        public
+    {
+        SimpleZapper zapper = new SimpleZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+
+        bytes[] memory priceUpdateData = new bytes[](0);
+
+        vm.prank(user1);
+        nativeUniversalBalance.setDelegateApproval(user2, true);
+
+        Multicall.MulticallAction[] memory calls =
+            new Multicall.MulticallAction[](1);
+        calls[0].target = address(pythAdaptor);
+        calls[0].data = abi.encodeWithSelector(
+            PythAdaptor.updateFeedsFromUniversalBalance.selector,
+            priceUpdateData,
+            user1
+        );
+        calls[0].isPriceUpdate = true;
+
+        vm.expectRevert(
+            BaseMulticallChecker.MulticallChecker__InvalidCalldata.selector
+        );
+        vm.prank(user2);
+        zapper.multicall(calls);
     }
 
     function testUpdateFeedsFromUniversalBalance_revertsForNonDelegate()

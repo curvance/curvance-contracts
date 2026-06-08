@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
 import { DualSidedVaultPositionManager } from "contracts/market/position-management/DualSidedVaultPositionManager.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IUpshiftVault } from "contracts/interfaces/external/upshift/IUpshiftVault.sol";
 
 /// @title Curvance Upshift Vault Position Manager.
@@ -17,7 +18,7 @@ import { IUpshiftVault } from "contracts/interfaces/external/upshift/IUpshiftVau
 ///      withdrawals must use `requestRedeem()` which is instant when the
 ///      vault's `lagDuration` is zero.
 ///
-///      This contract overrides `_vaultWithdraw` to use `requestRedeem`
+///      This contract overrides `_vaultRedeem` to use `requestRedeem`
 ///      instead of the standard ERC4626 withdraw pattern.
 ///
 contract UpshiftVaultPositionManager is DualSidedVaultPositionManager {
@@ -44,10 +45,17 @@ contract UpshiftVaultPositionManager is DualSidedVaultPositionManager {
         address vault,
         uint256 shares
     ) internal override returns (uint256 assetsReceived) {
+        IERC20 underlying = IERC20(IUpshiftVault(vault).asset());
+        uint256 assetsBefore = underlying.balanceOf(address(this));
+
         (assetsReceived, ) = IUpshiftVault(vault).requestRedeem(
             shares,
             address(this),
             address(this)
         );
+
+        if (underlying.balanceOf(address(this)) - assetsBefore < assetsReceived) {
+            revert BasePositionManager__InvalidParam();
+        }
     }
 }

@@ -1,10 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import {IPendleRouter} from "contracts/interfaces/external/pendle/IPendleRouter.sol";
-import {IPendlePTOracle} from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
+import {
+    IPendleRouter
+} from "contracts/interfaces/external/pendle/IPendleRouter.sol";
+import {
+    IPendlePTOracle
+} from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
+import {IPMarket} from "contracts/interfaces/external/pendle/IPMarket.sol";
+import {
+    PendleZapperMinimal
+} from "contracts/plugins/market/PendleZapperMinimal.sol";
 import {PendleZapper} from "contracts/plugins/market/PendleZapper.sol";
-import {PendleLPTokenAdaptor} from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
+import {
+    BaseSwapChecker
+} from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+import {
+    PendleZapperCalldataChecker
+} from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+import {
+    PendleZapperMinimalCalldataChecker
+} from "contracts/calldata-checker/swap-checker/PendleZapperMinimalCalldataChecker.sol";
+import {
+    PendleLPTokenAdaptor
+} from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import {PendleLPCToken} from "contracts/market/token/PendleLPCToken.sol";
 import {PendleLib} from "contracts/libraries/PendleLib.sol";
 
@@ -12,15 +31,19 @@ import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
 import {AccountSnapshot, ICToken} from "contracts/interfaces/ICToken.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IPluginDelegable} from "contracts/interfaces/IPluginDelegable.sol";
 import {BaseZapper} from "contracts/plugins/BaseZapper.sol";
 
 import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
 import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestPendleZapper is TestBaseMarketIsolated {
-    address internal _PENDLE_ROUTER = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal _PENDLE_LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2;
-    address internal _CHAINLINK_STETH_USD = 0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
+    address internal _PENDLE_ROUTER =
+        0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal _PENDLE_LP_STETH =
+        0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2;
+    address internal _CHAINLINK_STETH_USD =
+        0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2;
@@ -30,6 +53,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     PendleLPTokenAdaptor public adaptor;
     PendleLPCToken public pendleCTokenSTETH;
     MockPendlePostSwapTarget internal postSwapTarget;
+    SwapperLibHarness internal swapperHarness;
 
     receive() external payable {}
 
@@ -42,7 +66,22 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         chainlinkAdaptor.addAsset(_STETH, true, _CHAINLINK_STETH_USD, 0);
         // oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
-        adaptor = new PendleLPTokenAdaptor(ICentralRegistry(address(centralRegistry)), IPendlePTOracle(_PT_ORACLE));
+        pendleZapper = pendleZappers[block.chainid] = new PendleZapper(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS
+        );
+        centralRegistry.setExternalCalldataChecker(
+            address(pendleZapper),
+            address(
+                new PendleZapperCalldataChecker(
+                    address(pendleZapper), _PENDLE_ROUTER
+                )
+            )
+        );
+
+        adaptor = new PendleLPTokenAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            IPendlePTOracle(_PT_ORACLE)
+        );
         PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 12;
         assetConfig.quoteAsset = _STETH;
@@ -50,9 +89,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adaptor), 100, 50, 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _LP_STETH, address(adaptor), 100, 50, 100, 50
+        );
 
         postSwapTarget = new MockPendlePostSwapTarget();
+        swapperHarness = new SwapperLibHarness();
         centralRegistry.setExternalCalldataChecker(
             address(postSwapTarget),
             address(new MockCalldataChecker(address(postSwapTarget)))
@@ -75,10 +117,14 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 1 ether);
         IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 1 ether);
 
-        marketManagerIsolated.listTokens(address(pendleCTokenSTETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(
+            address(pendleCTokenSTETH), address(borrowableCUSDC)
+        );
 
         _setCTokenConfigBasic(address(pendleCTokenSTETH), 100_000e18, 0);
-        _setCTokenConfigLowValues(address(borrowableCUSDC), 100_000e18, 100_000e18);
+        _setCTokenConfigLowValues(
+            address(borrowableCUSDC), 100_000e18, 100_000e18
+        );
     }
 
     function testEnterPendle() public {
@@ -97,9 +143,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: ethAmount}(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), ethAmount, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1.2 ether,
             false,
@@ -110,6 +159,121 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
         assertGt(IERC20(address(pendleCTokenSTETH)).balanceOf(user1), 0);
+        _assertZapperCleanAfterEnter();
+    }
+
+    function testEnterPendle_NativeUnwrappedInput_RoutesThroughSyDeposit()
+        public
+    {
+        uint256 ethAmount = 1 ether;
+        vm.deal(user1, ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        uint256 sharesBefore = pendleCTokenSTETH.balanceOf(user1);
+
+        vm.startPrank(user1);
+        uint256 shares = pendleZapper.enterPendle{value: ethAmount}(
+            address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            1,
+            false,
+            user1
+        );
+        vm.stopPrank();
+
+        assertGt(shares, 0, "native unwrapped entry MUST mint shares");
+        assertEq(
+            pendleCTokenSTETH.balanceOf(user1) - sharesBefore,
+            shares,
+            "receiver MUST receive minted shares"
+        );
+        assertEq(user1.balance, 0, "native input MUST be consumed");
+        _assertZapperCleanAfterEnter();
+    }
+
+    function testEnterPendle_fail_LPMarketMustMatchOutputToken() public {
+        uint256 ethAmount = 1 ether;
+        vm.deal(user1, ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+
+        vm.startPrank(user1);
+        vm.expectRevert(PendleLib.PendleLib__InvalidMarket.selector);
+        pendleZapper.enterPendle{value: ethAmount}(
+            address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            address(0xBEEF),
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
+            new SwapperLib.Swap[](0),
+            1,
+            false,
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(IERC20(address(pendleCTokenSTETH)).balanceOf(user1), 0);
+        _assertZapperCleanAfterEnter();
+    }
+
+    function testEnterPendleThroughSwapper_fail_InvalidMarketAfterCheckerPass()
+        public
+    {
+        uint256 ethAmount = 3 ether;
+        uint256 expectedShares = 1.2 ether;
+        vm.deal(address(swapperHarness), ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: address(0),
+            inputAmount: ethAmount,
+            outputToken: address(pendleCTokenSTETH),
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                address(0xBEEF),
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+                ),
+                new SwapperLib.Swap[](0),
+                expectedShares,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        vm.expectRevert(PendleLib.PendleLib__InvalidMarket.selector);
+        swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+
+        assertEq(
+            address(swapperHarness).balance,
+            ethAmount,
+            "invalid market MUST roll back native input"
+        );
+        assertEq(
+            IERC20(address(pendleCTokenSTETH))
+                .balanceOf(address(swapperHarness)),
+            0,
+            "invalid market MUST not mint shares"
+        );
+        _assertZapperCleanAfterEnter();
     }
 
     function test_pendleZapper_fail_enterPendleErc20WithMsgValue() public {
@@ -130,9 +294,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: 1}( // Incorrectly attach 1 wei to the call
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_LP_STETH, 1, _PENDLE_LP_STETH, 0, false),
+            PendleZapperMinimal.ZapAction(
+                _LP_STETH, 1, _PENDLE_LP_STETH, 0, false
+            ),
             new SwapperLib.Swap[](0),
             1,
             false,
@@ -140,6 +307,56 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+    }
+
+    function testRevert_PendleZapperMinimal_PtOnlyRejectsLpMode() public {
+        PendleZapperMinimal zapper = new PendleZapperMinimal(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
+        );
+        assertTrue(zapper.ptOnly(), "minimal zapper should be PT-only");
+
+        uint256 ethAmount = 1 ether;
+        vm.deal(user1, ethAmount);
+
+        vm.startPrank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        zapper.enterPendle{value: ethAmount}(
+            address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            false,
+            _defaultPendleAction(),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
+            new SwapperLib.Swap[](0),
+            1,
+            false,
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(
+            user1.balance,
+            ethAmount,
+            "PT-only rejection MUST roll back native input"
+        );
+        assertEq(address(zapper).balance, 0, "zapper MUST hold no native residue");
+        assertEq(
+            IERC20(_WETH_ADDRESS).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no WETH residue"
+        );
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no LP residue"
+        );
+        assertEq(
+            IERC20(address(pendleCTokenSTETH)).balanceOf(address(zapper)),
+            0,
+            "zapper MUST hold no cToken residue"
+        );
     }
 
     function testEnterPendle_fail_unlistedCTokenBeforeAssetLookup() public {
@@ -162,9 +379,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle(
             fakeCToken,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), 1, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), 1, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1,
             false,
@@ -179,9 +399,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), 1, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), 1, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1,
             false,
@@ -196,9 +419,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), 1, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), 1, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             0,
             false,
@@ -233,9 +459,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_DAI_ADDRESS, inputAmount, _PENDLE_LP_STETH, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _DAI_ADDRESS, inputAmount, _PENDLE_LP_STETH, 1, false
+            ),
             swapActions,
             1,
             false,
@@ -263,9 +492,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.exitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, withdrawAmount, _STETH, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _STETH, 1, false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
@@ -274,6 +506,93 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assertGt(IERC20(_STETH).balanceOf(user1), 0);
         // assertGt(IERC20(_USDC).balanceOf(user1), 0);
         assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+        _assertZapperCleanAfterExit();
+    }
+
+    function testExitPendle_PostExpiry_LP_RoutesViaRemoveLiquidity() public {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+
+        vm.warp(IPMarket(_PENDLE_LP_STETH).expiry() + 1);
+        assertTrue(IPMarket(_PENDLE_LP_STETH).isExpired());
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        uint256 stEthBefore = IERC20(_STETH).balanceOf(user1);
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+        uint256 outAmount = pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertGt(outAmount, 0);
+        assertApproxEqAbs(
+            IERC20(_STETH).balanceOf(user1) - stEthBefore, outAmount, 1
+        );
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+        _assertZapperCleanAfterExit();
+    }
+
+    function testExitPendle_fail_LPInputTokenMustMatchMarket() public {
+        uint256 inputAmount = 100e18;
+        _prepareDAI(user1, inputAmount);
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+
+        vm.startPrank(user1);
+        dai.approve(address(pendleZapper), inputAmount);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                _DAI_ADDRESS, inputAmount, _STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(dai.balanceOf(user1), inputAmount);
+        assertEq(dai.balanceOf(address(pendleZapper)), 0);
+    }
+
+    function testExitPendle_fail_LPMarketMustMatchInputToken() public {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            address(0xBEEF),
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), withdrawAmount);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
     }
 
     function testExitPendle_fail_ZeroReceiver() public {
@@ -283,9 +602,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.exitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, 1, _STETH, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, 1, _STETH, 1, false
+            ),
             new SwapperLib.Swap[](0),
             address(0)
         );
@@ -311,9 +633,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.exitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, withdrawAmount, _STETH, 0, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _STETH, 0, false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
@@ -340,9 +665,16 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.exitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, withdrawAmount, _STETH, type(uint256).max, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH,
+                withdrawAmount,
+                _STETH,
+                type(uint256).max,
+                false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
@@ -383,13 +715,206 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.exitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, 1, false
+            ),
             swapActions,
             user1
         );
         vm.stopPrank();
+    }
+
+    function testExitPendle_fail_PostPendleSwapTerminalMinimumOutIsZero()
+        public
+    {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+
+        PendleLib.PendleAction memory action;
+
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = _STETH;
+        swapActions[0].inputAmount = 0.001 ether;
+        swapActions[0].outputToken = _DAI_ADDRESS;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockPendlePostSwapTarget.swap.selector,
+            _STETH,
+            _DAI_ADDRESS,
+            0.001 ether,
+            0.001 ether
+        );
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+
+        vm.expectRevert(PendleZapper.PendleZapper__SlippageError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            action,
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, 0, false
+            ),
+            swapActions,
+            user1
+        );
+        vm.stopPrank();
+    }
+
+    function testExitPendle_fail_NoSwapTerminalOutputMismatchCannotUseResidue()
+        public
+    {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+        uint256 donatedDai = 10e18;
+        _prepareDAI(address(pendleZapper), donatedDai);
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            _defaultPendleAction(),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, donatedDai, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), withdrawAmount);
+        assertEq(dai.balanceOf(user1), 0);
+        assertEq(dai.balanceOf(address(pendleZapper)), donatedDai);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+    }
+
+    function testExitPendle_fail_TerminalSwapOutputMismatchBeforePendleExit()
+        public
+    {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+        uint256 donatedDai = 10e18;
+        _prepareDAI(address(pendleZapper), donatedDai);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = _STETH;
+        swapActions[0].inputAmount = 0.001 ether;
+        swapActions[0].outputToken = _WETH_ADDRESS;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0.99e18;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockPendlePostSwapTarget.swap.selector,
+            _STETH,
+            _WETH_ADDRESS,
+            0.001 ether,
+            0.001 ether
+        );
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+        vm.expectCall(
+            _PENDLE_ROUTER,
+            abi.encodeWithSelector(IPendleRouter.removeLiquiditySingleSy.selector),
+            0
+        );
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            _defaultPendleAction(),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, donatedDai, false
+            ),
+            swapActions,
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), withdrawAmount);
+        assertEq(dai.balanceOf(user1), 0);
+        assertEq(dai.balanceOf(address(pendleZapper)), donatedDai);
+        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+    }
+
+    function testExitPendle_TransfersFullOutputBalanceWhenResidueExists()
+        public
+    {
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
+        uint256 donatedDai = 10e18;
+        uint256 swapDaiOut = 1e18;
+        _prepareDAI(address(pendleZapper), donatedDai);
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = _STETH;
+        swapActions[0].inputAmount = 0.001 ether;
+        swapActions[0].outputToken = _DAI_ADDRESS;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0.99e18;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockPendlePostSwapTarget.swap.selector,
+            _STETH,
+            _DAI_ADDRESS,
+            0.001 ether,
+            swapDaiOut
+        );
+
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 zapperDaiBefore = dai.balanceOf(address(pendleZapper));
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), withdrawAmount);
+        uint256 outAmount = pendleZapper.exitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            _IS_PT,
+            _defaultPendleAction(),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, withdrawAmount, _DAI_ADDRESS, swapDaiOut, false
+            ),
+            swapActions,
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(
+            outAmount,
+            zapperDaiBefore + swapDaiOut,
+            "exit should report full router balance"
+        );
+        assertEq(
+            dai.balanceOf(user1) - userDaiBefore,
+            outAmount,
+            "receiver should receive full router balance"
+        );
+        assertEq(
+            dai.balanceOf(address(pendleZapper)),
+            0,
+            "pre-existing residue should transfer to caller"
+        );
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
     }
 
     function testEnterPendleWithCToken() public {
@@ -408,9 +933,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: ethAmount}(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), ethAmount, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1.2 ether,
             false,
@@ -419,11 +947,298 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(user1);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot =
+            pendleCTokenSTETH.getSnapshot(user1);
 
-        assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertApproxEqRel(
+            pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether
+        );
         assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
+    }
+
+    function testSwapperLibEnterPendleE2EFinalOutputIsCTokenShares() public {
+        uint256 ethAmount = 3 ether;
+        uint256 expectedShares = 1.2 ether;
+        vm.deal(address(swapperHarness), ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: address(0),
+            inputAmount: ethAmount,
+            outputToken: address(pendleCTokenSTETH),
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+                ),
+                new SwapperLib.Swap[](0),
+                expectedShares,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        uint256 cTokenBefore =
+            pendleCTokenSTETH.balanceOf(address(swapperHarness));
+        uint256 pendleLpBefore =
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness));
+
+        uint256 outAmount = swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+
+        uint256 cTokenDelta = pendleCTokenSTETH.balanceOf(
+            address(swapperHarness)
+        ) - cTokenBefore;
+        assertEq(outAmount, cTokenDelta);
+        assertGe(outAmount, expectedShares);
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness)),
+            pendleLpBefore
+        );
+        assertEq(
+            pendleCTokenSTETH.balanceOf(address(swapperHarness)), outAmount
+        );
+        assertEq(pendleCTokenSTETH.balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        AccountSnapshot memory snapshot =
+            pendleCTokenSTETH.getSnapshot(address(swapperHarness));
+        assertEq(snapshot.collateralPosted, 0);
+        assertEq(snapshot.debtBalance, 0);
+        assertEq(address(swapperHarness).balance, 0);
+    }
+
+    function testSwapperLibMinimalEnterPendleRejectsLpModeBeforeExecution()
+        public
+    {
+        uint256 ethAmount = 3 ether;
+        uint256 expectedShares = 1.2 ether;
+        vm.deal(address(swapperHarness), ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: address(0),
+            inputAmount: ethAmount,
+            outputToken: address(pendleCTokenSTETH),
+            target: address(pendleZapperMinimal),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+                ),
+                new SwapperLib.Swap[](0),
+                expectedShares,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        uint256 cTokenBefore =
+            pendleCTokenSTETH.balanceOf(address(swapperHarness));
+        uint256 pendleLpBefore =
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness));
+
+        vm.expectRevert(
+            PendleZapperMinimalCalldataChecker
+                .PendleZapperMinimalCalldataChecker__InvalidPendleMode
+                .selector
+        );
+        swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+
+        assertEq(
+            pendleCTokenSTETH.balanceOf(address(swapperHarness)),
+            cTokenBefore
+        );
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness)),
+            pendleLpBefore
+        );
+        assertEq(pendleCTokenSTETH.balanceOf(address(pendleZapperMinimal)), 0);
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapperMinimal)), 0
+        );
+        assertEq(address(swapperHarness).balance, ethAmount);
+    }
+
+    function testSwapperLibEnterPendleRejectsPrePendleSwapSafeSlippage()
+        public
+    {
+        uint256 inputAmount = 100e18;
+        _prepareDAI(address(swapperHarness), inputAmount);
+
+        PendleLib.PendleAction memory action;
+
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
+        swapActions[0].inputToken = _DAI_ADDRESS;
+        swapActions[0].inputAmount = inputAmount;
+        swapActions[0].outputToken = _USDC_ADDRESS;
+        swapActions[0].target = address(postSwapTarget);
+        swapActions[0].slippage = 0;
+        swapActions[0].call = abi.encodeWithSelector(
+            MockPendlePostSwapTarget.swap.selector,
+            _DAI_ADDRESS,
+            _USDC_ADDRESS,
+            inputAmount,
+            99e6
+        );
+
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: _DAI_ADDRESS,
+            inputAmount: inputAmount,
+            outputToken: address(pendleCTokenSTETH),
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    _DAI_ADDRESS, inputAmount, _PENDLE_LP_STETH, 1, false
+                ),
+                swapActions,
+                1,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        vm.expectPartialRevert(SwapperLib.SwapperLib__Slippage.selector);
+        swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+        assertEq(dai.balanceOf(address(swapperHarness)), inputAmount);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), 0);
+    }
+
+    function testSwapperLibEnterPendleRejectsPendleOutputAsFinalOutput()
+        public
+    {
+        uint256 ethAmount = 3 ether;
+        uint256 expectedShares = 1.2 ether;
+        vm.deal(address(swapperHarness), ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: address(0),
+            inputAmount: ethAmount,
+            outputToken: _PENDLE_LP_STETH,
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+                ),
+                new SwapperLib.Swap[](0),
+                expectedShares,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__OutputTokenError.selector
+        );
+        swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+        assertEq(address(swapperHarness).balance, ethAmount);
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), 0);
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).balanceOf(address(swapperHarness)), 0
+        );
+    }
+
+    function testSwapperLibRedeemAndExitE2EInputIsCTokenShares() public {
+        uint256 shares = _enterPendleThroughSwapper();
+        uint256 zapInputAmount = shares - 1;
+        swapperHarness.setDelegateApproval(
+            IPluginDelegable(address(pendleCTokenSTETH)),
+            address(pendleZapper),
+            true
+        );
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        BaseZapper.RedeemAction memory redeemAction = BaseZapper.RedeemAction({
+            cToken: address(pendleCTokenSTETH),
+            shares: shares,
+            forceRedeemCollateral: false
+        });
+        SwapperLib.Swap memory swapAction = _redeemAndExitSwapAction(
+            action, redeemAction, zapInputAmount, shares
+        );
+
+        uint256 cTokenBefore =
+            pendleCTokenSTETH.balanceOf(address(swapperHarness));
+        uint256 stEthBefore = IERC20(_STETH).balanceOf(address(swapperHarness));
+
+        uint256 outAmount = swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+
+        assertEq(
+            cTokenBefore
+                - pendleCTokenSTETH.balanceOf(address(swapperHarness)),
+            shares
+        );
+        assertEq(
+            outAmount,
+            IERC20(_STETH).balanceOf(address(swapperHarness)) - stEthBefore
+        );
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), 0);
+        assertEq(pendleCTokenSTETH.balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        assertGt(outAmount, 0);
+    }
+
+    function testSwapperLibRedeemAndExitRejectsZapInputAmountAsSwapInput()
+        public
+    {
+        uint256 shares = _enterPendleThroughSwapper();
+        uint256 zapInputAmount = shares - 1;
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        BaseZapper.RedeemAction memory redeemAction = BaseZapper.RedeemAction({
+            cToken: address(pendleCTokenSTETH),
+            shares: shares,
+            forceRedeemCollateral: false
+        });
+        SwapperLib.Swap memory swapAction = _redeemAndExitSwapAction(
+            action, redeemAction, zapInputAmount, zapInputAmount
+        );
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InputAmountError.selector
+        );
+        swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+        assertEq(pendleCTokenSTETH.balanceOf(address(swapperHarness)), shares);
+        assertEq(IERC20(_STETH).balanceOf(address(swapperHarness)), 0);
     }
 
     function testEnterPendle_fail_InsufficientExpectedShares() public {
@@ -443,9 +1258,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: ethAmount}(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), ethAmount, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             type(uint256).max,
             false,
@@ -472,9 +1290,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: ethAmount}(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), ethAmount, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1.2 ether,
             true,
@@ -483,9 +1304,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(user1);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot =
+            pendleCTokenSTETH.getSnapshot(user1);
 
-        assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertApproxEqRel(
+            pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether
+        );
         assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
     }
@@ -511,9 +1335,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.enterPendle{value: ethAmount}(
             address(pendleCTokenSTETH),
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
-            PendleZapper.ZapAction(address(0), ethAmount, _PENDLE_LP_STETH, 1, true),
+            PendleZapperMinimal.ZapAction(
+                address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+            ),
             new SwapperLib.Swap[](0),
             1.2 ether,
             true,
@@ -522,9 +1349,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(user1);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot =
+            pendleCTokenSTETH.getSnapshot(user1);
 
-        assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertApproxEqRel(
+            pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether
+        );
         assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
         assertEq(user2.balance, 0);
     }
@@ -545,7 +1375,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         action.approx.maxIteration = 200;
         action.approx.eps = 1e18;
 
-        vm.warp(marketManagerIsolated.accountAssets(user1) + marketManagerIsolated.MIN_HOLD_PERIOD());
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1)
+                + marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
 
         vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
@@ -554,16 +1387,107 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.redeemAndExitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
             redeemAction,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, 1.24 ether, _STETH, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, 1.24 ether, _STETH, 1, false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
         vm.stopPrank();
 
-        assertApproxEqRel(IERC20(_STETH).balanceOf(user1), 2.6 ether, 0.1 ether);
+        assertApproxEqRel(
+            IERC20(_STETH).balanceOf(user1), 2.6 ether, 0.1 ether
+        );
+        _assertZapperCleanAfterExit();
+        assertEq(
+            IERC20(address(pendleCTokenSTETH))
+                .balanceOf(address(pendleZapper)),
+            0
+        );
+    }
+
+    function testRedeemAndExitPendle_fail_LPMarketMismatch_StateAtomic()
+        public
+    {
+        uint256 assets = 1 ether;
+        deal(_PENDLE_LP_STETH, user1, assets);
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleCTokenSTETH), assets);
+        uint256 shares = pendleCTokenSTETH.deposit(assets, user1);
+        pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
+
+        BaseZapper.RedeemAction memory redeemAction = BaseZapper.RedeemAction({
+            cToken: address(pendleCTokenSTETH),
+            shares: shares,
+            forceRedeemCollateral: false
+        });
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.redeemAndExitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            address(0xBEEF),
+            _IS_PT,
+            action,
+            redeemAction,
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, assets, _STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(pendleCTokenSTETH.balanceOf(user1), shares);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+    }
+
+    function testRedeemAndExitPendle_fail_LPAsPTFlag_StateAtomic() public {
+        uint256 assets = 1 ether;
+        deal(_PENDLE_LP_STETH, user1, assets);
+
+        vm.startPrank(user1);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleCTokenSTETH), assets);
+        uint256 shares = pendleCTokenSTETH.deposit(assets, user1);
+        pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
+
+        BaseZapper.RedeemAction memory redeemAction = BaseZapper.RedeemAction({
+            cToken: address(pendleCTokenSTETH),
+            shares: shares,
+            forceRedeemCollateral: false
+        });
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        pendleZapper.redeemAndExitPendle(
+            _STETH,
+            _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
+            true,
+            _defaultPendleAction(),
+            redeemAction,
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, assets, _STETH, 1, false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(
+            pendleCTokenSTETH.balanceOf(user1),
+            shares,
+            "LP-as-PT flag inversion MUST roll back cToken shares"
+        );
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        assertLe(IERC20(_STETH).balanceOf(address(pendleZapper)), 1);
     }
 
     function testRedeemAndExitPendle_fail_ZeroReceiver() public {
@@ -574,10 +1498,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.redeemAndExitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
             redeemAction,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, 1 ether, _STETH, 1, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, 1 ether, _STETH, 1, false
+            ),
             new SwapperLib.Swap[](0),
             address(0)
         );
@@ -599,7 +1526,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         action.approx.maxIteration = 200;
         action.approx.eps = 1e18;
 
-        vm.warp(marketManagerIsolated.accountAssets(user1) + marketManagerIsolated.MIN_HOLD_PERIOD());
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1)
+                + marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
 
         vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
@@ -609,10 +1539,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.redeemAndExitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
             redeemAction,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, 1.24 ether, _STETH, 0, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, 1.24 ether, _STETH, 0, false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
@@ -635,7 +1568,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         action.approx.maxIteration = 200;
         action.approx.eps = 1e18;
 
-        vm.warp(marketManagerIsolated.accountAssets(user1) + marketManagerIsolated.MIN_HOLD_PERIOD());
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1)
+                + marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
 
         vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
@@ -645,14 +1581,108 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleZapper.redeemAndExitPendle(
             _STETH,
             _PENDLE_ROUTER,
+            _PENDLE_LP_STETH,
             _IS_PT,
             action,
             redeemAction,
-            PendleZapper.ZapAction(_PENDLE_LP_STETH, 1.24 ether, _STETH, type(uint256).max, false),
+            PendleZapperMinimal.ZapAction(
+                _PENDLE_LP_STETH, 1.24 ether, _STETH, type(uint256).max, false
+            ),
             new SwapperLib.Swap[](0),
             user1
         );
         vm.stopPrank();
+    }
+
+    function _defaultPendleAction()
+        internal
+        pure
+        returns (PendleLib.PendleAction memory action)
+    {
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
+    }
+
+    function _assertZapperCleanAfterEnter() internal view {
+        assertEq(address(pendleZapper).balance, 0);
+        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(pendleZapper)), 0);
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        assertEq(
+            IERC20(address(pendleCTokenSTETH))
+                .balanceOf(address(pendleZapper)),
+            0
+        );
+    }
+
+    function _assertZapperCleanAfterExit() internal view {
+        assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
+        assertLe(IERC20(_STETH).balanceOf(address(pendleZapper)), 1);
+    }
+
+    function _enterPendleThroughSwapper() internal returns (uint256 shares) {
+        uint256 ethAmount = 3 ether;
+        uint256 expectedShares = 1.2 ether;
+        vm.deal(address(swapperHarness), ethAmount);
+
+        PendleLib.PendleAction memory action = _defaultPendleAction();
+        SwapperLib.Swap memory swapAction = SwapperLib.Swap({
+            inputToken: address(0),
+            inputAmount: ethAmount,
+            outputToken: address(pendleCTokenSTETH),
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapperMinimal.enterPendle.selector,
+                address(pendleCTokenSTETH),
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                PendleZapperMinimal.ZapAction(
+                    address(0), ethAmount, _PENDLE_LP_STETH, 1, true
+                ),
+                new SwapperLib.Swap[](0),
+                expectedShares,
+                false,
+                address(swapperHarness)
+            )
+        });
+
+        shares = swapperHarness.swapUnsafe(
+            ICentralRegistry(address(centralRegistry)), swapAction
+        );
+    }
+
+    function _redeemAndExitSwapAction(
+        PendleLib.PendleAction memory action,
+        BaseZapper.RedeemAction memory redeemAction,
+        uint256 zapInputAmount,
+        uint256 swapInputAmount
+    ) internal view returns (SwapperLib.Swap memory swapAction) {
+        swapAction = SwapperLib.Swap({
+            inputToken: address(pendleCTokenSTETH),
+            inputAmount: swapInputAmount,
+            outputToken: _STETH,
+            target: address(pendleZapper),
+            slippage: 0,
+            call: abi.encodeWithSelector(
+                PendleZapper.redeemAndExitPendle.selector,
+                _STETH,
+                _PENDLE_ROUTER,
+                _PENDLE_LP_STETH,
+                _IS_PT,
+                action,
+                redeemAction,
+                PendleZapperMinimal.ZapAction(
+                    _PENDLE_LP_STETH, zapInputAmount, _STETH, 1, false
+                ),
+                new SwapperLib.Swap[](0),
+                address(swapperHarness)
+            )
+        });
     }
 }
 
@@ -665,5 +1695,24 @@ contract MockPendlePostSwapTarget {
     ) external {
         IERC20(inputToken).transferFrom(msg.sender, address(this), inputAmount);
         IERC20(outputToken).transfer(msg.sender, outputAmount);
+    }
+}
+
+contract SwapperLibHarness {
+    receive() external payable {}
+
+    function setDelegateApproval(
+        IPluginDelegable token,
+        address delegate,
+        bool isApproved
+    ) external {
+        token.setDelegateApproval(delegate, isApproved);
+    }
+
+    function swapUnsafe(
+        ICentralRegistry centralRegistry,
+        SwapperLib.Swap memory swapAction
+    ) external returns (uint256) {
+        return SwapperLib._swapUnsafe(centralRegistry, swapAction);
     }
 }

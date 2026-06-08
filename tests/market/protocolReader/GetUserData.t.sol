@@ -2,6 +2,8 @@
 pragma solidity 0.8.28;
 
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract GetUserDataTest is TestBaseMarketIsolated {
@@ -102,6 +104,414 @@ contract GetUserDataTest is TestBaseMarketIsolated {
         assertLt(collateralToken.liquidationPrice, type(uint256).max);
         assertGt(debtToken.userDebt, 0);
         assertLt(debtToken.liquidationPrice, type(uint256).max);
+    }
+
+    function test_hypotheticalLiquidityOf_activeDebtSubtractsExistingDebt()
+        external
+        view
+    {
+        ProtocolReader.HypotheticalResult memory liquidity =
+            protocolReader.hypotheticalLiquidityOf(
+                marketManagerIsolated,
+                user1,
+                address(0),
+                0,
+                0,
+                0
+            );
+
+        assertGt(liquidity.debt, 0);
+        assertGt(liquidity.maxDebt, liquidity.debt);
+        assertEq(
+            liquidity.collateralSurplus,
+            liquidity.maxDebt - liquidity.debt
+        );
+        assertEq(liquidity.liquidityDeficit, 0);
+    }
+
+    function test_hypotheticalBorrowOf_activeDebtTopUpUsesPostBorrowDebtForLoanSize()
+        external
+        view
+    {
+        (
+            uint256 collateralSurplus,
+            uint256 liquidityDeficit,
+            bool possible,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalBorrowOf(
+            user1,
+            address(borrowableCUSDC),
+            1,
+            0
+        );
+
+        assertTrue(possible, "active debt top-up should be simulated");
+        assertGt(
+            collateralSurplus,
+            0,
+            "tiny top-up should preserve collateral surplus"
+        );
+        assertEq(liquidityDeficit, 0);
+        assertFalse(
+            loanSizeError,
+            "loan size check should use post-borrow active debt"
+        );
+        assertFalse(oracleError);
+    }
+
+    function test_hypotheticalBorrowOf_freshDebtTokenIncludesHypotheticalBorrow()
+        external
+    {
+        _prepareDAI(user2, 1_000e18);
+
+        vm.startPrank(user2);
+        dai.approve(address(borrowableCDAI), 1_000e18);
+        borrowableCDAI.depositAsCollateral(1_000e18, user2);
+        vm.stopPrank();
+
+        (
+            uint256 collateralSurplus,
+            uint256 liquidityDeficit,
+            bool possible,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalBorrowOf(
+            user2,
+            address(borrowableCUSDC),
+            1_000e6,
+            0
+        );
+
+        assertTrue(possible, "fresh borrow should be simulated");
+        assertEq(
+            collateralSurplus,
+            0,
+            "over-limit fresh borrow should not report surplus"
+        );
+        assertGt(
+            liquidityDeficit,
+            0,
+            "fresh borrow should include hypothetical debt"
+        );
+        assertFalse(loanSizeError);
+        assertFalse(oracleError);
+    }
+
+    function test_hypotheticalLeverageOf_saturatedDebtCapReturnsZeroBorrowable()
+        external
+    {
+        uint256 outstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        assertGt(outstandingDebt, 1);
+
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC),
+            100_000e6,
+            outstandingDebt - 1
+        );
+
+        (
+            ,
+            uint256 adjustedMaxLeverage,
+            uint256 maxLeverage,
+            uint256 maxDebtBorrowable,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalLeverageOf(
+            user2,
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            100e18,
+            0
+        );
+
+        assertEq(maxDebtBorrowable, 0);
+        assertEq(adjustedMaxLeverage, 0);
+        assertGt(maxLeverage, 0);
+        assertFalse(loanSizeError);
+        assertFalse(oracleError);
+    }
+
+    function test_hypotheticalLeverageOf_saturatedDebtCapSkipsDebtPrice()
+        external
+    {
+        uint256 outstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        assertGt(
+            outstandingDebt,
+            1,
+            "precondition: market should have active debt"
+        );
+
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC),
+            100_000e6,
+            outstandingDebt - 1
+        );
+
+        vm.mockCallRevert(
+            address(oracleManager),
+            abi.encodeWithSelector(
+                IOracleManager.getPrice.selector,
+                borrowableCUSDC.asset(),
+                true,
+                false
+            ),
+            "debt price should not be read"
+        );
+
+        (
+            ,
+            uint256 adjustedMaxLeverage,
+            uint256 maxLeverage,
+            uint256 maxDebtBorrowable,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalLeverageOf(
+            user2,
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            100e18,
+            0
+        );
+
+        assertEq(
+            maxDebtBorrowable,
+            0,
+            "saturated debt cap should leave no borrowable assets"
+        );
+        assertEq(
+            adjustedMaxLeverage,
+            0,
+            "saturated debt cap should zero adjusted leverage"
+        );
+        assertGt(
+            maxLeverage,
+            0,
+            "theoretical leverage should remain available"
+        );
+        assertFalse(loanSizeError, "loan size should remain valid");
+        assertFalse(oracleError, "existing-position pricing should be clean");
+    }
+
+    function test_hypotheticalLeverageOf_projectedDebtCapReturnsZeroBorrowable()
+        external
+    {
+        uint256 bufferTime = 30 days;
+        uint256 cachedDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 projectedDebt = protocolReader.debtBalanceAtTimestamp(
+            user1,
+            address(borrowableCUSDC),
+            block.timestamp + bufferTime
+        );
+        assertGt(
+            projectedDebt,
+            cachedDebt + 1,
+            "precondition: buffered interest should exceed cached debt"
+        );
+
+        uint256 debtCap = projectedDebt - 1;
+        assertLt(
+            cachedDebt,
+            debtCap,
+            "precondition: cached debt should not saturate the cap"
+        );
+
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC),
+            100_000e6,
+            debtCap
+        );
+
+        vm.mockCallRevert(
+            address(oracleManager),
+            abi.encodeWithSelector(
+                IOracleManager.getPrice.selector,
+                borrowableCUSDC.asset(),
+                true,
+                false
+            ),
+            "debt price should not be read"
+        );
+
+        (
+            ,
+            uint256 adjustedMaxLeverage,
+            uint256 maxLeverage,
+            uint256 maxDebtBorrowable,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalLeverageOf(
+            user2,
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            100e18,
+            bufferTime
+        );
+
+        assertEq(
+            maxDebtBorrowable,
+            0,
+            "projected debt cap should leave no borrowable assets"
+        );
+        assertEq(
+            adjustedMaxLeverage,
+            0,
+            "projected debt cap should zero adjusted leverage"
+        );
+        assertGt(
+            maxLeverage,
+            0,
+            "theoretical leverage should remain available"
+        );
+        assertFalse(loanSizeError, "loan size should remain valid");
+        assertFalse(oracleError, "existing-position pricing should be clean");
+    }
+
+    function test_hypotheticalLeverageOf_aboveMaxDebtReturnsZeroBorrowable()
+        external
+    {
+        _setCTokenConfigCustomRatio(
+            address(borrowableCDAI),
+            4000,
+            100_000e18,
+            100_000e18
+        );
+
+        ProtocolReader.HypotheticalResult memory liquidity =
+            protocolReader.hypotheticalLiquidityOf(
+                marketManagerIsolated,
+                user1,
+                address(0),
+                0,
+                0,
+                0
+            );
+        assertGt(
+            liquidity.collateral,
+            liquidity.debt,
+            "precondition: account should remain solvent"
+        );
+        assertLe(
+            liquidity.maxDebt,
+            liquidity.debt,
+            "precondition: account should be above borrowable max debt"
+        );
+
+        (
+            uint256 currentLeverage,
+            uint256 adjustedMaxLeverage,
+            uint256 maxLeverage,
+            uint256 maxDebtBorrowable,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalLeverageOf(
+            user1,
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            0,
+            0
+        );
+
+        assertGt(currentLeverage, 1e18, "active debt should create leverage");
+        assertEq(
+            adjustedMaxLeverage,
+            0,
+            "above-max account should not have adjusted leverage room"
+        );
+        assertEq(
+            maxLeverage,
+            currentLeverage,
+            "above-max account max leverage should equal current leverage"
+        );
+        assertEq(
+            maxDebtBorrowable,
+            0,
+            "above-max account should have no new borrowable debt"
+        );
+        assertFalse(loanSizeError, "loan size should remain valid");
+        assertFalse(oracleError, "pricing should remain clean");
+    }
+
+    function test_hypotheticalLeverageOf_aboveMaxDebtWithNewCollateralUpdatesMaxLeverage()
+        external
+    {
+        _setCTokenConfigCustomRatio(
+            address(borrowableCDAI),
+            4000,
+            100_000e18,
+            100_000e18
+        );
+
+        ProtocolReader.HypotheticalResult memory before =
+            protocolReader.hypotheticalLiquidityOf(
+                marketManagerIsolated,
+                user1,
+                address(0),
+                0,
+                0,
+                0
+        );
+        uint256 newCollateralAssets = 100e18;
+        (
+            uint256 currentLeverage,
+            uint256 adjustedMaxLeverage,
+            uint256 maxLeverage,
+            uint256 maxDebtBorrowable,
+            bool loanSizeError,
+            bool oracleError
+        ) = protocolReader.hypotheticalLeverageOf(
+            user1,
+            address(borrowableCDAI),
+            address(borrowableCUSDC),
+            newCollateralAssets,
+            0
+        );
+
+        (uint256 collateralPrice, uint256 priceError) =
+            oracleManager.getPrice(address(borrowableCDAI), true, true);
+        assertEq(priceError, 0, "precondition: collateral price should be clean");
+
+        uint256 newCollateralValue = (
+            borrowableCDAI.previewDeposit(newCollateralAssets) *
+                collateralPrice
+        ) / (10 ** borrowableCDAI.decimals());
+        uint256 postCollateral = before.collateral + newCollateralValue;
+        uint256 postMaxDebt =
+            before.maxDebt + ((newCollateralValue * 4000) / 10_000);
+
+        assertLe(
+            postMaxDebt,
+            before.debt,
+            "precondition: account should still be above borrowable max debt"
+        );
+
+        assertEq(
+            currentLeverage,
+            (before.collateral * 1e18) / (before.collateral - before.debt),
+            "current leverage should describe pre-action state"
+        );
+        assertEq(
+            maxLeverage,
+            (postCollateral * 1e18) / (postCollateral - before.debt),
+            "max leverage should describe post-deposit no-borrow state"
+        );
+        assertLt(
+            maxLeverage,
+            currentLeverage,
+            "added collateral should improve no-borrow leverage"
+        );
+        assertEq(
+            adjustedMaxLeverage,
+            0,
+            "above-max account should not have adjusted leverage room"
+        );
+        assertEq(
+            maxDebtBorrowable,
+            0,
+            "above-max account should have no new borrowable debt"
+        );
+        assertFalse(loanSizeError, "loan size should remain valid");
+        assertFalse(oracleError, "pricing should remain clean");
     }
 
     function test_getMarketSummaries_emptyAccount_matchesUserDataSummary() external view {
@@ -268,6 +678,30 @@ contract GetUserDataTest is TestBaseMarketIsolated {
         }
 
         revert("token not found");
+    }
+
+    function _setCTokenConfigCustomRatio(
+        address cToken,
+        uint256 collRatio,
+        uint256 collateralCap,
+        uint256 debtCap
+    ) internal {
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = collRatio;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 10;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
     function _findDynamicMarket(

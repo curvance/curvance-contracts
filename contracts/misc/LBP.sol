@@ -73,6 +73,8 @@ contract LBP {
     error LBP__Success();
     error LBP__InvalidSwapAction();
     error LBP__InvalidSwapOutput();
+    error LBP__InsufficientCVEForSale();
+    error LBP__InvalidRecipient();
 
     /// EVENTS ///
 
@@ -140,6 +142,10 @@ contract LBP {
         paymentToken = paymentTokenAddress;
         paymentTokenDecimals = IERC20(paymentTokenAddress).decimals();
 
+        if (IERC20(cve).balanceOf(address(this)) < cveAmountInLBP) {
+            revert LBP__InsufficientCVEForSale();
+        }
+
         emit LBPStarted(startTimestamp);
     }
 
@@ -175,6 +181,7 @@ contract LBP {
     function commitFor(uint256 amount, address recipient) external {
         // Validate that LBP is active.
         _canCommit();
+        _checkRecipient(recipient);
 
         // Users can only commit up to the remaining sale capacity.
         amount = _capCommitAmount(amount);
@@ -198,8 +205,13 @@ contract LBP {
     ) external payable {
         // Validate that LBP is active.
         _canCommit();
+        _checkRecipient(recipient);
 
         if (swapperData.outputToken != paymentToken) {
+            revert LBP__InvalidSwapAction();
+        }
+
+        if (commitAmount > _remainingCommitCapacity()) {
             revert LBP__InvalidSwapAction();
         }
 
@@ -208,6 +220,8 @@ contract LBP {
             if (swapperData.inputAmount != msg.value) {
                 revert LBP__InvalidSwapAction();
             }
+        } else if (msg.value != 0) {
+            revert LBP__InvalidSwapAction();
         } else {
             SafeTransferLib.safeTransferFrom(
                 swapperData.inputToken,
@@ -219,9 +233,6 @@ contract LBP {
 
         // Execute swap into eToken underlying.
         uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapperData);
-
-        // Users can only commit up to the remaining sale capacity.
-        commitAmount = _capCommitAmount(commitAmount);
 
         if (amount < commitAmount) {
             revert LBP__InvalidSwapOutput();
@@ -409,10 +420,18 @@ contract LBP {
     /// @param recipient The address of the user who should benefit from
     ///                  the commitment.
     function _commit(uint256 amount, address recipient) internal {
+        _checkRecipient(recipient);
+
         userCommitted[recipient] += amount;
         saleCommitted += amount;
 
         emit Committed(recipient, amount);
+    }
+
+    function _checkRecipient(address recipient) internal pure {
+        if (recipient == address(0)) {
+            revert LBP__InvalidRecipient();
+        }
     }
 
     /// @notice Returns the commitment amount capped to the remaining sale

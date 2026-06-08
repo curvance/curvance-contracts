@@ -47,6 +47,7 @@ contract FaucetWithSignature is Ownable {
         uint256 expireAt,
         bytes calldata signature
     ) external {
+        require(user != address(0), "Invalid user");
         require(!isSignatureUsed[signature], "Signature already used");
         require(
             userLastClaimed[user][token] + 24 hours <= block.timestamp,
@@ -60,6 +61,9 @@ contract FaucetWithSignature is Ownable {
             "Invalid signature"
         );
 
+        isSignatureUsed[signature] = true;
+        userLastClaimed[user][token] = block.timestamp;
+
         if (token == address(0)) {
             require(amount < maxSepETHClaim, "Excessive desired claim amount");
             require(address(this).balance >= amount, "Not enough ETH");
@@ -72,9 +76,6 @@ contract FaucetWithSignature is Ownable {
             );
             SafeTransferLib.safeTransfer(token, user, amount);
         }
-
-        isSignatureUsed[signature] = true;
-        userLastClaimed[user][token] = block.timestamp;
     }
 
     function getMessageHash(

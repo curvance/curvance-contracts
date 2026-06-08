@@ -183,9 +183,13 @@ contract RewardsDistribution is ReentrancyGuard {
         }
 
         RewardsConfig memory config = rewardsConfig[root];
+        if (amount == 0 || amount > config.rewardAmount) {
+            return false;
+        }
+
         // Validate the caller did not already claim the rewards,
         // if there are any.
-        if (!rewardsClaimed[msg.sender][root]) {
+        if (!rewardsClaimed[user][root]) {
             // Validate that this is a supported Merkle Root for claiming,
             // and that the claim period has not ended.
             if (_isClaimWindowActive(config.claimEndTimestamp)) {
