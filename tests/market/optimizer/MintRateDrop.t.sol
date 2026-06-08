@@ -16,10 +16,6 @@ contract MintRateDropTest is TestBaseLendingOptimizer {
     }
 
     /// @notice Verifies that mint() no longer causes a rate drop.
-    /// @dev The contract now uses `_totalAssets += assets` (full user payment)
-    ///      in mint(), not `_totalAssets += trackedAssets`. This prevents the
-    ///      double-floor loss from dropping the exchange rate. The 0-1 wei
-    ///      excess self-corrects at the next _accrueIfNeeded().
     function test_mint_rate_drops() public {
         _deployOptimizer();
         _initAndDeposit();
