@@ -14,15 +14,19 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      execute any pause/unpause actions. Requires elevated permissions
 ///      (timelock or emergency council).
 contract DeployProtocolManager_MassPause is DeployScript {
+    /// @param canUnpause Whether the deployed contract may execute unpause
+    ///        functions. False deploys a pause-only emergency key.
     function run(
         address registry,
-        address ownerAddress
+        address ownerAddress,
+        bool canUnpause
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
 
         ProtocolManagerMassPause pm = new ProtocolManagerMassPause(
             icr,
-            ownerAddress
+            ownerAddress,
+            canUnpause
         );
 
         emit ContractDeployed(address(pm), "ProtocolManagerMassPause");
