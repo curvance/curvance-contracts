@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { ProtocolManagerMassPause } from "contracts/architecture/ProtocolManagerMassPause.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
@@ -111,10 +112,12 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         // Deploy second market manager for multi-market tests.
         _setupSecondMarket();
 
-        // Deploy mass pause manager with address(this) as owner.
+        // Deploy mass pause manager with address(this) as owner and full
+        // unpause authority (canUnpause = true).
         massPause = new ProtocolManagerMassPause(
             ICentralRegistry(address(centralRegistry)),
-            address(this)
+            address(this),
+            true
         );
 
         // Grant market permissions.
@@ -328,6 +331,20 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         returns (address[] memory markets)
     {
         markets = new address[](0);
+    }
+
+    /// @dev Deploys a mass-pause manager with the given unpause authority
+    ///      and grants it market permissions.
+    function _deployMassPause(bool canUnpause_)
+        internal
+        returns (ProtocolManagerMassPause pm)
+    {
+        pm = new ProtocolManagerMassPause(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            canUnpause_
+        );
+        centralRegistry.addMarketPermissions(address(pm));
     }
 
     /// ==================== pauseAll / unpauseAll ==================== ///
@@ -684,6 +701,45 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
             address(centralRegistry)
         );
         assertEq(massPause.owner(), address(this));
+        // setUp deploys with full unpause authority.
+        assertTrue(massPause.canUnpause(), "canUnpause should be true");
+    }
+
+    function test_constructor_canUnpause_false() public {
+        ProtocolManagerMassPause pm = new ProtocolManagerMassPause(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            false
+        );
+        assertFalse(pm.canUnpause(), "canUnpause should be false");
+        assertEq(pm.owner(), address(this));
+    }
+
+    function test_constructor_revertsZeroOwner() public {
+        vm.expectRevert(
+            ProtocolManagerMassPause
+                .ProtocolManagerMassPause__Unauthorized
+                .selector
+        );
+        new ProtocolManagerMassPause(
+            ICentralRegistry(address(centralRegistry)),
+            address(0),
+            true
+        );
+    }
+
+    function test_constructor_revertsInvalidCentralRegistry() public {
+        // A no-code address does not support the ICentralRegistry interface.
+        vm.expectRevert(
+            CentralRegistryLib
+                .CentralRegistryLib__InvalidCentralRegistry
+                .selector
+        );
+        new ProtocolManagerMassPause(
+            ICentralRegistry(address(0xBAD)),
+            address(this),
+            true
+        );
     }
 
     function test_autoDiscover_returnsAllRegisteredMarkets() public view {
@@ -692,4 +748,233 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         assertEq(registered[0], address(marketManagerIsolated));
         assertEq(registered[1], address(marketManager2));
     }
+
+    /// ==================== UNPAUSE AUTHORITY ==================== ///
+
+    function test_canUnpause_false_pauseAllStillWorks() public {
+        ProtocolManagerMassPause pm = _deployMassPause(false);
+        pm.pauseAll(_singleMarketArray());
+        _assertM1AllPaused();
+    }
+
+    function test_canUnpause_false_unpauseAllReverts() public {
+        ProtocolManagerMassPause pm = _deployMassPause(false);
+        pm.pauseAll(_singleMarketArray());
+
+        vm.expectRevert(
+            ProtocolManagerMassPause
+                .ProtocolManagerMassPause__Unauthorized
+                .selector
+        );
+        pm.unpauseAll(_singleMarketArray());
+
+        // Markets remain paused — the revert left state untouched.
+        _assertM1AllPaused();
+    }
+
+    function test_canUnpause_false_unpauseTokenLevelEntryReverts() public {
+        ProtocolManagerMassPause pm = _deployMassPause(false);
+        vm.expectRevert(
+            ProtocolManagerMassPause
+                .ProtocolManagerMassPause__Unauthorized
+                .selector
+        );
+        pm.unpauseTokenLevelEntryActions(_singleMarketArray());
+    }
+
+    function test_canUnpause_false_unpauseMarketWideExitReverts() public {
+        ProtocolManagerMassPause pm = _deployMassPause(false);
+        vm.expectRevert(
+            ProtocolManagerMassPause
+                .ProtocolManagerMassPause__Unauthorized
+                .selector
+        );
+        pm.unpauseMarketWideExitActions(_singleMarketArray());
+    }
+
+    function test_canUnpause_false_nonOwnerReverts() public {
+        // Both the capability gate and the owner gate surface the same
+        // __Unauthorized error (mirroring base ProtocolManager), so a
+        // non-owner calling unpause on a pause-only contract reverts.
+        ProtocolManagerMassPause pm = _deployMassPause(false);
+        vm.prank(address(0xdead));
+        vm.expectRevert(
+            ProtocolManagerMassPause
+                .ProtocolManagerMassPause__Unauthorized
+                .selector
+        );
+        pm.unpauseAll(_singleMarketArray());
+    }
+
+    function test_canUnpause_true_unpauseAllWorks() public {
+        ProtocolManagerMassPause pm = _deployMassPause(true);
+        pm.pauseAll(_singleMarketArray());
+        pm.unpauseAll(_singleMarketArray());
+        _assertM1AllUnpaused();
+    }
+
+    /// ==================== FAILURE HANDLING ==================== ///
+
+    function test_pauseAll_noCodeMarket_emitsFailureAndCountsIt() public {
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD); // No code at this address.
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xDEAD));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 1, 1);
+        massPause.pauseAll(markets);
+    }
+
+    function test_pauseMarketWideExit_noCodeMarket_counted() public {
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted(
+            "MarketWideExit",
+            true,
+            1,
+            1
+        );
+        massPause.pauseMarketWideExitActions(markets);
+    }
+
+    function test_pauseTokenLevelEntry_noCodeMarket_counted() public {
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted(
+            "TokenLevelEntry",
+            true,
+            1,
+            1
+        );
+        massPause.pauseTokenLevelEntryActions(markets);
+    }
+
+    function test_pauseTokenLevelEntry_queryTokensRevert_counted() public {
+        // Market has code and working setters but reverts on token
+        // discovery — token-level entry is skipped and counted as failed.
+        RevertingTokenQueryMarket bad = new RevertingTokenQueryMarket();
+        address[] memory markets = new address[](1);
+        markets[0] = address(bad);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(bad));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted(
+            "TokenLevelEntry",
+            true,
+            1,
+            1
+        );
+        massPause.pauseTokenLevelEntryActions(markets);
+    }
+
+    function test_pauseAll_oneGoodOneBadMarket_onlyBadCounted() public {
+        // A healthy market alongside a no-code one: the good market is
+        // paused, only the bad market is counted as failed.
+        address[] memory markets = new address[](2);
+        markets[0] = address(marketManagerIsolated);
+        markets[1] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xDEAD));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 2, 1);
+        massPause.pauseAll(markets);
+
+        _assertM1AllPaused();
+    }
+
+    function test_unpauseAll_noCodeMarket_countsFailure() public {
+        // Exercises the failure-counting branch in the unpause direction.
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xDEAD));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", false, 1, 1);
+        massPause.unpauseAll(markets);
+    }
+
+    function test_unpauseTokenLevelEntry_noCodeMarket_countsFailure() public {
+        // Failure-counting branch of the scoped token-level unpause.
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xDEAD));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted(
+            "TokenLevelEntry",
+            false,
+            1,
+            1
+        );
+        massPause.unpauseTokenLevelEntryActions(markets);
+    }
+
+    function test_unpauseMarketWideExit_noCodeMarket_countsFailure() public {
+        // Failure-counting branch of the scoped market-wide unpause.
+        address[] memory markets = new address[](1);
+        markets[0] = address(0xDEAD);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MarketPauseFailed(address(0xDEAD));
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted(
+            "MarketWideExit",
+            false,
+            1,
+            1
+        );
+        massPause.unpauseMarketWideExitActions(markets);
+    }
+
+    /// ==================== AUTO-DISCOVER EDGE ==================== ///
+
+    function test_pauseAll_autoDiscover_emptyRegistry() public {
+        // With no registered markets, auto-discover resolves to an empty
+        // set: the loop is skipped and a 0/0 event is emitted.
+        centralRegistry.removeMarketManager(address(marketManagerIsolated));
+        centralRegistry.removeMarketManager(address(marketManager2));
+        assertEq(centralRegistry.marketManagers().length, 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 0, 0);
+        massPause.pauseAll(_emptyArray());
+    }
+
+    /// ==================== IDEMPOTENCY (UNPAUSE) ==================== ///
+
+    function test_unpauseTokenLevelEntryActions_idempotent() public {
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
+        massPause.unpauseTokenLevelEntryActions(_singleMarketArray());
+        _assertM1TokenLevelEntryUnpaused();
+    }
+
+    function test_unpauseMarketWideExitActions_idempotent() public {
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
+        massPause.unpauseMarketWideExitActions(_singleMarketArray());
+        _assertM1MarketWideExitUnpaused();
+    }
+}
+
+/// @notice Market mock that has code and working pause setters but reverts
+///         on token discovery, exercising the `queryTokensListed` catch path.
+contract RevertingTokenQueryMarket {
+    function queryTokensListed() external pure returns (address[] memory) {
+        revert("queryTokensListed reverted");
+    }
+
+    function setLiquidationPaused(bool) external {}
+    function setRedeemPaused(bool) external {}
+    function setTransferPaused(bool) external {}
+    function setMintPaused(address, bool) external {}
+    function setCollateralizationPaused(address, bool) external {}
+    function setBorrowPaused(address, bool) external {}
 }

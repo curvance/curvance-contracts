@@ -98,7 +98,8 @@ contract TestProtocolManagerSecurity is TestBaseMarketIsolated {
         );
         massPause = new ProtocolManagerMassPause(
             ICentralRegistry(address(centralRegistry)),
-            address(this)
+            address(this),
+            true
         );
 
         // Grant permissions.
