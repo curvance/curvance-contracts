@@ -453,6 +453,31 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
+    /// @notice Transfers optimizer shares from the caller after syncing market yield.
+    /// @dev Accrues underlying cToken markets and charges any performance fees
+    ///      before ownership changes, keeping share transfers priced against
+    ///      current optimizer accounting.
+    /// @param to The address receiving the optimizer shares.
+    /// @param amount The number of optimizer shares to transfer.
+    /// @return Whether the transfer succeeded.
+    function transfer(address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        return super.transfer(to, amount);
+    }
+
+    /// @notice Transfers optimizer shares from `from` after syncing market yield.
+    /// @dev Accrues underlying cToken markets and charges any performance fees
+    ///      before ownership changes, then spends the caller's allowance unless
+    ///      it is set to the maximum uint256 value.
+    /// @param from The address whose optimizer shares are transferred.
+    /// @param to The address receiving the optimizer shares.
+    /// @param amount The number of optimizer shares to transfer.
+    /// @return Whether the transfer succeeded.
+    function transferFrom(address from, address to, uint256 amount) public override nonReentrant returns (bool) {
+        _accrueIfNeeded();
+        return super.transferFrom(from, to, amount);
+    }
+
     /// @notice Rebalances assets across approved markets.
     /// @dev Requires harvester permissions. Actions are processed in two passes:
     ///      withdrawals first, then deposits. This ensures sufficient liquidity
