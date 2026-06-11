@@ -2,8 +2,9 @@
 pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -11,6 +12,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import "forge-std/console2.sol";
 
 contract CanLiquidateTest is TestBaseMarketIsolated {
@@ -330,6 +332,41 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         assertEq(debtAmountsReturned[0], 1e9, "debtAmountsReturned mismatch");
     }
 
+    function test_canLiquidate_success_whenDebtOracleInCaution() public {
+        _setupLiquidationFixture();
+        _setPendleStEthLpPrice(1100e8);
+        _setUsdcDualFeedAnswer(1.016e8, CAUTION);
+
+        IMarketManager.LiqAction memory action = _defaultLiqAction();
+
+        vm.prank(address(borrowableCUSDC));
+        (IMarketManager.LiqResult memory result, ) = marketManagerIsolated.canLiquidate(
+            debtAmounts,
+            address(this),
+            accounts,
+            action
+        );
+
+        assertGt(result.debtRepaid, 0, "CAUTION should not block liquidation");
+    }
+
+    function test_canLiquidate_fail_whenDebtOracleBadSource() public {
+        _setupLiquidationFixture();
+        _setPendleStEthLpPrice(1100e8);
+        _setUsdcDualFeedAnswer(1.03e8, BAD_SOURCE);
+
+        IMarketManager.LiqAction memory action = _defaultLiqAction();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canLiquidate(
+            debtAmounts,
+            address(this),
+            accounts,
+            action
+        );
+    }
+
     function _setupUserPositionAndOracles() internal {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
@@ -353,6 +390,58 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user1), 1000e6);
+    }
+
+    function _setupLiquidationFixture() internal {
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
+
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
+
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
+
+        deal(_USDC_ADDRESS, address(this), 100_000e6);
+        usdc.approve(address(borrowableCUSDC), 100_000e6);
+        borrowableCUSDC.deposit(100_000e6, address(this));
+
+        _setupUserPositionAndOracles();
+    }
+
+    function _defaultLiqAction()
+        internal
+        view
+        returns (IMarketManager.LiqAction memory action)
+    {
+        action = IMarketManager.LiqAction({
+            collateralToken: address(pendleStrategyCTokenSTETH),
+            debtToken: address(borrowableCUSDC),
+            numAccounts: 1,
+            liquidateExact: false,
+            liquidatedShares: 0,
+            debtRepaid: 0,
+            badDebt: 0
+        });
+    }
+
+    function _setUsdcDualFeedAnswer(
+        int256 answer,
+        uint256 expectedErrorCode
+    ) internal {
+        MockV3Aggregator usdcFeed = new MockV3Aggregator(8, answer);
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(usdcFeed),
+            0
+        );
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected USDC oracle status");
     }
 
 }

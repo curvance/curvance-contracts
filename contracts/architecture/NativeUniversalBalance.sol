@@ -1,43 +1,47 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { UniversalBalance, IBorrowableCToken } from "contracts/architecture/UniversalBalance.sol";
+import {
+    UniversalBalance,
+    IBorrowableCToken
+} from "contracts/architecture/UniversalBalance.sol";
 
-import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import {CommonLib} from "contracts/libraries/CommonLib.sol";
 
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import {
+    SafeTransferLib
+} from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import {IWETH} from "contracts/interfaces/IWETH.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Universal Balance for Native Gas Tokens
 /// @notice A specialized system for managing native gas tokens within the Curvance Protocol
-/// @dev NativeUniversalBalance extends the Universal Balance system to provide native 
+/// @dev NativeUniversalBalance extends the Universal Balance system to provide native
 ///      gas token support (ETH, MATIC, etc.) with automatic wrapping/unwrapping:
-///      
+///
 ///      1. Native Token Operations:
 ///         - Seamlessly handles deposits of native gas tokens with auto-wrapping
 ///         - Provides native withdrawal functionality with automatic unwrapping
 ///         - Supports receiving native tokens directly via the receive() function
-///      
+///
 ///      2. Enhanced Functionality:
 ///         - All core Universal Balance features (sitting/lent balances)
 ///         - Specialized native token deposit/withdraw methods with recipient specification
 ///         - Multi-user batch operations for gas-efficient management
-///      
+///
 ///      3. Integration Points:
 ///         - Coordinates with wrapped native token contracts (WETH, WMATIC, etc.)
 ///         - Supports Oracle Manager for on-demand funding of oracle updates
 ///         - Validates that EToken underlying matches the wrapped native token
-///      
+///
 ///      Implementation carefully handles the wrapping/unwrapping of native tokens while
 ///      maintaining the full feature set of the standard Universal Balance system.
 ///      Refunds unused deposit amounts when processing batch operations.
 ///
 contract NativeUniversalBalance is UniversalBalance {
     /// ERRORS ///
-
     error NativeUniversalBalance__UnderlyingTokenMismatch();
 
     /// CONSTRUCTOR ///
@@ -45,11 +49,9 @@ contract NativeUniversalBalance is UniversalBalance {
     /// @param cr The address of the Central Registry contract.
     /// @param borrowableCToken The address of the borrowable cToken.
     /// @param wNative The address of the wrapped native token.
-    constructor(
-        ICentralRegistry cr,
-        address borrowableCToken,
-        address wNative
-    ) UniversalBalance(cr, borrowableCToken) {
+    constructor(ICentralRegistry cr, address borrowableCToken, address wNative)
+        UniversalBalance(cr, borrowableCToken)
+    {
         // Validate that `borrowableCToken` and native wrapped token
         // are the same token.
         if (IBorrowableCToken(borrowableCToken).asset() != wNative) {
@@ -63,10 +65,10 @@ contract NativeUniversalBalance is UniversalBalance {
     ///         account, either to be held.
     /// @dev The amount of native token to be deposited is attached to the
     ///      transaction, in assets.
-    ///      Emits { Deposit } event. 
+    ///      Emits { Deposit } event.
     receive() external payable {
         if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value }();
+            IWETH(underlying).deposit{value: msg.value}();
             // We default to a sitting balance deposit due to small gas
             // allowance on .transfer calls.
             _deposit(msg.value, false, msg.sender);
@@ -77,11 +79,11 @@ contract NativeUniversalBalance is UniversalBalance {
     ///         account, either to be held or lent out.
     /// @dev The amount of native token to be deposited is attached to the
     ///      transaction, in assets.
-    ///      Emits { Deposit } event. 
+    ///      Emits { Deposit } event.
     /// @param isLent Whether the deposited native tokens should be lent
     ///               out inside Curvance Protocol (as wrapped native).
     function depositNative(bool isLent) external payable {
-        IWETH(underlying).deposit{ value: msg.value }();
+        IWETH(underlying).deposit{value: msg.value}();
         _deposit(msg.value, isLent, msg.sender);
     }
 
@@ -94,13 +96,13 @@ contract NativeUniversalBalance is UniversalBalance {
     /// @param isLent Whether the deposited native tokens should be lent
     ///               out inside Curvance Protocol (as wrapped native).
     /// @param recipient The account who will receive the deposit.
-    function depositNativeFor(
-        bool isLent,
-        address recipient
-    ) external payable {
+    function depositNativeFor(bool isLent, address recipient)
+        external
+        payable
+    {
         _checkDelegate(recipient, msg.sender);
 
-        IWETH(underlying).deposit{ value: msg.value }();
+        IWETH(underlying).deposit{value: msg.value}();
         _deposit(msg.value, isLent, recipient);
     }
 
@@ -123,14 +125,10 @@ contract NativeUniversalBalance is UniversalBalance {
         bool[] calldata willLend,
         address[] calldata recipients
     ) external payable {
-        IWETH(underlying).deposit{ value: msg.value }();
+        IWETH(underlying).deposit{value: msg.value}();
 
-        uint256 unusedDeposit = _multiDepositFor(
-            msg.value,
-            amounts,
-            willLend,
-            recipients
-        );
+        uint256 unusedDeposit =
+            _multiDepositFor(msg.value, amounts, willLend, recipients);
 
         // Reimburse any unused deposit amount.
         if (unusedDeposit > 0) {
@@ -157,11 +155,10 @@ contract NativeUniversalBalance is UniversalBalance {
         bool forceLentRedemption,
         address recipient
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
-        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
-            amount,
-            forceLentRedemption,
-            msg.sender
-        );
+        _checkRecipient(recipient);
+
+        (amountWithdrawn, lendingBalanceUsed) =
+            _withdraw(amount, forceLentRedemption, msg.sender);
 
         // No need to transfer wrapped native tokens out as we need to
         // withdraw them from wrapper contract and then transfer native
@@ -201,12 +198,11 @@ contract NativeUniversalBalance is UniversalBalance {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+        _checkRecipient(recipient);
+
         _checkDelegate(owner, msg.sender);
-        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
-            amount,
-            forceLentRedemption,
-            owner
-        );
+        (amountWithdrawn, lendingBalanceUsed) =
+            _withdraw(amount, forceLentRedemption, owner);
 
         // No need to transfer wrapped native tokens out as we need to
         // withdraw them from wrapper contract and then transfer native
@@ -215,11 +211,7 @@ contract NativeUniversalBalance is UniversalBalance {
         SafeTransferLib.safeTransferETH(recipient, amountWithdrawn);
 
         emit Withdraw(
-            msg.sender,
-            recipient,
-            owner,
-            amountWithdrawn,
-            lendingBalanceUsed
+            msg.sender, recipient, owner, amountWithdrawn, lendingBalanceUsed
         );
     }
 
@@ -244,10 +236,7 @@ contract NativeUniversalBalance is UniversalBalance {
         address[] calldata owners
     ) external {
         uint256 withdrawSum = _multiWithdrawFor(
-            amounts,
-            forceLentRedemption,
-            recipient,
-            owners
+            amounts, forceLentRedemption, recipient, owners
         );
 
         // No need to transfer wrapped native tokens out as we need to
@@ -262,23 +251,29 @@ contract NativeUniversalBalance is UniversalBalance {
     ///              Universal Balance account.
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update, in assets.
-    function useBalanceForOracleUpdate(
-        address owner,
-        uint256 amount
-    ) external {
+    function useBalanceForOracleUpdate(address owner, uint256 amount)
+        external
+    {
         // Validate an approved adaptor is calling the function.
         if (!CommonLib._oracleManager(centralRegistry)
-                .isApprovedAdaptor(msg.sender)
-        ) {
+                .isApprovedAdaptor(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Withdraw from `owner`'s Universal Balance and transfer the wrapped
-        // native tokens to the Oracle Adaptor for use in updating oracle
-        // feed.
-        (amount, ) = _withdraw(amount, false, owner);
+        // Withdraw from `owner`'s Universal Balance. Lending redemptions may
+        // round up and return more wrapped native token than was requested.
+        uint256 requestedAmount = amount;
+        (uint256 withdrawnAmount,) = _withdraw(requestedAmount, false, owner);
 
         // Transfer the withdrawn tokens to the oracle adaptor.
-        SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
+        SafeTransferLib.safeTransfer(underlying, msg.sender, requestedAmount);
+
+        // Return any lending redemption rounding surplus to `owner` rather
+        // than leaving it stranded on the oracle adaptor.
+        if (withdrawnAmount > requestedAmount) {
+            SafeTransferLib.safeTransfer(
+                underlying, owner, withdrawnAmount - requestedAmount
+            );
+        }
     }
 }

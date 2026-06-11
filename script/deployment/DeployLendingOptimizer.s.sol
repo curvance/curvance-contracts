@@ -20,7 +20,7 @@ contract DeployLendingOptimizer is DeployScript {
     ) external recordEvents {
         IERC20 asset = IERC20(depositAsset);
         ICentralRegistry icr = ICentralRegistry(centralRegistryAddress);
-        LendingOptimizer optimizer = new LendingOptimizer(asset, icr, ctokens, caps, feeInBps);
+        LendingOptimizer optimizer = new LendingOptimizer(asset, name, name, icr, ctokens, caps, feeInBps);
 
         emit ContractDeployed(
             address(optimizer),

@@ -227,6 +227,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool forceLentRedemption,
         address recipient
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+        _checkRecipient(recipient);
+
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
@@ -267,6 +269,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+        _checkRecipient(recipient);
+
         _checkDelegate(owner, msg.sender);
 
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
@@ -370,10 +374,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        if (recipient == msg.sender) {
+        if (recipient == address(0) || recipient == msg.sender) {
             revert UniversalBalance__InvalidParameter();
         }
-        
+
         (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
@@ -408,10 +412,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        if (owner == recipient) {
+        if (recipient == address(0) || owner == recipient) {
             revert UniversalBalance__InvalidParameter();
         }
-        
+
         _checkDelegate(owner, msg.sender);
 
         (amountTransferred, lendingBalanceUsed) = _transfer(
@@ -536,7 +540,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         uint256 amount,
         bool forceLentRedemption,
         address owner
-    ) internal returns (uint256, bool) {
+    ) internal returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
         _checkZeroAmount(amount);
 
         if (
@@ -586,9 +590,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             }
         }
 
+        amountWithdrawn = amount;
+
         // Check if lent balance needs to be utilized.
         // Will natively fail if utilization is at 100%.
         if (remainingAmount > 0) {
+            uint256 requestedLentAmount = remainingAmount;
             pointerAmount = FixedPointMathLib.mulDivUp(
                 remainingAmount,
                 WAD,
@@ -604,14 +611,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             );
 
             // Make sure enough was redeemed.
-            if (pointerAmount < remainingAmount) {
+            if (pointerAmount < requestedLentAmount) {
                 revert UniversalBalance__SlippageError();
             }
-        }
 
-        // If lent balance was used at all,
-        // remainingAmount will be greater than 0.
-        return (amount, remainingAmount > 0);
+            amountWithdrawn = amount - requestedLentAmount + pointerAmount;
+            lendingBalanceUsed = true;
+        }
     }
 
     /// @notice Withdraws underlying token from `owners` Universal Balance
@@ -636,6 +642,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address[] calldata owners
     ) internal returns (uint256) {
+        _checkRecipient(recipient);
+
         uint256 amountsLength = amounts.length;
         if (
             amountsLength != forceLentRedemption.length ||
@@ -723,6 +731,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
                 // Return bytes 29-32 for the selector.
                 revert(0x1c, 0x04)
             }
+        }
+    }
+
+    /// @notice Checks to make sure a transfer recipient can receive assets.
+    function _checkRecipient(address recipient) internal pure {
+        if (recipient == address(0)) {
+            revert UniversalBalance__InvalidParameter();
         }
     }
 

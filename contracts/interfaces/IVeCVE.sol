@@ -4,6 +4,10 @@ pragma solidity 0.8.28;
 import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 interface IVeCVE {
+    /// @notice Whether VeCVE is shut down or not.
+    /// @dev 2 = yes; 1 = no.
+    function isShutdown() external view returns (uint256);
+
     /// @notice Locks a given amount of cve tokens on behalf of another user,
     ///         and processes any pending rewards.
     /// @param recipient The address to lock tokens for.

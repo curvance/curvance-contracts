@@ -5,9 +5,11 @@ import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/marke
 
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+import { CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     function setUp() public override {
@@ -193,6 +195,135 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_canRepayWithReview_fail_whenPartialRepayDebtOracleInCaution()
+        public
+    {
+        _openDebtPositionForRepayReview(user1, 10e6);
+        _setUsdcDualFeedAnswer(1.016e8, CAUTION);
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            10e6,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
+    function test_canRepayWithReview_fail_whenPartialRepayDebtOracleIsStale()
+        public
+    {
+        _openDebtPositionForRepayReview(user1, 10e6);
+        _makeDefaultUsdcFeedsStale(BAD_SOURCE);
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            10e6,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
+    function test_canRepayWithReview_enforcesMinimumLoanSizeBoundary() public {
+        _openDebtPositionForRepayReview(user1, 20e6);
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            10e6,
+            address(usdc),
+            6,
+            user1
+        );
+
+        vm.expectRevert(
+            LiquidityManagerIsolated
+                .LiquidityManager__InsufficientLoanSize
+                .selector
+        );
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            10e6 - 1,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
+    function test_canRepayWithReview_usesDebtAssetPriceGuardForMinimumLoanSize()
+        public
+    {
+        _openDebtPositionForRepayReview(user1, 20e6);
+
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            5e17,
+            0
+        );
+        dualChainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            5e17,
+            0
+        );
+
+        (uint256 guardedPrice, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, 0, "guarded USDC price should be clean");
+        assertEq(guardedPrice, 5e17, "price guard must clamp runtime price");
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        vm.expectRevert(
+            LiquidityManagerIsolated
+                .LiquidityManager__InsufficientLoanSize
+                .selector
+        );
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            10e6,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
+    function test_canRepayWithReview_success_fullRepayBypassesBadSourceDebtOracle()
+        public
+    {
+        _openDebtPositionForRepayReview(user1, 10e6);
+        _setUsdcDualFeedAnswer(1.03e8, BAD_SOURCE);
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            0,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
     function test_canBorrowWithNotify_success_withProtocolReaderReview() external {
         deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
 
@@ -228,5 +359,58 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         assertEq(accountAssets.length, 2);
         assertEq(address(accountAssets[0]), address(pendleStrategyCTokenSTETH));
         assertEq(address(accountAssets[1]), address(borrowableCUSDC));
+    }
+
+    function _openDebtPositionForRepayReview(
+        address account,
+        uint256 debtAmount
+    ) internal {
+        deal(address(LP_wstETH_24Dec2025), account, 1_000e18);
+
+        vm.startPrank(account);
+        LP_wstETH_24Dec2025.approve(
+            address(pendleStrategyCTokenSTETH),
+            1_000e18
+        );
+        pendleStrategyCTokenSTETH.deposit(10e18, account);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
+        vm.stopPrank();
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrowWithNotify(
+            address(borrowableCUSDC),
+            debtAmount,
+            account,
+            debtAmount
+        );
+    }
+
+    function _setUsdcDualFeedAnswer(
+        int256 answer,
+        uint256 expectedErrorCode
+    ) internal {
+        MockV3Aggregator usdcFeed = new MockV3Aggregator(8, answer);
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(usdcFeed),
+            0
+        );
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected USDC oracle status");
+    }
+
+    function _makeDefaultUsdcFeedsStale(
+        uint256 expectedErrorCode
+    ) internal {
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected stale USDC status");
     }
 }

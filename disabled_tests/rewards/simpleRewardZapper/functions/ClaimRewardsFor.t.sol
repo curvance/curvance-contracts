@@ -94,8 +94,10 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         _recordEpochRewards(2, 1e6 * _ONE);
 
         _prepareUSDC(address(rewardManager), rewards);
+        _refreshMockFeeds();
 
         swapAction.inputAmount = rewards;
+        swapAction.slippage = 1e16;
         swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,

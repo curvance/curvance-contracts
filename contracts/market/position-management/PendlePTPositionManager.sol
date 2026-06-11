@@ -9,6 +9,8 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
+import { TokenOutput } from "contracts/interfaces/external/pendle/IPAllActionTypeV3.sol";
+import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 
 /// @title Curvance Pendle Principal Token Position Manager.
 /// @notice Pendle Principal token-specific contract for executing leverage related
@@ -140,7 +142,8 @@ contract PendlePTPositionManager is BasePositionManager {
             true,
             lpToken,
             minPtAmount,
-            pendleAction
+            pendleAction,
+            ptToken
         );
     }
 
@@ -189,6 +192,11 @@ contract PendlePTPositionManager is BasePositionManager {
             revert BasePositionManager__InvalidParam();
         }
 
+        _validateTokenOutput(pendleAction.output);
+        _validateExitEndpoints(
+            swapActions, pendleAction.output.tokenOut, debtAsset
+        );
+
         // Exit Pendle position.
         PendleLib._exitPendle(
             address(router),
@@ -203,13 +211,6 @@ contract PendlePTPositionManager is BasePositionManager {
         uint256 numSwaps = swapActions.length;
 
         if (numSwaps > 0) {
-            if (
-                swapActions[0].inputToken != pendleAction.output.tokenOut ||
-                swapActions[numSwaps - 1].outputToken != debtAsset
-            ) {
-                revert BasePositionManager__InvalidParam();
-            }
-
             // Swap output token for debt asset. Intermediate steps are
             // not chain-validated: per the router-style residue semantic
             // documented on BasePositionManager, this contract is treated
@@ -218,7 +219,35 @@ contract PendlePTPositionManager is BasePositionManager {
             for (uint256 i; i < numSwaps; ++i) {
                 SwapperLib._swapSafe(centralRegistry, swapActions[i]);
             }
-        } else if (pendleAction.output.tokenOut != debtAsset) {
+        }
+    }
+
+    /// @notice Validates deleverage endpoint tokens before external Pendle
+    ///         settlement.
+    function _validateExitEndpoints(
+        SwapperLib.Swap[] memory swapActions,
+        address pendleOutputToken,
+        address debtAsset
+    ) internal pure {
+        uint256 numSwaps = swapActions.length;
+
+        if (numSwaps > 0) {
+            if (
+                swapActions[0].inputToken != pendleOutputToken ||
+                swapActions[numSwaps - 1].outputToken != debtAsset
+            ) {
+                revert BasePositionManager__InvalidParam();
+            }
+        } else if (pendleOutputToken != debtAsset) {
+            revert BasePositionManager__InvalidParam();
+        }
+    }
+
+    function _validateTokenOutput(TokenOutput memory output) internal pure {
+        if (
+            output.swapData.swapType == SwapType.NONE &&
+            output.tokenOut != output.tokenRedeemSy
+        ) {
             revert BasePositionManager__InvalidParam();
         }
     }

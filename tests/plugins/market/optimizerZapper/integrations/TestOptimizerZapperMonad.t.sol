@@ -109,6 +109,8 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_ADDRESS_MONAD),
+            "Flagship",
+            "Flag",
             ICentralRegistry(address(centralRegistry)),
             cTokens,
             caps,
@@ -147,7 +149,7 @@ contract TestOptimizerZapperMonad is TestBaseMarketIsolated {
             address(optimizer),
             false,
             swapAction,
-            0,
+            1,
             user1
         );
         vm.stopPrank();

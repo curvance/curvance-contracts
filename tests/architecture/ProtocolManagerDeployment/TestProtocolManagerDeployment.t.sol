@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { ProtocolManagerDeployment } from "contracts/architecture/ProtocolManagerDeployment.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
@@ -503,6 +504,34 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
     }
 
+    function test_deployMarket_revertsCodelessUnderlying() public {
+        // cTokens whose asset() resolves to a codeless address. SafeTransferLib
+        // would silently succeed against codeless underlyings, defeating the
+        // dead-share reserve, so deployMarket guards against it explicitly.
+        MockCTokenCodelessUnderlying token0 =
+            new MockCTokenCodelessUnderlying(address(0xDEAD));
+        MockCTokenCodelessUnderlying token1 =
+            new MockCTokenCodelessUnderlying(address(0xBEEF));
+
+        MarketManagerIsolated.TokenConfig memory config0 =
+            _getBasicTokenConfig(address(token0), 0, 0);
+        MarketManagerIsolated.TokenConfig memory config1 =
+            _getBasicTokenConfig(address(token1), 0, 0);
+
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__ParametersAreInvalid
+                .selector
+        );
+        deploymentManager.deployMarket(
+            address(marketManagerIsolated),
+            address(token0),
+            address(token1),
+            config0,
+            config1
+        );
+    }
+
     function test_deployMarket_revertsTokensAlreadyListed() public {
         // Deploy once successfully.
         _deployMarketViaManager();
@@ -642,6 +671,33 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
         );
         assertEq(deploymentManager.owner(), address(this));
         assertEq(deploymentManager.BASE_UNDERLYING_RESERVE(), 77777);
+    }
+
+    function test_constructor_revertsZeroOwner() public {
+        // Note: zero owner reverts with __ParametersAreInvalid here, unlike
+        // ProtocolManagerMassPause which uses __Unauthorized.
+        vm.expectRevert(
+            ProtocolManagerDeployment
+                .ProtocolManagerDeployment__ParametersAreInvalid
+                .selector
+        );
+        new ProtocolManagerDeployment(
+            ICentralRegistry(address(centralRegistry)),
+            address(0)
+        );
+    }
+
+    function test_constructor_revertsInvalidCentralRegistry() public {
+        // A no-code address does not support the ICentralRegistry interface.
+        vm.expectRevert(
+            CentralRegistryLib
+                .CentralRegistryLib__InvalidCentralRegistry
+                .selector
+        );
+        new ProtocolManagerDeployment(
+            ICentralRegistry(address(0xBAD)),
+            address(this)
+        );
     }
 
     /// ==================== UNPAUSE MARKET ==================== ///
@@ -918,5 +974,19 @@ contract TestProtocolManagerDeployment is TestBaseMarketIsolated {
             config0,
             config1
         );
+    }
+}
+
+/// @notice Minimal cToken stub whose `asset()` returns a codeless address,
+///         exercising deployMarket's underlying-has-code guard.
+contract MockCTokenCodelessUnderlying {
+    address public immutable underlying;
+
+    constructor(address underlying_) {
+        underlying = underlying_;
+    }
+
+    function asset() external view returns (address) {
+        return underlying;
     }
 }

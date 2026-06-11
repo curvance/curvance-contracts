@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import {
+    TestBaseNativeUniversalBalance
+} from "../TestBaseNativeUniversalBalance.sol";
+import {UniversalBalance} from "contracts/architecture/UniversalBalance.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
     function test_useBalanceForOracleUpdate_fail_whenCallerIsNotAuthorized()
@@ -21,8 +24,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
 
         vm.startPrank(user1);
 
-        nativeUniversalBalance.depositNative{ value: _ONE }(true);
-        nativeUniversalBalance.depositNative{ value: _ONE }(false);
+        nativeUniversalBalance.depositNative{value: _ONE}(true);
+        nativeUniversalBalance.depositNative{value: _ONE}(false);
 
         vm.stopPrank();
 
@@ -41,48 +44,43 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
     ) public {
         vm.assume(0 < depositAmount1 && 0 < depositAmount2);
         vm.assume(
-            depositAmount1 < type(uint256).max / _ONE &&
-                depositAmount2 < type(uint256).max / _ONE
+            depositAmount1 < type(uint256).max / _ONE
+                && depositAmount2 < type(uint256).max / _ONE
         );
         vm.assume(
-            0 < withdrawAmount &&
-                withdrawAmount <= depositAmount1 + depositAmount2
+            0 < withdrawAmount
+                && withdrawAmount <= depositAmount1 + depositAmount2
         );
 
         deal(user1, depositAmount1 + depositAmount2);
 
         vm.startPrank(user1);
 
-        nativeUniversalBalance.depositNative{ value: depositAmount1 }(true);
-        nativeUniversalBalance.depositNative{ value: depositAmount2 }(false);
+        nativeUniversalBalance.depositNative{value: depositAmount1}(true);
+        nativeUniversalBalance.depositNative{value: depositAmount2}(false);
 
         vm.stopPrank();
 
-        uint256 redeemAmount = borrowableCWETH.convertToShares(
+        uint256 redeemAmount = borrowableCWETH.previewWithdraw(
             withdrawAmount > depositAmount2
                 ? withdrawAmount - depositAmount2
                 : 0
         );
         uint256 adaptorWETHBalance = weth.balanceOf(address(chainlinkAdaptor));
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
-            address(nativeUniversalBalance)
-        );
-        (uint256 sittingBalance, uint256 lentBalance) = nativeUniversalBalance
-            .userBalances(user1);
+        uint256 borrowableCWETHBalance =
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance));
+        (uint256 sittingBalance, uint256 lentBalance) =
+            nativeUniversalBalance.userBalances(user1);
 
         assertEq(lentBalance, depositAmount1);
         assertEq(sittingBalance, depositAmount2);
 
         vm.prank(address(chainlinkAdaptor));
-        nativeUniversalBalance.useBalanceForOracleUpdate(
-            user1,
-            withdrawAmount
-        );
+        nativeUniversalBalance.useBalanceForOracleUpdate(user1, withdrawAmount);
 
-        (sittingBalance, lentBalance) = nativeUniversalBalance.userBalances(
-            user1
-        );
+        (sittingBalance, lentBalance) =
+            nativeUniversalBalance.userBalances(user1);
 
         assertEq(lentBalance, depositAmount1 - redeemAmount);
         assertEq(
@@ -93,12 +91,10 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
         );
         assertEq(
             weth.balanceOf(address(nativeUniversalBalance)),
-            wethBalance -
-                (
-                    withdrawAmount > depositAmount2
+            wethBalance
+                - (withdrawAmount > depositAmount2
                         ? depositAmount2
-                        : withdrawAmount
-                )
+                        : withdrawAmount)
         );
         assertEq(
             borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
@@ -107,6 +103,58 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
         assertEq(
             weth.balanceOf(address(chainlinkAdaptor)),
             adaptorWETHBalance + withdrawAmount
+        );
+    }
+
+    function test_useBalanceForOracleUpdate_refundsRoundingSurplusToOwner()
+        public
+    {
+        uint256 depositAmount = _ONE;
+        deal(user1, depositAmount);
+
+        vm.prank(user1);
+        nativeUniversalBalance.depositNative{value: depositAmount}(true);
+
+        uint256 requestedAmount = 3;
+        uint256 sharesBurned = 2;
+        uint256 redeemedAmount = 4;
+        deal(address(weth), address(nativeUniversalBalance), redeemedAmount);
+
+        vm.mockCall(
+            address(borrowableCWETH),
+            abi.encodeWithSelector(
+                IBorrowableCToken.exchangeRateUpdated.selector
+            ),
+            abi.encode(2 * _ONE)
+        );
+        vm.mockCall(
+            address(borrowableCWETH),
+            abi.encodeWithSelector(
+                IBorrowableCToken.redeem.selector,
+                sharesBurned,
+                address(nativeUniversalBalance),
+                address(nativeUniversalBalance)
+            ),
+            abi.encode(redeemedAmount)
+        );
+
+        uint256 adaptorWETHBalance = weth.balanceOf(address(chainlinkAdaptor));
+        uint256 ownerWETHBalance = weth.balanceOf(user1);
+
+        vm.prank(address(chainlinkAdaptor));
+        nativeUniversalBalance.useBalanceForOracleUpdate(
+            user1, requestedAmount
+        );
+
+        assertEq(
+            weth.balanceOf(address(chainlinkAdaptor)),
+            adaptorWETHBalance + requestedAmount,
+            "adaptor should receive only requested oracle fee"
+        );
+        assertEq(
+            weth.balanceOf(user1),
+            ownerWETHBalance + redeemedAmount - requestedAmount,
+            "owner should receive lent redemption rounding surplus"
         );
     }
 }

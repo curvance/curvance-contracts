@@ -89,9 +89,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         // Support chainId 42161.
         centralRegistry.addChain(42161, config);
         CCTPZapper.setCCTPDeliveryProvider(
-            42161,
-            IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider(),
-            true
+            42161, IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider(), true
         );
 
         deal(address(LP_wstETH_24Dec2025), user1, _ONE);
@@ -189,6 +187,9 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     function test_borrowAndBridge_success() public {
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
         uint256 balance = user1.balance;
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 userUsdcBefore = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
 
@@ -196,11 +197,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         CCTPZapper.borrowAndBridge{value: _ONE}(
             address(borrowableCDAI), 500e18, swapAction, 42161, 0, destinationReceiver
         );
-        borrowableCDAI.borrow(500e18, user1);
 
         vm.stopPrank();
 
         assertEq(user1.balance, balance - messageFee);
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore + 500e18);
+        assertEq(dai.balanceOf(user1), userDaiBefore);
+        assertEq(usdc.balanceOf(user1), userUsdcBefore);
     }
 
     function test_borrowAndBridge_fail_whenDestinationReceiverIsZero() public {
@@ -340,24 +343,17 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     }
 
     function test_setCCTPDeliveryProvider_canRevokeAfterChainRemoval() public {
-        address provider = IWormholeRelayer(centralRegistry.crosschainRelayer())
-            .getDefaultDeliveryProvider();
+        address provider = IWormholeRelayer(centralRegistry.crosschainRelayer()).getDefaultDeliveryProvider();
 
         assertTrue(CCTPZapper.isCCTPDeliveryProvider(42161, provider));
 
-        centralRegistry.removeChain(
-            42161,
-            address(messagingHub),
-            address(votingHub)
-        );
+        centralRegistry.removeChain(42161, address(messagingHub), address(votingHub));
 
         CCTPZapper.setCCTPDeliveryProvider(42161, provider, false);
 
         assertFalse(CCTPZapper.isCCTPDeliveryProvider(42161, provider));
 
-        vm.expectRevert(
-            CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector
-        );
+        vm.expectRevert(CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector);
         CCTPZapper.setCCTPDeliveryProvider(42161, provider, true);
     }
 

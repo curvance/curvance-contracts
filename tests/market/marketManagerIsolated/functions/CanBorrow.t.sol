@@ -3,14 +3,17 @@ pragma solidity 0.8.28;
 
 
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+import { CAUTION } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract CanBorrowTest is TestBaseMarketIsolated {
     function setUp() public override {
@@ -80,6 +83,35 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 1e6, user1, 1e6);
+    }
+
+    function test_canBorrow_fail_whenDebtOracleInCaution() public {
+        MockV3Aggregator cautionUsdcUsd = new MockV3Aggregator(8, 1.016e8);
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(cautionUsdcUsd),
+            0
+        );
+
+        (, uint256 errorCode) = oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(errorCode, CAUTION, "test setup should put USDC in CAUTION");
+
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
+        vm.startPrank(user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
+        vm.stopPrank();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(
+            address(borrowableCUSDC),
+            100e6,
+            user1,
+            100e6
+        );
     }
 
     function test_canBorrow_fail_userCallsCanBorrow() external {

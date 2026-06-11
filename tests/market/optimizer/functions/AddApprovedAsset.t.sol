@@ -200,6 +200,32 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         optimizer.addApprovedAsset(mockMarket, 5_000);
     }
 
+    function test_lendingOptimizer_addApprovedAsset_fail_whenNotBorrowable() public {
+        _setUpOneMarket();
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        address mockMarket = makeAddr("notBorrowableMarket");
+
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.asset.selector),
+            abi.encode(USDC_MONAD)
+        );
+        vm.mockCall(
+            mockMarket,
+            abi.encodeWithSelector(IBorrowableCToken.isBorrowable.selector),
+            abi.encode(false)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        optimizer.addApprovedAsset(mockMarket, 5_000);
+    }
+
     function test_lendingOptimizer_addApprovedAsset_fail_whenInvalidMarketManager() public {
         _setUpOneMarket();
 

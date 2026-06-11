@@ -7,6 +7,7 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { VaultAggregator } from "contracts/oracles/adaptors/wrappedAggregators/VaultAggregator.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddChainlinkVaultAggSupport is DeployScript {
@@ -36,6 +37,8 @@ contract AddChainlinkVaultAggSupport is DeployScript {
         IERC20 asset = IERC20(assetToken);
         IERC20 vault = IERC20(vaultToken);
 
+        _validatePriceGuard(guardConfig);
+
         address vaultAgg = address(
             new VaultAggregator(address(vault), address(asset), feed, "")
         );
@@ -51,17 +54,89 @@ contract AddChainlinkVaultAggSupport is DeployScript {
         );
 
         chainlink.addAsset(vaultToken, inUSD, vaultAgg, heartbeat);
-        oracleManager.addAssetPricingAdaptor(vaultToken, adaptor, 250, 220, 250, 220);
 
-        if(guardConfig.enabled) {
-            chainlink.setGuardedPriceConfig(
-                address(vault),
-                guardConfig.inUSD,
-                guardConfig.ips > 0 ? block.timestamp - guardConfig.timestampSubtract : 0,
-                guardConfig.ips,
-                guardConfig.basePrice,
-                guardConfig.minPrice
-            );
+        _setGuardedPriceConfig(
+            BaseOracleAdaptor(address(chainlink)),
+            vaultToken,
+            guardConfig
+        );
+
+        _addAssetPricingAdaptor(oracleManager, chainlink, vaultToken);
+    }
+
+    function _setGuardedPriceConfig(
+        BaseOracleAdaptor adaptor,
+        address asset,
+        PriceGuard memory guardConfig
+    ) internal {
+        if (!guardConfig.enabled) {
+            return;
+        }
+
+        try adaptor.setGuardedPriceConfig(
+            asset,
+            guardConfig.inUSD,
+            _guardTimestamp(guardConfig),
+            guardConfig.ips,
+            guardConfig.basePrice,
+            guardConfig.minPrice
+        ) {} catch (bytes memory revertData) {
+            adaptor.removeAsset(asset);
+            _revertWithData(revertData);
+        }
+    }
+
+    function _addAssetPricingAdaptor(
+        OracleManager oracleManager,
+        ChainlinkAdaptor adaptor,
+        address asset
+    ) internal {
+        try oracleManager.addAssetPricingAdaptor(
+            asset,
+            address(adaptor),
+            250,
+            220,
+            250,
+            220
+        ) {} catch (bytes memory revertData) {
+            adaptor.removeAsset(asset);
+            _revertWithData(revertData);
+        }
+    }
+
+    function _validatePriceGuard(PriceGuard memory guardConfig) internal view {
+        if (!guardConfig.enabled) {
+            return;
+        }
+
+        require(guardConfig.basePrice != 0, "invalid guard config");
+        require(guardConfig.basePrice <= type(uint88).max, "invalid guard config");
+        require(guardConfig.minPrice <= guardConfig.basePrice, "invalid guard config");
+        require(guardConfig.ips <= type(uint40).max, "invalid guard config");
+
+        if (guardConfig.ips == 0) {
+            require(guardConfig.timestampSubtract == 0, "invalid guard config");
+        } else {
+            require(guardConfig.timestampSubtract >= 7 days, "invalid guard config");
+            require(guardConfig.timestampSubtract < block.timestamp, "invalid guard config");
+        }
+    }
+
+    function _guardTimestamp(
+        PriceGuard memory guardConfig
+    ) internal view returns (uint256) {
+        return guardConfig.ips > 0 ?
+            block.timestamp - guardConfig.timestampSubtract :
+            0;
+    }
+
+    function _revertWithData(bytes memory revertData) internal pure {
+        if (revertData.length == 0) {
+            revert("guard config failed");
+        }
+
+        assembly {
+            revert(add(revertData, 0x20), mload(revertData))
         }
     }
 }

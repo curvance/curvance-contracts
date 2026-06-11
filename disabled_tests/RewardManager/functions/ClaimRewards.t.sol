@@ -9,6 +9,8 @@ import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 contract ClaimRewardsTest is TestBaseRewardManager {
+    event RewardPaid(address user, address rewardToken, uint256 amount);
+
     ClaimAction public action = ClaimAction(true, false, false, false);
     SwapperLib.Swap public swapAction;
     address[] public path;
@@ -100,6 +102,57 @@ contract ClaimRewardsTest is TestBaseRewardManager {
             RewardManager.RewardManager__SwapActionIsInvalid.selector
         );
         rewardManager.claimRewards(action, abi.encode(swapAction), 0);
+    }
+
+    function test_claimRewards_success_afterShutdownForcesBaseRewardToken()
+        public
+    {
+        _skipRestrictionDuration();
+
+        vm.startPrank(user1);
+
+        _prepareCVE(user1, 100e18);
+        cve.approve(address(veCVE), 100e18);
+        veCVE.createLock(
+            100e18,
+            false,
+            ClaimAction(false, false, false, false),
+            "",
+            0
+        );
+
+        vm.stopPrank();
+
+        vm.prank(address(veCVE));
+        rewardManager.updateUserClaimIndex(user1, 1);
+
+        (, uint40 unlockTime) = veCVE.userLocks(user1, 0);
+        uint256 unlockEpoch = veCVE.currentEpoch(unlockTime);
+        while (rewardManager.nextEpochToDeliver() <= unlockEpoch) {
+            vm.prank(address(messagingHub));
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        veCVE.shutdown();
+
+        uint256 usdcBalance = usdc.balanceOf(user1);
+        uint256 cveBalance = cve.balanceOf(user1);
+        uint256 rewards = rewardManager.hypotheticalRewardsClaim(user1);
+
+        vm.startPrank(user1);
+        vm.expectEmit(true, true, true, true, address(rewardManager));
+        emit RewardPaid(user1, _USDC_ADDRESS, rewards);
+        rewardManager.claimRewards(action, "", 0);
+        vm.stopPrank();
+
+        assertGt(usdc.balanceOf(user1), usdcBalance);
+        assertEq(cve.balanceOf(user1), cveBalance);
+        assertEq(veCVE.userPoints(user1), 0);
+        assertEq(veCVE.userUnlocksByEpoch(user1, unlockEpoch), 0);
+        assertEq(
+            rewardManager.userNextClaimIndex(user1),
+            rewardManager.nextEpochToDeliver()
+        );
     }
 
     function test_claimRewards_success_fuzzed(

@@ -285,6 +285,84 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         );
     }
 
+    function test_receiveWormholeMessages_revertsFutureEpochBeforeReceivingFees()
+        public
+    {
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+        uint256 rewardManagerBalance = usdc.balanceOf(address(rewardManager));
+        uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
+
+        vm.startPrank(_CROSSCHAIN_RELAYER);
+
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch + 1, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("future")
+        );
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
+        assertEq(usdc.balanceOf(address(rewardManager)), rewardManagerBalance);
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), daoBalance);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch);
+
+        messagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("current")
+        );
+
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), _ONE);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
+
+        messagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch + 1, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("future")
+        );
+
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch + 1), _ONE);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 2);
+
+        vm.stopPrank();
+    }
+
+    function test_receiveWormholeMessages_revertsFutureZeroRewardEpoch() public {
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+
+        vm.startPrank(_CROSSCHAIN_RELAYER);
+
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch + 2, 0),
+            new bytes[](0),
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("future zero")
+        );
+
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch);
+
+        messagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch, 0),
+            new bytes[](0),
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("current zero")
+        );
+
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), 0);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
+
+        vm.stopPrank();
+    }
+
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
         _skipRestrictionDuration();
 
@@ -308,5 +386,53 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
 
         assertEq(cve.balanceOf(address(messagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), amount);
+    }
+
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs4AndVeCVEShutdown()
+        public
+    {
+        _skipRestrictionDuration();
+
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
+        assertEq(cve.balanceOf(user1), 0);
+        assertEq(veCVE.balanceOf(user1), 0);
+
+        address recipient = user1;
+        uint256 amount = _ONE;
+        bool continuousLock = true;
+
+        veCVE.shutdown();
+
+        vm.prank(_CROSSCHAIN_RELAYER);
+        messagingHub.receiveWormholeMessages(
+            abi.encode(4, recipient, amount, continuousLock),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("shutdown lock bridge")
+        );
+
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
+        assertEq(cve.balanceOf(user1), amount);
+        assertEq(veCVE.balanceOf(user1), 0);
+
+        vm.prank(_CROSSCHAIN_RELAYER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MessagingHub.MessagingHub__MessageHashIsAlreadyDelivered
+                    .selector,
+                bytes32("shutdown lock bridge")
+            )
+        );
+        messagingHub.receiveWormholeMessages(
+            abi.encode(4, recipient, amount, continuousLock),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("shutdown lock bridge")
+        );
+
+        assertEq(cve.balanceOf(user1), amount);
+        assertEq(veCVE.balanceOf(user1), 0);
     }
 }

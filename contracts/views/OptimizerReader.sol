@@ -253,7 +253,7 @@ contract OptimizerReader {
     /// @return data The market data for each optimizer.
     function getOptimizerMarketData(
         address[] calldata optimizers
-    ) external view returns (OptimizerMarketData[] memory data) {
+    ) external returns (OptimizerMarketData[] memory data) {
         uint256 len = optimizers.length;
         data = new OptimizerMarketData[](len);
 
@@ -262,12 +262,8 @@ contract OptimizerReader {
 
             data[i]._address = optimizers[i];
             data[i].asset = opt.asset();
+            data[i].sharePrice = opt.exchangeRateUpdated();
             data[i].totalAssets = opt.totalAssets();
-            // View-only exchange rate. Stale relative to unclaimed cToken
-            // accruals; drift is wei-scale over seconds and acceptable for
-            // display. Callers needing post-accrual precision should call
-            // opt.exchangeRateUpdated() directly.
-            data[i].sharePrice = opt.exchangeRate();
             data[i].exchangeRateHighWatermark = opt.exchangeRateHighWatermark();
             data[i].performanceFee = opt.fee();
             data[i].apy = getOptimizerAPY(optimizers[i]);
@@ -426,6 +422,28 @@ contract OptimizerReader {
         LendingOptimizer.AllocationBound[] memory bounds
     ) {
         (actions, bounds) = _optimalRebalanceAt(optimizer, slippageBps, timestamp);
+    }
+
+    /// @notice Accrues optimizer state before computing optimal rebalance actions.
+    /// @dev Intended for offchain `eth_call` usage when callers need a plan
+    ///      from the same accrued state that LendingOptimizer.rebalance()
+    ///      will use at execution. If sent as a transaction, this only accrues
+    ///      the optimizer and returns the computed plan.
+    /// @param optimizer The LendingOptimizer address.
+    /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
+    /// @return actions The rebalance actions array matching approvedCTokensList order,
+    ///                 or empty if no rebalance is needed.
+    /// @return bounds The allocation bounds array matching approvedCTokensList order,
+    ///                or empty if no rebalance is needed.
+    function optimalRebalanceUpdated(
+        address optimizer,
+        uint256 slippageBps
+    ) external returns (
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) {
+        ILendingOptimizer(optimizer).accrueIfNeeded();
+        return _optimalRebalanceAt(optimizer, slippageBps, block.timestamp);
     }
 
     function _optimalRebalanceAt(

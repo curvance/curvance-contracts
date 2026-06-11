@@ -2,13 +2,19 @@
 pragma solidity ^0.8.28;
 
 // solhint-disable max-line-length
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {
+    ReentrancyGuard
+} from "contracts/libraries/ReentrancyGuardTransient.sol";
+import {
+    SafeTransferLib
+} from "contracts/libraries/external/SafeTransferLib.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+
 // solhint-enable max-line-length
 
 // solhint-disable gas-custom-errors
-contract Faucet is Ownable {
+contract Faucet is Ownable, ReentrancyGuard {
     struct FaucetToken {
         address tokenAddress;
         uint256 maxClaimAmount;
@@ -17,50 +23,52 @@ contract Faucet is Ownable {
     FaucetToken[] public faucetTokens;
     mapping(address => mapping(address => uint256)) public userLastClaimed;
 
-    constructor(
-        address[] memory tokens, 
-        uint256[] memory claimAmounts
-    ) Ownable(msg.sender) {
+    constructor(address[] memory tokens, uint256[] memory claimAmounts)
+        Ownable(msg.sender)
+    {
         for (uint256 i; i < tokens.length; i++) {
             _addFaucetToken(tokens[i], claimAmounts[i]);
         }
     }
 
-    function claim(address[] calldata tokens) external {
+    function claim(address[] calldata tokens) external nonReentrant {
         uint256 numTokens = tokens.length;
         for (uint256 i; i < numTokens; i++) {
             _claim(tokens[i]);
         }
     }
 
-    function tokensAvailable(
-        address[] calldata tokens
-    ) external view returns (bool[] memory tokenAvailability) {
+    function tokensAvailable(address[] calldata tokens)
+        external
+        view
+        returns (bool[] memory tokenAvailability)
+    {
         uint256 numTokens = tokens.length;
         tokenAvailability = new bool[](numTokens);
         for (uint256 i; i < numTokens; i++) {
             IERC20 token = IERC20(tokens[i]);
             FaucetToken memory faucetToken = _getFaucetToken(tokens[i]);
-            tokenAvailability[i] = 
+            tokenAvailability[i] =
                 token.balanceOf(address(this)) >= faucetToken.maxClaimAmount;
         }
     }
 
-    function multiLastClaimed(
-        address account,
-        address[] calldata tokens
-    ) public view returns (uint256[] memory) {
+    function multiLastClaimed(address account, address[] calldata tokens)
+        public
+        view
+        returns (uint256[] memory)
+    {
         uint256[] memory lastClaimed = new uint256[](tokens.length);
         for (uint256 i; i < tokens.length; ++i) {
             lastClaimed[i] = userLastClaimed[account][tokens[i]];
         }
         return lastClaimed;
     }
-    
-    function addFaucetToken(
-        address tokenAddress, 
-        uint256 maxClaimAmount
-    ) external onlyOwner {
+
+    function addFaucetToken(address tokenAddress, uint256 maxClaimAmount)
+        external
+        onlyOwner
+    {
         _addFaucetToken(tokenAddress, maxClaimAmount);
     }
 
@@ -78,36 +86,44 @@ contract Faucet is Ownable {
     }
 
     function removeFaucetToken(address tokenAddress) external onlyOwner {
-        FaucetToken[] memory newFaucetTokens = 
-            new FaucetToken[](faucetTokens.length - 1);
-        bool found = false;
-        for(uint256 i; i < faucetTokens.length; i++) {
-            if(faucetTokens[i].tokenAddress == tokenAddress) {
-                found = true;
+        uint256 numTokens = faucetTokens.length;
+        uint256 removeIndex = type(uint256).max;
+        for (uint256 i; i < numTokens; i++) {
+            if (faucetTokens[i].tokenAddress == tokenAddress) {
+                removeIndex = i;
+                break;
+            }
+        }
+        require(removeIndex != type(uint256).max, "Invalid token address");
+
+        FaucetToken[] memory newFaucetTokens = new FaucetToken[](numTokens - 1);
+        uint256 newIndex;
+        for (uint256 i; i < numTokens; i++) {
+            if (i == removeIndex) {
                 continue;
             }
-            newFaucetTokens[i] = faucetTokens[i];
+            newFaucetTokens[newIndex++] = faucetTokens[i];
         }
-        require(found, "Invalid token address");
-        
+
         delete faucetTokens;
-        for(uint256 i; i < newFaucetTokens.length; i++) {
+        for (uint256 i; i < newFaucetTokens.length; i++) {
             faucetTokens.push(newFaucetTokens[i]);
         }
     }
 
-    function _addFaucetToken(
-        address tokenAddress, 
-        uint256 maxClaimAmount
-    ) internal {
+    function _addFaucetToken(address tokenAddress, uint256 maxClaimAmount)
+        internal
+    {
         faucetTokens.push(FaucetToken(tokenAddress, maxClaimAmount));
     }
-    
-    function _getFaucetToken(
-        address token
-    ) internal view returns (FaucetToken memory) {
-        for(uint256 i; i < faucetTokens.length; i++) {
-            if(faucetTokens[i].tokenAddress == token) {
+
+    function _getFaucetToken(address token)
+        internal
+        view
+        returns (FaucetToken memory)
+    {
+        for (uint256 i; i < faucetTokens.length; i++) {
+            if (faucetTokens[i].tokenAddress == token) {
                 return faucetTokens[i];
             }
         }
@@ -127,11 +143,9 @@ contract Faucet is Ownable {
             erc20Token.balanceOf(address(this)) >= faucetToken.maxClaimAmount,
             "Insufficient balance in faucet"
         );
-        SafeTransferLib.safeTransfer(
-            token, msg.sender,
-            faucetToken.maxClaimAmount
-        );
-        
         userLastClaimed[msg.sender][token] = block.timestamp;
+        SafeTransferLib.safeTransfer(
+            token, msg.sender, faucetToken.maxClaimAmount
+        );
     }
 }

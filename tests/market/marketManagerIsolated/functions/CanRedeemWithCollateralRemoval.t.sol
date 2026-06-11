@@ -2,8 +2,11 @@
 pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { CAUTION } from "contracts/libraries/ConstantsLib.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import "forge-std/console.sol";
 
 contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
@@ -134,6 +137,45 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         );
 
         _canRedeemBorrowableCDAIWithCollateralRemoval(1999e18, balance, collateral, true);
+    }
+
+    function test_canRedeemWithCollateralRemoval_fail_whenCollateralOracleInCaution()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        _prepareDAI(user1, 2000e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(250e6, user1);
+        vm.stopPrank();
+
+        MockV3Aggregator cautionDaiUsd = new MockV3Aggregator(8, 1.016e8);
+        dualChainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(cautionDaiUsd),
+            0
+        );
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_DAI_ADDRESS, true, true);
+        assertEq(errorCode, CAUTION, "test setup should put DAI in CAUTION");
+
+        skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.prank(address(borrowableCDAI));
+        _canRedeemBorrowableCDAIWithCollateralRemoval(1000e18, balance, collateral, true);
     }
 
     function test_canRedeemWithCollateralRemoval_success_withCollateralRemoved()

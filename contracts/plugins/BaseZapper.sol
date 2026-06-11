@@ -359,6 +359,10 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
         address receiver,
         uint256 amount
     ) internal {
+        if (receiver == address(0)) {
+            revert BaseZapper__ExecutionError();
+        }
+
         // If the token to refund is the chains' native gas token we wrap
         // then transfer it to prevent callback attack vectors.
         if (CommonLib._isNative(token)) {

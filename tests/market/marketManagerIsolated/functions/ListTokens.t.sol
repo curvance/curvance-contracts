@@ -68,6 +68,11 @@ contract ListTokensTest is TestBaseMarketIsolated {
         marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(pendleStrategyCTokenSTETH));
     }
 
+    function test_listTokens_fail_whenDifferentCTokensHaveSameUnderlying() public {
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.listTokens(address(simpleCUSDC), address(borrowableCUSDC));
+    }
+
     function test_listTokens_fail_whenBothNotBorrowable() public {
         deal(address(LP_wstETH_24Dec2025), address(this), 77777);
         _prepareBALRETH(address(this), 77777);
@@ -143,4 +148,3 @@ contract ListTokensTest is TestBaseMarketIsolated {
         assertEq(tokens[1], address(borrowableCUSDC));
     }
 }
-

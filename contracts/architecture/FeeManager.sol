@@ -100,6 +100,7 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__RemovalTokenIsNotRewardToken();
     error FeeManager__RemovalTokenDoesNotExist();
     error FeeManager__OTCExecutionTermsFailed();
+    error FeeManager__SlippageInputError();
 
     /// CONSTRUCTOR ///
 
@@ -141,6 +142,7 @@ contract FeeManager is ReentrancyGuard {
             );
         }
         address currentToken;
+        uint256 slippageLimit = centralRegistry.slippageLimit();
 
         for (uint256 i; i < numTokens; ++i) {
             currentToken = tokens[i];
@@ -170,6 +172,10 @@ contract FeeManager is ReentrancyGuard {
                     swapActions[i].outputToken,
                     _getFeeToken()
                 );
+            }
+
+            if (swapActions[i].slippage > slippageLimit) {
+                revert FeeManager__SlippageInputError();
             }
 
             // Swap from token to output token (fee token).
@@ -317,8 +323,10 @@ contract FeeManager is ReentrancyGuard {
             return 0;
         }
 
-        uint256 compoundingFee = (feeTokens * vaultCompoundFee()) /
-            vaultHarvestFee();
+        uint256 harvestFee = vaultHarvestFee();
+        uint256 compoundingFee = harvestFee == 0
+            ? 0
+            : (feeTokens * vaultCompoundFee()) / harvestFee;
 
         // Move compounding fee accumulated to central registry to be used
         // for offchain harvester bots.
@@ -366,7 +374,7 @@ contract FeeManager is ReentrancyGuard {
                     newFeeManager,
                     tokenBalance
                 );
-            }   
+            }
         }
 
         address feeToken = _getFeeToken();

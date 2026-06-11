@@ -28,6 +28,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -39,8 +41,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertEq(optimizer.asset(), USDC_MONAD);
 
         // Verify ERC20 metadata
-        assertEq(optimizer.name(), "Curvance USDC Optimizer");
-        assertEq(optimizer.symbol(), "cUSDC+");
+        assertEq(optimizer.name(), "Flagship USDC Vault");
+        assertEq(optimizer.symbol(), "vFlagUSDC");
         assertEq(optimizer.decimals(), IERC20(USDC_MONAD).decimals());
 
         // Verify constants
@@ -74,6 +76,27 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         assertTrue(optimizer.supportsInterface(type(ERC4626).interfaceId));
     }
 
+    function test_lendingOptimizer_deployment_metadataUsesVaultLabels() public {
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        optimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            "Prime",
+            "Prime",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+
+        assertEq(optimizer.name(), "Prime USDC Vault");
+        assertEq(optimizer.symbol(), "vPrimeUSDC");
+    }
+
     function test_lendingOptimizer_deployment_success_multipleMarkets() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -90,6 +113,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -127,6 +152,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -147,6 +174,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -169,6 +198,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__FeeTooHigh.selector);
         new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -187,6 +218,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__ArrayLengthMismatch.selector);
         new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -208,6 +241,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__TooManyMarkets.selector);
         new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -228,6 +263,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InsufficientAllocationCaps.selector);
         new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -248,6 +285,40 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidUnderlying.selector);
         new LendingOptimizer(
             IERC20(address(mockWeth)),
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
+    }
+
+    function test_lendingOptimizer_deployment_fail_whenInitialMarketIsNotBorrowable() public {
+        address mockCToken = address(0xBEEF);
+
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("asset()"),
+            abi.encode(USDC_MONAD)
+        );
+        vm.mockCall(
+            mockCToken,
+            abi.encodeWithSignature("isBorrowable()"),
+            abi.encode(false)
+        );
+
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = mockCToken;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidParameter.selector);
+        new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -298,6 +369,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         vm.expectRevert(LendingOptimizer.LendingOptimizer__InvalidMarketManager.selector);
         new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -314,6 +387,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,
@@ -330,6 +405,8 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         optimizer = new LendingOptimizer(
             IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
             liveCentralRegistry,
             approvedCTokens,
             allocationCapsBps,

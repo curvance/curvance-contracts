@@ -8,6 +8,8 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { CombinedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/CombinedAggregator.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract Oracle {
     address internal constant _FXS_TOKEN =
@@ -41,6 +43,61 @@ contract Oracle {
             // only these two tokens are supported
             return IOracleAdaptor.PricingResult(0, true, true);
         }
+    }
+}
+
+contract MutableDenominationOracle {
+    struct PriceConfig {
+        uint256 price;
+        bool inUSD;
+        bool hadError;
+        bool supported;
+    }
+
+    mapping(address => PriceConfig) public prices;
+
+    function setPrice(
+        address asset,
+        uint256 price,
+        bool inUSD,
+        bool hadError
+    ) external {
+        prices[asset] = PriceConfig({
+            price: price,
+            inUSD: inUSD,
+            hadError: hadError,
+            supported: true
+        });
+    }
+
+    function isSupportedAsset(address asset) external view returns (bool) {
+        return prices[asset].supported;
+    }
+
+    function getPrice(
+        address asset,
+        bool,
+        bool
+    ) external view returns (IOracleAdaptor.PricingResult memory) {
+        PriceConfig memory price = prices[asset];
+        if (!price.supported) {
+            return IOracleAdaptor.PricingResult(0, true, true);
+        }
+
+        return IOracleAdaptor.PricingResult(
+            price.price,
+            price.inUSD,
+            price.hadError
+        );
+    }
+
+    function getPriceGuard(
+        address,
+        bool
+    ) external pure returns (IOracleAdaptor.PriceGuard memory guard) {}
+
+    function adaptorType() external pure returns (uint256) {
+        return 0;
     }
 }
 
@@ -81,6 +138,27 @@ contract GetPriceTest is TestBaseOracleManager {
         );
         assertEq(price, 0);
         assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_success_withBadSourceErrorCode_whenSequencerStartedAtIsFuture()
+        public
+    {
+        _addSinglePriceFeed();
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _USDC_ADDRESS,
+            true,
+            true
+        );
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_isSequencerValid_fail_whenSequencerStartedAtIsFuture() public {
+        sequencer.setMockStartedAt(block.timestamp + 1);
+
+        assertFalse(oracleManager.isSequencerValid());
     }
 
     function test_getPrice_success() public {
@@ -169,6 +247,54 @@ contract GetPriceTest is TestBaseOracleManager {
         assertEq(errorCode, BAD_SOURCE);
     }
 
+    function test_getPrice_singleCombinedAggregatorBubblesBadSourceOnNegativeLeg()
+        public
+    {
+        MockV3Aggregator primaryAggregator =
+            new MockV3Aggregator(8, int256(4000e8));
+        MockV3Aggregator secondaryAggregator =
+            new MockV3Aggregator(8, int256(1.5e8));
+        CombinedAggregator combinedAggregator = new CombinedAggregator(
+            ICentralRegistry(address(centralRegistry)),
+            address(primaryAggregator),
+            address(secondaryAggregator),
+            0,
+            "wrapped/USD"
+        );
+
+        ChainlinkAdaptor wrappedAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(wrappedAdaptor));
+        wrappedAdaptor.addAsset(_USDC_ADDRESS, true, address(combinedAggregator), 0);
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(wrappedAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+
+        vm.mockCall(
+            address(secondaryAggregator),
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(-1),
+                uint256(0),
+                block.timestamp,
+                uint80(1)
+            )
+        );
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
     function test_getPrice_bubblesBadSource_duringConversion_whenNativeZero() public {
         // Set up a USD only adaptor for USDC so denomination conversion is needed 
         // when requesting native
@@ -218,5 +344,105 @@ contract GetPriceTest is TestBaseOracleManager {
 
         assertEq(price, 0);
         assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_addAssetPricingAdaptor_rejectsNativeUsdWhenAdaptorReturnsNativeDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 1e18, false, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+
+        vm.expectRevert(OracleManager.OracleManager__InvalidParameter.selector);
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+    }
+
+    function test_getPrice_nativeUsdReturnsBadSourceWhenAdaptorDriftsToNativeDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        feed.setPrice(_ETH_ADDRESS, 1e18, false, false);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _ETH_ADDRESS,
+            true,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_nativeNativeReturnsBadSourceWhenAdaptorReturnsUsdDenomination() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _ETH_ADDRESS,
+            false,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_nonNativeFallbackConversionStillWorks() public {
+        MutableDenominationOracle feed = new MutableDenominationOracle();
+        feed.setPrice(_ETH_ADDRESS, 4_000e18, true, false);
+        feed.setPrice(_FXS_TOKEN, 6e18, true, false);
+
+        oracleManager.addApprovedAdaptor(address(feed));
+        oracleManager.addAssetPricingAdaptor(
+            _ETH_ADDRESS,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+        oracleManager.addAssetPricingAdaptor(
+            _FXS_TOKEN,
+            address(feed),
+            180,
+            130,
+            180,
+            130
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _FXS_TOKEN,
+            false,
+            true
+        );
+
+        assertEq(price, 1_500_000_000_000_000);
+        assertEq(errorCode, 0);
     }
 }

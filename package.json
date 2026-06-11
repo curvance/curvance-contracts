@@ -2,10 +2,14 @@
   "name": "curvance-contracts",
   "version": "1.1.0",
   "main": "index.js",
+  "packageManager": "pnpm@11.1.1",
+  "engines": {
+    "pnpm": ">=11.1.1 <12"
+  },
   "license": "BUSL",
   "dependencies": {
-    "@redstone-finance/protocol": "^0.3.6",
-    "dotenv": "^16.4.5",
-    "ethers": "^6.13.2"
+    "@redstone-finance/protocol": "0.3.6",
+    "dotenv": "16.4.5",
+    "ethers": "6.13.2"
   }
 }

@@ -15,11 +15,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      inherit the base ProtocolManager since it needs no period-limit
 ///      tracking or managed-address accounting.
 ///
-///      Trust model: `owner` is expected to be the Emergency Council,
-///      which has elevated and market permissions in the CentralRegistry.
-///
 ///      Requires `hasMarketPermissions` in the CentralRegistry to call
 ///      pause/unpause functions on the MarketManagerIsolated contracts.
+///
+///      Unpause authority is selected at deployment via `canUnpause`.
+///      When false, the contract is a pause-only emergency key.
 ///
 ///      Three scopes:
 ///      - All:          Full lockdown / full recovery (all 6 action types).
@@ -48,6 +48,11 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     /// @notice The address authorized to call pause functions.
     address public immutable owner;
 
+    /// @notice Whether this contract can execute unpause functions.
+    /// @dev Selected at deployment. When false, the contract is a
+    ///      pause-only emergency key: all unpause functions revert.
+    bool public immutable canUnpause;
+
     /// ERRORS ///
 
     error ProtocolManagerMassPause__Unauthorized();
@@ -70,13 +75,16 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
 
     /// @param cr The Curvance Central Registry address.
     /// @param _owner The authorized caller (operations multisig).
-    constructor(ICentralRegistry cr, address _owner) {
+    /// @param _canUnpause Whether this contract may execute unpause
+    ///        functions. False deploys a pause-only emergency key.
+    constructor(ICentralRegistry cr, address _owner, bool _canUnpause) {
         CentralRegistryLib._isCentralRegistry(cr);
         if (_owner == address(0)) {
             revert ProtocolManagerMassPause__Unauthorized();
         }
         centralRegistry = cr;
         owner = _owner;
+        canUnpause = _canUnpause;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -117,6 +125,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     ///      still active and re-apply individual pauses as needed.
     /// @param markets The markets to unpause. Empty array = all markets.
     function unpauseAll(address[] calldata markets) external nonReentrant {
+        _checkUnpauseAuthority();
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
@@ -172,6 +181,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     function unpauseTokenLevelEntryActions(
         address[] calldata markets
     ) external nonReentrant {
+        _checkUnpauseAuthority();
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
@@ -228,6 +238,7 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     function unpauseMarketWideExitActions(
         address[] calldata markets
     ) external nonReentrant {
+        _checkUnpauseAuthority();
         _checkOwner();
         address[] memory resolved = _resolveMarkets(markets);
         uint256 numMarkets = resolved.length;
@@ -319,6 +330,13 @@ contract ProtocolManagerMassPause is ReentrancyGuard {
     /// @notice Validates the caller is the authorized owner.
     function _checkOwner() internal view {
         if (msg.sender != owner) {
+            revert ProtocolManagerMassPause__Unauthorized();
+        }
+    }
+
+    /// @notice Validates this contract was deployed with unpause authority.
+    function _checkUnpauseAuthority() internal view {
+        if (!canUnpause) {
             revert ProtocolManagerMassPause__Unauthorized();
         }
     }

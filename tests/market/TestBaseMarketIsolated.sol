@@ -17,9 +17,10 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { PendleLPCToken } from "contracts/market/token/PendleLPCToken.sol";
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
+import { PendleZapperMinimal } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
-import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+import { PendleZapperMinimalCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperMinimalCalldataChecker.sol";
 import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -128,7 +129,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployStrategyCBALRETH();
         _deployStrategyCBALRETHWithExitFee();
         _deployPendleStrategyCTokenSTETH();
-        _deployPendleZapper();
+        _deployPendleZapperMinimal();
         _deployVelodromeZapper();
 
         _setRedstoneSigners();
@@ -705,25 +706,28 @@ contract TestBaseMarketIsolated is TestBase {
         return pendleStrategyCTokenSTETH;
     }
 
-    function _deployPendleZapper()
+    function _deployPendleZapperMinimal()
         internal
         initMainVariables
-        returns (PendleZapper)
+        returns (PendleZapperMinimal)
     {
-        pendleZapper = pendleZappers[block.chainid] = new PendleZapper(
+        pendleZapperMinimal = pendleZapperMinimals[
+            block.chainid
+        ] = new PendleZapperMinimal(
             ICentralRegistry(address(centralRegistry)),
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            true
         );
         centralRegistry.setExternalCalldataChecker(
-            address(pendleZapper),
+            address(pendleZapperMinimal),
             address(
-                new PendleZapperCalldataChecker(
-                    address(pendleZapper),
+                new PendleZapperMinimalCalldataChecker(
+                    address(pendleZapperMinimal),
                     0x888888888889758F76e7103c6CbF23ABbF58F946
                 )
             )
         );
-        return pendleZapper;
+        return pendleZapperMinimal;
     }
 
     function _deployVelodromeZapper()
@@ -737,10 +741,21 @@ contract TestBaseMarketIsolated is TestBase {
             ICentralRegistry(address(centralRegistry)),
             _WETH_ADDRESS
         );
+        address allowedRouter = block.chainid == 10
+            ? 0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858
+            : address(1);
+        address allowedFactory = block.chainid == 10
+            ? 0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a
+            : address(1);
+
         centralRegistry.setExternalCalldataChecker(
             address(velodromeZapper),
             address(
-                new VelodromeZapperCalldataChecker(address(velodromeZapper))
+                new VelodromeZapperCalldataChecker(
+                    address(velodromeZapper),
+                    allowedRouter,
+                    allowedFactory
+                )
             )
         );
         return velodromeZapper;

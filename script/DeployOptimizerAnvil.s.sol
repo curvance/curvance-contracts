@@ -40,6 +40,8 @@ contract DeployOptimizerAnvil is Script {
 
         LendingOptimizer optimizer = new LendingOptimizer(
             IERC20(USDC),
+            "Flagship",
+            "Flag",
             ICentralRegistry(CENTRAL_REGISTRY),
             cTokens,
             caps,

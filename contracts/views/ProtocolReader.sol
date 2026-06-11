@@ -633,7 +633,7 @@ contract ProtocolReader {
         // If the account is insolvent or we can immediately return with 0 for
         // everything.
         if (r.debt > r.collateral) {
-            return (0, 0, 0, 0, false, false);
+            return (0, 0, 0, 0, loanSizeError, oracleError);
         }
 
         if (r.debt == 0 || r.collateral == 0) {
@@ -667,6 +667,18 @@ contract ProtocolReader {
         // just extrapolated for an account's collateral vs debt.
         /// NOTE: This can overestimate maximum executeable leverage when
         ///       swapping due to AMM fees and slippage.
+        if (r.maxDebt <= r.debt) {
+            maxLeverage = _mulDiv(
+                r.collateral,
+                WAD,
+                r.collateral - r.debt
+            );
+            return (
+                currentLeverage, 0, maxLeverage, 0,
+                loanSizeError, oracleError
+            );
+        }
+
         maxDebtBorrowable = _mulDiv(
             r.maxDebt - r.debt,
             r.collateral,
@@ -679,6 +691,13 @@ contract ProtocolReader {
             WAD,
             r.collateral - r.debt
         );
+
+        if (_debtCapSaturated(mm, borrowableCToken, bufferTime)) {
+            return (
+                currentLeverage, 0, maxLeverage, 0,
+                loanSizeError, oracleError
+            );
+        }
 
         // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
         maxDebtBorrowable = _mulDiv(
@@ -693,7 +712,8 @@ contract ProtocolReader {
             cToken,
             _previewDeposit(cToken, assets),
             borrowableCToken,
-            maxDebtBorrowable
+            maxDebtBorrowable,
+            bufferTime
         );
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
@@ -891,6 +911,7 @@ contract ProtocolReader {
             _assetDataOf(mm, account, 2);
         AccountSnapshot memory snap;
         uint256 newDebt;
+        bool modifiedTokenSeen;
 
         uint256 collRatio;
         for (uint256 i; i < numAssets; ++i) {
@@ -927,6 +948,7 @@ contract ProtocolReader {
 
             // Calculate impact of cTokenModified action.
             if (cTokenModified == snap.asset) {
+                modifiedTokenSeen = true;
                 // If the token is collateral it cannot also be debt position,
                 // but, on a fresh borrow position snapshot can misreport
                 // a debt position as collateral until its fully opened
@@ -966,7 +988,7 @@ contract ProtocolReader {
                     // This means we can check terminal newDebt value here
                     // and know its only including current and
                     // hypothetical new debt.
-                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                    if (result.debt + newDebt < MIN_ACTIVE_LOAN_SIZE) {
                         result.loanSizeError = true;
                     }
 
@@ -976,14 +998,35 @@ contract ProtocolReader {
             }
         }
 
+        if (
+            borrowAssets > 0 &&
+            !modifiedTokenSeen &&
+            cTokenModified != address(0) &&
+            _isListed(mm, cTokenModified)
+        ) {
+            (uint256 additionalDebt, bool oracleError) =
+                _freshBorrowDebtValue(cTokenModified, borrowAssets);
+            if (oracleError) {
+                result.oracleError = true;
+            }
+
+            newDebt += additionalDebt;
+
+            if (result.debt + newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                result.loanSizeError = true;
+            }
+        }
+
+        uint256 adjustedDebt = result.debt + newDebt;
+
         // Returns excess liquidity on hypothetical positions.
-        if (result.maxDebt > newDebt) {
-            result.collateralSurplus = result.maxDebt - newDebt;
+        if (result.maxDebt > adjustedDebt) {
+            result.collateralSurplus = result.maxDebt - adjustedDebt;
             return result;
         }
 
         // Returns shortfall on hypothetical positions.
-        result.liquidityDeficit = newDebt - result.maxDebt;
+        result.liquidityDeficit = adjustedDebt - result.maxDebt;
     }
 
     /// @notice Evaluates collateral and debt positions to determine account
@@ -1623,12 +1666,16 @@ contract ProtocolReader {
         address collateralCToken,
         uint256 collateralShares,
         address debtCToken,
-        uint256 debtAssets
+        uint256 debtAssets,
+        uint256 bufferTime
     ) internal view returns (uint256) {
         uint256 collateralCap = mm.collateralCaps(collateralCToken);
         uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
         uint256 debtCap = mm.debtCaps(debtCToken);
-        uint256 marketDebt = _outstandingDebt(IBorrowableCToken(debtCToken));
+        uint256 marketDebt = _outstandingDebtAtTimestamp(
+            IBorrowableCToken(debtCToken),
+            block.timestamp + bufferTime
+        );
         uint256 cTokenPrice = _getPriceSafely(address(collateralCToken), true, true, 1);
         uint256 debtTokenPrice = _getPriceSafely(_asset(debtCToken), true, false, 1);
         uint256 debtAssetsInCollateral =
@@ -1653,6 +1700,10 @@ contract ProtocolReader {
             );
         }
 
+        if (marketDebt >= debtCap) {
+            return 0;
+        }
+
         if (marketDebt + debtAssets > debtCap) {
             debtAssets = _mulDiv(debtAssets, debtCap - marketDebt, debtAssets);
         }
@@ -1663,6 +1714,17 @@ contract ProtocolReader {
         }
 
         return debtAssets;
+    }
+
+    function _debtCapSaturated(
+        IMarketManager mm,
+        address debtCToken,
+        uint256 bufferTime
+    ) internal view returns (bool) {
+        return _outstandingDebtAtTimestamp(
+            IBorrowableCToken(debtCToken),
+            block.timestamp + bufferTime
+        ) >= mm.debtCaps(debtCToken);
     }
 
     /// @notice Retrieves the prices and account data of multiple assets
@@ -1754,6 +1816,53 @@ contract ProtocolReader {
         result = token.marketOutstandingDebt();
     }
 
+    function _outstandingDebtAtTimestamp(
+        IBorrowableCToken token,
+        uint256 timestamp
+    ) internal view returns (uint256 result) {
+        result = _outstandingDebt(token);
+
+        if (result == 0) {
+            return 0;
+        }
+
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim, ) =
+            token.getYieldInformation();
+
+        if (timestamp == lastVestingClaim) {
+            return result;
+        }
+
+        uint256 newDebt;
+
+        if (rate > 0 && lastVestingClaim < vestingEnd) {
+            newDebt = _mulDiv(
+                timestamp < vestingEnd
+                    ? rate * (timestamp - lastVestingClaim)
+                    : rate * (vestingEnd - lastVestingClaim),
+                result,
+                WAD
+            );
+        }
+
+        lastVestingClaim = timestamp > vestingEnd ? vestingEnd : timestamp;
+
+        if (timestamp >= vestingEnd) {
+            result += newDebt;
+            rate = _IRM(token).predictedBorrowRate(
+                _assetsHeld(token),
+                result
+            );
+            newDebt = _mulDiv(
+                rate * (timestamp - lastVestingClaim),
+                result,
+                WAD
+            );
+        }
+
+        result += newDebt;
+    }
+
     function _debtBalance(
         IBorrowableCToken token,
         address account
@@ -1817,6 +1926,21 @@ contract ProtocolReader {
             assets,
             _getPriceSafely(underlyingAsset, true, false, 1), // Price `borrowableCToken`.
             10 ** _decimals(underlyingAsset),
+            false
+        );
+    }
+
+    function _freshBorrowDebtValue(
+        address borrowableCToken,
+        uint256 assets
+    ) internal view returns (uint256 value, bool oracleError) {
+        (uint256 price, uint256 errorCode) =
+            getPrice(_asset(borrowableCToken), true, false);
+        oracleError = errorCode >= 2;
+        value = _assetValue(
+            assets,
+            price,
+            10 ** _decimals(borrowableCToken),
             false
         );
     }
