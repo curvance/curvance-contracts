@@ -65,7 +65,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         assertEq(data[0].totalAssets, allocatedAssets, "reader total should match market allocations");
     }
 
-    function test_optimalRebalanceUpdated_matchesManualAccrueAndExecutes() public {
+    function test_optimalRebalance_matchesManualAccrueAndExecutes() public {
         _setUpThreeMarkets();
         _depositToAllMarkets(10_000e6);
         skip(30 days);
@@ -73,35 +73,35 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         uint256 cachedAssets = optimizer.totalAssets();
         uint256 snapshotId = vm.snapshot();
 
-        (LendingOptimizer.ReallocationAction[] memory updatedActions,
-         LendingOptimizer.AllocationBound[] memory updatedBounds) =
-            reader.optimalRebalanceUpdated(address(optimizer), 500);
-        uint256 updatedAssets = optimizer.totalAssets();
-        assertGt(updatedAssets, cachedAssets, "updated quote should accrue optimizer assets");
+        (LendingOptimizer.ReallocationAction[] memory readerActions,
+         LendingOptimizer.AllocationBound[] memory readerBounds) =
+            reader.optimalRebalance(address(optimizer), 500);
+        uint256 readerAssets = optimizer.totalAssets();
+        assertGt(readerAssets, cachedAssets, "reader quote should accrue optimizer assets");
 
         vm.mockCall(
             address(liveCentralRegistry),
             abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
             abi.encode(true)
         );
-        _rebalance(optimizer, updatedActions, updatedBounds);
+        _rebalance(optimizer, readerActions, readerBounds);
 
-        assertTrue(vm.revertTo(snapshotId), "revert to pre-updated quote");
+        assertTrue(vm.revertTo(snapshotId), "revert to pre-reader quote");
         optimizer.accrueIfNeeded();
-        assertEq(optimizer.totalAssets(), updatedAssets, "manual accrue should match updated quote state");
+        assertEq(optimizer.totalAssets(), readerAssets, "manual accrue should match reader quote state");
 
         (LendingOptimizer.ReallocationAction[] memory manualActions,
          LendingOptimizer.AllocationBound[] memory manualBounds) =
             reader.optimalRebalance(address(optimizer), 500);
 
-        assertEq(manualActions.length, updatedActions.length, "actions length");
-        assertEq(manualBounds.length, updatedBounds.length, "bounds length");
-        for (uint256 i; i < updatedActions.length; ++i) {
-            assertEq(address(manualActions[i].cToken), address(updatedActions[i].cToken), "action cToken");
-            assertEq(manualActions[i].assetsOrBps, updatedActions[i].assetsOrBps, "action amount");
-            assertEq(manualBounds[i].cToken, updatedBounds[i].cToken, "bound cToken");
-            assertEq(manualBounds[i].minBps, updatedBounds[i].minBps, "bound min");
-            assertEq(manualBounds[i].maxBps, updatedBounds[i].maxBps, "bound max");
+        assertEq(manualActions.length, readerActions.length, "actions length");
+        assertEq(manualBounds.length, readerBounds.length, "bounds length");
+        for (uint256 i; i < readerActions.length; ++i) {
+            assertEq(address(manualActions[i].cToken), address(readerActions[i].cToken), "action cToken");
+            assertEq(manualActions[i].assetsOrBps, readerActions[i].assetsOrBps, "action amount");
+            assertEq(manualBounds[i].cToken, readerBounds[i].cToken, "bound cToken");
+            assertEq(manualBounds[i].minBps, readerBounds[i].minBps, "bound min");
+            assertEq(manualBounds[i].maxBps, readerBounds[i].maxBps, "bound max");
         }
     }
 
