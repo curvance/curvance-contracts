@@ -29,7 +29,7 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
     ICentralRegistryHighChunksExt centralRegistry;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_MAINNET"), FORK_BLOCK);
+        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_ARCHIVE"), FORK_BLOCK);
 
         optimizer = LendingOptimizer(LENDING_OPTIMIZER);
         centralRegistry = ICentralRegistryHighChunksExt(CENTRAL_REGISTRY);
