@@ -9,6 +9,9 @@ import {
     PendlePTPositionManager
 } from "contracts/market/position-management/PendlePTPositionManager.sol";
 import {
+    BasePositionManager
+} from "contracts/market/position-management/BasePositionManager.sol";
+import {
     PendleZapperMinimal
 } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import {PendleZapper} from "contracts/plugins/market/PendleZapper.sol";
@@ -49,6 +52,8 @@ import {
 import {IWstETH} from "contracts/interfaces/external/lido/IWstETH.sol";
 import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
+import {Multicall} from "contracts/libraries/Multicall.sol";
+import {PluginDelegable} from "contracts/libraries/PluginDelegable.sol";
 import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
 import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 import {
@@ -186,6 +191,41 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(
             address(positionManager.marketManager()),
             address(marketManagerIsolated)
+        );
+    }
+
+    function test_onBorrow_fail_unauthorizedCallbackBeforeAssetLookup()
+        public
+    {
+        PendlePTPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = 1 ether;
+        leverageAction.cToken = ICToken(address(cPendlePTSTETH));
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__Unauthorized.selector
+        );
+        positionManager.onBorrow(address(this), 1 ether, user, leverageAction);
+    }
+
+    function test_onRedeem_fail_unauthorizedCallbackBeforeAssetLookup()
+        public
+    {
+        PendlePTPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(cPendlePTSTETH));
+        deleverageAction.collateralAssets = 1 ether;
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__Unauthorized.selector
+        );
+        positionManager.onRedeem(
+            address(cPendlePTSTETH),
+            1 ether,
+            user,
+            deleverageAction
         );
     }
 
@@ -378,6 +418,56 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _assertNoPositionManagerResidue();
 
         vm.stopPrank();
+    }
+
+    function testRevert_MulticallLeverageForWithoutPermission() public {
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot =
+            borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot =
+            cPendlePTSTETH.getSnapshot(user);
+
+        PendlePTPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = 1 ether;
+        leverageAction.cToken = ICToken(address(cPendlePTSTETH));
+
+        Multicall.MulticallAction[] memory calls =
+            new Multicall.MulticallAction[](1);
+        calls[0].target = address(positionManager);
+        calls[0].data = abi.encodeWithSelector(
+            positionManager.leverageFor.selector, leverageAction, user, 0.05e18
+        );
+
+        vm.prank(user2);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
+        positionManager.multicall(calls);
+
+        AccountSnapshot memory borrowableCDAIAfterSnapshot =
+            borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHAfterSnapshot =
+            cPendlePTSTETH.getSnapshot(user);
+
+        assertEq(
+            borrowableCDAIAfterSnapshot.collateralPosted,
+            borrowableCDAIBeforeSnapshot.collateralPosted,
+            "borrow collateral should not change"
+        );
+        assertEq(
+            borrowableCDAIAfterSnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance,
+            "borrow debt should not change"
+        );
+        assertEq(
+            cPendlePTSTETHAfterSnapshot.collateralPosted,
+            cPendlePTSTETHBeforeSnapshot.collateralPosted,
+            "PT collateral should not change"
+        );
+        assertEq(
+            cPendlePTSTETHAfterSnapshot.debtBalance,
+            cPendlePTSTETHBeforeSnapshot.debtBalance,
+            "PT debt should not change"
+        );
     }
 
     function testDeLeverageFor() public {
@@ -1704,6 +1794,65 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             cPendlePTSTETH.balanceOf(address(zapper)),
             0,
             "zapper MUST hold no residual cPT shares"
+        );
+    }
+
+    function testRevert_PendleZapperMinimal_EnterPendle_PT_ExpectedSharesTooHighRollsBack()
+        public
+    {
+        assertFalse(IPPrincipalToken(_PT_STETH).isExpired());
+
+        PendleZapperMinimal zapper = new PendleZapperMinimal(
+            ICentralRegistry(address(centralRegistry)), _WETH_ADDRESS, true
+        );
+
+        address holder = makeAddr("ptZapperTerminalFloorUser");
+        uint256 wstEthAmount = 1 ether;
+        deal(_WSTETH, holder, wstEthAmount);
+
+        uint256 holderCTokenBefore = cPendlePTSTETH.balanceOf(holder);
+
+        vm.startPrank(holder);
+        IERC20(_WSTETH).approve(address(zapper), wstEthAmount);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        zapper.enterPendle(
+            address(cPendlePTSTETH),
+            address(_ROUTER),
+            _LP_STETH,
+            true,
+            _buildDirectWstEthPtEntryAction(wstEthAmount),
+            _buildPtEntryZapAction(wstEthAmount),
+            new SwapperLib.Swap[](0),
+            type(uint256).max,
+            false,
+            holder
+        );
+        vm.stopPrank();
+
+        assertEq(
+            IERC20(_WSTETH).balanceOf(holder),
+            wstEthAmount,
+            "terminal share floor MUST roll back input wstETH"
+        );
+        assertEq(
+            cPendlePTSTETH.balanceOf(holder),
+            holderCTokenBefore,
+            "terminal share floor MUST not mint cPT shares"
+        );
+        assertEq(
+            IERC20(_WSTETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST not retain wstETH after terminal floor revert"
+        );
+        assertEq(
+            IERC20(_PT_STETH).balanceOf(address(zapper)),
+            0,
+            "zapper MUST not retain PT after terminal floor revert"
+        );
+        assertEq(
+            cPendlePTSTETH.balanceOf(address(zapper)),
+            0,
+            "zapper MUST not retain cPT shares after terminal floor revert"
         );
     }
 

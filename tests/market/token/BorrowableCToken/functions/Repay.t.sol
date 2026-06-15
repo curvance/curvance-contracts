@@ -102,6 +102,60 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
 
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         borrowableCUSDC.repay(100e6);
+
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance, "payer assets should roll back");
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance, "cToken balance should not change");
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply, "total supply should not change");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows, "market debt should roll back");
+        assertEq(borrowableCUSDC.debtBalance(address(this)), debtAfterAccrual, "account debt should roll back");
+        assertEq(borrowableCUSDC.totalAssets(), totalAssetsAfterAccrual, "total assets should roll back");
+    }
+
+    function test_borrowableCTokenRepay_success_whenPartialRepayLeavesMinimumLoanSize()
+        public
+    {
+        _harvestPendleLP(1 weeks);
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalanceUpdated(address(this));
+        uint256 exchangeRateAfterAccrual = borrowableCUSDC.exchangeRate();
+        (uint256 debtAssetPrice, uint256 errorCode) =
+            oracleManager.getPrice(address(usdc), true, true);
+        uint256 minLoanSizeInDebtAsset = (
+            marketManagerIsolated.MIN_LOAN_SIZE() * 1e6 + debtAssetPrice - 1
+        ) / debtAssetPrice;
+        uint256 repayAssets = debtAfterAccrual - minLoanSizeInDebtAsset;
+
+        assertEq(errorCode, 0, "debt asset price should be clean");
+        assertGt(
+            exchangeRateAfterAccrual,
+            1e18,
+            "exchange rate should include accrued lender value"
+        );
+
+        uint256 underlyingBalance = usdc.balanceOf(address(this));
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
+        uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
+        uint256 totalAssets = borrowableCUSDC.totalAssets();
+
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
+        borrowableCUSDC.repay(repayAssets + 1);
+
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance, "below-boundary payer assets should roll back");
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance, "below-boundary cToken balance should not change");
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply, "below-boundary total supply should not change");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows, "below-boundary market debt should roll back");
+        assertEq(borrowableCUSDC.debtBalance(address(this)), debtAfterAccrual, "below-boundary account debt should roll back");
+        assertEq(borrowableCUSDC.totalAssets(), totalAssets, "below-boundary total assets should roll back");
+
+        borrowableCUSDC.repay(repayAssets);
+
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance - repayAssets);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - repayAssets);
+        assertEq(borrowableCUSDC.debtBalance(address(this)), minLoanSizeInDebtAsset);
+        assertEq(borrowableCUSDC.totalAssets(), totalAssets);
     }
 
     function test_borrowableCTokenRepay_success_whenRepayAll() public {

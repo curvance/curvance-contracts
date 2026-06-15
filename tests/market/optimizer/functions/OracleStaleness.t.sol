@@ -60,6 +60,20 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
         assertEq(bad.length, 3, "All markets should be flagged when all feeds are stale");
     }
 
+    function test_optimalRebalance_staleness_allStale_returnsEmpty() public {
+        _setUpThreeMarketsUnconstrained();
+        _depositToAllMarketsUnconstrained(100_000e6);
+
+        skip(THRESHOLD_1_5X + 1);
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(actions.length, 0, "No executable rebalance when every market is stale");
+        assertEq(bounds.length, 0, "No bounds when every market is stale");
+    }
+
     /// @notice Only the market with a stale collateral feed is flagged.
     function test_isBad_staleness_oneStale_onlyThatFlagged() public {
         _setUpThreeMarketsUnconstrained();

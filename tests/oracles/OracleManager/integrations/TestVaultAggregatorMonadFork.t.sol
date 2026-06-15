@@ -8,6 +8,7 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IERC4626 } from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -32,11 +33,17 @@ interface IVaultAggregator {
 
 contract TestVaultAggregatorMonadFork is Test {
     // Deployed contract addresses on Monad mainnet.
-    address constant VAULT_AGGREGATOR = 0x084BC7bE1326Ee1FD5387a4A48fD6999A79BFa8b;
+    address constant VAULT_AGGREGATOR_AUSD_VUSD = 0x084BC7bE1326Ee1FD5387a4A48fD6999A79BFa8b;
+    address constant VAULT_AGGREGATOR_AUSD_SAUSD = 0x73Af3E1848636D4DE6A61050D5487d6f09A7A1Be;
     address constant CHAINLINK_ADAPTOR = 0xACfE3fCcae79445836E03c5359BB96bd352b9C00;
+    address constant REDSTONE_CLASSIC_ADAPTOR = 0x0fA602b3e748438A3F1599206Ed6DC497ab3331E;
+    address constant ORACLE_MANAGER = 0x32faD39e79FAc67f80d1C86CbD1598043e52CDb6;
+    address constant SAUSD_MARKET_TOKEN = 0x84C5aF20b58818631164Bb7d798E457fcFACD9Ac;
 
     IVaultAggregator vaultAgg;
     IOracleAdaptor adaptor;
+    IOracleAdaptor redstoneAdaptor;
+    IOracleManager oracleManager;
 
     address vault;
     address asset;
@@ -50,8 +57,10 @@ contract TestVaultAggregatorMonadFork is Test {
             vm.envString("MON_NODE_URI_MONAD_MAINNET")
         );
 
-        vaultAgg = IVaultAggregator(VAULT_AGGREGATOR);
+        vaultAgg = IVaultAggregator(VAULT_AGGREGATOR_AUSD_VUSD);
         adaptor = IOracleAdaptor(CHAINLINK_ADAPTOR);
+        redstoneAdaptor = IOracleAdaptor(REDSTONE_CLASSIC_ADAPTOR);
+        oracleManager = IOracleManager(ORACLE_MANAGER);
 
         vault = vaultAgg.vault();
         asset = vaultAgg.asset();
@@ -81,7 +90,7 @@ contract TestVaultAggregatorMonadFork is Test {
         assertEq(adjustedAnswer, expectedAnswer, "adjusted answer should match manual calculation");
 
         console2.log("--- Contract Addresses ---");
-        console2.log("VaultAggregator:", VAULT_AGGREGATOR);
+        console2.log("VaultAggregator:", VAULT_AGGREGATOR_AUSD_VUSD);
         console2.log("ChainlinkAdaptor:", CHAINLINK_ADAPTOR);
         console2.log("Vault (vUSD):", vault);
         console2.log("Asset (AUSD):", asset);
@@ -188,6 +197,22 @@ contract TestVaultAggregatorMonadFork is Test {
         console2.log("Capped by (bps):", cappedBps);
     }
 
+    function test_priceGuardClampsInflatedVUSDVaultExchangeRate() public {
+        _assertPriceGuardClampsInflatedVaultExchangeRate(VAULT_AGGREGATOR_AUSD_VUSD, adaptor);
+    }
+
+    function test_priceGuardClampsInflatedSAUSDVaultExchangeRateOnActiveRoute() public {
+        IVaultAggregator agg = IVaultAggregator(VAULT_AGGREGATOR_AUSD_SAUSD);
+        address vaultToken = agg.vault();
+
+        address[] memory adaptors = oracleManager.getPricingAdaptors(vaultToken);
+        assertEq(adaptors.length, 1, "sAUSD vault should have one active pricing adaptor");
+        assertEq(adaptors[0], REDSTONE_CLASSIC_ADAPTOR, "sAUSD vault route should use Redstone");
+        assertEq(oracleManager.cTokens(SAUSD_MARKET_TOKEN), vaultToken, "market token should price through vault");
+
+        _assertPriceGuardClampsInflatedVaultExchangeRate(VAULT_AGGREGATOR_AUSD_SAUSD, redstoneAdaptor);
+    }
+
     function test_priceGuardWillUncapAfterSufficientTime() public {
         // Get current raw price.
         (, int256 rawAnswer,,,) = underlyingAgg.latestRoundData();
@@ -249,5 +274,66 @@ contract TestVaultAggregatorMonadFork is Test {
         console2.log("Price would no longer be capped: true");
         // Note: after skip, the heartbeat check may fail since the underlying
         // feed timestamp is stale. We verify the guard math independently.
+    }
+
+    function _assertPriceGuardClampsInflatedVaultExchangeRate(
+        address aggregator,
+        IOracleAdaptor pricingAdaptor
+    ) internal {
+        IVaultAggregator agg = IVaultAggregator(aggregator);
+        address vaultToken = agg.vault();
+        IOracleAdaptor.PriceGuard memory pg = pricingAdaptor.getPriceGuard(vaultToken, true);
+        assertGt(pg.basePrice, 0, "price guard should be active");
+
+        uint256 guardedMax = _guardedMax(pg);
+        assertGt(guardedMax, 0, "guarded max should be positive");
+
+        uint256 inflatedRawPrice = _mockVaultExchangeRateAboveGuard(agg, guardedMax);
+        assertGt(inflatedRawPrice, guardedMax, "mocked vault rate should exceed guard max");
+
+        IOracleAdaptor.PricingResult memory result = pricingAdaptor.getPrice(vaultToken, true, false);
+        assertFalse(result.hadError, "guard clamp should not mark an error");
+        assertTrue(result.inUSD, "vault token should be priced in USD");
+        assertEq(result.price, guardedMax, "vault token price should clamp to guard max");
+    }
+
+    function _mockVaultExchangeRateAboveGuard(
+        IVaultAggregator agg,
+        uint256 guardedMax
+    ) internal returns (uint256 inflatedRawPrice) {
+        IChainlink feed = agg.underlyingAggregator();
+        (, int256 rawAnswer,,,) = feed.latestRoundData();
+        assertGt(rawAnswer, 0, "underlying feed should be positive");
+
+        address vaultToken = agg.vault();
+        uint256 vaultDecimalPrecision = 10 ** IERC20(vaultToken).decimals();
+        uint8 aggregatorDecimals = agg.decimals();
+        uint256 inflatedExchangeRate =
+            FixedPointMathLib.fullMulDiv(
+                FixedPointMathLib.fullMulDiv(guardedMax * 2, 10 ** aggregatorDecimals, WAD) + 1,
+                10 ** IERC20(agg.asset()).decimals(),
+                uint256(rawAnswer)
+            ) + 1;
+
+        vm.mockCall(
+            vaultToken,
+            abi.encodeWithSelector(IERC4626.convertToAssets.selector, vaultDecimalPrecision),
+            abi.encode(inflatedExchangeRate)
+        );
+
+        int256 inflatedAnswer = agg.getAdjustedAnswer(rawAnswer);
+        inflatedRawPrice =
+            FixedPointMathLib.fullMulDiv(uint256(inflatedAnswer), WAD, 10 ** aggregatorDecimals);
+    }
+
+    function _guardedMax(IOracleAdaptor.PriceGuard memory pg) internal view returns (uint256) {
+        if (pg.ips == 0) {
+            return pg.basePrice;
+        }
+
+        uint256 timePassed = block.timestamp - pg.timestampStart;
+        return FixedPointMathLib.fullMulDiv(
+            pg.basePrice, WAD + timePassed * pg.ips, WAD
+        );
     }
 }

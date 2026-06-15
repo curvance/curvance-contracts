@@ -238,6 +238,44 @@ contract TestPendleZapperMinimalCalldataChecker is Test {
         checker.checkCalldata(swapAction, address(0xBAD));
     }
 
+    function test_revertsWhenOuterInputTokenDiffersFromZapInput() public {
+        PendleLib.PendleAction memory action;
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
+
+        swapAction = SwapperLib.Swap({
+            inputToken: address(0xBAD),
+            inputAmount: zapAction.inputAmount,
+            outputToken: cToken,
+            target: pendleZapper,
+            slippage: 0,
+            call: _enterCalldata(cToken, action, zapAction, 42)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InputTokenError.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
+    function test_revertsWhenOuterInputAmountDiffersFromZapInput() public {
+        PendleLib.PendleAction memory action;
+        PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();
+
+        swapAction = SwapperLib.Swap({
+            inputToken: zapAction.inputToken,
+            inputAmount: zapAction.inputAmount + 1,
+            outputToken: cToken,
+            target: pendleZapper,
+            slippage: 0,
+            call: _enterCalldata(cToken, action, zapAction, 42)
+        });
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InputAmountError.selector
+        );
+        checker.checkCalldata(swapAction, receiver);
+    }
+
     function test_revertsWhenCTokenIsZero() public {
         PendleLib.PendleAction memory action;
         PendleZapperMinimal.ZapAction memory zapAction = _defaultZapAction();

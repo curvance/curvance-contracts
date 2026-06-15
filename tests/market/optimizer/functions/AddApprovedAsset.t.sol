@@ -74,6 +74,26 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         optimizer.addApprovedAsset(cUSDC_WBTC_MARKET, 5_000);
     }
 
+    function test_lendingOptimizer_addApprovedAsset_fail_whenMarketPermissionOnly() public {
+        _setUpOneMarket();
+
+        address marketOnly = makeAddr("marketOnly");
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, marketOnly),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasElevatedPermissions.selector, marketOnly),
+            abi.encode(false)
+        );
+
+        vm.prank(marketOnly);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
+        optimizer.addApprovedAsset(cUSDC_WBTC_MARKET, 5_000);
+    }
+
     function test_lendingOptimizer_addApprovedAsset_fail_whenZeroAddress() public {
         _setUpOneMarket();
 

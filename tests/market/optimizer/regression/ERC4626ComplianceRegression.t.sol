@@ -11,14 +11,14 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title ERC4626 Compliance & Invariant Audit
-/// @notice Auditor 4: Tests ERC4626 compliance, invariant violations, and edge
-///         cases that prior audits missed.
+/// @title ERC4626 Compliance & Invariant Regression
+/// @notice Tests ERC4626 compliance, invariant violations, and edge
+///         cases that prior review passes covered.
 /// @dev Covers: share transfer consistency, concurrent deposits,
 ///      round-trip properties, maxDeposit spec compliance, dead shares robustness,
 ///      previewDeposit vs actual deposit, preview/max withdrawal
 ///      consistency, exchange rate invariant, zero-amount operations, and more.
-contract ERC4626ComplianceAudit is TestBaseLendingOptimizer {
+contract ERC4626ComplianceRegression is TestBaseLendingOptimizer {
 
     LendingOptimizerHarness harness;
 

@@ -157,26 +157,24 @@ contract InvariantStateful is TestBaseLendingOptimizer {
         }
     }
 
-    /// @notice Cached totalAssets should tightly track listed-market ground truth.
-    /// @dev Every handler action that can change market value either accrues first
-    ///      or re-syncs after execution. Any large drift here means user shares can
-    ///      be priced against stale or untracked assets.
+    /// @notice Cached totalAssets must never materially exceed listed-market ground truth.
+    /// @dev Phantom NAV (cached assets above listed-market assets) is the dangerous
+    ///      direction. The opposite direction is conservative cToken deposit dust:
+    ///      _depositToMarket() credits the recoverable value of received shares,
+    ///      while tiny rounding remainders can benefit existing optimizer cToken shares.
     function invariant_totalAssetsTracking() public view {
         uint256 sumMarkets = _sumListedMarketAssets();
         uint256 ta = harness.totalAssets();
 
         if (ta > sumMarkets) {
-            assertLe(
-                ta - sumMarkets,
-                harness.numApprovedMarkets(),
-                "INVARIANT VIOLATED: totalAssets exceeds listed market sum"
-            );
+            assertEq(ta, sumMarkets, "INVARIANT VIOLATED: totalAssets exceeds listed market sum");
         }
 
         if (sumMarkets > ta) {
+            uint256 conservativeDustBudget = harness.numApprovedMarkets() * 2;
             assertLe(
                 sumMarkets - ta,
-                harness.numApprovedMarkets(),
+                conservativeDustBudget,
                 "INVARIANT VIOLATED: listed market sum exceeds totalAssets"
             );
         }

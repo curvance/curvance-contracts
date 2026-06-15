@@ -883,6 +883,52 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         assertGt(shareCToken.balanceOf(user2), 0, "liquidator should receive seized shares");
     }
 
+    function test_lendingOptimizerShareCToken_badDebtLiquidateExactUsesFreshMarketPricing() public {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            uint256 totalAssetsBeforeBadDebt
+        ) = _prepareOptimizerShareAccountAfterBadDebt();
+
+        uint256 debtBefore = debtCToken.debtBalance(depositor1);
+        uint256 collateralBefore = shareCToken.collateralPosted(depositor1);
+        uint256 liquidatorSharesBefore = shareCToken.balanceOf(user2);
+        uint256 debtToRepay = debtBefore / 4;
+
+        assertGt(debtToRepay, 0, "precondition: exact liquidation has debt to repay");
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = depositor1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = debtToRepay;
+
+        _prepareUSDC(user2, debtToRepay);
+        uint256 liquidatorUsdcBefore = usdc.balanceOf(user2);
+        vm.startPrank(user2);
+        usdc.approve(address(debtCToken), debtToRepay);
+        debtCToken.liquidateExact(debtAmounts, accounts, address(shareCToken));
+        vm.stopPrank();
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "exact liquidation price path must sync optimizer NAV loss"
+        );
+        assertEq(liquidatorUsdcBefore - usdc.balanceOf(user2), debtToRepay, "exact liquidation should collect requested debt");
+        assertLt(debtCToken.debtBalance(depositor1), debtBefore, "exact liquidation should reduce borrower debt");
+        assertLt(
+            shareCToken.collateralPosted(depositor1),
+            collateralBefore,
+            "exact liquidation should seize posted collateral"
+        );
+        assertGt(
+            shareCToken.balanceOf(user2),
+            liquidatorSharesBefore,
+            "exact liquidation should transfer seized shares to liquidator"
+        );
+    }
+
     // ==================== MULTI-MARKET BAD DEBT ====================
 
     function test_lendingOptimizer_badDebt_multipleMarketsBadDebt() public {

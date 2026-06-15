@@ -397,6 +397,10 @@ contract OptimizerReader {
             totalAssets += currentAssets[i];
         }
 
+        if (!_fullyAllocated(idealAssets, totalAssets)) {
+            return (actions, bounds);
+        }
+
         // Remove dust actions that would revert at the cToken level
         // (convertToShares == 0) and rebalance to maintain zero-sum.
         // Returns empty arrays if no actionable rebalance remains.
@@ -637,6 +641,18 @@ contract OptimizerReader {
             idealAssets[bestIdx] += remaining;
             m[bestIdx].simAssetsHeld += remaining;
         }
+    }
+
+    function _fullyAllocated(
+        uint256[] memory idealAssets,
+        uint256 totalAssets
+    ) internal pure returns (bool) {
+        uint256 allocated;
+        for (uint256 i; i < idealAssets.length; ++i) {
+            allocated += idealAssets[i];
+        }
+
+        return allocated >= totalAssets;
     }
 
     /// @dev Diffs ideal vs current allocations to produce deposit/withdraw

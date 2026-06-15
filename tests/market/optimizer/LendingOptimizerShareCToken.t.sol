@@ -12,7 +12,9 @@ import {VaultAggregator} from "contracts/oracles/adaptors/wrappedAggregators/Vau
 import {BAD_SOURCE, WAD} from "contracts/libraries/ConstantsLib.sol";
 import {FixedPointMathLib} from "contracts/libraries/external/FixedPointMathLib.sol";
 import {PluginDelegable} from "contracts/libraries/PluginDelegable.sol";
+import {BasePositionManager} from "contracts/market/position-management/BasePositionManager.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
 import {ICToken, AccountSnapshot} from "contracts/interfaces/ICToken.sol";
 import {ILendingOptimizer} from "contracts/interfaces/ILendingOptimizer.sol";
 import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
@@ -636,7 +638,7 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         public
     {
         (
-            ,
+            MarketManagerIsolated optimizerMarket,
             BorrowableCToken debtCToken,
             LendingOptimizerShareCToken shareCToken
         ) = _deployOptimizerShareLaunchMarket();
@@ -662,6 +664,346 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertGt(optimizer.totalAssets(), staleTotalAssets, "borrow collateral check must sync optimizer NAV");
         assertEq(shareCToken.collateralPosted(address(this)), wrapperShares);
         assertEq(debtCToken.debtBalance(address(this)), 20_000e6);
+    }
+
+    function test_lendingOptimizerShareCToken_launchWithdrawCollateralAfterRepayAccruesOptimizer()
+        public
+    {
+        (
+            MarketManagerIsolated optimizerMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
+        shareCToken.postCollateral(wrapperShares);
+        debtCToken.borrow(20_000e6, address(this));
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before collateral exit"
+        );
+
+        deal(USDC_MONAD, address(this), 25_000e6);
+        IERC20(USDC_MONAD).approve(address(debtCToken), type(uint256).max);
+        debtCToken.repay(0);
+
+        uint256 optimizerSharesToWithdraw = shareCToken.convertToAssets(wrapperShares / 2);
+        uint256 expectedWrapperSharesBurned = shareCToken.previewWithdraw(optimizerSharesToWithdraw);
+        uint256 receiverOptimizerSharesBefore = optimizer.balanceOf(user1);
+        uint256 wrapperBalanceBefore = shareCToken.balanceOf(address(this));
+        uint256 marketCollateralBefore = shareCToken.marketCollateralPosted();
+
+        uint256 wrapperSharesBurned = shareCToken.withdrawCollateral(
+            optimizerSharesToWithdraw,
+            user1,
+            address(this)
+        );
+
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "collateral exit must sync optimizer NAV"
+        );
+        assertEq(wrapperSharesBurned, expectedWrapperSharesBurned);
+        assertEq(
+            optimizer.balanceOf(user1),
+            receiverOptimizerSharesBefore + optimizerSharesToWithdraw,
+            "receiver should get exact optimizer shares"
+        );
+        assertEq(
+            shareCToken.balanceOf(address(this)),
+            wrapperBalanceBefore - wrapperSharesBurned,
+            "wrapper shares should burn from owner"
+        );
+        assertEq(
+            shareCToken.collateralPosted(address(this)),
+            wrapperShares - wrapperSharesBurned,
+            "owner collateral should reduce by burned shares"
+        );
+        assertEq(
+            shareCToken.marketCollateralPosted(),
+            marketCollateralBefore - wrapperSharesBurned,
+            "market collateral should reduce by burned shares"
+        );
+
+        (, uint256 maxDebt, uint256 debt) = optimizerMarket.statusOf(address(this));
+        assertEq(debt, 0, "repay should clear launch debt before collateral exit");
+        assertGe(maxDebt, debt, "account should remain healthy after collateral exit");
+    }
+
+    function test_lendingOptimizerShareCToken_partialRepayThenCollateralRemovalAccruesOptimizer()
+        public
+    {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
+        shareCToken.postCollateral(wrapperShares);
+        debtCToken.borrow(20_000e6, address(this));
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before partial repay"
+        );
+
+        uint256 repayAssets = 5_000e6;
+        deal(USDC_MONAD, address(this), repayAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), repayAssets);
+        debtCToken.repay(repayAssets);
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "partial repay reviews debt asset only and should not sync optimizer NAV"
+        );
+        uint256 debtAfterPartialRepay = debtCToken.debtBalance(address(this));
+        assertGt(debtAfterPartialRepay, 10_000e6, "partial repay should leave live debt");
+
+        {
+            (, uint256 maxDebt, uint256 debt) =
+                shareCToken.marketManager().statusOf(address(this));
+            assertGt(
+                optimizer.totalAssets(),
+                staleTotalAssets,
+                "statusOf after partial repay must sync optimizer-share collateral NAV"
+            );
+            assertGt(debt, 0, "partial repay should leave market debt live");
+            assertGe(maxDebt, debt, "account should remain healthy after partial repay");
+        }
+
+        uint256 secondStaleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+        assertEq(
+            optimizer.totalAssets(),
+            secondStaleTotalAssets,
+            "precondition: optimizer NAV is stale before collateral removal"
+        );
+
+        {
+            uint256 optimizerSharesToWithdraw = optimizerShares / 20;
+            uint256 receiverOptimizerSharesBefore = optimizer.balanceOf(user1);
+            uint256 wrapperBalanceBefore = shareCToken.balanceOf(address(this));
+            uint256 marketCollateralBefore = shareCToken.marketCollateralPosted();
+
+            uint256 wrapperSharesBurned = shareCToken.withdrawCollateral(
+                optimizerSharesToWithdraw,
+                user1,
+                address(this)
+            );
+
+            assertGt(
+                optimizer.totalAssets(),
+                secondStaleTotalAssets,
+                "collateral removal with live debt must sync optimizer NAV"
+            );
+            assertEq(
+                optimizer.balanceOf(user1),
+                receiverOptimizerSharesBefore + optimizerSharesToWithdraw,
+                "receiver should get exact optimizer shares"
+            );
+            assertEq(
+                shareCToken.balanceOf(address(this)),
+                wrapperBalanceBefore - wrapperSharesBurned,
+                "wrapper shares should burn from owner"
+            );
+            assertEq(
+                shareCToken.marketCollateralPosted(),
+                marketCollateralBefore - wrapperSharesBurned,
+                "market collateral should reduce by burned shares"
+            );
+        }
+
+        {
+            (, uint256 maxDebt, uint256 debt) =
+                shareCToken.marketManager().statusOf(address(this));
+            assertGt(
+                debt,
+                0,
+                "partial repay should still leave debt after collateral removal"
+            );
+            assertGe(maxDebt, debt, "account should remain healthy after collateral removal");
+        }
+    }
+
+    function test_lendingOptimizerShareCToken_positionManagerBorrowPostsFreshOptimizerCollateral()
+        public
+    {
+        (
+            MarketManagerIsolated optimizerMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+        OptimizerSharePositionManagerHarness positionManager = _deployOptimizerSharePositionManager(optimizerMarket);
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this)) / 2;
+        uint256 expectedShares = shareCToken.previewDeposit(optimizerShares);
+        IERC20(address(optimizer)).transfer(address(positionManager), optimizerShares);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+        assertEq(optimizer.totalAssets(), staleTotalAssets, "precondition: optimizer NAV is stale before PM borrow");
+
+        address account = makeAddr("optimizerSharePmAccount");
+        IPositionManager.LeverageAction memory action;
+        action.borrowableCToken = IBorrowableCToken(address(debtCToken));
+        action.borrowAssets = 20_000e6;
+        action.cToken = ICToken(address(shareCToken));
+        action.expectedShares = expectedShares;
+
+        vm.prank(account);
+        positionManager.leverage(action, 0);
+
+        assertGt(optimizer.totalAssets(), staleTotalAssets, "PM borrow collateral check must sync optimizer NAV");
+        assertEq(shareCToken.collateralPosted(account), expectedShares);
+        assertEq(debtCToken.debtBalance(account), action.borrowAssets);
+        assertEq(IERC20(address(optimizer)).balanceOf(address(positionManager)), 0, "PM optimizer residue");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(positionManager)), 0, "PM debt residue");
+        assertEq(IERC20(USDC_MONAD).balanceOf(positionManager.swapSink()), action.borrowAssets, "swap sink debt");
+    }
+
+    function test_lendingOptimizerShareCToken_positionManagerBorrowRevertsAtomicallyWhenExpectedSharesTooHigh()
+        public
+    {
+        (
+            MarketManagerIsolated optimizerMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+        OptimizerSharePositionManagerHarness positionManager = _deployOptimizerSharePositionManager(optimizerMarket);
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this)) / 2;
+        uint256 expectedShares = shareCToken.previewDeposit(optimizerShares);
+        IERC20(address(optimizer)).transfer(address(positionManager), optimizerShares);
+
+        address account = makeAddr("optimizerSharePmSlippageAccount");
+        IPositionManager.LeverageAction memory action;
+        action.borrowableCToken = IBorrowableCToken(address(debtCToken));
+        action.borrowAssets = 20_000e6;
+        action.cToken = ICToken(address(shareCToken));
+        action.expectedShares = expectedShares + 1;
+
+        vm.prank(account);
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidSlippage.selector);
+        positionManager.leverage(action, 0);
+
+        assertEq(shareCToken.collateralPosted(account), 0, "collateral must roll back");
+        assertEq(debtCToken.debtBalance(account), 0, "debt must roll back");
+        assertEq(IERC20(address(optimizer)).balanceOf(address(positionManager)), optimizerShares, "PM inventory");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(positionManager)), 0, "PM debt residue");
+        assertEq(IERC20(USDC_MONAD).balanceOf(positionManager.swapSink()), 0, "swap sink must roll back");
+    }
+
+    function test_lendingOptimizerShareCToken_positionManagerDeleverageAccruesOptimizerAndRepaysDebt()
+        public
+    {
+        (
+            MarketManagerIsolated optimizerMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+        OptimizerSharePositionManagerHarness positionManager = _deployOptimizerSharePositionManager(optimizerMarket);
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        address account = makeAddr("optimizerSharePmDeleverageAccount");
+        uint256 optimizerShares = optimizer.balanceOf(address(this)) / 2;
+        uint256 expectedShares = shareCToken.previewDeposit(optimizerShares);
+        IERC20(address(optimizer)).transfer(address(positionManager), optimizerShares);
+
+        IPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(debtCToken));
+        leverageAction.borrowAssets = 20_000e6;
+        leverageAction.cToken = ICToken(address(shareCToken));
+        leverageAction.expectedShares = expectedShares;
+
+        vm.prank(account);
+        positionManager.leverage(leverageAction, 0);
+
+        uint256 collateralBefore = shareCToken.collateralPosted(account);
+        uint256 debtBefore = debtCToken.debtBalance(account);
+        uint256 collateralAssets = 5_000e6;
+        uint256 expectedWrapperSharesBurned = shareCToken.previewWithdraw(collateralAssets);
+        uint256 repayAssets = 5_000e6;
+        deal(USDC_MONAD, address(positionManager), repayAssets);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before PM deleverage"
+        );
+
+        IPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(shareCToken));
+        deleverageAction.collateralAssets = collateralAssets;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(debtCToken));
+        deleverageAction.repayAssets = repayAssets;
+
+        vm.prank(account);
+        positionManager.deleverage(deleverageAction, 0.05e18);
+
+        assertGt(optimizer.totalAssets(), staleTotalAssets, "PM deleverage must sync optimizer NAV");
+        assertEq(
+            shareCToken.collateralPosted(account),
+            collateralBefore - expectedWrapperSharesBurned,
+            "collateral should reduce by redeemed wrapper shares"
+        );
+        assertLt(debtCToken.debtBalance(account), debtBefore, "deleverage should repay debt");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(positionManager)), 0, "PM debt residue");
+        assertEq(IERC20(address(optimizer)).balanceOf(address(positionManager)), 0, "PM optimizer residue");
+        assertEq(
+            IERC20(address(optimizer)).balanceOf(positionManager.swapSink()),
+            collateralAssets,
+            "swap sink should receive redeemed optimizer shares"
+        );
     }
 
     function test_lendingOptimizerShareCToken_oracleSupportRemovalLeavesMarketLiveButBlocksLiquidation()
@@ -698,6 +1040,63 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         vm.prank(makeAddr("oracleSupportRemovalLiquidator"));
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         debtCToken.liquidate(accounts, address(shareCToken));
+    }
+
+    function test_lendingOptimizerShareCToken_liquidationAccruesStaleOptimizerCollateral()
+        public
+    {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        uint256 lendAssets = 300_000e6;
+        uint256 borrowAssets = 130_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
+        shareCToken.postCollateral(wrapperShares);
+        debtCToken.borrow(borrowAssets, address(this));
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(0.5e8);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before liquidation"
+        );
+
+        address liquidator = makeAddr("optimizerShareLiquidator");
+        deal(USDC_MONAD, liquidator, 100_000e6);
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(debtCToken), type(uint256).max);
+        address[] memory accounts = new address[](1);
+        accounts[0] = address(this);
+        debtCToken.liquidate(accounts, address(shareCToken));
+        vm.stopPrank();
+
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "liquidation pricing must sync optimizer NAV before seizing collateral"
+        );
+        assertLt(
+            debtCToken.debtBalance(address(this)),
+            borrowAssets,
+            "liquidation should repay borrower debt"
+        );
+        assertGt(
+            shareCToken.balanceOf(liquidator),
+            0,
+            "liquidator should receive optimizer-share collateral"
+        );
     }
 
     function test_lendingOptimizerShareCToken_priceGuardCapsUpsideAndAllowsDownside() public {
@@ -1069,6 +1468,18 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         _configureToken(optimizerMarket, address(debtCToken), 0, 0, 1_000_000e6);
     }
 
+    function _deployOptimizerSharePositionManager(
+        MarketManagerIsolated optimizerMarket
+    ) internal returns (OptimizerSharePositionManagerHarness positionManager) {
+        positionManager = new OptimizerSharePositionManagerHarness(
+            liveCentralRegistry,
+            address(optimizerMarket),
+            address(0),
+            makeAddr("optimizerSharePmSwapSink")
+        );
+        optimizerMarket.addPositionManager(address(positionManager));
+    }
+
     function _registerOptimizerShareVaultPriceFeed() internal {
         MockV3Aggregator usdcFeed = new MockV3Aggregator(8, 1e8);
         VaultAggregator optimizerVaultFeed = new VaultAggregator(
@@ -1174,6 +1585,38 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
     function _singleFakeMarket() internal pure returns (address[] memory markets) {
         markets = new address[](1);
         markets[0] = address(1);
+    }
+}
+
+contract OptimizerSharePositionManagerHarness is BasePositionManager {
+    address public immutable swapSink;
+
+    constructor(
+        ICentralRegistry cr,
+        address mm,
+        address wNative,
+        address newSwapSink
+    ) BasePositionManager(cr, mm, wNative) {
+        swapSink = newSwapSink;
+    }
+
+    function _swapDebtAssetToCollateralAsset(
+        LeverageAction memory action,
+        address
+    ) internal override {
+        bool success = IERC20(action.borrowableCToken.asset()).transfer(swapSink, action.borrowAssets);
+        require(success, "debt sink transfer failed");
+    }
+
+    function _swapCollateralAssetToDebtAsset(
+        DeleverageAction memory action
+    ) internal override {
+        address collateralAsset = action.cToken.asset();
+        uint256 collateralBalance = IERC20(collateralAsset).balanceOf(address(this));
+        if (collateralBalance > 0) {
+            bool success = IERC20(collateralAsset).transfer(swapSink, collateralBalance);
+            require(success, "collateral sink transfer failed");
+        }
     }
 }
 

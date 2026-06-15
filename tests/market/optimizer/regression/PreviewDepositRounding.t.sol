@@ -9,11 +9,11 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title PreviewDeposit ERC4626 Compliance POC
+/// @title PreviewDeposit ERC4626 Compliance Regression
 /// @notice Demonstrates the cToken double-floor rounding issue and validates
 ///         the previewDeposit fix using the harness's oldPreviewDeposit()
 ///         to directly compare old vs new behavior.
-contract PreviewDepositPOC is TestBaseLendingOptimizer {
+contract PreviewDepositRoundingRegression is TestBaseLendingOptimizer {
 
     LendingOptimizerHarness harness;
 
@@ -24,13 +24,13 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 1: Prove the underlying cToken round-trip rounding loss exists
+    //  Regression 1: Prove the underlying cToken round-trip rounding loss exists
     // =====================================================================
 
     /// @notice The cToken round-trip (assets -> shares -> assets) can lose
     ///         1 wei due to two successive floor divisions. This is the root
     ///         cause of the previewDeposit discrepancy.
-    function test_POC_cTokenRoundTripLosesWei() public {
+    function test_regression_cTokenRoundTripLosesWei() public {
         // Seed the optimizer so the cToken exchange rate is non-trivial.
         deal(USDC_MONAD, user1, 50_000e6);
         vm.startPrank(user1);
@@ -63,13 +63,13 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 2: Old previewDeposit overestimates — violates ERC4626
+    //  Regression 2: Old previewDeposit overestimates — violates ERC4626
     // =====================================================================
 
     /// @notice Compares harness.oldPreviewDeposit() (the unpatched behavior)
     ///         against the actual deposit() result. The old preview can return
     ///         MORE shares than actually minted, violating ERC4626.
-    function test_POC_oldPreviewDeposit_violatesERC4626() public {
+    function test_regression_oldPreviewDeposit_violatesERC4626() public {
         // Seed with a meaningful amount.
         deal(USDC_MONAD, user1, 100_000e6);
         vm.startPrank(user1);
@@ -123,12 +123,12 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 3: Fuzz — new previewDeposit NEVER overestimates
+    //  Regression 3: Fuzz — new previewDeposit NEVER overestimates
     // =====================================================================
 
     /// @notice Across many deposit amounts, deposit() >= previewDeposit().
     ///         Logs the exact surplus on every run to show accuracy.
-    function testFuzz_POC_newPreviewNeverOverestimates(uint256 depositAmount) public {
+    function testFuzz_regression_newPreviewNeverOverestimates(uint256 depositAmount) public {
         depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
 
         // Seed the optimizer.
@@ -165,15 +165,15 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     /// @notice Debug specific counterexamples found by the fuzzer.
-    function test_POC_debugCounterexample_567() public {
+    function test_regression_debugCounterexample_567() public {
         _debugDeposit(567419865);
     }
 
-    function test_POC_debugCounterexample_16() public {
+    function test_regression_debugCounterexample_16() public {
         _debugDeposit(16649621);
     }
 
-    function test_POC_debugCounterexample_1744() public {
+    function test_regression_debugCounterexample_1744() public {
         _debugDeposit(1744435006);
     }
 
@@ -240,12 +240,12 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 4: Fuzz — old previewDeposit CAN overestimate
+    //  Regression 4: Fuzz — old previewDeposit CAN overestimate
     // =====================================================================
 
     /// @notice Shows the old (unpatched) preview can overestimate across
     ///         fuzzed inputs. Logs violations; asserts the fix holds.
-    function testFuzz_POC_oldPreviewCanOverestimate(uint256 depositAmount) public {
+    function testFuzz_regression_oldPreviewCanOverestimate(uint256 depositAmount) public {
         depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
 
         // Seed.
@@ -283,14 +283,14 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 5: Integrator revert scenario
+    //  Regression 5: Integrator revert scenario
     // =====================================================================
 
     /// @notice Simulates an integrating contract that enforces
     ///         `require(actualShares >= previewDeposit(assets))`.
     ///         With the old preview, this check could revert.
     ///         With the new preview, it always passes.
-    function test_POC_integratorRevertScenario() public {
+    function test_regression_integratorRevertScenario() public {
         // Build up a non-trivial exchange rate.
         deal(USDC_MONAD, user1, 200_000e6);
         vm.startPrank(user1);
@@ -337,12 +337,12 @@ contract PreviewDepositPOC is TestBaseLendingOptimizer {
     }
 
     // =====================================================================
-    //  POC 6: Fix is tight — at most 2 share surplus
+    //  Regression 6: Fix is tight — at most 2 share surplus
     // =====================================================================
 
     /// @notice Verifies the -2 adjustment is not overly pessimistic.
     ///         The surplus (actual - preview) should be at most 3.
-    function test_POC_fixIsTight() public {
+    function test_regression_fixIsTight() public {
         // Seed.
         deal(USDC_MONAD, user1, 100_000e6);
         vm.startPrank(user1);

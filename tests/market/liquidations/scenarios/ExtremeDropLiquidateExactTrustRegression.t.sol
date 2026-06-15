@@ -5,7 +5,7 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract ExtremeDrop_LiquidateExact_Trust_POC is TestBaseLiquidations {
+contract ExtremeDropLiquidateExactTrustRegression is TestBaseLiquidations {
 
     event Repay(uint256 assets, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
@@ -18,7 +18,7 @@ contract ExtremeDrop_LiquidateExact_Trust_POC is TestBaseLiquidations {
         _setUpBorrowerDebt();
     }
 
-    function testLiquidateWithCollateralDropBadDebtPOC() public {
+    function testLiquidateWithCollateralDropBadDebtRegression() public {
 
         // set DAI price to $0.55
         mockDaiFeed.setMockAnswer(55000000);

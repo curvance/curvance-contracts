@@ -171,6 +171,12 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
     function test_borrowAndBridge_fail_TightSwapSafeSlippage() public {
         swapAction.slippage = 0;
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 userUsdcBefore = usdc.balanceOf(user1);
+        uint256 zapperDaiBefore = dai.balanceOf(address(CCTPZapper));
+        uint256 zapperUsdcBefore = usdc.balanceOf(address(CCTPZapper));
+        uint256 userNativeBefore = user1.balance;
 
         vm.startPrank(user1);
 
@@ -182,6 +188,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore);
+        assertEq(dai.balanceOf(user1), userDaiBefore);
+        assertEq(usdc.balanceOf(user1), userUsdcBefore);
+        assertEq(dai.balanceOf(address(CCTPZapper)), zapperDaiBefore);
+        assertEq(usdc.balanceOf(address(CCTPZapper)), zapperUsdcBefore);
+        assertEq(user1.balance, userNativeBefore);
     }
 
     function test_borrowAndBridge_success() public {
@@ -289,6 +302,32 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         assertGt(tokenMessenger.lastAmount(), 0);
     }
 
+    function test_borrowAndBridge_feeTokenBorrowDoesNotBridgePreExistingFeeTokenResidue() public {
+        MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
+        MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
+        centralRegistry.setTokenMessager(address(tokenMessenger));
+        centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, relayer.getDefaultDeliveryProvider(), true);
+        _setFeeTokenBeforeGenesis(_DAI_ADDRESS);
+
+        SwapperLib.Swap memory noSwapAction;
+        _prepareDAI(address(CCTPZapper), 123e18);
+        uint256 balancePrior = dai.balanceOf(address(CCTPZapper));
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+
+        vm.startPrank(user1);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, noSwapAction, 42161, 0, destinationReceiver
+        );
+        vm.stopPrank();
+
+        assertEq(tokenMessenger.lastAmount(), 500e18);
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore + 500e18);
+        assertEq(dai.balanceOf(address(CCTPZapper)), balancePrior + tokenMessenger.lastAmount());
+    }
+
     function test_borrowAndBridge_destinationDeliveryToReceiverFinalizesCCTP() public {
         MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
         MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
@@ -369,6 +408,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
         pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
+    }
+
+    function _setFeeTokenBeforeGenesis(address newFeeToken) internal {
+        uint256 currentTimestamp = block.timestamp;
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+        centralRegistry.setFeeToken(newFeeToken);
+        vm.warp(currentTimestamp);
     }
 }
 

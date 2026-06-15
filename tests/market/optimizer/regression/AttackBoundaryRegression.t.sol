@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { TestBaseLendingOptimizer } from "./TestBaseLendingOptimizer.sol";
+import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -9,10 +9,10 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
-/// @title Exploit Attempt Tests for LendingOptimizer
-/// @notice Attempts various attack vectors against the optimizer's accounting
-/// @dev These tests should all FAIL to exploit - proving the contract is secure
-contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
+/// @title Attack Boundary Regression Tests for LendingOptimizer
+/// @notice Exercises attack-boundary scenarios against the optimizer's accounting
+/// @dev These tests preserve current defensive behavior for known attack-boundary scenarios
+contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
 
     address attacker = address(0xBAD);
     address victim = address(0xFACE);
@@ -29,7 +29,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Donate assets directly to optimizer to inflate exchange rate
     /// @dev Attack vector: Transfer assets to optimizer without going through deposit
     ///      Expected: Exchange rate should NOT be affected by direct donations
-    function test_exploit_donationAttack_directTransfer() public {
+    function test_attackBoundary_donationAttack_directTransfer() public {
         // Victim deposits first
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -67,7 +67,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Front-run yield detection by depositing right before vesting ends
     /// @dev Attack vector: Deposit just before yield becomes visible, redeem after
     ///      Expected: Attacker should not profit significantly from timing
-    function test_exploit_sandwichAttack_vestingBoundary() public {
+    function test_attackBoundary_sandwichAttack_vestingBoundary() public {
         // Setup: Victim deposits
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -116,10 +116,10 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // ATTACK 3: Exchange Rate Manipulation via Rounding
     // =========================================================================
 
-    /// @notice Attempt: Exploit rounding in share calculation
+    /// @notice Attempt: Exercise rounding in share calculation
     /// @dev Attack vector: Many small deposits to accumulate rounding errors
     ///      Expected: Rounding should favor vault, not attacker
-    function test_exploit_roundingAttack_manySmallDeposits() public {
+    function test_attackBoundary_roundingAttack_manySmallDeposits() public {
         // Victim deposits first
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -161,7 +161,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Avoid fees by depositing after yield, withdrawing before fee
     /// @dev Attack vector: Time deposits/withdrawals to avoid performance fee
     ///      Expected: Fees should be charged correctly based on vested yield
-    function test_exploit_feeAvoidance_timingAttack() public {
+    function test_attackBoundary_feeAvoidance_timingAttack() public {
         // Victim deposits first
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -204,7 +204,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Use flash loan to capture yield
     /// @dev Attack vector: Flash deposit -> trigger accrual -> flash withdraw
     ///      Expected: No profit due to same-block deposit/withdraw
-    function test_exploit_flashLoanAttack_sameBlock() public {
+    function test_attackBoundary_flashLoanAttack_sameBlock() public {
         // Victim deposits first
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -243,7 +243,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Classic ERC4626 inflation attack
     /// @dev Attack vector: First depositor manipulates share price
     ///      Expected: Dead shares prevent this attack
-    function test_exploit_inflationAttack_firstDepositor() public {
+    function test_attackBoundary_inflationAttack_firstDepositor() public {
         // Deploy fresh optimizer to test first deposit
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -295,7 +295,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Redeem optimizer dead shares by forging a zero-owner permit.
     /// @dev Attack vector: Invalid signatures can recover address(0), and dead shares are
     ///      intentionally minted to address(0) during initializeDeposits().
-    function test_exploit_zeroOwnerPermit_cannotRedeemDeadShares() public {
+    function test_attackBoundary_zeroOwnerPermit_cannotRedeemDeadShares() public {
         address[] memory approvedCTokens = new address[](1);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
 
@@ -348,7 +348,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
 
     /// @notice Attempt: Spend cToken dead shares by forging a zero-owner permit.
     /// @dev The shared ERC20 permit path is inherited by cTokens as well as the optimizer.
-    function test_exploit_zeroOwnerPermit_cannotSpendCTokenDeadShares() public {
+    function test_attackBoundary_zeroOwnerPermit_cannotSpendCTokenDeadShares() public {
         BorrowableCToken cToken = BorrowableCToken(cUSDC_WMON_MARKET);
         uint256 deadShares = cToken.balanceOf(address(0));
         assertGt(deadShares, 0, "cToken dead shares should exist");
@@ -376,7 +376,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
 
     /// @notice Verify: Reentrancy protection works
     /// @dev All state-changing functions have nonReentrant modifier
-    function test_exploit_reentrancy_protection() public {
+    function test_attackBoundary_reentrancy_protection() public {
         deal(USDC_MONAD, address(this), 100_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
 
@@ -392,7 +392,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Grief vault with many dust deposits
     /// @dev Attack vector: Create many tiny positions to increase gas costs
     ///      Expected: Minimum viable deposit should be enforced by cToken
-    function test_exploit_griefing_dustDeposits() public {
+    function test_attackBoundary_griefing_dustDeposits() public {
         // Try to deposit dust amount
         deal(USDC_MONAD, attacker, 1);
         vm.startPrank(attacker);
@@ -405,13 +405,13 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
-    // ATTACK 10: Watermark Reset Exploit
+    // ATTACK 10: Watermark Reset Boundary
     // =========================================================================
 
     /// @notice Attempt: Reset watermark by causing temporary loss
     /// @dev Attack vector: Cause loss to reset watermark, then capture recovery
     ///      Expected: Watermark should never decrease
-    function test_exploit_watermarkReset_lossRecovery() public {
+    function test_attackBoundary_watermarkReset_lossRecovery() public {
         // Deposit and let yield accrue
         deal(USDC_MONAD, address(this), 1_000_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000_000e6);
@@ -439,7 +439,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Cause overflow in share calculations
     /// @dev Attack vector: Extreme values that might overflow
     ///      Expected: No overflow due to safe math
-    function test_exploit_overflow_extremeDeposit() public {
+    function test_attackBoundary_overflow_extremeDeposit() public {
         uint256 extremeAmount = type(uint128).max;
         deal(USDC_MONAD, address(this), extremeAmount);
         IERC20(USDC_MONAD).approve(address(optimizer), extremeAmount);
@@ -459,7 +459,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     /// @notice Attempt: Race to deposit before fee accrual
     /// @dev Attack vector: Deposit right before exchangeRateUpdated is called
     ///      Expected: Can't front-run because deposit calls _accrueIfNeeded first
-    function test_exploit_raceCondition_feeAccrual() public {
+    function test_attackBoundary_raceCondition_feeAccrual() public {
         // Victim deposits
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -496,9 +496,9 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Attempt: Deposit exactly when vesting ends (boundary condition)
-    /// @dev Attack vector: Exploit exact vesting end timestamp
+    /// @dev Attack vector: Exercise exact vesting end timestamp
     ///      Expected: No profit from exact timing
-    function test_exploit_vestingBoundary_exactTiming() public {
+    function test_attackBoundary_vestingBoundary_exactTiming() public {
         // Victim deposits
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -537,10 +537,10 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // ATTACK 14: Multiple Vesting Periods Stacking
     // =========================================================================
 
-    /// @notice Attempt: Exploit transition between vesting periods
+    /// @notice Attempt: Exercise transition between vesting periods
     /// @dev Attack vector: Try to capture yield from multiple vesting periods
     ///      Expected: Each period should be independent
-    function test_exploit_multipleVestingPeriods() public {
+    function test_attackBoundary_multipleVestingPeriods() public {
         // Victim deposits
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -584,10 +584,10 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // ATTACK 15: Zero Supply Edge Case After Full Withdrawal
     // =========================================================================
 
-    /// @notice Attempt: Exploit zero supply state after full withdrawal
+    /// @notice Attempt: Exercise zero supply state after full withdrawal
     /// @dev Attack vector: Withdraw everything, then deposit to manipulate rate
     ///      Expected: Dead shares prevent zero supply
-    function test_exploit_zeroSupply_afterFullWithdrawal() public {
+    function test_attackBoundary_zeroSupply_afterFullWithdrawal() public {
         // Deposit
         deal(USDC_MONAD, address(this), 1_000_000e6);
         IERC20(USDC_MONAD).approve(address(optimizer), 1_000_000e6);
@@ -620,10 +620,10 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // ATTACK 16: Rapid Deposit/Withdraw Cycles
     // =========================================================================
 
-    /// @notice Attempt: Exploit rapid deposit/withdraw cycles
+    /// @notice Attempt: Exercise rapid deposit/withdraw cycles
     /// @dev Attack vector: Many rapid cycles to accumulate rounding in favor
     ///      Expected: Rounding should favor vault consistently
-    function test_exploit_rapidCycles() public {
+    function test_attackBoundary_rapidCycles() public {
         deal(USDC_MONAD, attacker, 10_000_000e6);
         vm.startPrank(attacker);
         IERC20(USDC_MONAD).approve(address(optimizer), type(uint256).max);
@@ -707,7 +707,7 @@ contract TestLendingOptimizerExploits is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Invariant: totalAssets should match sum of market values (within buffer)
-    /// @dev Check for any discrepancy that could be exploited
+    /// @dev Check for any discrepancy that could create value extraction
     function test_invariant_totalAssetsMatchesMarkets() public {
         // Deposit to multiple markets
         deal(USDC_MONAD, address(this), 3_000_000e6);

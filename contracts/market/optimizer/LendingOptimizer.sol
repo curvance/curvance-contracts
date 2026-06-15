@@ -1063,10 +1063,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Track the actual recoverable value of shares received, not the input amount.
         // cToken share math involves two rounding operations (assets→shares, shares→assets)
-        // which can cause a 1 wei difference between input and recoverable value.
-        // Using convertToAssets ensures _totalAssets stays in sync with what
-        // _accrueMarkets() reports.
+        // which can cause a small difference between input and recoverable value.
         trackedAssets = cToken_.convertToAssets(cToken_.deposit(assets, address(this)));
+        if (trackedAssets > assets) revert LendingOptimizer__AssetMismatch();
 
         // Remove any residual approval for USDT-like token compatibility.
         SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);

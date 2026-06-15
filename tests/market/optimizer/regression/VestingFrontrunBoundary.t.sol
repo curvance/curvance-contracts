@@ -14,7 +14,7 @@ import { console2 } from "forge-std/console2.sol";
 /// @title Frontrunning Boundary Tests
 /// @notice Historical vesting-boundary tests plus same-window controls for
 ///         current immediate-accrual optimizer behavior.
-contract TestFrontrunExploit is TestBaseLendingOptimizer {
+contract VestingFrontrunBoundaryRegression is TestBaseLendingOptimizer {
 
     LendingOptimizerHarness harness;
 
@@ -339,7 +339,7 @@ contract TestFrontrunExploit is TestBaseLendingOptimizer {
     // TEST 5: Exchange rate analysis (REMOVED)
     // Vesting was removed; yield is now absorbed immediately in _accrueIfNeeded().
     // There is no longer a "rate gap" between fair and tracked rates at deposit
-    // boundaries, so the frontrunning exploit via vesting lag no longer applies.
+    // boundaries, so the frontrunning boundary via vesting lag no longer applies.
     // =========================================================================
 
     // =========================================================================

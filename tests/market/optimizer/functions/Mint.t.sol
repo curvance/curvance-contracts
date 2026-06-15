@@ -137,6 +137,46 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function test_lendingOptimizer_mint_revertsAtomicallyWhenMarketDepositFails() public {
+        uint256 sharesToMint = 1000e6;
+        uint256 expectedAssets = optimizer.previewMint(sharesToMint);
+
+        deal(USDC_MONAD, user1, expectedAssets * 2, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
+
+        uint256 userAssetsBefore = IERC20(USDC_MONAD).balanceOf(user1);
+        uint256 optimizerIdleAssetsBefore = IERC20(USDC_MONAD).balanceOf(address(optimizer));
+        uint256 allowanceBefore = IERC20(USDC_MONAD).allowance(user1, address(optimizer));
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+        uint256 userSharesBefore = optimizer.balanceOf(user1);
+        uint256 optimizerCTokensBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
+
+        vm.mockCallRevert(
+            cUSDC_WMON_MARKET,
+            abi.encodeWithSelector(IBorrowableCToken.deposit.selector),
+            "cToken deposit failed"
+        );
+
+        vm.expectRevert();
+        optimizer.mint(sharesToMint, user1);
+
+        assertEq(IERC20(USDC_MONAD).balanceOf(user1), userAssetsBefore, "user assets should roll back");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(optimizer)), optimizerIdleAssetsBefore, "optimizer idle assets should roll back");
+        assertEq(IERC20(USDC_MONAD).allowance(user1, address(optimizer)), allowanceBefore, "allowance should roll back");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "total assets should roll back");
+        assertEq(optimizer.totalSupply(), totalSupplyBefore, "total supply should roll back");
+        assertEq(optimizer.balanceOf(user1), userSharesBefore, "user shares should roll back");
+        assertEq(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer)),
+            optimizerCTokensBefore,
+            "optimizer cToken balance should roll back"
+        );
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_mint_reverts_zeroReceiver() public {
         vm.startPrank(user1);
 
@@ -518,6 +558,23 @@ contract TestLendingOptimizerMint is TestBaseLendingOptimizer {
         uint256 sharesAfter = optimizer.balanceOf(user1);
 
         assertEq(sharesAfter - sharesBefore, sharesToMint, "Should mint requested shares");
+
+        vm.stopPrank();
+    }
+
+    function testFuzz_lendingOptimizer_mint_neverOvercreditsTrackedAssets(uint256 sharesToMint) public {
+        sharesToMint = bound(sharesToMint, 1e6, 10_000_000e6);
+
+        uint256 expectedAssets = optimizer.previewMint(sharesToMint);
+        deal(USDC_MONAD, user1, expectedAssets * 2, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), expectedAssets * 2);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 assets = optimizer.mint(sharesToMint, user1);
+        uint256 trackedIncrease = optimizer.totalAssets() - totalAssetsBefore;
+
+        assertLe(trackedIncrease, assets, "mint must not overcredit tracked assets");
 
         vm.stopPrank();
     }

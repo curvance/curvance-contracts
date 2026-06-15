@@ -60,6 +60,55 @@ contract TestLendingOptimizerRemoveApprovedAssetAccounting is TestBaseLendingOpt
         );
     }
 
+    function test_lendingOptimizer_removeApprovedAsset_revertsWhenReallocationTargetOvercreditsTrackedAssets() public {
+        optimizer.accrueIfNeeded();
+
+        uint256 totalBefore = optimizer.totalAssets();
+        address marketToRemove = cUSDC_WMON_MARKET;
+        address targetMarket = cUSDC_WBTC_MARKET;
+        uint256 sharesToRedeem = IBorrowableCToken(marketToRemove).balanceOf(address(optimizer));
+        uint256 assetsToReallocate = IBorrowableCToken(marketToRemove).convertToAssets(sharesToRedeem);
+        uint256 cTokenShares = assetsToReallocate;
+
+        optimizer.updateCap(targetMarket, 10_000);
+        optimizer.updateCap(cUSDC_WETH_MARKET, 10_000);
+
+        vm.mockCall(
+            targetMarket,
+            abi.encodeWithSelector(IBorrowableCToken.convertToShares.selector, assetsToReallocate),
+            abi.encode(cTokenShares)
+        );
+        vm.mockCall(
+            targetMarket,
+            abi.encodeWithSelector(IBorrowableCToken.deposit.selector, assetsToReallocate, address(optimizer)),
+            abi.encode(cTokenShares)
+        );
+        vm.mockCall(
+            targetMarket,
+            abi.encodeWithSelector(IBorrowableCToken.convertToAssets.selector, cTokenShares),
+            abi.encode(assetsToReallocate + 1)
+        );
+
+        LendingOptimizer.ReallocationAction[] memory removeActions =
+            new LendingOptimizer.ReallocationAction[](1);
+        removeActions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(targetMarket),
+            int256(10_000)
+        );
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(marketToRemove);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
+        optimizer.removeApprovedAsset(marketToRemove, removeActions, bounds);
+
+        assertEq(optimizer.totalAssets(), totalBefore, "total assets must roll back");
+        assertEq(optimizer.numApprovedMarkets(), 3, "market removal must roll back");
+        assertEq(
+            IBorrowableCToken(marketToRemove).balanceOf(address(optimizer)),
+            sharesToRedeem,
+            "redeemed market shares must roll back"
+        );
+    }
+
     function _sumApprovedMarketAssets() internal view returns (uint256 sum) {
         uint256 length = optimizer.numApprovedMarkets();
         for (uint256 i; i < length; ++i) {

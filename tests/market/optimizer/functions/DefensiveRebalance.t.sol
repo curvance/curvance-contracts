@@ -145,6 +145,20 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         assertTrue(hasDeposit, "Good markets should receive deposits");
     }
 
+    function test_optimalRebalance_defensive_allBadMarkets_returnsEmpty() public {
+        _setUpUnconstrainedOptimizer();
+        _depositToAllMarketsUnconstrained(50_000e6);
+
+        _mockIsBad(_allBadMarkets());
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) =
+            reader.optimalRebalance(address(optimizer), 500);
+
+        assertEq(actions.length, 0, "No executable rebalance when all markets are bad");
+        assertEq(bounds.length, 0, "No bounds when all markets are bad");
+    }
+
     // ============ Balance of Flows ============
 
     function test_optimalRebalance_defensive_success_totalDepositsEqualWithdrawals() public {
@@ -572,6 +586,13 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
     function _singleBadMarket(address market) internal pure returns (address[] memory bad) {
         bad = new address[](1);
         bad[0] = market;
+    }
+
+    function _allBadMarkets() internal view returns (address[] memory bad) {
+        bad = new address[](3);
+        bad[0] = cUSDC_WMON_MARKET;
+        bad[1] = cUSDC_WBTC_MARKET;
+        bad[2] = cUSDC_WETH_MARKET;
     }
 
     /// @dev Mocks the external isBad() call that defensiveRebalance makes on itself.

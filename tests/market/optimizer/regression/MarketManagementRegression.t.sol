@@ -11,11 +11,11 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title Market Management & Rebalance Audit Tests
+/// @title Market Management & Rebalance Regression Tests
 /// @notice Tests attack vectors in removeApprovedAsset, rebalance,
 ///         addApprovedAsset, updateCap, and related market management.
-/// @dev Auditor 2: Market Management & Rebalance Specialist
-contract MarketManagementAudit is TestBaseLendingOptimizer {
+/// @dev Market management, rebalance, cap, and removal boundary coverage.
+contract MarketManagementRegression is TestBaseLendingOptimizer {
 
     LendingOptimizerHarness harness;
 
@@ -154,7 +154,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     ///      cToken rounding. _totalAssets (set by _accrueIfNeeded before removal)
     ///      is NOT adjusted for this loss. The return value of _depositToMarket is
     ///      ignored during removal (line 554).
-    function test_audit_removeApprovedAsset_accountingGap() public {
+    function test_marketManagement_removeApprovedAsset_accountingGap() public {
         _setUpHarnessThreeMarkets();
 
         // Deposit with amounts that keep allocations within caps after removal.
@@ -220,7 +220,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     /// @notice Tests repeated remove/add cycles to check for rounding drift.
-    function test_audit_removeAddCycle_accumulatesRoundingDrift() public {
+    function test_marketManagement_removeAddCycle_accumulatesRoundingDrift() public {
         _setUpHarnessThreeMarketsUnconstrained();
 
         // Use small amounts for market 2 to stay within caps.
@@ -292,7 +292,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests the theoretical limit: how many rebalances until false bad debt.
-    function test_audit_rebalanceDuringVesting_noBadDebtWithin500() public {
+    function test_marketManagement_rebalanceDuringVesting_noBadDebtWithin500() public {
         _setUpHarnessThreeMarkets();
 
         deal(USDC_MONAD, address(this), 600_000e6);
@@ -346,7 +346,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests whether cap verification during vesting allows over-allocation.
-    function test_audit_capVerificationDuringVesting_isSafe() public {
+    function test_marketManagement_capVerificationDuringVesting_isSafe() public {
         _setUpHarnessThreeMarkets();
 
         // Deposit with allocations under cap.
@@ -399,7 +399,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests full remove -> re-add cycle for the same market.
-    function test_audit_removeAndReaddSameMarket_cleanState() public {
+    function test_marketManagement_removeAndReaddSameMarket_cleanState() public {
         _setUpHarnessThreeMarkets();
 
         // Use small amounts for market 2 to stay within caps after reallocation.
@@ -476,7 +476,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     /// @notice Tests multiple remove/add cycles on the same market.
-    function test_audit_multipleRemoveAddCycles_noStateLeak() public {
+    function test_marketManagement_multipleRemoveAddCycles_noStateLeak() public {
         _setUpHarnessThreeMarkets();
 
         deal(USDC_MONAD, address(this), 21_000e6);
@@ -552,7 +552,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests that removeApprovedAsset leaves no cToken dust.
-    function test_audit_removeMarket_noDustBalance() public {
+    function test_marketManagement_removeMarket_noDustBalance() public {
         _setUpHarnessThreeMarkets();
 
         // Deposit with small amount for market 2.
@@ -597,7 +597,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests that a rebalance with all zero amounts is a valid no-op.
-    function test_audit_rebalance_allZeroAmounts_isValidNoOp() public {
+    function test_marketManagement_rebalance_allZeroAmounts_isValidNoOp() public {
         _setUpHarnessThreeMarkets();
 
         deal(USDC_MONAD, address(this), 300_000e6);
@@ -648,7 +648,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests that removing a large-cap market correctly reverts.
-    function test_audit_capValidation_removalPreservesMinimumCaps() public {
+    function test_marketManagement_capValidation_removalPreservesMinimumCaps() public {
         _setUpHarnessThreeMarkets();
 
         // Current caps: 60% + 50% + 20% = 130%.
@@ -674,7 +674,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     /// @notice Tests addApprovedAsset with minimum cap (1 BPS).
-    function test_audit_addMarket_minimumCap_works() public {
+    function test_marketManagement_addMarket_minimumCap_works() public {
         // Start with two markets (60% + 50% = 110%).
         address[] memory approvedCTokens = new address[](2);
         approvedCTokens[0] = cUSDC_WMON_MARKET;
@@ -708,7 +708,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     /// @notice Tests updateCap boundary: decrease to exactly maintain 100%.
-    function test_audit_updateCap_exactlyMaintains100Percent() public {
+    function test_marketManagement_updateCap_exactlyMaintains100Percent() public {
         _setUpHarnessThreeMarkets();
         // Caps: 60% + 50% + 20% = 130%.
 
@@ -724,7 +724,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     /// @notice Tests updateCap increase doesn't validate total caps.
-    function test_audit_updateCap_increaseSkipsTotalCheck() public {
+    function test_marketManagement_updateCap_increaseSkipsTotalCheck() public {
         _setUpHarnessThreeMarkets();
 
         // Increase market 0 to 100%. Total: 100% + 50% + 20% = 170%.
@@ -734,7 +734,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     }
 
     // =========================================================================
-    //  (Removed: vesting-specific test_audit_removeMarketDuringVesting_accountingImpact)
+    //  (Removed: vesting-specific test_marketManagement_removeMarketDuringVesting_accountingImpact)
     //  Vesting was removed; yield is now absorbed immediately in _accrueIfNeeded().
     // =========================================================================
 
@@ -743,7 +743,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests that reallocating to the market being removed reverts.
-    function test_audit_removeMarket_cannotReallocateToRemovedMarket() public {
+    function test_marketManagement_removeMarket_cannotReallocateToRemovedMarket() public {
         _setUpHarnessThreeMarkets();
 
         deal(USDC_MONAD, address(this), 21_000e6);
@@ -773,7 +773,7 @@ contract MarketManagementAudit is TestBaseLendingOptimizer {
     // =========================================================================
 
     /// @notice Tests swap-and-pop array ordering after removing middle element.
-    function test_audit_removeMiddleMarket_correctArrayOrdering() public {
+    function test_marketManagement_removeMiddleMarket_correctArrayOrdering() public {
         _setUpHarnessThreeMarkets();
 
         // Deposit smaller amounts, with less to market 0 and more to market 2

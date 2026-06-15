@@ -398,6 +398,36 @@ contract ERC20Test is SoladyTest {
         _permit(t);
     }
 
+    function testPermitWrongSpenderReverts(uint256) public {
+        _TestTemps memory t = _testTemps();
+        if (t.deadline < block.timestamp) t.deadline = block.timestamp;
+        _signPermit(t);
+
+        address originalSpender = t.to;
+        t.to = originalSpender == address(1) ? address(2) : address(1);
+
+        vm.expectRevert(ERC20.InvalidPermit.selector);
+        _permit(t);
+
+        assertEq(token.allowance(t.owner, originalSpender), 0);
+        assertEq(token.allowance(t.owner, t.to), 0);
+        assertEq(token.nonces(t.owner), 0);
+    }
+
+    function testPermitWrongValueReverts(uint256) public {
+        _TestTemps memory t = _testTemps();
+        if (t.deadline < block.timestamp) t.deadline = block.timestamp;
+        _signPermit(t);
+
+        t.amount = t.amount == type(uint256).max ? t.amount - 1 : t.amount + 1;
+
+        vm.expectRevert(ERC20.InvalidPermit.selector);
+        _permit(t);
+
+        assertEq(token.allowance(t.owner, t.to), 0);
+        assertEq(token.nonces(t.owner), 0);
+    }
+
     function testPermitPastDeadlineReverts(uint256) public {
         _TestTemps memory t = _testTemps();
         t.deadline = _bound(t.deadline, 0, block.timestamp - 1);

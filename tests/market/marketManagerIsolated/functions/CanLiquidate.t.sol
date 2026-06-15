@@ -367,6 +367,23 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         );
     }
 
+    function test_canLiquidate_fail_whenDebtOracleIsStale() public {
+        _setupLiquidationFixture();
+        _setPendleStEthLpPrice(1100e8);
+        _makeDefaultUsdcFeedsStale(BAD_SOURCE);
+
+        IMarketManager.LiqAction memory action = _defaultLiqAction();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canLiquidate(
+            debtAmounts,
+            address(this),
+            accounts,
+            action
+        );
+    }
+
     function _setupUserPositionAndOracles() internal {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
@@ -442,6 +459,18 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         (, uint256 errorCode) =
             oracleManager.getPrice(_USDC_ADDRESS, true, true);
         assertEq(errorCode, expectedErrorCode, "unexpected USDC oracle status");
+    }
+
+    function _makeDefaultUsdcFeedsStale(
+        uint256 expectedErrorCode
+    ) internal {
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, expectedErrorCode, "unexpected stale USDC status");
     }
 
 }

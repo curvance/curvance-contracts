@@ -8,7 +8,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-/// @title Exploit PoC — LO-L-06: removeApprovedAsset dust-carryover underflow
+/// @title LO-L-06 Regression: removeApprovedAsset dust-carryover underflow
 /// @notice LendingOptimizer.sol:619-635. The skip branch in the reallocation
 ///         loop subtracts `depositAmount` from `totalDeposited` to "carry the
 ///         dust forward". On non-last iterations this is balanced by a prior
@@ -19,7 +19,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///           (2) convertToShares(depositAmount) == 0 on the last target
 ///           (3) last-action BPS > 5000 (so depositAmount > totalDeposited)
 ///         the subtraction underflows and reverts with Panic(0x11).
-contract Exploit_LO_L_06_Test is TestBaseLendingOptimizer {
+contract RemoveApprovedAssetDustRegression is TestBaseLendingOptimizer {
 
     function setUp() public override {
         super.setUp();
@@ -81,7 +81,7 @@ contract Exploit_LO_L_06_Test is TestBaseLendingOptimizer {
     /// @notice Companion: workaround path. Reordering so the high-BPS target
     ///         is NOT last avoids the bug entirely, because the skip-branch
     ///         subtract on a non-last iteration cancels a matching prior add.
-    function test_exploit_LO_L_06_reorderingAvoidsBug() public {
+    function test_regression_LO_L_06_reorderingAvoidsBug() public {
         // Same mock: WBTC's convertToShares still returns 0 for any input.
         vm.mockCall(
             cUSDC_WBTC_MARKET,

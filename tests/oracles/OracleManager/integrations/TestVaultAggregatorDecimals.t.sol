@@ -72,6 +72,31 @@ contract TestVaultAggregatorDecimals is TestBaseOracleManager {
         assertEq(address(vaultAgg.vault()), address(vaultA));
     }
 
+    function test_checkPrice_VaultAggregatorFutureUnderlyingBubblesBadSource()
+        public
+    {
+        _addVaultAggregatorSupport();
+
+        uint256 futureTimestamp = block.timestamp + 1;
+        vm.mockCall(
+            _CHAINLINK_USDC_USD,
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(1e8),
+                futureTimestamp,
+                futureTimestamp,
+                uint80(1)
+            )
+        );
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(address(vaultA), true, false);
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
     function test_checkPrice_VaultAggregatorConvertToAssetsRevertFailsClosed()
         public
     {

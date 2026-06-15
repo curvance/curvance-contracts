@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { TestBaseLendingOptimizer } from "./TestBaseLendingOptimizer.sol";
+import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
-import { LendingOptimizerHarness } from "./LendingOptimizerHarness.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -11,13 +11,11 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title Share Price Manipulation & ERC4626 Compliance Tests
-/// @notice PoC tests for share price manipulation, rounding exploitation,
+/// @title Share Price Rounding & ERC4626 Regression Tests
+/// @notice Regression tests for share price manipulation, rounding boundaries,
 ///         and ERC4626 compliance issues in LendingOptimizer.
-/// @dev Each test targets a specific attack vector. Tests that demonstrate
-///      a vulnerability will document the finding. Tests that fail to exploit
-///      confirm the defense is working.
-contract SharePriceExploitTest is TestBaseLendingOptimizer {
+/// @dev Each test targets a specific boundary and preserves the current expected behavior.
+contract SharePriceRoundingRegression is TestBaseLendingOptimizer {
 
     address attacker = address(0xBAD);
     address victim = address(0xFACE);
@@ -72,7 +70,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     ///      FINDING: This is an ERC4626 compliance issue. The ERC4626 spec says
     ///      mint() MUST mint exactly the requested number of shares. The current
     ///      implementation can mint 1 fewer share, meaning the user overpays.
-    function test_exploit_mintGivesFewerSharesThanRequested() public {
+    function test_sharePrice_mintGivesFewerSharesThanRequested() public {
         // Setup: deposit some assets so exchange rate is established.
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -114,7 +112,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
 
     /// @notice Amplification test: Can the mint() discrepancy be amplified via
     ///         many small mint() calls to accumulate share shortfall?
-    function test_exploit_mintDiscrepancyAmplification() public {
+    function test_sharePrice_mintDiscrepancyAmplification() public {
         // Setup with yield.
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -180,7 +178,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     ///      An attacker depositing at this moment gets shares at the post-accrual
     ///      rate. The question is whether the attacker can capture yield they
     ///      didn't contribute to.
-    function test_exploit_depositTimingAtVestingBoundary() public {
+    function test_sharePrice_depositTimingAtVestingBoundary() public {
         // Victim deposits.
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -268,7 +266,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     ///      trackedAssets < assets, so shares = convertToShares(trackedAssets) < expected.
     ///      On redeem, convertToAssets(shares) rounds down. Both roundings favor the vault.
     ///      This test verifies the attacker always loses, never gains.
-    function test_exploit_rapidDepositRedeemRounding() public {
+    function test_sharePrice_rapidDepositRedeemRounding() public {
         // Setup: Establish exchange rate with existing deposits.
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -331,7 +329,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
 
     /// @notice Test rounding with specific adversarial amounts designed to
     ///         maximize favorable rounding.
-    function test_exploit_roundingWithAdversarialAmounts() public {
+    function test_sharePrice_roundingWithAdversarialAmounts() public {
         // Setup.
         deal(USDC_MONAD, victim, 1_000_000e6);
         vm.startPrank(victim);
@@ -388,7 +386,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     /// @dev When a user deposits after accrual, they get shares at the current
     ///      totalAssets() rate. As new yield accrues, the new depositor benefits
     ///      proportionally. This test measures whether the dilution is unfair.
-    function test_exploit_depositAfterAccrual() public {
+    function test_sharePrice_depositAfterAccrual() public {
         _deployHarness();
 
         // Victim deposits into harness.
@@ -461,7 +459,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     ///      2. Charges performance fee on new yield
     ///      Because accrual happens BEFORE the deposit, the deposit cannot
     ///      dilute the fee calculation. This test verifies this.
-    function test_exploit_largeDepositDilutesFees() public {
+    function test_sharePrice_largeDepositDilutesFees() public {
         _deployHarness();
 
         // Victim deposits into harness.
@@ -771,7 +769,7 @@ contract SharePriceExploitTest is TestBaseLendingOptimizer {
     ///      then back-runs the fee accrual with a redeem.
     ///      Because _accrueIfNeeded() is called atomically within deposit(),
     ///      the fee is charged BEFORE the deposit is processed.
-    function test_exploit_sandwichFeeAccrual() public {
+    function test_sharePrice_sandwichFeeAccrual() public {
         _deployHarness();
 
         // Victim deposits.
