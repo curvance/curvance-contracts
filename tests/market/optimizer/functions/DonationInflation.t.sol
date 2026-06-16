@@ -202,7 +202,10 @@ contract TestLendingOptimizerDonationInflation is TestBaseLendingOptimizer {
             "donation should push market above cap"
         );
 
-        OptimizerReader reader = new OptimizerReader();
+        OptimizerReader reader = new OptimizerReader(
+            ICentralRegistry(address(liveCentralRegistry)),
+            0
+        );
         (
             LendingOptimizer.ReallocationAction[] memory actions,
             LendingOptimizer.AllocationBound[] memory bounds

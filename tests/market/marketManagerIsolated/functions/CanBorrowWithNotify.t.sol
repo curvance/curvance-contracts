@@ -233,6 +233,24 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     }
 
+    function test_canRepayWithReview_fail_whenFullRepayDuringCooldown()
+        public
+    {
+        _openDebtPositionForRepayReview(user1, 10e6);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+        );
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canRepayWithReview(
+            address(borrowableCUSDC),
+            0,
+            address(usdc),
+            6,
+            user1
+        );
+    }
+
     function test_canRepayWithReview_enforcesMinimumLoanSizeBoundary() public {
         _openDebtPositionForRepayReview(user1, 20e6);
 

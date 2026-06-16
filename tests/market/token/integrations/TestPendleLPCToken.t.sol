@@ -143,7 +143,25 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
 
         LimitOrderData memory limit;
 
-        pendleCTokenSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
+        uint256 lpBalanceBeforeHarvest =
+            IERC20(_LP_STETH).balanceOf(address(pendleCTokenSTETH));
+        uint256 totalAssetsBeforeHarvest = pendleCTokenSTETH.totalAssets();
+
+        uint256 yield =
+            pendleCTokenSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
+        uint256 lpBalanceAfterHarvest =
+            IERC20(_LP_STETH).balanceOf(address(pendleCTokenSTETH));
+
+        assertEq(
+            yield,
+            lpBalanceAfterHarvest - lpBalanceBeforeHarvest,
+            "Harvest yield should be backed by new LP received."
+        );
+        assertEq(
+            pendleCTokenSTETH.totalAssets(),
+            totalAssetsBeforeHarvest,
+            "Harvest yield should vest before increasing total assets."
+        );
 
         vm.warp(block.timestamp + 8 days);
 
@@ -151,10 +169,11 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         chainlinkEthUsd.updateAnswer(3000e8);
 
         uint256 totalAssets = pendleCTokenSTETH.totalAssets();
-        assertGt(
+        assertApproxEqAbs(
             totalAssets,
-            assets + 77777,
-            "Total Assets should equal user deposit plus initial mint."
+            totalAssetsBeforeHarvest + yield,
+            1,
+            "Vested total assets should match credited harvest yield."
         );
 
         vm.prank(user1);

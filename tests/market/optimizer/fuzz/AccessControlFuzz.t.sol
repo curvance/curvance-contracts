@@ -107,6 +107,41 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
         optimizer.updateCap(cUSDC_WMON_MARKET, 5000);
     }
 
+    /// @notice Harvest-only callers cannot use market-only optimizer controls.
+    function test_harvestOnlyCallerCannotUseMarketControls() public {
+        address harvester = makeAddr("harvester");
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, harvester),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, harvester),
+            abi.encode(false)
+        );
+
+        vm.prank(harvester);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
+        optimizer.setFee(500);
+
+        vm.prank(harvester);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
+        optimizer.updateCap(cUSDC_WMON_MARKET, 5_000);
+
+        LendingOptimizer.ReallocationAction[] memory actions =
+            new LendingOptimizer.ReallocationAction[](0);
+
+        vm.prank(harvester);
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__Unauthorized.selector);
+        optimizer.removeApprovedAsset(
+            cUSDC_WMON_MARKET,
+            actions,
+            new LendingOptimizer.AllocationBound[](0)
+        );
+    }
+
     /// @notice Random callers without market permissions cannot setMintPaused.
     function testFuzz_unauthorized_setMintPaused(address caller) public {
         vm.assume(caller != address(0));

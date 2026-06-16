@@ -8,7 +8,11 @@ import {TestBaseOracleManager} from "../TestBaseOracleManager.sol";
 import {
     BaseWrappedAggregator
 } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
-import {WAD, SECONDS_PER_YEAR} from "contracts/libraries/ConstantsLib.sol";
+import {
+    BAD_SOURCE,
+    WAD,
+    SECONDS_PER_YEAR
+} from "contracts/libraries/ConstantsLib.sol";
 import {
     IPPrincipalToken
 } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
@@ -241,6 +245,50 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
         assertTrue(result.hadError, "stale underlying answer should bubble");
         assertTrue(result.inUSD, "denomination should stay USD");
         assertGt(result.price, 0, "stale positive answer should still adjust");
+    }
+
+    function test_fail_OracleManagerBubblesStalePendleUnderlyingAsBadSource()
+        public
+    {
+        _deployAggregatorCorrectly();
+
+        chainlinkAdaptor =
+            new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        chainlinkAdaptor.addAsset(
+            PT_weETH_25JUN2026,
+            true,
+            address(aggregator),
+            0
+        );
+        oracleManager.addAssetPricingAdaptor(
+            PT_weETH_25JUN2026,
+            address(chainlinkAdaptor),
+            100,
+            50,
+            100,
+            50
+        );
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        vm.mockCall(
+            CHAINLINK_ETH_USD,
+            abi.encodeWithSelector(IChainlink.latestRoundData.selector),
+            abi.encode(
+                uint80(1),
+                int256(4700e8),
+                staleTimestamp,
+                staleTimestamp,
+                uint80(1)
+            )
+        );
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(PT_weETH_25JUN2026, true, false);
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
     }
 
     function _deployAggregatorCorrectly() internal {

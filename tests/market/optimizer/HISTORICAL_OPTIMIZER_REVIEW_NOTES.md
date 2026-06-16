@@ -1,4 +1,18 @@
-# LendingOptimizer Security Audit Results
+# LendingOptimizer Historical Review Notes
+
+
+> Historical local review notes only. This is not a formal audit report and not current source truth. Use it as source-mapped invariant/probe seed material.
+
+Useful durable seeds to evaluate before keeping or moving tests:
+
+The detailed finding/test names below are historical and may predate current regression-file names:
+
+- ERC4626 full-withdraw/full-redeem availability around active accrual or vesting windows.
+- Preview and mint rounding boundaries: previews must not overpromise and mint should preserve requested-share semantics or document bounded deviations.
+- Exchange-rate and fee-watermark monotonicity across deposits, withdrawals, yield accrual, and fee changes.
+- Cross-market no-arbitrage and targeted-market routing behavior.
+- Fee-dilution, sandwich, rapid deposit/redeem, and post-bad-debt fair-pricing controls.
+- Market removal, cap updates, rebalance, and liquidity-drain behavior that should become normal regression coverage if still relevant.
 
 **Contract:** `contracts/market/optimizer/LendingOptimizer.sol`
 **Scope:** Non-elevated permissioned functions (deposit, mint, withdraw, redeem, exchangeRateUpdated, accrueIfNeeded, view functions)

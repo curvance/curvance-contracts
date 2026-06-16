@@ -141,7 +141,10 @@ contract TestLendingOptimizerMaxExitLiquidity is TestBaseLendingOptimizer {
         _depositToHarness(user1, 30_000e6);
         _mockAllMarketsIlliquid();
 
-        OptimizerReader reader = new OptimizerReader();
+        OptimizerReader reader = new OptimizerReader(
+            ICentralRegistry(address(liveCentralRegistry)),
+            0
+        );
         address[] memory optimizers = new address[](1);
         optimizers[0] = address(harness);
 

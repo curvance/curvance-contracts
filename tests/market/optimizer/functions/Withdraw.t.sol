@@ -351,12 +351,26 @@ contract TestLendingOptimizerWithdraw is TestBaseLendingOptimizer {
 
         optimizer.accrueIfNeeded();
         uint256 assetsToWithdraw = optimizer.maxWithdraw(user1) / 2;
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+        uint256 userSharesBefore = optimizer.balanceOf(user1);
+        uint256 optimizerAssetsBefore = IERC20(USDC_MONAD).balanceOf(address(optimizer));
+        uint256 wmonMarketSharesBefore = IERC20(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
+        uint256 wethMarketSharesBefore = IERC20(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
+        uint256 wbtcMarketSharesBefore = IERC20(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
 
         vm.prank(user2);
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
         optimizer.withdraw(assetsToWithdraw, user2, user1);
 
         assertEq(optimizer.allowance(user1, user2), 0, "allowance should remain zero");
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "total assets should roll back");
+        assertEq(optimizer.totalSupply(), totalSupplyBefore, "total supply should roll back");
+        assertEq(optimizer.balanceOf(user1), userSharesBefore, "owner shares should roll back");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(optimizer)), optimizerAssetsBefore, "optimizer idle assets should roll back");
+        assertEq(IERC20(cUSDC_WMON_MARKET).balanceOf(address(optimizer)), wmonMarketSharesBefore, "WMON market shares should roll back");
+        assertEq(IERC20(cUSDC_WETH_MARKET).balanceOf(address(optimizer)), wethMarketSharesBefore, "WETH market shares should roll back");
+        assertEq(IERC20(cUSDC_WBTC_MARKET).balanceOf(address(optimizer)), wbtcMarketSharesBefore, "WBTC market shares should roll back");
         assertEq(IERC20(USDC_MONAD).balanceOf(user2), 0, "unapproved caller should receive no assets");
     }
 

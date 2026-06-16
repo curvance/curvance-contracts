@@ -11,12 +11,12 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title Economic Attack & Privilege Escalation Audit
-/// @notice PoC tests for economic attack vectors, privilege escalation,
+/// @title Economic Boundary Regression Tests
+/// @notice Regression tests for economic attack vectors, privilege escalation,
 ///         and state manipulation in LendingOptimizer.
-/// @dev Auditor 3 - Focus areas: harvester abuse, fee manipulation,
+/// @dev Focus areas: harvester abuse, fee manipulation,
 ///      griefing, exchange rate manipulation, and unauthorized value extraction.
-contract EconomicAttackAudit is TestBaseLendingOptimizer {
+contract EconomicBoundaryRegression is TestBaseLendingOptimizer {
 
     LendingOptimizerHarness harness;
 

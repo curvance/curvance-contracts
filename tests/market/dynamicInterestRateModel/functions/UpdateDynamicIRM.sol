@@ -147,6 +147,53 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
         );
     }
 
+    function test_updateDynamicIRM_accruesLinkedTokenBeforeConfigMutation() public {
+        uint256 staleDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 snapshotId = vm.snapshotState();
+
+        borrowableCUSDC.accrueIfNeeded();
+        uint256 expectedDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 expectedTotalAssets = borrowableCUSDC.totalAssets();
+
+        assertGt(expectedDebt, staleDebt, "setup should have pending borrow interest");
+        assertTrue(
+            vm.revertToState(snapshotId),
+            "failed to restore pre-update irm state"
+        );
+
+        (uint64 oldBaseRatePerSecond,,,,,,,,) =
+            BorrowableCTokenIRM.ratesConfig();
+
+        BorrowableCTokenIRM.updateDynamicIRM(
+            1500,
+            1500,
+            5500,
+            1000,
+            150,
+            100000,
+            true
+        );
+
+        (uint64 newBaseRatePerSecond,,,,,,,,) =
+            BorrowableCTokenIRM.ratesConfig();
+
+        assertEq(
+            borrowableCUSDC.marketOutstandingDebt(),
+            expectedDebt,
+            "linked cToken debt should accrue before irm config mutation"
+        );
+        assertEq(
+            borrowableCUSDC.totalAssets(),
+            expectedTotalAssets,
+            "linked cToken assets should accrue before irm config mutation"
+        );
+        assertNotEq(
+            newBaseRatePerSecond,
+            oldBaseRatePerSecond,
+            "irm config should still update after linked cToken accrual"
+        );
+    }
+
     function test_updateDynamicIRM_clampsVertexMultiplier_whenLoweringMax_withoutReset() public {
         // Increase utilization and push the multiplier above 1x
         uint256 adjustmentRate = BorrowableCTokenIRM.ADJUSTMENT_RATE();
@@ -194,7 +241,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
         );
     }
 
-    function test_DynamicIRM_threshold_resolution_audit1() public {
+    function test_DynamicIRM_thresholdResolution_rejectsInvalidMultiplierMax() public {
             vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,

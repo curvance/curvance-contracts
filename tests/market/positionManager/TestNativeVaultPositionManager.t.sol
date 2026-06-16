@@ -136,6 +136,46 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_Leverage_fail_whenExpectedSharesTooHigh_NoSwaps() public {
+        _setUpSHMON_WMON_Market();
+
+        deal(SHMON_ADDRESS, user1, 500e18);
+        vm.startPrank(user1);
+        IERC20(SHMON_ADDRESS).approve(address(simpleCSHMON), type(uint256).max);
+        uint256 depositShares = 500e18;
+        simpleCSHMON.deposit(depositShares, user1);
+        simpleCSHMON.postCollateral(depositShares);
+
+        borrowableCWMON.borrow(1 ether, user1);
+
+        uint256 amountForLeverage =
+            _maxRemainingLeverageOfHelper(user1, address(borrowableCWMON)) / 2;
+
+        NativeVaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCWMON));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSHMON));
+        leverageAction.expectedShares =
+            IVault(SHMON_ADDRESS).previewDeposit(amountForLeverage) + 1;
+
+        AccountSnapshot memory debtBefore = borrowableCWMON.getSnapshot(user1);
+        AccountSnapshot memory collBefore = simpleCSHMON.getSnapshot(user1);
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidSlippage.selector
+        );
+        positionManager.leverage(leverageAction, 0.5e18);
+
+        AccountSnapshot memory debtAfter = borrowableCWMON.getSnapshot(user1);
+        AccountSnapshot memory collAfter = simpleCSHMON.getSnapshot(user1);
+        assertEq(debtAfter.debtBalance, debtBefore.debtBalance);
+        assertEq(collAfter.collateralPosted, collBefore.collateralPosted);
+        _assertNativeVaultPositionManagerMonadHasNoResidue();
+
+        vm.stopPrank();
+    }
+
     function testDepositAndLeverage_BorrowedWrappedNative() public {
         _setUpSHMON_WMON_Market();
 

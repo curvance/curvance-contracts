@@ -530,6 +530,28 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
     }
 
+    function test_fail_FutureDatedPrice() public {
+
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            address(mockEthxUsdPriceFeed),
+            0,
+            "ETHx"
+        );
+
+        mockEthxUsdPriceFeed.updateRoundData(
+            100e8,
+            block.timestamp + 1,
+            block.timestamp + 1
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+    }
+
     function test_fail_ZeroPrice() public {
 
         redstoneClassicAdaptor.addAsset(

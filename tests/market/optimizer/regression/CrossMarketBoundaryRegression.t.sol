@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { TestBaseLendingOptimizer } from "./TestBaseLendingOptimizer.sol";
+import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
-import { LendingOptimizerHarness } from "./LendingOptimizerHarness.sol";
+import { LendingOptimizerHarness } from "../LendingOptimizerHarness.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { console2 } from "forge-std/console2.sol";
 
-/// @title Cross-Market Exploit & Fee Gaming Tests for LendingOptimizer
+/// @title Cross-Market Boundary & Fee Defense Tests for LendingOptimizer
 /// @notice Tests cross-market value extraction, fee dilution, bad debt timing,
 ///         cap bypass, and multi-user interaction attacks.
 /// @dev All tests should demonstrate the contract is resistant to these attacks.
-contract TestCrossMarketExploit is TestBaseLendingOptimizer {
+contract CrossMarketBoundaryRegression is TestBaseLendingOptimizer {
 
     address attacker = address(0xBAD);
 

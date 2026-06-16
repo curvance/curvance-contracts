@@ -306,6 +306,62 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         );
     }
 
+    function testSwapAndDeposit_SwapOutputIgnoresPreExistingUnderlyingResidue()
+        public
+    {
+        uint256 residue = 25e6;
+        _prepareUSDC(address(optimizerZapper), residue);
+
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = SwapperLib.native;
+        swapAction.inputAmount = ethAmount;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _WETH_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(optimizerZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = ethAmount;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector, params
+        );
+
+        uint256 userSharesBefore = optimizer.balanceOf(user1);
+
+        vm.prank(user1);
+        uint256 shares = optimizerZapper.swapAndDeposit{value: ethAmount}(
+            address(optimizer), false, swapAction, 1, user1
+        );
+
+        assertGt(shares, 0, "swap should mint optimizer shares");
+        assertEq(
+            optimizer.balanceOf(user1) - userSharesBefore,
+            shares,
+            "user share delta should match returned shares"
+        );
+        assertEq(
+            usdc.balanceOf(address(optimizerZapper)),
+            residue,
+            "pre-existing swap-output residue should not be deposited"
+        );
+        assertEq(address(optimizerZapper).balance, 0, "native residue");
+        assertEq(dai.balanceOf(address(optimizerZapper)), 0, "DAI residue");
+        assertEq(weth.balanceOf(address(optimizerZapper)), 0, "WETH residue");
+        assertEq(
+            optimizer.balanceOf(address(optimizerZapper)),
+            0,
+            "optimizer share residue"
+        );
+    }
+
     function testSwapAndDeposit_NoSwap_WrappedNativeInput() public {
         uint256 amount = 3 ether;
         vm.deal(user1, amount);

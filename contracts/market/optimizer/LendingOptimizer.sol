@@ -723,13 +723,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     }
 
     /// @notice Adds a new approved market for allocation.
-    /// @dev Requires market permissions. The cToken must have matching
+    /// @dev Requires elevated permissions. The cToken must have matching
     ///      underlying asset and a registered market manager. Max 8 markets.
     /// @param newAsset Address of the cToken market to add.
     /// @param capBps Allocation cap in BPS. Stored as WAD internally.
     function addApprovedAsset(address newAsset, uint256 capBps) external nonReentrant {
-        // Revert if the caller does not have market permissions.
-        _hasMarketPermissions();
+        // Revert if the caller does not have elevated permissions.
+        _hasElevatedPermissions();
 
         // Revert if the new asset address is zero.
         if (newAsset == address(0)) revert LendingOptimizer__InvalidParameter();
@@ -1063,10 +1063,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
         // Track the actual recoverable value of shares received, not the input amount.
         // cToken share math involves two rounding operations (assets→shares, shares→assets)
-        // which can cause a 1 wei difference between input and recoverable value.
-        // Using convertToAssets ensures _totalAssets stays in sync with what
-        // _accrueMarkets() reports.
+        // which can cause a small difference between input and recoverable value.
         trackedAssets = cToken_.convertToAssets(cToken_.deposit(assets, address(this)));
+        if (trackedAssets > assets) revert LendingOptimizer__AssetMismatch();
 
         // Remove any residual approval for USDT-like token compatibility.
         SwapperLib._removeApprovalIfNeeded(address(_asset), cToken);
@@ -1488,6 +1487,11 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     function _hasRebalancePermissions() internal view {
         if (!centralRegistry.hasHarvestPermissions(msg.sender) &&
             !centralRegistry.hasMarketPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
+    }
+
+    /// @dev Checks if caller has elevated permissions.
+    function _hasElevatedPermissions() internal view {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) revert LendingOptimizer__Unauthorized();
     }
 
     /// @dev Checks if caller has market permissions.

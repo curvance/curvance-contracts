@@ -521,6 +521,59 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         );
     }
 
+    function testFuzz_lendingOptimizer_deposit_neverOvercreditsTrackedAssets(uint256 depositAmount) public {
+        depositAmount = bound(depositAmount, 1e6, 10_000_000e6);
+
+        deal(USDC_MONAD, user1, depositAmount, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        optimizer.deposit(depositAmount, user1);
+        uint256 trackedIncrease = optimizer.totalAssets() - totalAssetsBefore;
+
+        assertLe(trackedIncrease, depositAmount, "deposit must not overcredit tracked assets");
+
+        vm.stopPrank();
+    }
+
+    function test_lendingOptimizer_depositToMarket_revertsWhenMarketOvercreditsTrackedAssets() public {
+        uint256 depositAmount = 1_000e6;
+        uint256 cTokenShares = depositAmount;
+        address overcreditingMarket = makeAddr("overcreditingMarket");
+
+        vm.mockCall(
+            overcreditingMarket,
+            abi.encodeWithSelector(
+                IBorrowableCToken.deposit.selector,
+                depositAmount,
+                address(optimizer)
+            ),
+            abi.encode(cTokenShares)
+        );
+        vm.mockCall(
+            overcreditingMarket,
+            abi.encodeWithSelector(
+                IBorrowableCToken.convertToAssets.selector,
+                cTokenShares
+            ),
+            abi.encode(depositAmount + 1)
+        );
+
+        deal(USDC_MONAD, user1, depositAmount, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount,
+            user1,
+            overcreditingMarket
+        );
+
+        vm.stopPrank();
+    }
+
     function test_lendingOptimizer_deposit_reverts_zeroAmount() public {
         _setUpOneMarket();
         vm.startPrank(user1);
