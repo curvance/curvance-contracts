@@ -699,6 +699,15 @@ contract OracleManager is IOracleManager {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshotUpdated(account);
 
+            // Isolated market account lists can retain closed positions.
+            // Zero-exposure rows have no liquidity weight to price.
+            if (
+                snapshots[i].collateralPosted == 0 &&
+                snapshots[i].debtBalance == 0
+            ) {
+                continue;
+            }
+
             if (snapshots[i].isCollateral) {
                 // If the asset is being used as collateral the users liquidity is
                 // priced in shares using _getPrice multiplied by exchange rate.

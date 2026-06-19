@@ -158,6 +158,18 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         );
     }
 
+    function testPythAdaptorDeployment_revertsWhenUniversalBalanceUnderlyingMismatch()
+        public
+    {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        new MockPythAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            address(nativeUniversalBalance),
+            _PYTH_ADDRESS,
+            _USDC_ADDRESS
+        );
+    }
+
     function testCTokenMintMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);

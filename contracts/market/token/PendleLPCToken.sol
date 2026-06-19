@@ -123,7 +123,7 @@ contract PendleLPCToken is StrategyCToken {
     ///               vault yield.
     function harvest(
         bytes calldata data
-    ) external override returns (uint256 yield) {
+    ) external override nonReentrant returns (uint256 yield) {
         // Checks whether the caller can harvest strategy yield.
         _canHarvest();
 

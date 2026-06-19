@@ -47,6 +47,8 @@ interface IOracleManager {
     /// @param assets An array of asset addresses to retrieve the prices for.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
+    /// @dev Zero-collateral and zero-debt rows are returned without oracle
+    ///      validation and keep their price entry at zero.
     /// @return AccountSnapshot[] Contains `assets` data for `account`
     /// @return uint256[] Contains prices for `assets`.
     /// @return uint256 The number of assets `account` is in.

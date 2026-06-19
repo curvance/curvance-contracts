@@ -72,6 +72,14 @@ contract PythAdaptor is BaseOracleAdaptor {
         address pyth_,
         address wNative
     ) BaseOracleAdaptor(cr, "PythAdaptor") {
+        if (
+            nativeUniversalBalance_ != address(0) &&
+            NativeUniversalBalance(payable(nativeUniversalBalance_))
+                .underlying() != wNative
+        ) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
         nativeUniversalBalance = nativeUniversalBalance_;
         pyth = pyth_;
         wrappedNative = wNative;

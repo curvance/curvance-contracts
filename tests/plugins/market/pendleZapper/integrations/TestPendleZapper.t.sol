@@ -9,6 +9,9 @@ import {
 } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import {IPMarket} from "contracts/interfaces/external/pendle/IPMarket.sol";
 import {
+    IStandardizedYield
+} from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
+import {
     PendleZapperMinimal
 } from "contracts/plugins/market/PendleZapperMinimal.sol";
 import {PendleZapper} from "contracts/plugins/market/PendleZapper.sol";
@@ -1607,6 +1610,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     }
 
     function _assertZapperCleanAfterEnter() internal view {
+        (IStandardizedYield sy,, ) = IPMarket(_PENDLE_LP_STETH).readTokens();
+
         assertEq(address(pendleZapper).balance, 0);
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(pendleZapper)), 0);
         assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
@@ -1615,11 +1620,26 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 .balanceOf(address(pendleZapper)),
             0
         );
+        assertEq(
+            IERC20(_WETH_ADDRESS).allowance(address(pendleZapper), address(sy)),
+            0,
+            "zapper MUST clear SY input approval"
+        );
+        assertEq(
+            IERC20(address(sy)).allowance(address(pendleZapper), _PENDLE_ROUTER),
+            0,
+            "zapper MUST clear Pendle router SY approval"
+        );
     }
 
     function _assertZapperCleanAfterExit() internal view {
         assertEq(IERC20(_PENDLE_LP_STETH).balanceOf(address(pendleZapper)), 0);
         assertLe(IERC20(_STETH).balanceOf(address(pendleZapper)), 1);
+        assertEq(
+            IERC20(_PENDLE_LP_STETH).allowance(address(pendleZapper), _PENDLE_ROUTER),
+            0,
+            "zapper MUST clear Pendle router LP approval"
+        );
     }
 
     function _enterPendleThroughSwapper() internal returns (uint256 shares) {

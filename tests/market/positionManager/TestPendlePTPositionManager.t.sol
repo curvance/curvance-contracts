@@ -1795,6 +1795,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             0,
             "zapper MUST hold no residual cPT shares"
         );
+        assertEq(
+            IERC20(_WSTETH).allowance(address(zapper), address(_ROUTER)),
+            0,
+            "zapper MUST clear Pendle router input approval"
+        );
     }
 
     function testRevert_PendleZapperMinimal_EnterPendle_PT_ExpectedSharesTooHighRollsBack()
@@ -2027,6 +2032,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             cPendlePTSTETH.balanceOf(address(zapper)),
             0,
             "zapper MUST retain no cPT shares"
+        );
+        assertEq(
+            IERC20(_WSTETH).allowance(address(zapper), address(_ROUTER)),
+            0,
+            "zapper MUST clear Pendle router input approval"
         );
     }
 

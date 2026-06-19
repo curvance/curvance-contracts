@@ -104,7 +104,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
-        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__PriceError.selector);
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canBorrow(
             address(borrowableCUSDC),

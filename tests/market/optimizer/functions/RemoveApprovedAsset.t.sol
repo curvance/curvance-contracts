@@ -674,13 +674,28 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         LendingOptimizerHarness(address(optimizer)).depositToMarket(10_000e6, address(this), cUSDC_WBTC_MARKET);
 
         address dao = liveCentralRegistry.daoAddress();
+        address dustDonor = address(0xD057);
+        assertNotEq(dustDonor, dao, "dust donor should not be DAO");
+
         uint256 daoSharesBefore = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(dao);
         uint256 donatedShares = 1;
+        IERC20(cUSDC_WETH_MARKET).transfer(dustDonor, donatedShares);
+        uint256 daoSharesAfterDonation = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(dao);
+        assertEq(
+            daoSharesAfterDonation,
+            daoSharesBefore - donatedShares,
+            "test setup should debit DAO before third-party dust donation"
+        );
+
+        vm.prank(dustDonor);
         IERC20(cUSDC_WETH_MARKET).transfer(address(optimizer), donatedShares);
+
+        uint256 sharesToSweep = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
+        assertEq(sharesToSweep, donatedShares, "test setup should isolate donated cToken dust");
 
         vm.mockCall(
             cUSDC_WETH_MARKET,
-            abi.encodeWithSelector(IBorrowableCToken.convertToAssets.selector, donatedShares),
+            abi.encodeWithSelector(IBorrowableCToken.convertToAssets.selector),
             abi.encode(0)
         );
 
@@ -699,7 +714,7 @@ contract TestLendingOptimizerRemoveApprovedAsset is TestBaseLendingOptimizer {
         );
         assertEq(
             IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(dao),
-            daoSharesBefore,
+            daoSharesAfterDonation + sharesToSweep,
             "Zero-asset cToken dust should be swept to DAO"
         );
         assertEq(optimizer.numApprovedMarkets(), 2, "Should remove market after sweeping dust");

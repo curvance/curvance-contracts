@@ -92,6 +92,10 @@ library PendleLib {
                 action.input,
                 action.limit
             );
+            SwapperLib._removeApprovalIfNeeded(
+                action.input.tokenIn,
+                address(router)
+            );
         } else {
             if (market != pendleToken) {
                 revert PendleLib__InvalidMarket();
@@ -127,6 +131,7 @@ library PendleLib {
                             balance
                         );
                         sy.deposit(address(this), token, balance, 0);
+                        SwapperLib._removeApprovalIfNeeded(token, address(sy));
                     }
                 }
             }
@@ -143,6 +148,7 @@ library PendleLib {
                 action.approx,
                 action.limit
             );
+            SwapperLib._removeApprovalIfNeeded(address(sy), router);
         }
     }
 
@@ -214,6 +220,7 @@ library PendleLib {
                     action.limit
                 );
             }
+            SwapperLib._removeApprovalIfNeeded(pendleToken, router);
         } else {
             SwapperLib._approveIfNeeded(market, router, amount);
 
@@ -225,6 +232,7 @@ library PendleLib {
                     0,
                     action.limit
                 );
+            SwapperLib._removeApprovalIfNeeded(market, router);
 
             (IStandardizedYield sy,, ) = IPMarket(market).readTokens();
             sy.redeem(address(this), balance, pendleToken, minOutAmount, false);

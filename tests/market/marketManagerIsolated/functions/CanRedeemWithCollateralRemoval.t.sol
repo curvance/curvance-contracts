@@ -5,7 +5,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { CAUTION } from "contracts/libraries/ConstantsLib.sol";
+import { BAD_SOURCE, CAUTION } from "contracts/libraries/ConstantsLib.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import "forge-std/console.sol";
 
@@ -176,6 +176,87 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
         vm.prank(address(borrowableCDAI));
         _canRedeemBorrowableCDAIWithCollateralRemoval(1000e18, balance, collateral, true);
+    }
+
+    function test_canRedeemWithCollateralRemoval_success_whenZeroDebtAssetOracleIsStale()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        _prepareDAI(user1, 2000e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(250e6, user1);
+        skip(20 minutes);
+        borrowableCUSDC.accrueIfNeeded();
+        _prepareUSDC(user1, borrowableCUSDC.debtBalance(user1));
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
+        borrowableCUSDC.repay(0);
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(user1), 0, "debt should be fully repaid");
+
+        address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
+        assertEq(accountAssets.length, 2, "zero-debt asset remains in position list");
+        assertEq(accountAssets[1], address(borrowableCUSDC), "stale debt asset should remain listed");
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, true);
+        assertEq(errorCode, BAD_SOURCE, "test setup should make zero-debt asset stale");
+
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        (uint256 accountCollateral, uint256 maxDebt, uint256 accountDebt) =
+            marketManagerIsolated.statusOf(user1);
+        assertGt(accountCollateral, 0, "live collateral should still be priced");
+        assertGt(maxDebt, 0, "live collateral should provide borrow capacity");
+        assertEq(accountDebt, 0, "zero-debt stale asset should not add debt");
+
+        vm.prank(user1);
+        borrowableCDAI.redeemCollateral(collateral, user1, user1);
+
+        assertEq(borrowableCDAI.collateralPosted(user1), 0);
+    }
+
+    function test_canRedeemWithCollateralRemoval_fail_whenLiveDebtAssetOracleIsStale()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        _prepareDAI(user1, 2000e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(250e6, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+        _refreshMockFeeds();
+        borrowableCUSDC.accrueIfNeeded();
+
+        assertGt(borrowableCUSDC.debtBalance(user1), 0, "debt should be live");
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(errorCode, BAD_SOURCE, "test setup should make live debt stale");
+
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        vm.prank(user1);
+        borrowableCDAI.redeemCollateral(collateral, user1, user1);
     }
 
     function test_canRedeemWithCollateralRemoval_success_withCollateralRemoved()
