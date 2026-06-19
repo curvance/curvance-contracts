@@ -6,6 +6,7 @@ import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
@@ -784,8 +785,11 @@ contract MessagingHub is QueryResponse {
         // Calculate the fee tokens that should stay on this chain by querying
         // this chains lock points directly and adjusting versus all remote
         // chains.
-        uint256 feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
-            currentChainId) / WAD;
+        uint256 feeTokensForChain = FixedPointMathLib.fullMulDiv(
+            feeTokensHeld,
+            currentChainId,
+            totalPoints
+        );
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
@@ -804,9 +808,11 @@ contract MessagingHub is QueryResponse {
             config = _chainConfig(currentChainId);
 
             // Calculate fees for current foreign Chain ID.
-            feeTokensForChain =
-                (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
-                WAD;
+            feeTokensForChain = FixedPointMathLib.fullMulDiv(
+                feeTokensHeld,
+                chainPoints[i],
+                totalPoints
+            );
 
             // If there are no rewards for this chain we can record epoch
             // rewards of 0 without sending any fee tokens.

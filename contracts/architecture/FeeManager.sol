@@ -118,6 +118,8 @@ contract FeeManager is ReentrancyGuard {
 
     /// @notice Performs multiple token swaps in a single transaction, converting
     ///      the provided tokens to fee token on behalf of Curvance DAO.
+    /// @dev V1 reward-token configuration is ERC20-only (e.g. USDC); native
+    ///      balance held here is reserved for cross-chain gas operations.
     /// @param data Encoded swap data containing the details of each swap.
     /// @param tokens An array of token addresses corresponding to
     ///               the swap data, specifying the tokens to be swapped.

@@ -46,6 +46,19 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         assertGt(price, 0);
     }
 
+    function testAddAssetZeroHeartbeatStoresDefault() public {
+        address asset = address(0xBEEF);
+        DIAAdaptor.AssetConfig memory data;
+        data.isConfigured = true;
+        data.decimals = 8;
+        data.key = "BTC/USD";
+
+        adaptor.addAsset(asset, true, data);
+
+        (,, uint256 heartbeat,) = adaptor.assetConfig(asset, true);
+        assertEq(heartbeat, adaptor.DEFAULT_HEARTBEAT());
+    }
+
     function testRevertAddAsset__ZeroAddress() public {
         DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;

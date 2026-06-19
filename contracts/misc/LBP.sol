@@ -362,16 +362,29 @@ contract LBP {
 
     /// @notice Returns the current LBP price based on current commitments.
     function priceAt(uint256 amount) public view returns (uint256 price) {
+        uint256 _softCap = softCap();
+        uint256 _hardCap = hardCap();
+
+        if (paymentTokenDecimals < 18) {
+            uint256 scalar = 10 ** (18 - paymentTokenDecimals);
+            uint256 hardCapRaw = _hardCap / scalar;
+            if (_hardCap % scalar != 0) {
+                ++hardCapRaw;
+            }
+
+            if (amount >= hardCapRaw) {
+                return hardPriceInpaymentToken;
+            }
+        }
+
         // Adjust decimals between paymentTokenDecimals,
         // and default 18 decimals of softCap().
         amount = _adjustDecimals(amount, paymentTokenDecimals, 18);
 
-        uint256 _softCap = softCap();
         if (amount < _softCap) {
             return softPriceInpaymentToken;
         }
 
-        uint256 _hardCap = hardCap();
         if (amount >= _hardCap) {
             return hardPriceInpaymentToken;
         }

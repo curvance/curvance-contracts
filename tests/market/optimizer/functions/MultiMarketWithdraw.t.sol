@@ -275,10 +275,10 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
-    // ============ ERC4626 Invariant: withdraw(maxWithdraw(owner)) Never Reverts ============
+    // ============ Optimizer Full Exit Invariant: redeem(maxRedeem(owner)) Never Reverts ============
 
-    /// @notice Core ERC4626 invariant — the whole point of multi-market withdrawal.
-    function test_multiMarketWithdraw_erc4626Invariant_neverReverts() public {
+    /// @notice Core 4626-like full-exit invariant: use redeem(maxRedeem) for full exits.
+    function test_multiMarketWithdraw_fullExitViaMaxRedeemNeverReverts() public {
         // Spread assets across all three markets.
         _depositToMarket(user1, 20_000e6, cUSDC_WMON_MARKET);
         _depositToMarket(user1, 20_000e6, cUSDC_WBTC_MARKET);
@@ -290,9 +290,8 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         vm.startPrank(user1);
         optimizer.accrueIfNeeded();
 
-        // Use redeem(maxRedeem) instead of withdraw(maxWithdraw) because
-        // withdraw() charges extra shares for cToken rounding loss, which
-        // makes maxWithdraw slightly overestimate the withdrawable amount.
+        // withdraw() delivers exact assets and charges cToken rounding loss
+        // to the caller, so full-position exits use redeem(maxRedeem).
         uint256 maxShares = optimizer.maxRedeem(user1);
         uint256 balanceBefore = IERC20(USDC_MONAD).balanceOf(user1);
 
@@ -310,7 +309,33 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
-    /// @notice Core ERC4626 invariant for redeem — `redeem(maxRedeem(owner))` never reverts.
+    /// @notice Documents the 4626-like carveout: maxWithdraw can overestimate by cToken rounding loss.
+    function test_multiMarketWithdraw_maxWithdrawCanOverestimateDueToCTokenRounding() public {
+        _depositToMarket(user1, 20_000e6, cUSDC_WMON_MARKET);
+        _depositToMarket(user1, 20_000e6, cUSDC_WBTC_MARKET);
+        _depositToMarket(user1, 20_000e6, cUSDC_WETH_MARKET);
+
+        skip(7 days);
+
+        vm.startPrank(user1);
+        optimizer.accrueIfNeeded();
+
+        uint256 maxAssets = optimizer.maxWithdraw(user1);
+        uint256 maxShares = optimizer.maxRedeem(user1);
+        assertGt(maxAssets, 0, "maxWithdraw should report assets");
+        assertGt(maxShares, 0, "maxRedeem should report shares");
+
+        vm.expectRevert();
+        optimizer.withdraw(maxAssets, user1, user1);
+
+        uint256 assets = optimizer.redeem(maxShares, user1, user1);
+        assertGt(assets, 0, "redeem(maxRedeem) should still exit");
+        assertEq(optimizer.balanceOf(user1), 0, "redeem(maxRedeem) should burn all shares");
+
+        vm.stopPrank();
+    }
+
+    /// @notice Core 4626-like invariant for redeem: `redeem(maxRedeem(owner))` never reverts.
     function test_multiMarketWithdraw_erc4626Invariant_redeemNeverReverts() public {
         _depositToMarket(user1, 20_000e6, cUSDC_WMON_MARKET);
         _depositToMarket(user1, 20_000e6, cUSDC_WBTC_MARKET);
@@ -648,8 +673,8 @@ contract TestMultiMarketWithdraw is TestBaseLendingOptimizer {
         assertGe(rateAfterYield, rateAfterFirst, "Rate should not decrease after yield vests");
 
         // Full multi-market redeem should still work.
-        // Use redeem(maxRedeem) instead of withdraw(maxWithdraw) because
-        // withdraw() charges extra shares for cToken rounding loss.
+        // withdraw() delivers exact assets and charges cToken rounding loss
+        // to the caller, so full-position exits use redeem(maxRedeem).
         optimizer.accrueIfNeeded();
         uint256 maxShares = optimizer.maxRedeem(user1);
         uint256 balanceBefore = IERC20(USDC_MONAD).balanceOf(user1);

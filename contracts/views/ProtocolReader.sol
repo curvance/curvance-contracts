@@ -506,6 +506,8 @@ contract ProtocolReader {
     ) external view returns (uint256, uint256, bool, bool) {
         IMarketManager mm = _marketManager(cTokenModified);
 
+        // Production ProtocolManager markets use borrowable cTokens here;
+        // non-borrowable SimpleCToken collateral is not a V1 deployment path.
         // Make sure they are not trying to hypothetically redeem
         // a token they are borrowing, not trying to redeem 0 shares, or
         // redeem an unlisted token.

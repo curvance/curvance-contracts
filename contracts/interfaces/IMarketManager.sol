@@ -76,24 +76,26 @@ interface IMarketManager {
     ///         of `cToken`.
     /// @param cToken The address of the Curvance token to return
     ///               liquidation configuration of.
+    /// @dev Base/min/max liquidation incentives are stored BPS multipliers
+    ///      (`BPS + premium`). Curves and close factors are raw BPS.
     /// @return The base ratio at which this token will be
     ///         compensated on soft liquidation.
     /// @return The liquidation incentive curve length between soft
-    ///         liquidation to hard liquidation, in `WAD`. e.g. 5% base
+    ///         liquidation to hard liquidation, in `BPS`. e.g. 5% base
     ///         incentive with 8% curve length results in 13% liquidation
     ///         incentive on hard liquidation.
     /// @return The minimum possible liquidation incentive for during an
-    ///         auction, in `WAD`.
+    ///         auction, in `BPS`.
     /// @return The maximum possible liquidation incentive for during an
-    ///         auction, in `WAD`.
+    ///         auction, in `BPS`.
     /// @return Maximum % that a liquidator can repay when soft
-    ///         liquidating an account, in `WAD`.
+    ///         liquidating an account, in `BPS`.
     /// @return Curve length between soft liquidation and hard liquidation,
-    ///         should be equal to 100% - `closeFactorBase`, in `WAD`.
+    ///         should be equal to 100% - `closeFactorBase`, in `BPS`.
     /// @return The minimum possible close factor for during an auction,
-    ///         in `WAD`.
+    ///         in `BPS`.
     /// @return The maximum possible close factor for during an auction,
-    ///         in `WAD`.
+    ///         in `BPS`.
     function liquidationConfig(address cToken) external view returns (
         uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
     );
@@ -104,8 +106,11 @@ interface IMarketManager {
     ///      liquidations uses the default risk parameters.
     /// @param cToken The Curvance token to configure liquidations for during
     ///               an auction-based liquidation.
-    /// @param incentive The auction liquidation incentive value, in `BPS`.
-    /// @param closeFactor The auction close factor value, in `BPS`.
+    /// @param incentive The auction liquidation incentive stored BPS
+    ///                  multiplier (`BPS + premium`), or 0 to use
+    ///                  protocol-derived values.
+    /// @param closeFactor The auction close factor value, in raw `BPS`, or
+    ///                    0 to use protocol-derived values.
     function setTransientLiquidationConfig(
         address cToken,
         uint256 incentive,

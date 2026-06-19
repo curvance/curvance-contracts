@@ -3,10 +3,12 @@ pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-/// @notice Interface for LendingOptimizer — an ERC4626 vault that allocates
-///         deposits across multiple cToken markets. Integrators needing
-///         standard ERC4626 functions (deposit, withdraw, redeem, mint,
-///         preview*, max*) can use IERC4626 directly.
+/// @notice Interface for LendingOptimizer, an ERC4626-like vault that
+///         allocates deposits across multiple cToken markets.
+/// @dev Integrators can call inherited ERC4626 selectors through IERC4626,
+///      but preview and max values are multi-market estimates, not strict
+///      ERC4626 settlement guarantees. Actual entrypoint results can differ
+///      after accrual, liquidity checks, and cToken rounding.
 interface ILendingOptimizer {
 
     /// CONSTANTS ///
