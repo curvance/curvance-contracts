@@ -245,7 +245,9 @@ library VelodromeLib {
         uint256 swapFee = IVeloPairFactory(factory).getFee(lpToken, stable);
         uint256 a;
 
-        // sAMM deposit calculation.
+        // sAMM deposit calculation. This path is intended for reachable
+        // Velodrome/Aerodrome reserve ranges; artificial uint112-maximum
+        // reserve boundaries can overflow the squared normalized reserve math.
         if (stable) {
             a =
                 (((amount0 * BPS) / (BPS - swapFee)) * WAD) /

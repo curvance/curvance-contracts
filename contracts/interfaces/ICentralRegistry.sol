@@ -137,11 +137,10 @@ interface ICentralRegistry {
     /// @notice Returns lockBoostMultiplier value, in `BPS`.
     function lockBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns swap slippage limit, in `BPS`.
+    /// @notice Returns swap slippage limit, WAD-scaled.
     function slippageLimit() external view returns (uint256);
 
-    /// @notice Returns an array of Chain IDs recorded in the Crosschain
-    ///         Protocol's Chain ID format.
+    /// @notice Returns an array of Chain IDs recorded in GETH format.
     function foreignChainIds() external view returns (uint256[] memory);
 
     /// @notice Returns an array of Curvance markets on this chain.

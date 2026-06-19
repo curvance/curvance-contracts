@@ -1096,8 +1096,11 @@ contract MarketManagerIsolated is
     ///      liquidations uses the default risk parameters.
     /// @param cToken The Curvance token to configure liquidations for during
     ///               an auction-based liquidation.
-    /// @param incentive The auction liquidation incentive value, in `BPS`.
-    /// @param closeFactor The auction close factor value, in `BPS`.
+    /// @param incentive The auction liquidation incentive stored BPS
+    ///                  multiplier (`BPS + premium`), or 0 to use
+    ///                  protocol-derived values.
+    /// @param closeFactor The auction close factor value, in raw `BPS`, or
+    ///                    0 to use protocol-derived values.
     function setTransientLiquidationConfig(
         address cToken,
         uint256 incentive,
@@ -1179,8 +1182,10 @@ contract MarketManagerIsolated is
     ///      that value is returned, 0 is returned if no set value.
     /// @return cTokenUnlocked The Curvance token unlocked for auction-based
     ///                        liquidations.
-    /// @return incentive The liquidation incentive value, in `BPS`.
-    /// @return closeFactor The close factor value, in `BPS`.
+    /// @return incentive The liquidation incentive stored BPS multiplier
+    ///                   (`BPS + premium`), or 0 if unset.
+    /// @return closeFactor The close factor value, in raw `BPS`, or 0 if
+    ///                     unset.
     function getTransientLiquidationConfig() public view returns (
         address cTokenUnlocked,
         uint256 incentive,

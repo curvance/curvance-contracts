@@ -49,9 +49,9 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      on the prices returned to the Oracle Manager by adaptors. If prices
 ///      deviate heavily, error codes can be returned.
 ///      - An error code of 1 will be triggered by a deviation between pricing
-///        adaptors of >= `cautionBound` for the corresponding asset.
+///        adaptors greater than `cautionBound` for the corresponding asset.
 ///      - An error code of 2 will be triggered by a deviation between pricing
-///        adaptors of >= `badSourceBound` for the corresponding asset.
+///        adaptors greater than `badSourceBound` for the corresponding asset.
 ///
 ///      Oracle Adaptors can be added or removed by the DAO which can change
 ///      how an asset is priced. This allows for continually improving the
@@ -193,19 +193,19 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to add a new pricing adaptor
     ///              dependency for.
     /// @param adaptor The address of the new adaptor to add dependency to.
-    /// @param badSourceBoundUSD The new maximum price deviation before a
+    /// @param badSourceBoundUSD The price deviation that must be exceeded before a
     ///                          `BAD_SOURCE` error code is returned for USD
     ///                          pricing, only used when adding a second
     ///                          adaptor dependency.
-    /// @param cautionBoundUSD The new maximum price deviation before a
+    /// @param cautionBoundUSD The price deviation that must be exceeded before a
     ///                        `CAUTION` error code is returned for USD
     ///                        pricing, only used when adding a second
     ///                        adaptor dependency.
-    /// @param badSourceBoundNative The new maximum price deviation before a
+    /// @param badSourceBoundNative The price deviation that must be exceeded before a
     ///                             `BAD_SOURCE` error code is returned for
     ///                             native pricing, only used when adding a
     ///                             second adaptor dependency.
-    /// @param cautionBoundNative The new maximum price deviation before a
+    /// @param cautionBoundNative The price deviation that must be exceeded before a
     ///                           `CAUTION` error code is returned for native
     ///                           pricing, only used when adding a second
     ///                           adaptor dependency.
@@ -249,19 +249,19 @@ contract OracleManager is IOracleManager {
     ///                        from.
     /// @param adaptorToAdd The address of the new adaptor to add dependency
     ///                     to.
-    /// @param badSourceBoundUSD The new maximum price deviation before a
+    /// @param badSourceBoundUSD The price deviation that must be exceeded before a
     ///                          `BAD_SOURCE` error code is returned for USD
     ///                          pricing, only used when replacing a second
     ///                          adaptor dependency.
-    /// @param cautionBoundUSD The new maximum price deviation before a
+    /// @param cautionBoundUSD The price deviation that must be exceeded before a
     ///                        `CAUTION` error code is returned for USD
     ///                        pricing, only used when replacing a second
     ///                        adaptor dependency.
-    /// @param badSourceBoundNative The new maximum price deviation before a
+    /// @param badSourceBoundNative The price deviation that must be exceeded before a
     ///                             `BAD_SOURCE` error code is returned for
     ///                             native pricing, only used when replacing a
     ///                             second adaptor dependency.
-    /// @param cautionBoundNative The new maximum price deviation before a
+    /// @param cautionBoundNative The price deviation that must be exceeded before a
     ///                           `CAUTION` error code is returned for native
     ///                           pricing, only used when replacing a second
     ///                           adaptor dependency.
@@ -459,23 +459,23 @@ contract OracleManager is IOracleManager {
         delete isApprovedAdaptor[adaptorToRemove];
     }
 
-    /// @notice Sets new maximum deviation bound values for pricing adaptors
-    ///         before `CAUTION` or `BAD_SOURCE` error codes are activated
-    ///         for `asset`.
+    /// @notice Sets new deviation bound values for pricing adaptors that must
+    ///         be exceeded before `CAUTION` or `BAD_SOURCE` error codes are
+    ///         activated for `asset`.
     /// @dev Only allowed if there are two adaptor dependencies configured
     ///      already. Emits an {AssetDeviationBoundsSet} event.
     /// @param asset The address of the asset to set pricing deviation bound
     ///              values for.
-    /// @param badSourceBoundUSD The new maximum price deviation before a
+    /// @param badSourceBoundUSD The price deviation that must be exceeded before a
     ///                          `BAD_SOURCE` error code is returned for USD
     ///                          pricing.
-    /// @param cautionBoundUSD The new maximum price deviation before a
+    /// @param cautionBoundUSD The price deviation that must be exceeded before a
     ///                        `CAUTION` error code is returned for USD
     ///                        pricing.
-    /// @param badSourceBoundNative The new maximum price deviation before a
+    /// @param badSourceBoundNative The price deviation that must be exceeded before a
     ///                             `BAD_SOURCE` error code is returned for
     ///                             native pricing.
-    /// @param cautionBoundNative The new maximum price deviation before a
+    /// @param cautionBoundNative The price deviation that must be exceeded before a
     ///                           `CAUTION` error code is returned for native
     ///                           pricing.
     function setDeviationBounds(
@@ -698,6 +698,15 @@ contract OracleManager is IOracleManager {
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshotUpdated(account);
+
+            // Isolated market account lists can retain closed positions.
+            // Zero-exposure rows have no liquidity weight to price.
+            if (
+                snapshots[i].collateralPosted == 0 &&
+                snapshots[i].debtBalance == 0
+            ) {
+                continue;
+            }
 
             if (snapshots[i].isCollateral) {
                 // If the asset is being used as collateral the users liquidity is
@@ -1106,16 +1115,16 @@ contract OracleManager is IOracleManager {
     ///      already.
     /// @param asset The address of the asset to set pricing deviation values
     ///              for.
-    /// @param badSourceBoundUSD The new maximum price deviation before a
+    /// @param badSourceBoundUSD The price deviation that must be exceeded before a
     ///                          `BAD_SOURCE` error code is returned for USD
     ///                          pricing.
-    /// @param cautionBoundUSD The new maximum price deviation before a
+    /// @param cautionBoundUSD The price deviation that must be exceeded before a
     ///                        `CAUTION` error code is returned for USD
     ///                        pricing.
-    /// @param badSourceBoundNative The new maximum price deviation before a
+    /// @param badSourceBoundNative The price deviation that must be exceeded before a
     ///                             `BAD_SOURCE` error code is returned for
     ///                             native pricing.
-    /// @param cautionBoundNative The new maximum price deviation before a
+    /// @param cautionBoundNative The price deviation that must be exceeded before a
     ///                           `CAUTION` error code is returned for native
     ///                           pricing.
     function _setDeviationBounds(
@@ -1167,7 +1176,7 @@ contract OracleManager is IOracleManager {
     /// @notice Reviews the report prices from both pricing adaptors,
     ///         returning an appropriate error code if the deviation between
     ///         prices is significant enough.
-    /// @dev If the deviation is less than `cautionBound`, returns `NO_ERROR`.
+    /// @dev If the deviation is less than or equal to `cautionBound`, returns `NO_ERROR`.
     ///      If the deviation is more than `cautionBound` but less than
     ///      `badSourceBound`, returns `CAUTION`.
     ///      If the deviation is more than `badSourceBound`, returns

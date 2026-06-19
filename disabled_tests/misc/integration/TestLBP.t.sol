@@ -233,6 +233,31 @@ contract TestLBP is TestBaseMarketIsolated {
         assertEq(standaloneCve.balanceOf(address(sale)), 0);
     }
 
+    function test_priceAtReturnsHardPriceForOverflowSizedSixDecimalAmount() public {
+        MockToken usdc = new MockToken("USD Coin", "USDC", 6);
+        (LBP sale,) = _deployStandaloneSale(address(usdc));
+
+        assertEq(sale.priceAt(type(uint256).max), sale.hardPriceInpaymentToken());
+    }
+
+    function test_priceAtPreservesSixDecimalPricingBands() public {
+        MockToken usdc = new MockToken("USD Coin", "USDC", 6);
+        (LBP sale,) = _deployStandaloneSale(address(usdc));
+
+        uint256 scalar = 10 ** (18 - usdc.decimals());
+        uint256 softCapRaw = sale.softCap() / scalar;
+        if (sale.softCap() % scalar != 0) {
+            ++softCapRaw;
+        }
+        uint256 hardCapRaw = sale.hardCap() / scalar;
+        if (sale.hardCap() % scalar != 0) {
+            ++hardCapRaw;
+        }
+
+        assertEq(sale.priceAt(0), sale.softPriceInpaymentToken());
+        assertEq(sale.priceAt(softCapRaw - 1), sale.softPriceInpaymentToken());
+        assertEq(sale.priceAt(hardCapRaw), sale.hardPriceInpaymentToken());
+    }
     function testClaimRevertWhenPubliSaleNotStarted() public {
         vm.expectRevert(LBP.LBP__NotStarted.selector);
         lbp.claim();

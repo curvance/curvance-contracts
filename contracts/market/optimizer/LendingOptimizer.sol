@@ -28,9 +28,9 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      support, enabling users to deposit a single asset and have it
 ///      distributed across multiple Curvance lending markets (cTokens)
 ///      based on configurable allocation caps.
-///      Preview methods are estimates, not exact settlement guarantees:
+///      Preview and max methods are estimates, not exact settlement guarantees:
 ///      state-changing entrypoints accrue underlying markets before routing,
-///      so preview values can differ from actual results.
+///      and cToken rounding or liquidity can make actual results differ.
 ///      The share token is intentionally not vanilla ERC20:
 ///      zero-amount transfers and self-transfers revert, and share movement
 ///      accrues underlying market NAV before execution.
@@ -341,6 +341,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
 
     /// @notice ERC4626-like mint - mints exact shares by depositing
     ///         pro-rata across active markets.
+    /// @dev `previewMint(shares)` prices the optimizer-level share amount.
+    ///      `mint()` can require more assets because each per-market leg uses
+    ///      `previewMint(previewWithdraw(amount))` to cover cToken rounding and
+    ///      avoid undercharging existing depositors.
     /// @param shares The exact amount of shares to mint.
     /// @param receiver The address to receive the minted shares.
     /// @return assets The amount of assets deposited.
@@ -909,6 +913,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @notice Returns the maximum amount of assets that `owner` can withdraw.
     /// @dev Returns 0 when any approved market has redemptions paused.
     ///      Uses cached `_totalAssets` — accurate post-accrual.
+    ///      This is a view estimate for owner assets and market liquidity, not
+    ///      a guarantee that `withdraw(maxWithdraw(owner))` will succeed after
+    ///      cToken rounding loss. Use `redeem(maxRedeem(owner))` for full exits.
     /// @param owner The address that owns the shares.
     /// @return Maximum withdrawable assets, or 0 if withdrawals are blocked.
     function maxWithdraw(address owner) public view override returns (uint256) {

@@ -105,6 +105,8 @@ contract PendleZapperMinimalCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__OutputTokenError();
         }
 
+        // The target zapper validates `desc.outputToken` against `cToken.asset()`
+        // before swaps; this checker binds the outer cToken output.
         if (desc.minimumOut == 0) {
             revert CalldataChecker__InvalidMinOut();
         }

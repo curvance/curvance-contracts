@@ -856,6 +856,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketDebtIndex =
                 _mulDivUp(assetsToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
+            // The debt index is packed into 80 bits in _vestingData.
+            // Keep IRM launch and manager configs bounded so this index
+            // cannot approach the packing limit across deployed markets.
             // Update marketOutstandingDebt invariant with vested assets.
             marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);
             // Update _totalAssets based on new assets recognized by protocol.

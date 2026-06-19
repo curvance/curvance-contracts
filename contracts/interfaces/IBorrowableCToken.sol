@@ -252,8 +252,8 @@ interface IBorrowableCToken {
     /// @notice Address of the current Dynamic IRM.
     function IRM() external view returns (IDynamicIRM);
 
-    /// @notice Fee that goes to protocol for interested generated for
-    ///         lenders, in `WAD`.
+    /// @notice Fee that goes to protocol for interest generated for
+    ///         lenders, in `BPS`.
     function interestFee() external view returns (uint256);
 
     /// @notice Can accrue interest yield, configure next interest accrual
