@@ -107,6 +107,9 @@ abstract contract BaseWrappedAggregator is IChainlink, IRedstone {
 
     /// @notice Returns the oracle data from the aggregator for `_roundId`,
     ///         adjusted by the wrapper.
+    /// @dev Preserves the underlying aggregator round metadata, but applies
+    ///      the wrapper's current adjustment. These wrappers are intended for
+    ///      latest-price consumption, not historical round reconstruction.
     /// @param _roundId The round ID to retrieve data from the aggregator.
     /// @return roundId The round ID from the aggregator for which the data
     ///                 was retrieved.
