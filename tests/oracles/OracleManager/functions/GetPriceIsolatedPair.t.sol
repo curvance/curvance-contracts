@@ -92,6 +92,10 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
         (, uint256 errorCode) = oracleManager.getPrice(_USDC_ADDRESS, true, false);
         assertEq(errorCode, CAUTION, "test setup should put USDC in CAUTION");
 
+        // Top up after listTokens consumes the cToken base reserve.
+        _prepareUSDC(address(this), 100e6);
+        borrowableCUSDC.depositAsCollateral(100e6, address(this));
+
         address[] memory assets = new address[](1);
         assets[0] = address(borrowableCUSDC);
 
