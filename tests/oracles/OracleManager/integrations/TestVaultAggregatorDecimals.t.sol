@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { console2 } from "forge-std/console2.sol";
 import { VaultAggregator } from "contracts/oracles/adaptors/wrappedAggregators/VaultAggregator.sol";
+import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
@@ -114,6 +115,84 @@ contract TestVaultAggregatorDecimals is TestBaseOracleManager {
         vm.expectRevert();
         oracleManager.getPrice(address(vaultA), true, false);
     }
+
+    function test_checkPrice_VaultAggregatorAssetDriftBubblesBadSource()
+        public
+    {
+        VaultAggregator vaultAgg = _addVaultAggregatorSupport();
+
+        vm.mockCall(
+            address(vaultA),
+            abi.encodeWithSelector(ERC4626.asset.selector),
+            abi.encode(address(0x1234))
+        );
+
+        (, int256 directAnswer,,,) = vaultAgg.latestRoundData();
+        assertEq(directAnswer, 0);
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(address(vaultA), true, false);
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_checkPrice_VaultAggregatorAssetDriftGetRoundDataReturnsZero()
+        public
+    {
+        VaultAggregator vaultAgg = _addVaultAggregatorSupport();
+
+        (uint80 latestRoundId,,,,) = vaultAgg.latestRoundData();
+
+        vm.mockCall(
+            address(vaultA),
+            abi.encodeWithSelector(ERC4626.asset.selector),
+            abi.encode(address(0x1234))
+        );
+
+        (uint80 roundId, int256 roundAnswer,,,) = vaultAgg.getRoundData(latestRoundId);
+        assertEq(roundId, latestRoundId);
+        assertEq(roundAnswer, 0);
+    }
+
+    function test_checkPrice_VaultAggregatorAssetDriftSkipsExchangeRate()
+        public
+    {
+        VaultAggregator vaultAgg = _addVaultAggregatorSupport();
+
+        vm.mockCall(
+            address(vaultA),
+            abi.encodeWithSelector(ERC4626.asset.selector),
+            abi.encode(address(0x1234))
+        );
+        vm.mockCallRevert(
+            address(vaultA),
+            abi.encodeWithSelector(
+                ERC4626.convertToAssets.selector,
+                10 ** vaultA.decimals()
+            ),
+            abi.encode("convertToAssets should not be called")
+        );
+
+        (, int256 directAnswer,,,) = vaultAgg.latestRoundData();
+        assertEq(directAnswer, 0);
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager.getPrice(address(vaultA), true, false);
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_constructor_VaultAggregatorRejectsInvalidVaultConfig()
+        public
+    {
+        _deployVaultA();
+
+        vm.expectRevert(BaseWrappedAggregator.BaseWrappedAggregator__InvalidConfig.selector);
+        new VaultAggregator(address(vaultA), _DAI_ADDRESS, _CHAINLINK_USDC_USD, "100");
+    }
+
 
     function _deployVaultA() internal {
         console2.log("==== _deployVaultA ====");

@@ -396,20 +396,6 @@ contract OracleManager is IOracleManager {
         cTokens[newCToken] = newUnderlying;
     }
 
-    /// @notice Removes a Curvance token's support in the Oracle Manager.
-    /// @dev Requires that the Curvance token is supported.
-    /// @param cTokenToRemove The address of the Curvance token to remove
-    ///                       support for.
-    function removeCTokenSupport(address cTokenToRemove) external {
-        _checkElevatedPermissions();
-
-        // Validate `newCToken` has already been registered as a cToken.
-        if (cTokens[cTokenToRemove] == address(0)) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        delete cTokens[cTokenToRemove];
-    }
 
     /// @notice Removes adaptor approval for `adaptorToRemove`, then,
     ///         adds adaptor approval for `adaptorToAdd`.

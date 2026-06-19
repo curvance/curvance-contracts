@@ -5,10 +5,10 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";

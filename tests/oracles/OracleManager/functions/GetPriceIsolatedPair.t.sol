@@ -28,23 +28,23 @@ contract GetPriceIsolatedPairTest is TestBaseMarketIsolated {
     }
 
     function test_getPriceIsolatedPair_fail_whenCollateralTokenNotSupported() public {
-        oracleManager.removeCTokenSupport(address(borrowableCDAI));
+        address unsupportedCollateralToken = makeAddr("unsupportedCollateralToken");
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPriceIsolatedPair(
-            address(borrowableCDAI),
+            unsupportedCollateralToken,
             address(borrowableCUSDC),
             2
         );
     }
 
     function test_getPriceIsolatedPair_fail_whenDebtTokenNotSupported() public {
-        oracleManager.removeCTokenSupport(address(borrowableCUSDC));
+        address unsupportedDebtToken = makeAddr("unsupportedDebtToken");
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPriceIsolatedPair(
             address(borrowableCDAI),
-            address(borrowableCUSDC),
+            unsupportedDebtToken,
             2
         );
     }

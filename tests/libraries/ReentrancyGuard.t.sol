@@ -47,6 +47,10 @@ contract ReentrancyGuardTest is SoladyTest {
         target.countAndCall(reentrancyAttack);
     }
 
+    function testTransientGuardLockedDuringCall() external expectBeforeAfterReentrancyGuardUnlocked {
+        assertTrue(target.guardedLockStateDuringCall());
+    }
+
     function testRecursiveDirectUnguardedCall() external expectBeforeAfterReentrancyGuardUnlocked {
         // Expect to be able to call unguarded methods recursively.
         // Expect a success.

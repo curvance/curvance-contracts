@@ -42,7 +42,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     int256 internal immutable _assetDecimalPrecision;
 
     /// CONSTRUCTOR ///
-    
+
     constructor(
         address _vault,
         address _asset,
@@ -81,6 +81,10 @@ contract VaultAggregator is BaseWrappedAggregator {
     function _getExchangeRate() internal view virtual returns (
         uint256 result
     ) {
+        // Lock actions via zero answer if the vault's asset identity drifts
+        // from the feed/decimal configuration assumed by this aggregator.
+        if (ICToken(vault).asset() != asset) return 0;
+
         // Return exchange rate in `_vaultDecimalPrecision` format directly.
         result = IERC4626(vault).convertToAssets(_vaultDecimalPrecision);
     }
