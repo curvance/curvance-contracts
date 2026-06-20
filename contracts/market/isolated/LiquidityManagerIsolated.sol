@@ -396,9 +396,11 @@ abstract contract LiquidityManagerIsolated {
             snap = snapshots[i];
 
             // Generally `isCollateral` tells us if an entry is collateral or
-            // debt, but, on a fresh borrow position snapshot misreports
-            // `isCollateral` as true until its action is fully processed
-            // because debtBalance still equals 0 at getSnapshotUpdated level.
+            // debt, but on a fresh borrow, the debt row can be inserted
+            // before debtBalance is written. The zero-exposure snapshot can
+            // still report `isCollateral` as true and skip pricing in
+            // `getPricesForMarket`, so price the modified token as debt here
+            // before adding the pending borrow assets below.
             if (
                 action.cTokenModified == snap.asset && snap.isCollateral &&
                 action.borrowAssets > 0

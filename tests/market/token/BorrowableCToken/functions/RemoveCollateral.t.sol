@@ -11,10 +11,10 @@ contract RemoveCollateralTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
-        
+
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -64,17 +64,27 @@ contract RemoveCollateralTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         dai.approve(address(borrowableCDAI), 500e18);
         borrowableCDAI.depositAsCollateral(500e18, user1);
-        
+
         borrowableCUSDC.borrow(200e6, user1);
         vm.stopPrank();
 
         skip(20 minutes);
+
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
         _removeBorrowableCDAICollateral(400e18);
+
+        assertEq(borrowableCDAI.balanceOf(user1), balance);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral);
+        assertEq(borrowableCUSDC.debtBalance(user1), debt);
     }
 
     function test_borrowableCTokenRemoveCollateral_success() public {

@@ -24,7 +24,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         _prepareDAI(address(this), 77777);
         dai.approve(address(borrowableCDAI), 77777);
-        
+
         marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
 
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
@@ -50,6 +50,49 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_borrowableCTokenWithdrawByPositionManager_fail_whenTerminalCanRedeemRejectsAndRollsBack()
+        public
+    {
+        _prepareDAI(user1, 1000e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 1000e18);
+        borrowableCDAI.deposit(1000e18, user1);
+        borrowableCDAI.postCollateral(1000e18);
+        borrowableCUSDC.borrow(100e6, user1);
+        vm.stopPrank();
+
+        SwapperLib.Swap[] memory swapActions;
+        IPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        deleverageAction.swapActions = swapActions;
+
+        vm.warp(block.timestamp + 21 minutes);
+
+        uint256 userBalance = borrowableCDAI.balanceOf(user1);
+        uint256 userCollateral = borrowableCDAI.collateralPosted(user1);
+        uint256 marketCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 userDai = dai.balanceOf(user1);
+        uint256 pmDai = dai.balanceOf(address(mockPositionManager));
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(address(mockPositionManager));
+        borrowableCDAI.withdrawByPositionManager(950e18, user1, deleverageAction);
+
+        assertEq(borrowableCDAI.balanceOf(user1), userBalance);
+        assertEq(borrowableCDAI.collateralPosted(user1), userCollateral);
+        assertEq(borrowableCDAI.marketCollateralPosted(), marketCollateral);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply);
+        assertEq(dai.balanceOf(user1), userDai);
+        assertEq(dai.balanceOf(address(mockPositionManager)), pmDai);
+        assertEq(borrowableCUSDC.debtBalance(user1), debt);
+    }
+
     function test_borrowableCTokenWithdrawByPositionManager_success() public {
         _prepareDAI(user1, 1000e18);
 
@@ -64,7 +107,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(100e6, user1);
 
         SwapperLib.Swap[] memory swapActions; // empty swap data
-        
+
         // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCDAI));
@@ -79,10 +122,10 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         vm.prank(address(mockPositionManager));
         borrowableCDAI.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageAction);
-        
+
         uint256 daiBalanceAfter = dai.balanceOf(address(mockPositionManager));
 
-        assert(daiBalanceAfter == collateralRemoveAmount);       
+        assert(daiBalanceAfter == collateralRemoveAmount);
     }
 
 }

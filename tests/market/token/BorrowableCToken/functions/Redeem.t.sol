@@ -12,10 +12,10 @@ contract RedeemTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
-        
+
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -124,11 +124,25 @@ contract RedeemTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
         _redeemBorrowableCDai(1000e18);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance);
+        assertEq(borrowableCDAI.balanceOf(user1), balance);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral);
+        assertEq(borrowableCUSDC.debtBalance(user1), debt);
     }
 
     function test_borrowableCTokenRedeem_success() public {
@@ -159,7 +173,7 @@ contract RedeemTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCDAI.approve(user2, _ONE);
         vm.stopPrank();
-        
+
         vm.startPrank(user2);
         uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
@@ -180,7 +194,7 @@ contract RedeemTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCDAI.approve(user2, type(uint256).max);
         vm.stopPrank();
-        
+
         vm.startPrank(user2);
         uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
@@ -213,15 +227,15 @@ contract RedeemTest is TestBaseMarketIsolated {
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
+
         borrowableCUSDC.accrueIfNeeded();
-        
+
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
+
         assertGt(debtAfterAccrual, 100e6);
         assertGt(debtAfterAccrual, debtBeforeAccrual);
-        
+
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
         assertEq(debtIncrease, assetsIncrease);
@@ -265,15 +279,15 @@ contract RedeemTest is TestBaseMarketIsolated {
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
+
         borrowableCUSDC.accrueIfNeeded();
-        
+
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
+
         assertGt(debtAfterAccrual, 100e6);
         assertGt(debtAfterAccrual, debtBeforeAccrual);
-        
+
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
         assertEq(debtIncrease, assetsIncrease);

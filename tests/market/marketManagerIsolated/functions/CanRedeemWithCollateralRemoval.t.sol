@@ -16,7 +16,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         super.setUp();
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -137,6 +137,87 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         );
 
         _canRedeemBorrowableCDAIWithCollateralRemoval(1999e18, balance, collateral, true);
+    }
+
+    function test_canRedeemWithCollateralRemoval_fail_fullRedeemBeforeCollateralOrAssetsMove()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        _prepareDAI(user1, 2000e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(1000e6, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 redeemShares = 1999e18;
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(user1);
+        borrowableCDAI.redeem(redeemShares, user1, user1);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance, "redeem should not transfer assets");
+        assertEq(borrowableCDAI.balanceOf(user1), balance, "cDAI balance should not change");
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral, "collateral should not be removed");
+        assertEq(borrowableCDAI.totalSupply(), totalSupply, "total supply should not change");
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "market collateral should not change");
+        assertEq(borrowableCUSDC.debtBalance(user1), debt, "debt should not change");
+    }
+
+    function test_canRedeemWithCollateralRemoval_fail_withdrawCrossesIdleIntoCollateralBeforeAssetsMove()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        _prepareDAI(user1, 2100e18);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2100e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCDAI.deposit(100e18, user1);
+        borrowableCUSDC.borrow(1000e6, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 withdrawAssets = 2099e18;
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(user1);
+        borrowableCDAI.withdraw(withdrawAssets, user1, user1);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance, "withdraw should not transfer assets");
+        assertEq(borrowableCDAI.balanceOf(user1), balance, "cDAI balance should not change");
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral, "collateral should not be removed");
+        assertEq(borrowableCDAI.totalSupply(), totalSupply, "total supply should not change");
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "market collateral should not change");
+        assertEq(borrowableCUSDC.debtBalance(user1), debt, "debt should not change");
     }
 
     function test_canRedeemWithCollateralRemoval_fail_whenCollateralOracleInCaution()
@@ -281,7 +362,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 collateral = borrowableCDAI.collateralPosted(user1);
 
         vm.startPrank(address(borrowableCDAI));
-        
+
         uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, true);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
@@ -315,7 +396,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 collateral = borrowableCDAI.collateralPosted(user1);
 
         vm.startPrank(address(borrowableCDAI));
-        
+
         uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
@@ -364,7 +445,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
         assertEq(collateralRemoved, tokensRedeemed, "Expect to remove tokensRedeemed collateral");
-        
+
     }
 
     // deposit 2000 dai as collateral
