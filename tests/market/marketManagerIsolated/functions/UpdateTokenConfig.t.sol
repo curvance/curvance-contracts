@@ -376,8 +376,15 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     function test_updateTokenConfig_fail_whenOracleManagerCannotPriceCToken() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
-        // Remove cToken support from Oracle Manager so pricing will fail.
-        oracleManager.removeCTokenSupport(address(borrowableCDAI));
+        // Remove the underlying price adaptors so cToken pricing will fail.
+        oracleManager.removeAssetPricingAdaptor(
+            _DAI_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleManager.removeAssetPricingAdaptor(
+            _DAI_ADDRESS,
+            address(dualChainlinkAdaptor)
+        );
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = address(borrowableCDAI);
