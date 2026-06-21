@@ -88,7 +88,10 @@ jobs:
           path: |
             cache
             artifacts
-          key: forge-build-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('foundry.toml', 'remappings.txt', 'foundry.lock', 'contracts/**/*.sol', 'tests/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          key: forge-build-dtl-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('foundry.toml', 'remappings.txt', 'foundry.lock', 'contracts/**/*.sol', 'tests/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            forge-build-dtl-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
+            forge-build-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
 
       - name: Restore Foundry RPC cache
         id: foundry-rpc-cache
@@ -96,6 +99,8 @@ jobs:
         with:
           path: ~/.foundry/cache/rpc
           key: foundry-rpc-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('foundry.toml', 'tests/**/*.sol') }}
+          restore-keys: |
+            foundry-rpc-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
 
       - name: Run test harness (with automatic retry after delay)
         shell: bash
@@ -103,7 +108,7 @@ jobs:
           set +e
 
           echo "Running forge tests..."
-          forge test --ffi
+          forge test --ffi --dynamic-test-linking
           EXIT_CODE=$?
 
           if [ $EXIT_CODE -ne 0 ]; then
@@ -112,7 +117,7 @@ jobs:
             sleep 180
 
             echo "Re-running failed tests..."
-            forge test --rerun --ffi
+            forge test --rerun --ffi --dynamic-test-linking
             EXIT_CODE=$?
           fi
 

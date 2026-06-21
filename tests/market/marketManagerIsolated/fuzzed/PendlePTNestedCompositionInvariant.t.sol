@@ -143,35 +143,44 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         excludeSender(address(borrowableCUSDC));
     }
 
-    function invariant_badOracleNeverAllowsBorrowValue() public view {
+    function invariant_pendlePTLaunchRiskState() public view {
+        _assert_badOracleNeverAllowsBorrowValue();
+        _assert_badOracleNeverAllowsCollateralExtraction();
+        _assert_badOracleNeverAllowsLiquidationValue();
+        _assert_pmCallbackRollbackNeverMovesValue();
+        _assert_ptCollateralAccounting();
+        _assert_debtAccounting();
+    }
+
+    function _assert_badOracleNeverAllowsBorrowValue() internal view {
         assertFalse(
             handler.badOracleBorrowMovedValue(),
             "bad oracle allowed borrow value movement"
         );
     }
 
-    function invariant_badOracleNeverAllowsCollateralExtraction() public view {
+    function _assert_badOracleNeverAllowsCollateralExtraction() internal view {
         assertFalse(
             handler.badOracleCollateralMovedValue(),
             "bad oracle allowed PT collateral extraction"
         );
     }
 
-    function invariant_badOracleNeverAllowsLiquidationValue() public view {
+    function _assert_badOracleNeverAllowsLiquidationValue() internal view {
         assertFalse(
             handler.badOracleLiquidationMovedValue(),
             "bad oracle allowed liquidation value movement"
         );
     }
 
-    function invariant_pmCallbackRollbackNeverMovesValue() public view {
+    function _assert_pmCallbackRollbackNeverMovesValue() internal view {
         assertFalse(
             handler.pmCallbackRollbackMovedValue(),
             "reverting PM callback moved value"
         );
     }
 
-    function invariant_ptCollateralAccounting() public view {
+    function _assert_ptCollateralAccounting() internal view {
         uint256 borrowerPosted = pendlePTCToken.collateralPosted(user1);
         assertLe(
             borrowerPosted,
@@ -190,7 +199,7 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         );
     }
 
-    function invariant_debtAccounting() public view {
+    function _assert_debtAccounting() internal view {
         assertEq(
             borrowableCUSDC.debtBalance(user2),
             0,

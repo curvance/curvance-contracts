@@ -108,7 +108,25 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @notice Idle underlying donations must not enter optimizer share pricing.
     /// @dev The optimizer accounts listed market positions only; direct
     ///      underlying transfers are idle excess recoverable by DAO via skim().
-    function invariant_idleUnderlyingIsUntracked() public view {
+    function invariant_lendingOptimizerState() public view {
+        _assert_idleUnderlyingIsUntracked();
+        _assert_exchangeRateGhostMatchesAccounting();
+        _assert_allocationCapsSum();
+        _assert_totalAssetsTracking();
+        _assert_unlistedOptimizerNotRegisteredAsCurvanceMarketAsset();
+        _assert_approvedMarketsRemainValidCurvanceMarkets();
+        _assert_maxWithdrawSafe();
+        _assert_maxRedeemConsistency();
+        _assert_deadSharesExist();
+        _assert_initializeDepositsIsOneShot();
+        _assert_totalSupplyConsistency();
+        _assert_totalSupplyMatchesKnownHolders();
+        _assert_actorSharesMatchGhostNetMints();
+        _assert_perMarketAccountingConsistency();
+        _assert_zeroSupplyImpliesZeroAssets();
+    }
+
+    function _assert_idleUnderlyingIsUntracked() internal view {
         assertEq(
             harness.totalAssets(),
             harness.exposed_totalAssetsIndexed(),
@@ -122,7 +140,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice Exchange rate ghost must match the current cached accounting.
-    function invariant_exchangeRateGhostMatchesAccounting() public view {
+    function _assert_exchangeRateGhostMatchesAccounting() internal view {
         uint256 supply = harness.totalSupply();
         if (supply == 0) return;
 
@@ -138,7 +156,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice Sum of all allocation caps must be >= 1e18 (100%).
-    function invariant_allocationCapsSum() public view {
+    function _assert_allocationCapsSum() internal view {
         uint256 numMarkets = harness.numApprovedMarkets();
         uint256 totalCaps;
         for (uint256 i; i < numMarkets; ++i) {
@@ -155,7 +173,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @dev Every successful mutating path either syncs `_totalAssets` to the
     ///      listed markets or updates it by the recoverable cToken value; cToken
     ///      rounding can make the listed sum conservatively exceed cached assets.
-    function invariant_totalAssetsTracking() public view {
+    function _assert_totalAssetsTracking() internal view {
         uint256 sumMarkets = _sumListedMarketAssets();
         uint256 ta = harness.totalAssets();
 
@@ -167,8 +185,8 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice This harness keeps optimizer shares out of Curvance markets.
-    function invariant_unlistedOptimizerNotRegisteredAsCurvanceMarketAsset()
-        public
+    function _assert_unlistedOptimizerNotRegisteredAsCurvanceMarketAsset()
+        internal
         view
     {
         assertEq(
@@ -191,8 +209,8 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice Approved optimizer targets must remain valid Curvance markets.
-    function invariant_approvedMarketsRemainValidCurvanceMarkets()
-        public
+    function _assert_approvedMarketsRemainValidCurvanceMarkets()
+        internal
         view
     {
         uint256 numMarkets = harness.numApprovedMarkets();
@@ -230,7 +248,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice maxWithdraw for each actor must be <= totalAssetsIndexed.
-    function invariant_maxWithdrawSafe() public view {
+    function _assert_maxWithdrawSafe() internal view {
         uint256 indexedAssets = harness.exposed_totalAssetsIndexed();
         for (uint256 i; i < actors.length; ++i) {
             uint256 mw = harness.maxWithdraw(actors[i]);
@@ -244,7 +262,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
 
     /// @notice previewRedeem(maxRedeem(user)) <= maxWithdraw(user).
     /// @dev This checks consistency between redeem and withdraw previews.
-    function invariant_maxRedeemConsistency() public view {
+    function _assert_maxRedeemConsistency() internal view {
         for (uint256 i; i < actors.length; ++i) {
             uint256 mr = harness.maxRedeem(actors[i]);
             if (mr == 0) continue;
@@ -261,7 +279,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice Dead shares at address(0) must always exist after initialization.
-    function invariant_deadSharesExist() public view {
+    function _assert_deadSharesExist() internal view {
         uint256 deadShares = harness.balanceOf(address(0));
         assertGt(
             deadShares,
@@ -271,7 +289,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice initializeDeposits must stay one-shot after setUp initialization.
-    function invariant_initializeDepositsIsOneShot() public view {
+    function _assert_initializeDepositsIsOneShot() internal view {
         assertFalse(
             handler.ghost_reinitialized(),
             "INVARIANT VIOLATED: initializeDeposits succeeded twice"
@@ -279,7 +297,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice totalSupply should be consistent: dead shares + user shares.
-    function invariant_totalSupplyConsistency() public view {
+    function _assert_totalSupplyConsistency() internal view {
         uint256 supply = harness.totalSupply();
         assertGt(
             supply,
@@ -292,7 +310,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @dev Valid holders in this harness are dead shares, the test contract
     ///      seed/DAO holder, and the fuzz actors. A mismatch means shares were
     ///      minted to an unexpected holder or totalSupply drifted from balances.
-    function invariant_totalSupplyMatchesKnownHolders() public view {
+    function _assert_totalSupplyMatchesKnownHolders() internal view {
         uint256 knownShares = harness.balanceOf(address(0))
             + harness.balanceOf(address(this)) + _sumActorShareBalances();
 
@@ -306,7 +324,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @notice Actor balances must equal successful actor mints less burns.
     /// @dev Transfers between actors preserve the actor aggregate, while DAO fee
     ///      shares accrue to the test contract and stay outside this sum.
-    function invariant_actorSharesMatchGhostNetMints() public view {
+    function _assert_actorSharesMatchGhostNetMints() internal view {
         uint256 minted = handler.ghost_totalSharesMinted();
         uint256 burned = handler.ghost_totalSharesBurned();
 
@@ -324,7 +342,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     }
 
     /// @notice Per-market balances must back the optimizer's tracked assets.
-    function invariant_perMarketAccountingConsistency() public view {
+    function _assert_perMarketAccountingConsistency() internal view {
         uint256 sumMarkets = _sumListedMarketAssets();
         if (sumMarkets == 0) return;
 
@@ -353,7 +371,7 @@ contract InvariantStateful is TestBaseLendingOptimizer {
     /// @dev After initialization, dead shares guarantee totalSupply > 0.
     ///      This invariant catches any scenario where shares are fully burned
     ///      but assets remain stranded in markets.
-    function invariant_zeroSupplyImpliesZeroAssets() public view {
+    function _assert_zeroSupplyImpliesZeroAssets() internal view {
         uint256 supply = harness.totalSupply();
 
         // Dead shares from initializeDeposits guarantee supply > 0.

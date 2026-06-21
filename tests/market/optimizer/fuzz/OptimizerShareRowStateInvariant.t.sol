@@ -152,15 +152,29 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         excludeSender(address(debtCToken));
     }
 
-    function invariant_badOracleNeverAllowsBorrowValue() public view {
+    function invariant_optimizerShareLaunchRiskState() public view {
+        _assert_badOracleNeverAllowsBorrowValue();
+        _assert_badOracleWithDebtNeverAllowsOptimizerCollateralExtraction();
+        _assert_optimizerShareDebtSurfaceRemainsDisabled();
+        _assert_badOracleNeverAllowsOptimizerLiquidationValue();
+        _assert_pmCallbackRollbackNeverMovesValue();
+        _assert_optimizerSharePostedCollateralBackedByShares();
+        _assert_listedOptimizerMarketRegistration();
+        _assert_listedOptimizerShareCTokenAccounting();
+        _assert_listedDebtMarketAccounting();
+        _assert_listedOptimizerAccounting();
+        _assert_optimizerApprovedMarketsStaySeparateFromShareMarket();
+    }
+
+    function _assert_badOracleNeverAllowsBorrowValue() internal view {
         assertFalse(
             handler.badOracleBorrowMovedValue(),
             "bad optimizer/debt oracle allowed borrow value movement"
         );
     }
 
-    function invariant_badOracleWithDebtNeverAllowsOptimizerCollateralExtraction()
-        public
+    function _assert_badOracleWithDebtNeverAllowsOptimizerCollateralExtraction()
+        internal
         view
     {
         assertFalse(
@@ -169,7 +183,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_optimizerShareDebtSurfaceRemainsDisabled() public view {
+    function _assert_optimizerShareDebtSurfaceRemainsDisabled() internal view {
         assertFalse(
             handler.optimizerShareDebtSurfaceMovedValue(),
             "optimizer-share cToken debt surface moved value"
@@ -184,8 +198,8 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_badOracleNeverAllowsOptimizerLiquidationValue()
-        public
+    function _assert_badOracleNeverAllowsOptimizerLiquidationValue()
+        internal
         view
     {
         assertFalse(
@@ -194,15 +208,15 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_pmCallbackRollbackNeverMovesValue() public view {
+    function _assert_pmCallbackRollbackNeverMovesValue() internal view {
         assertFalse(
             handler.pmCallbackRollbackMovedValue(),
             "reverting optimizer PM callback moved value"
         );
     }
 
-    function invariant_optimizerSharePostedCollateralBackedByShares()
-        public
+    function _assert_optimizerSharePostedCollateralBackedByShares()
+        internal
         view
     {
         assertLe(
@@ -212,7 +226,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_listedOptimizerMarketRegistration() public view {
+    function _assert_listedOptimizerMarketRegistration() internal view {
         assertTrue(
             optimizerMarket.isListed(address(shareCToken)),
             "optimizer-share cToken not listed"
@@ -256,7 +270,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_listedOptimizerShareCTokenAccounting() public view {
+    function _assert_listedOptimizerShareCTokenAccounting() internal view {
         uint256 borrowerPosted = shareCToken.collateralPosted(user1);
         uint256 shareTokenSupply = shareCToken.totalSupply();
         uint256 shareTokenAssets = shareCToken.totalAssets();
@@ -292,7 +306,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_listedDebtMarketAccounting() public view {
+    function _assert_listedDebtMarketAccounting() internal view {
         assertEq(
             debtCToken.collateralPosted(user1),
             0,
@@ -329,7 +343,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_listedOptimizerAccounting() public view {
+    function _assert_listedOptimizerAccounting() internal view {
         assertEq(harness.asset(), USDC_MONAD, "optimizer asset");
         assertEq(
             harness.totalAssets(),
@@ -353,8 +367,8 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
     }
 
-    function invariant_optimizerApprovedMarketsStaySeparateFromShareMarket()
-        public
+    function _assert_optimizerApprovedMarketsStaySeparateFromShareMarket()
+        internal
         view
     {
         uint256 numMarkets = harness.numApprovedMarkets();
