@@ -61,12 +61,30 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
     }
 
     function test_removeMarketManager_success() public {
+        address replacementMarket = address(new Market());
+        uint256 startingLength = centralRegistry.marketManagers().length;
+
         centralRegistry.addMarketManager(newMarket);
+        centralRegistry.addMarketManager(replacementMarket);
+
+        address[] memory marketManagers = centralRegistry.marketManagers();
+        assertEq(marketManagers.length, startingLength + 2);
+        assertEq(marketManagers[startingLength], newMarket);
+        assertEq(marketManagers[startingLength + 1], replacementMarket);
 
         vm.expectEmit(true, true, true, true);
         emit PermissionsUpdated("Market Manager", newMarket, false);
 
         centralRegistry.removeMarketManager(newMarket);
         assertFalse(centralRegistry.isMarketManager(newMarket));
+        assertTrue(centralRegistry.isMarketManager(replacementMarket));
+
+        marketManagers = centralRegistry.marketManagers();
+        assertEq(marketManagers.length, startingLength + 1);
+        assertEq(marketManagers[startingLength], replacementMarket);
+
+        for (uint256 i; i < marketManagers.length; ++i) {
+            assertFalse(marketManagers[i] == newMarket);
+        }
     }
 }

@@ -412,6 +412,7 @@ contract OracleManager is IOracleManager {
         if (isApprovedAdaptor[adaptorToAdd]) {
             revert OracleManager__InvalidParameter();
         }
+        _checkAdaptorShape(adaptorToAdd);
 
         // Validate `adaptorToRemove` is currently supported.
         _checkIsApprovedAdaptor(adaptorToRemove);
@@ -430,6 +431,7 @@ contract OracleManager is IOracleManager {
         if (isApprovedAdaptor[adaptorToAdd]) {
             revert OracleManager__InvalidParameter();
         }
+        _checkAdaptorShape(adaptorToAdd);
 
         isApprovedAdaptor[adaptorToAdd] = true;
     }
@@ -1215,6 +1217,20 @@ contract OracleManager is IOracleManager {
         }
 
         return NO_ERROR;
+    }
+
+    /// @notice Checks whether `adaptor` is a contract-shaped oracle adaptor.
+    /// @param adaptor The address of the adaptor to validate.
+    function _checkAdaptorShape(address adaptor) internal view {
+        if (adaptor.code.length == 0) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        try IOracleAdaptor(adaptor).adaptorType() returns (uint256 adaptorType) {
+            adaptorType;
+        } catch {
+            revert OracleManager__InvalidParameter();
+        }
     }
 
     /// @notice Checks whether `adaptor` is an approved adaptor or not.

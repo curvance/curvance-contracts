@@ -25,6 +25,22 @@ contract AddApprovedAdaptorTest is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
     }
 
+    function test_addApprovedAdaptor_fail_whenAdaptorHasNoCode() public {
+        vm.expectRevert(
+            OracleManager.OracleManager__InvalidParameter.selector
+        );
+        oracleManager.addApprovedAdaptor(address(1));
+    }
+
+    function test_addApprovedAdaptor_fail_whenAdaptorIsNotOracleAdaptor()
+        public
+    {
+        vm.expectRevert(
+            OracleManager.OracleManager__InvalidParameter.selector
+        );
+        oracleManager.addApprovedAdaptor(address(this));
+    }
+
     function test_addApprovedAdaptor_success() public {
 
         oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));

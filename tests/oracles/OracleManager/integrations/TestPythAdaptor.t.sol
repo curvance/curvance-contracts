@@ -36,6 +36,10 @@ contract NativeUsdOracle {
 
         return IOracleAdaptor.PricingResult(4000e18, true, false);
     }
+
+    function adaptorType() external pure returns (uint256) {
+        return 0;
+    }
 }
 
 contract TestPythAdaptor is TestBaseOracleManager {

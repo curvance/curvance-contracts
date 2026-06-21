@@ -42,13 +42,16 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
     function test_notifyFeedRemoval_noop_whenDualFeedDoesNotExist() public {
         _addDualPriceFeed();
 
-        oracleManager.addApprovedAdaptor(address(1));
+        ChainlinkAdaptor unusedAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(unusedAdaptor));
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
         address feed0Before = adaptorsBefore[0];
         address feed1Before = adaptorsBefore[1];
 
-        vm.prank(address(1));
+        vm.prank(address(unusedAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
         // does not change

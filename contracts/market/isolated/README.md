@@ -71,10 +71,10 @@ the two oracle feeds is too large, an error code can be returned. For the simpli
 Δ = Delta, or differential between values.
 
 - Error Code = 0/NO_ERROR: No oracles had any issues in pricing and the Δ was small, every market functionality is allowed.
-- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate; new borrows, repayments, 
-  and redemptions are paused.
-- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large; new borrows, repayments, redemptions, 
-  and liquidations are paused.
+- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate; new borrows, partial repayments
+  that leave residual debt, and collateral-removing redemptions are paused. Full debt-closing repayments can proceed.
+- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large; new borrows, partial repayments that leave
+  residual debt, collateral-removing redemptions, and liquidations are paused. Full debt-closing repayments can proceed.
 ```
 
 ### Pessimistic pricing

@@ -731,6 +731,88 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertEq(debtCToken.debtBalance(address(this)), 20_000e6);
     }
 
+    function test_lendingOptimizerShareCToken_rebalanceThenFreshBorrowRevertsAtomicallyWhenOptimizerPriceFails()
+        public
+    {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
+        shareCToken.postCollateral(wrapperShares);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 market0AssetsBefore = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+        uint256 market2AssetsBefore = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
+        );
+        uint256 market2TargetAssets = (totalAssetsBefore * 20) / 100;
+        uint256 rebalanceAssets = market2AssetsBefore - market2TargetAssets;
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(rebalanceAssets)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            int256(0)
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            -int256(rebalanceAssets)
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        _rebalance(optimizer, actions, _unconstrainedBounds());
+
+        uint256 rebalancedTotalAssets = optimizer.totalAssets();
+        assertApproxEqAbs(rebalancedTotalAssets, totalAssetsBefore, 10, "rebalance should preserve NAV");
+        assertGt(
+            IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+                IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+            ),
+            market0AssetsBefore,
+            "rebalance should move assets into market 0"
+        );
+
+        vm.mockCall(
+            address(optimizer),
+            abi.encodeWithSelector(ILendingOptimizer.asset.selector),
+            abi.encode(makeAddr("driftedOptimizerAssetAfterRebalance"))
+        );
+
+        uint256 borrowerAssetBalanceBefore = IERC20(USDC_MONAD).balanceOf(address(this));
+        uint256 marketCollateralBefore = shareCToken.marketCollateralPosted();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        debtCToken.borrow(20_000e6, address(this));
+
+        assertEq(optimizer.totalAssets(), rebalancedTotalAssets, "optimizer NAV should roll back");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(this)), borrowerAssetBalanceBefore, "borrow assets");
+        assertEq(debtCToken.debtBalance(address(this)), 0, "fresh debt must not be recorded");
+        assertEq(shareCToken.collateralPosted(address(this)), wrapperShares, "collateral should stay posted");
+        assertEq(shareCToken.marketCollateralPosted(), marketCollateralBefore, "market collateral");
+    }
+
     function test_lendingOptimizerShareCToken_launchWithdrawCollateralAfterRepayAccruesOptimizer()
         public
     {
