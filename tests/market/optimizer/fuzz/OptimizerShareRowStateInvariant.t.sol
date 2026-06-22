@@ -25,9 +25,13 @@ import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
 import {ICToken} from "contracts/interfaces/ICToken.sol";
 import {ILendingOptimizer} from "contracts/interfaces/ILendingOptimizer.sol";
+import {IMarketManager} from "contracts/interfaces/IMarketManager.sol";
 import {IPositionManager} from "contracts/interfaces/IPositionManager.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
 import {WAD} from "contracts/libraries/ConstantsLib.sol";
+import {
+    ExpectedLiquidationQuoteLib
+} from "tests/market/ExpectedLiquidationQuoteLib.sol";
 
 /// @notice Stateful zero-row regression model for optimizer-share collateral.
 contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
@@ -67,7 +71,34 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
 
         optimizerMarket.addPositionManager(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](40);
+        bytes4[] memory selectors = new bytes4[](44);
+        _populateTargetSelectors(selectors);
+        targetContract(address(handler));
+        targetSelector(
+            FuzzSelector({addr: address(handler), selectors: selectors})
+        );
+
+        excludeSender(address(0));
+        excludeSender(address(handler));
+        excludeSender(address(harness));
+        excludeSender(address(shareCToken));
+        excludeSender(address(debtCToken));
+    }
+
+    function _populateTargetSelectors(bytes4[] memory selectors)
+        internal
+        pure
+    {
+        _populateTargetSelectorGroup0(selectors);
+        _populateTargetSelectorGroup1(selectors);
+        _populateTargetSelectorGroup2(selectors);
+        _populateTargetSelectorGroup3(selectors);
+    }
+
+    function _populateTargetSelectorGroup0(bytes4[] memory selectors)
+        internal
+        pure
+    {
         selectors[0] = OptimizerShareRowStateHandler.setDebtOracleMode.selector;
         selectors[1] =
         OptimizerShareRowStateHandler.setOptimizerOracleMode.selector;
@@ -88,6 +119,12 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         OptimizerShareRowStateHandler.postOptimizerCollateralFor.selector;
         selectors[10] =
         OptimizerShareRowStateHandler.rebalanceOptimizer.selector;
+    }
+
+    function _populateTargetSelectorGroup1(bytes4[] memory selectors)
+        internal
+        pure
+    {
         selectors[11] = OptimizerShareRowStateHandler.borrow.selector;
         selectors[12] = OptimizerShareRowStateHandler.borrowFor.selector;
         selectors[13] =
@@ -96,63 +133,75 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         selectors[15] =
         OptimizerShareRowStateHandler.withdrawOptimizerCollateral.selector;
         selectors[16] =
+        OptimizerShareRowStateHandler.withdrawOptimizerCollateralFor.selector;
+        selectors[17] =
         OptimizerShareRowStateHandler.withdrawOptimizerByPositionManager
             .selector;
-        selectors[17] =
-        OptimizerShareRowStateHandler.withdrawOptimizerShares.selector;
         selectors[18] =
-        OptimizerShareRowStateHandler.redeemOptimizerShares.selector;
+        OptimizerShareRowStateHandler.withdrawOptimizerShares.selector;
         selectors[19] =
-        OptimizerShareRowStateHandler.redeemOptimizerSharesFor.selector;
+        OptimizerShareRowStateHandler.withdrawOptimizerSharesFor.selector;
         selectors[20] =
-        OptimizerShareRowStateHandler.redeemOptimizerCollateral.selector;
+        OptimizerShareRowStateHandler.redeemOptimizerShares.selector;
         selectors[21] =
-        OptimizerShareRowStateHandler.redeemOptimizerCollateralFor.selector;
-        selectors[22] =
-        OptimizerShareRowStateHandler.removeOptimizerCollateral.selector;
-        selectors[23] =
-        OptimizerShareRowStateHandler.removeOptimizerCollateralFor.selector;
-        selectors[24] =
-        OptimizerShareRowStateHandler.transferOptimizerShareCTokens.selector;
-        selectors[25] =
-        OptimizerShareRowStateHandler.transferFromOptimizerShareCTokens
-            .selector;
-        selectors[26] =
-        OptimizerShareRowStateHandler.attemptOptimizerShareDebt.selector;
-        selectors[27] = OptimizerShareRowStateHandler.liquidate.selector;
-        selectors[28] = OptimizerShareRowStateHandler.liquidateExact.selector;
-        selectors[29] = OptimizerShareRowStateHandler.repayFor.selector;
-        selectors[30] = OptimizerShareRowStateHandler.optimizerAccrue.selector;
-        selectors[31] =
-        OptimizerShareRowStateHandler.optimizerExchangeRateUpdated.selector;
-        selectors[32] = OptimizerShareRowStateHandler.setOptimizerFee.selector;
-        selectors[33] =
-        OptimizerShareRowStateHandler.skimDonatedOptimizerUnderlying.selector;
-        selectors[34] =
-        OptimizerShareRowStateHandler.updateOptimizerCap.selector;
-        selectors[35] =
-        OptimizerShareRowStateHandler.removeOptimizerApprovedAsset.selector;
-        selectors[36] =
-        OptimizerShareRowStateHandler.addOptimizerApprovedAsset.selector;
-        selectors[37] =
-        OptimizerShareRowStateHandler.pauseOptimizerMint.selector;
-        selectors[38] =
-        OptimizerShareRowStateHandler.unpauseOptimizerMint.selector;
-        selectors[39] =
-        OptimizerShareRowStateHandler.initializeOptimizerDepositsAgain.selector;
-        targetContract(address(handler));
-        targetSelector(
-            FuzzSelector({addr: address(handler), selectors: selectors})
-        );
-
-        excludeSender(address(0));
-        excludeSender(address(handler));
-        excludeSender(address(harness));
-        excludeSender(address(shareCToken));
-        excludeSender(address(debtCToken));
+        OptimizerShareRowStateHandler.redeemOptimizerSharesFor.selector;
     }
 
-    function invariant_optimizerShareLaunchRiskState() public view {
+    function _populateTargetSelectorGroup2(bytes4[] memory selectors)
+        internal
+        pure
+    {
+        selectors[22] =
+        OptimizerShareRowStateHandler.redeemOptimizerCollateral.selector;
+        selectors[23] =
+        OptimizerShareRowStateHandler.redeemOptimizerCollateralFor.selector;
+        selectors[24] =
+        OptimizerShareRowStateHandler.removeOptimizerCollateral.selector;
+        selectors[25] =
+        OptimizerShareRowStateHandler.removeOptimizerCollateralFor.selector;
+        selectors[26] =
+        OptimizerShareRowStateHandler.transferOptimizerShareCTokens.selector;
+        selectors[27] =
+        OptimizerShareRowStateHandler.transferFromOptimizerShareCTokens
+            .selector;
+        selectors[28] =
+        OptimizerShareRowStateHandler.attemptOptimizerShareDebt.selector;
+        selectors[29] = OptimizerShareRowStateHandler.liquidate.selector;
+        selectors[30] = OptimizerShareRowStateHandler.liquidateExact.selector;
+        selectors[31] = OptimizerShareRowStateHandler.repayFor.selector;
+        selectors[32] = OptimizerShareRowStateHandler.optimizerAccrue.selector;
+    }
+
+    function _populateTargetSelectorGroup3(bytes4[] memory selectors)
+        internal
+        pure
+    {
+        selectors[33] =
+        OptimizerShareRowStateHandler.optimizerExchangeRateUpdated.selector;
+        selectors[34] = OptimizerShareRowStateHandler.setOptimizerFee.selector;
+        selectors[35] =
+        OptimizerShareRowStateHandler.skimDonatedOptimizerUnderlying.selector;
+        selectors[36] =
+        OptimizerShareRowStateHandler.updateOptimizerCap.selector;
+        selectors[37] =
+        OptimizerShareRowStateHandler.removeOptimizerApprovedAsset.selector;
+        selectors[38] =
+        OptimizerShareRowStateHandler.addOptimizerApprovedAsset.selector;
+        selectors[39] =
+        OptimizerShareRowStateHandler.pauseOptimizerMint.selector;
+        selectors[40] =
+        OptimizerShareRowStateHandler.unpauseOptimizerMint.selector;
+        selectors[41] =
+        OptimizerShareRowStateHandler.initializeOptimizerDepositsAgain.selector;
+        selectors[42] =
+        OptimizerShareRowStateHandler.depositSecondaryOptimizerCollateral
+            .selector;
+        selectors[43] =
+        OptimizerShareRowStateHandler.removeSecondaryOptimizerCollateral
+            .selector;
+    }
+
+    function invariant_optimizerShareCollateralState() public view {
         _assert_badOracleNeverAllowsBorrowValue();
         _assert_badOracleWithDebtNeverAllowsOptimizerCollateralExtraction();
         _assert_optimizerShareDebtSurfaceRemainsDisabled();
@@ -192,6 +241,11 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
             shareCToken.debtBalance(user1), 0, "optimizer-share debt balance"
         );
         assertEq(
+            shareCToken.debtBalance(handler.secondaryCollateralOwner()),
+            0,
+            "optimizer-share secondary debt balance"
+        );
+        assertEq(
             shareCToken.marketOutstandingDebt(),
             0,
             "optimizer-share market debt"
@@ -223,6 +277,11 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
             shareCToken.collateralPosted(user1),
             shareCToken.balanceOf(user1),
             "posted optimizer-share collateral exceeds share balance"
+        );
+        assertLe(
+            shareCToken.collateralPosted(handler.secondaryCollateralOwner()),
+            shareCToken.balanceOf(handler.secondaryCollateralOwner()),
+            "secondary optimizer-share collateral exceeds share balance"
         );
     }
 
@@ -271,13 +330,17 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
     }
 
     function _assert_listedOptimizerShareCTokenAccounting() internal view {
+        address secondaryCollateralOwner = handler.secondaryCollateralOwner();
         uint256 borrowerPosted = shareCToken.collateralPosted(user1);
+        uint256 secondaryPosted =
+            shareCToken.collateralPosted(secondaryCollateralOwner);
+        uint256 totalPosted = borrowerPosted + secondaryPosted;
         uint256 shareTokenSupply = shareCToken.totalSupply();
         uint256 shareTokenAssets = shareCToken.totalAssets();
 
         assertEq(
             shareCToken.marketCollateralPosted(),
-            borrowerPosted,
+            totalPosted,
             "share cToken market collateral"
         );
         assertLe(
@@ -286,7 +349,12 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
             "borrower posted exceeds share balance"
         );
         assertLe(
-            borrowerPosted,
+            secondaryPosted,
+            shareCToken.balanceOf(secondaryCollateralOwner),
+            "secondary posted exceeds share balance"
+        );
+        assertLe(
+            totalPosted,
             shareTokenSupply,
             "share cToken collateral exceeds supply"
         );
@@ -298,6 +366,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
 
         uint256 knownShareCTokenBalances = shareCToken.balanceOf(address(0))
             + shareCToken.balanceOf(user1) + shareCToken.balanceOf(user2)
+            + shareCToken.balanceOf(secondaryCollateralOwner)
             + shareCToken.balanceOf(address(handler));
         assertEq(
             knownShareCTokenBalances,
@@ -410,33 +479,10 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
     }
 
     function test_optimizerShareRowStateHandler_smokeSequence() public {
-        handler.depositAndPostOptimizerCollateral(50_000e6);
-        handler.rebalanceOptimizer(2, 0, 5_000e6);
-        handler.borrow(20_000e6);
-        handler.setPmCallbackMode(3);
-        handler.borrowForPositionManager(500e6);
-        handler.setPmCallbackMode(6);
-        handler.withdrawOptimizerByPositionManager(250e6);
-        handler.repayFor(0);
-        handler.optimizerAccrue();
-        handler.optimizerExchangeRateUpdated();
-        handler.setOptimizerFee(1_000);
-        handler.skimDonatedOptimizerUnderlying(123e6);
-        handler.updateOptimizerCap(0, 10_000);
-        handler.removeOptimizerApprovedAsset(2, 0);
-        handler.addOptimizerApprovedAsset(2, 7_500);
-        handler.pauseOptimizerMint();
-        handler.unpauseOptimizerMint();
-        handler.initializeOptimizerDepositsAgain(0);
-        handler.setDebtOracleMode(3);
-        handler.setOptimizerOracleMode(4);
-        handler.liquidate();
-        handler.setDebtOracleMode(0);
-        handler.setOptimizerOracleMode(2);
-        handler.borrowFor(20_000e6);
-        handler.withdrawOptimizerCollateral(1_000e6);
-        handler.removeOptimizerCollateral(1e18);
-        handler.attemptOptimizerShareDebt(1_000e6);
+        _smokeOptimizerDepositsAndDebt();
+        _smokeOptimizerLifecycle();
+        _smokeOptimizerShareExits();
+        _smokeOptimizerBadOracleAndDisabledDebt();
 
         assertFalse(
             handler.badOracleBorrowMovedValue(), "bad oracle borrow smoke"
@@ -447,6 +493,227 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         );
         assertFalse(
             handler.optimizerShareDebtSurfaceMovedValue(), "share debt smoke"
+        );
+        _assertAllOptimizerSelectorsHit();
+    }
+
+    function _smokeOptimizerDepositsAndDebt() internal {
+        handler.setDebtOracleMode(0);
+        handler.setOptimizerOracleMode(0);
+        handler.setPmCallbackMode(0);
+        handler.skipTime(1);
+        handler.depositOptimizerShares(1_000e6);
+        handler.mintOptimizerShareCTokens(1e18);
+        handler.depositAsOptimizerCollateral(1_000e6);
+        handler.depositAsOptimizerCollateralFor(1_000e6);
+        handler.postOptimizerCollateralFor(1e18);
+        handler.depositAndPostOptimizerCollateral(50_000e6);
+        handler.depositSecondaryOptimizerCollateral(2_000e6);
+        handler.removeSecondaryOptimizerCollateral(1e18);
+        handler.rebalanceOptimizer(2, 0, 5_000e6);
+        handler.borrow(20_000e6);
+        handler.borrowFor(20_000e6);
+        handler.setPmCallbackMode(3);
+        handler.borrowForPositionManager(500e6);
+        handler.repay(1);
+        handler.repayFor(0);
+    }
+
+    function _smokeOptimizerLifecycle() internal {
+        handler.optimizerAccrue();
+        handler.optimizerExchangeRateUpdated();
+        handler.setOptimizerFee(1_000);
+        handler.skimDonatedOptimizerUnderlying(123e6);
+        handler.updateOptimizerCap(0, 10_000);
+        handler.removeOptimizerApprovedAsset(2, 0);
+        handler.addOptimizerApprovedAsset(2, 7_500);
+        handler.pauseOptimizerMint();
+        handler.unpauseOptimizerMint();
+        handler.initializeOptimizerDepositsAgain(0);
+    }
+
+    function _smokeOptimizerShareExits() internal {
+        handler.setPmCallbackMode(6);
+        handler.withdrawOptimizerByPositionManager(250e6);
+        handler.withdrawOptimizerCollateral(1_000e6);
+        handler.withdrawOptimizerCollateralFor(1_000e6);
+        handler.withdrawOptimizerShares(1_000e6);
+        handler.withdrawOptimizerSharesFor(1_000e6);
+        handler.redeemOptimizerShares(1e18);
+        handler.redeemOptimizerSharesFor(1e18);
+        handler.redeemOptimizerCollateral(1e18);
+        handler.redeemOptimizerCollateralFor(1e18);
+        handler.removeOptimizerCollateral(1e18);
+        handler.removeOptimizerCollateralFor(1e18);
+        handler.transferOptimizerShareCTokens(1e18);
+        handler.transferFromOptimizerShareCTokens(1e18);
+    }
+
+    function _smokeOptimizerBadOracleAndDisabledDebt() internal {
+        handler.setDebtOracleMode(3);
+        handler.setOptimizerOracleMode(4);
+        handler.liquidate();
+        handler.liquidateExact(1_000e6);
+        handler.setDebtOracleMode(0);
+        handler.setOptimizerOracleMode(2);
+        handler.borrowFor(20_000e6);
+        handler.attemptOptimizerShareDebt(1_000e6);
+    }
+
+    function _assertAllOptimizerSelectorsHit() internal view {
+        _assertOptimizerSelectorGroup0();
+        _assertOptimizerSelectorGroup1();
+        _assertOptimizerSelectorGroup2();
+        _assertOptimizerSelectorGroup3();
+    }
+
+    function _assertOptimizerSelectorGroup0() internal view {
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.setDebtOracleMode.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.setOptimizerOracleMode.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.setPmCallbackMode.selector
+        );
+        _assertSelectorHit(OptimizerShareRowStateHandler.skipTime.selector);
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.depositAndPostOptimizerCollateral
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.depositOptimizerShares.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.mintOptimizerShareCTokens.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.depositAsOptimizerCollateral.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.depositAsOptimizerCollateralFor
+            .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.postOptimizerCollateralFor.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.rebalanceOptimizer.selector
+        );
+    }
+
+    function _assertOptimizerSelectorGroup1() internal view {
+        _assertSelectorHit(OptimizerShareRowStateHandler.borrow.selector);
+        _assertSelectorHit(OptimizerShareRowStateHandler.borrowFor.selector);
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.borrowForPositionManager.selector
+        );
+        _assertSelectorHit(OptimizerShareRowStateHandler.repay.selector);
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.withdrawOptimizerCollateral.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.withdrawOptimizerCollateralFor
+            .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.withdrawOptimizerByPositionManager
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.withdrawOptimizerShares.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.withdrawOptimizerSharesFor.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.redeemOptimizerShares.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.redeemOptimizerSharesFor.selector
+        );
+    }
+
+    function _assertOptimizerSelectorGroup2() internal view {
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.redeemOptimizerCollateral.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.redeemOptimizerCollateralFor.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.removeOptimizerCollateral.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.removeOptimizerCollateralFor.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.transferOptimizerShareCTokens
+            .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.transferFromOptimizerShareCTokens
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.attemptOptimizerShareDebt.selector
+        );
+        _assertSelectorHit(OptimizerShareRowStateHandler.liquidate.selector);
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.liquidateExact.selector
+        );
+        _assertSelectorHit(OptimizerShareRowStateHandler.repayFor.selector);
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.optimizerAccrue.selector
+        );
+    }
+
+    function _assertOptimizerSelectorGroup3() internal view {
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.optimizerExchangeRateUpdated.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.setOptimizerFee.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.skimDonatedOptimizerUnderlying
+            .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.updateOptimizerCap.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.removeOptimizerApprovedAsset.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.addOptimizerApprovedAsset.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.pauseOptimizerMint.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.unpauseOptimizerMint.selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.initializeOptimizerDepositsAgain
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.depositSecondaryOptimizerCollateral
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.removeSecondaryOptimizerCollateral
+                .selector
+        );
+    }
+
+    function _assertSelectorHit(bytes4 selector) internal view {
+        assertGt(
+            handler.selectorHitCount(selector),
+            0,
+            "selector not hit in smoke sequence"
         );
     }
 
@@ -634,6 +901,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     uint256 public heartbeat;
     address public borrower;
     address public receiver;
+    address public secondaryCollateralOwner;
     address public optimizerSeedHolder;
     OracleMode public debtOracleMode;
     OracleMode public optimizerOracleMode;
@@ -648,14 +916,17 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     struct ShareSnapshot {
         uint256 borrowerBalance;
         uint256 receiverBalance;
+        uint256 secondaryBalance;
         uint256 handlerBalance;
         uint256 borrowerPosted;
+        uint256 secondaryPosted;
         uint256 marketCollateral;
         uint256 totalSupply;
         uint256 totalAssets;
         uint256 underlyingHeld;
         uint256 borrowerOptimizer;
         uint256 receiverOptimizer;
+        uint256 secondaryOptimizer;
         uint256 handlerOptimizer;
     }
 
@@ -686,6 +957,8 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     uint256 public optimizerMarketAdds;
     uint256 public optimizerMarketRemovals;
     uint256 public optimizerSkims;
+    uint256 public totalSelectorHits;
+    mapping(bytes4 => uint256) public selectorHitCount;
     uint256 public lastPmBorrowOptimizerShares;
     uint256 public lastPmBorrowWrapperShares;
     uint256 public lastPmRedeemOptimizerShares;
@@ -716,6 +989,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         heartbeat = heartbeat_;
         borrower = borrower_;
         receiver = receiver_;
+        secondaryCollateralOwner = address(uint160(0xB0B0));
         optimizerSeedHolder = msg.sender;
         candidateMarkets = candidateMarkets_;
 
@@ -723,6 +997,8 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     }
 
     modifier checkPostActionInvariants() {
+        ++selectorHitCount[msg.sig];
+        ++totalSelectorHits;
         _;
         _assertPostActionInvariants();
     }
@@ -860,6 +1136,48 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         } catch {}
 
         skip(1201);
+    }
+
+    function depositSecondaryOptimizerCollateral(uint256 assets)
+        external
+        checkPostActionInvariants
+    {
+        assets = bound(assets, 1_000e6, 100_000e6);
+        uint256 optimizerShares =
+            _mintOptimizerSharesFor(secondaryCollateralOwner, assets);
+        if (optimizerShares == 0) return;
+
+        ShareSnapshot memory beforeAction = _shareSnapshot();
+        vm.startPrank(secondaryCollateralOwner);
+        IERC20(address(optimizer))
+            .approve(address(shareCToken), optimizerShares);
+        try shareCToken.depositAsCollateral(
+            optimizerShares, secondaryCollateralOwner
+        ) returns (
+            uint256 wrapperShares
+        ) {
+            _assertSecondaryShareDepositDelta(
+                beforeAction, wrapperShares, optimizerShares
+            );
+        } catch {}
+        vm.stopPrank();
+
+        skip(1201);
+    }
+
+    function removeSecondaryOptimizerCollateral(uint256 sharesSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 posted = shareCToken.collateralPosted(secondaryCollateralOwner);
+        if (posted == 0) return;
+
+        uint256 shares = bound(sharesSeed, 1, posted);
+        ShareSnapshot memory beforeAction = _shareSnapshot();
+        vm.prank(secondaryCollateralOwner);
+        try shareCToken.removeCollateral(shares) {
+            _assertSecondaryRemoveCollateralDelta(beforeAction, shares);
+        } catch {}
     }
 
     function depositAndPostOptimizerCollateral(uint256 assets)
@@ -1264,6 +1582,55 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         }
     }
 
+    function withdrawOptimizerCollateralFor(uint256 assetsSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 posted = shareCToken.collateralPosted(borrower);
+        if (posted == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 maxAssets = shareCToken.convertToAssets(posted);
+        if (maxAssets == 0) return;
+        uint256 assets = bound(assetsSeed, 1, maxAssets);
+        uint256 shares = shareCToken.previewWithdraw(assets);
+
+        bool badOracle = _badOracle();
+        uint256 debtBefore = debtCToken.debtBalance(borrower);
+        uint256 postedBefore = shareCToken.collateralPosted(borrower);
+        uint256 receiverOptimizerBefore = optimizer.balanceOf(receiver);
+        collateralRemovalAttempts++;
+
+        ShareSnapshot memory beforeAction = _shareSnapshot();
+        vm.prank(borrower);
+        shareCToken.approve(address(this), shares);
+        try shareCToken.withdrawCollateral(
+            assets, receiver, borrower
+        ) returns (
+            uint256 actualShares
+        ) {
+            _assertShareWithdrawalDelta(
+                beforeAction, actualShares, assets, receiver, true
+            );
+            assertEq(
+                shareCToken.allowance(borrower, address(this)),
+                0,
+                "POST WITHDRAW COLLATERAL FOR: allowance delta"
+            );
+        } catch {}
+
+        if (badOracle && debtBefore > 0) {
+            if (
+                shareCToken.collateralPosted(borrower) < postedBefore
+                    || optimizer.balanceOf(receiver) > receiverOptimizerBefore
+            ) {
+                badOracleCollateralMovedValue = true;
+            }
+        }
+    }
+
     function withdrawOptimizerByPositionManager(uint256 assetsSeed)
         public
         checkPostActionInvariants
@@ -1363,6 +1730,54 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         ) {
             _assertShareWithdrawalDelta(
                 beforeAction, shares, assets, receiver, false
+            );
+        } catch {}
+
+        _flagBadOracleCollateralMovement(
+            debtBefore,
+            postedBefore,
+            borrowerOptimizerBefore,
+            receiverOptimizerBefore,
+            handlerOptimizerBefore
+        );
+    }
+
+    function withdrawOptimizerSharesFor(uint256 assetsSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 balance = shareCToken.balanceOf(borrower);
+        if (balance == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 maxAssets = shareCToken.convertToAssets(balance);
+        if (maxAssets == 0) return;
+        uint256 assets = bound(assetsSeed, 1, maxAssets);
+        uint256 shares = shareCToken.previewWithdraw(assets);
+
+        (
+            uint256 debtBefore,
+            uint256 postedBefore,
+            uint256 borrowerOptimizerBefore,
+            uint256 receiverOptimizerBefore,
+            uint256 handlerOptimizerBefore
+        ) = _collateralSnapshot();
+
+        ShareSnapshot memory beforeAction = _shareSnapshot();
+        vm.prank(borrower);
+        shareCToken.approve(address(this), shares);
+        try shareCToken.withdraw(assets, receiver, borrower) returns (
+            uint256 actualShares
+        ) {
+            _assertShareWithdrawalDelta(
+                beforeAction, actualShares, assets, receiver, false
+            );
+            assertEq(
+                shareCToken.allowance(borrower, address(this)),
+                0,
+                "POST WITHDRAW FOR: allowance delta"
             );
         } catch {}
 
@@ -1585,7 +2000,11 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
 
     function _assertPostActionInvariants() internal view {
         uint256 borrowerShareBalance = shareCToken.balanceOf(borrower);
+        uint256 secondaryShareBalance =
+            shareCToken.balanceOf(secondaryCollateralOwner);
         uint256 borrowerPosted = shareCToken.collateralPosted(borrower);
+        uint256 secondaryPosted =
+            shareCToken.collateralPosted(secondaryCollateralOwner);
         uint256 shareTokenSupply = shareCToken.totalSupply();
         uint256 shareTokenAssets = shareCToken.totalAssets();
         uint256 shareTokenUnderlyingHeld =
@@ -1622,6 +2041,11 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             "POST ACTION: optimizer share borrower debt"
         );
         assertEq(
+            shareCToken.debtBalance(secondaryCollateralOwner),
+            0,
+            "POST ACTION: optimizer share secondary debt"
+        );
+        assertEq(
             shareCToken.marketOutstandingDebt(),
             0,
             "POST ACTION: optimizer share market debt"
@@ -1631,10 +2055,15 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             borrowerShareBalance,
             "POST ACTION: posted collateral exceeds share balance"
         );
+        assertLe(
+            secondaryPosted,
+            secondaryShareBalance,
+            "POST ACTION: secondary posted exceeds share balance"
+        );
         assertEq(
             shareCToken.marketCollateralPosted(),
-            borrowerPosted,
-            "POST ACTION: market collateral differs from borrower collateral"
+            borrowerPosted + secondaryPosted,
+            "POST ACTION: market collateral differs from actor sum"
         );
         assertLe(
             shareCToken.marketCollateralPosted(),
@@ -1664,7 +2093,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
 
         uint256 knownShareCTokenBalances = shareCToken.balanceOf(address(0))
             + borrowerShareBalance + shareCToken.balanceOf(receiver)
-            + shareCToken.balanceOf(address(this));
+            + secondaryShareBalance + shareCToken.balanceOf(address(this));
         assertEq(
             knownShareCTokenBalances,
             shareTokenSupply,
@@ -1674,6 +2103,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         uint256 knownOptimizerBalances = optimizer.balanceOf(address(0))
             + optimizer.balanceOf(optimizerSeedHolder)
             + optimizer.balanceOf(borrower) + optimizer.balanceOf(receiver)
+            + optimizer.balanceOf(secondaryCollateralOwner)
             + optimizer.balanceOf(address(this)) + shareTokenUnderlyingHeld;
         assertEq(
             knownOptimizerBalances,
@@ -1694,14 +2124,20 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         try shareCToken.accrueIfNeeded() {} catch {}
         snapshot.borrowerBalance = shareCToken.balanceOf(borrower);
         snapshot.receiverBalance = shareCToken.balanceOf(receiver);
+        snapshot.secondaryBalance =
+            shareCToken.balanceOf(secondaryCollateralOwner);
         snapshot.handlerBalance = shareCToken.balanceOf(address(this));
         snapshot.borrowerPosted = shareCToken.collateralPosted(borrower);
+        snapshot.secondaryPosted =
+            shareCToken.collateralPosted(secondaryCollateralOwner);
         snapshot.marketCollateral = shareCToken.marketCollateralPosted();
         snapshot.totalSupply = shareCToken.totalSupply();
         snapshot.totalAssets = shareCToken.totalAssets();
         snapshot.underlyingHeld = optimizer.balanceOf(address(shareCToken));
         snapshot.borrowerOptimizer = optimizer.balanceOf(borrower);
         snapshot.receiverOptimizer = optimizer.balanceOf(receiver);
+        snapshot.secondaryOptimizer =
+            optimizer.balanceOf(secondaryCollateralOwner);
         snapshot.handlerOptimizer = optimizer.balanceOf(address(this));
     }
 
@@ -1746,14 +2182,18 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     ) internal pure returns (bool) {
         return beforeAction.borrowerBalance != afterAction.borrowerBalance
             || beforeAction.receiverBalance != afterAction.receiverBalance
+            || beforeAction.secondaryBalance != afterAction.secondaryBalance
             || beforeAction.handlerBalance != afterAction.handlerBalance
             || beforeAction.borrowerPosted != afterAction.borrowerPosted
+            || beforeAction.secondaryPosted != afterAction.secondaryPosted
             || beforeAction.marketCollateral != afterAction.marketCollateral
             || beforeAction.totalSupply != afterAction.totalSupply
             || beforeAction.totalAssets != afterAction.totalAssets
             || beforeAction.underlyingHeld != afterAction.underlyingHeld
             || beforeAction.borrowerOptimizer != afterAction.borrowerOptimizer
             || beforeAction.receiverOptimizer != afterAction.receiverOptimizer
+            || beforeAction.secondaryOptimizer
+                != afterAction.secondaryOptimizer
             || beforeAction.handlerOptimizer != afterAction.handlerOptimizer;
     }
 
@@ -1983,6 +2423,68 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
                 "POST SHARE DEPOSIT: market collateral unchanged"
             );
         }
+        assertEq(
+            shareCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance,
+            "POST SHARE DEPOSIT: secondary balance changed"
+        );
+        assertEq(
+            shareCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted,
+            "POST SHARE DEPOSIT: secondary posted changed"
+        );
+    }
+
+    function _assertSecondaryShareDepositDelta(
+        ShareSnapshot memory beforeAction,
+        uint256 wrapperShares,
+        uint256 optimizerShares
+    ) internal view {
+        assertEq(
+            shareCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance + wrapperShares,
+            "POST SECONDARY DEPOSIT: secondary balance delta"
+        );
+        assertEq(
+            shareCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted + wrapperShares,
+            "POST SECONDARY DEPOSIT: secondary posted delta"
+        );
+        assertEq(
+            shareCToken.marketCollateralPosted(),
+            beforeAction.marketCollateral + wrapperShares,
+            "POST SECONDARY DEPOSIT: market collateral delta"
+        );
+        assertEq(
+            shareCToken.totalSupply(),
+            beforeAction.totalSupply + wrapperShares,
+            "POST SECONDARY DEPOSIT: supply delta"
+        );
+        assertEq(
+            shareCToken.totalAssets(),
+            beforeAction.totalAssets + optimizerShares,
+            "POST SECONDARY DEPOSIT: totalAssets delta"
+        );
+        assertEq(
+            optimizer.balanceOf(address(shareCToken)),
+            beforeAction.underlyingHeld + optimizerShares,
+            "POST SECONDARY DEPOSIT: underlying held delta"
+        );
+        assertEq(
+            optimizer.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryOptimizer - optimizerShares,
+            "POST SECONDARY DEPOSIT: secondary optimizer delta"
+        );
+        assertEq(
+            shareCToken.balanceOf(borrower),
+            beforeAction.borrowerBalance,
+            "POST SECONDARY DEPOSIT: borrower balance changed"
+        );
+        assertEq(
+            shareCToken.collateralPosted(borrower),
+            beforeAction.borrowerPosted,
+            "POST SECONDARY DEPOSIT: borrower posted changed"
+        );
     }
 
     function _assertPostCollateralDelta(
@@ -2044,6 +2546,57 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             shareCToken.totalAssets(),
             beforeAction.totalAssets,
             "POST REMOVE COLLATERAL: totalAssets changed"
+        );
+        assertEq(
+            shareCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance,
+            "POST REMOVE COLLATERAL: secondary balance changed"
+        );
+        assertEq(
+            shareCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted,
+            "POST REMOVE COLLATERAL: secondary posted changed"
+        );
+    }
+
+    function _assertSecondaryRemoveCollateralDelta(
+        ShareSnapshot memory beforeAction,
+        uint256 shares
+    ) internal view {
+        assertEq(
+            shareCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance,
+            "POST SECONDARY REMOVE: secondary balance changed"
+        );
+        assertEq(
+            shareCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted - shares,
+            "POST SECONDARY REMOVE: secondary posted delta"
+        );
+        assertEq(
+            shareCToken.marketCollateralPosted(),
+            beforeAction.marketCollateral - shares,
+            "POST SECONDARY REMOVE: market collateral delta"
+        );
+        assertEq(
+            shareCToken.totalSupply(),
+            beforeAction.totalSupply,
+            "POST SECONDARY REMOVE: supply changed"
+        );
+        assertEq(
+            shareCToken.totalAssets(),
+            beforeAction.totalAssets,
+            "POST SECONDARY REMOVE: totalAssets changed"
+        );
+        assertEq(
+            shareCToken.balanceOf(borrower),
+            beforeAction.borrowerBalance,
+            "POST SECONDARY REMOVE: borrower balance changed"
+        );
+        assertEq(
+            shareCToken.collateralPosted(borrower),
+            beforeAction.borrowerPosted,
+            "POST SECONDARY REMOVE: borrower posted changed"
         );
     }
 
@@ -2425,6 +2978,19 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
 
         liquidationAttempts++;
         bool badOracle = _badOracle();
+        ExpectedLiquidationQuoteLib.ExpectedQuote memory expectedQuote;
+        if (!badOracle) {
+            expectedQuote = ExpectedLiquidationQuoteLib.expectedQuote(
+                shareCToken.marketManager(),
+                centralRegistry,
+                address(shareCToken),
+                address(debtCToken),
+                borrower,
+                debtAmount,
+                exact
+            );
+            _assertCanLiquidateQuote(expectedQuote, debtAmount, exact);
+        }
 
         uint256 borrowerDebt = debtCToken.debtBalance(borrower);
         deal(address(usdc), receiver, usdc.balanceOf(receiver) + borrowerDebt);
@@ -2469,6 +3035,14 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             return;
         }
 
+        if (!success) {
+            assertFalse(
+                expectedQuote.valid,
+                "POST OPT LIQ: valid pre-liquidation quote failed"
+            );
+            return;
+        }
+
         if (success) {
             successfulLiquidations++;
             uint256 paid = debtBefore.liquidatorCash - debtAfter.liquidatorCash;
@@ -2476,6 +3050,25 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
                 shareBefore.borrowerPosted - shareAfter.borrowerPosted;
             uint256 badDebt = debtBefore.totalAssets - debtAfter.totalAssets;
 
+            assertTrue(
+                expectedQuote.valid,
+                "POST OPT LIQ: liquidation succeeded without valid quote"
+            );
+            assertEq(
+                paid,
+                expectedQuote.debtRepaid,
+                "POST OPT LIQ: paid != expected quote"
+            );
+            assertEq(
+                seized,
+                expectedQuote.collateralSeized,
+                "POST OPT LIQ: seized != expected quote"
+            );
+            assertEq(
+                badDebt,
+                expectedQuote.badDebt,
+                "POST OPT LIQ: bad debt != expected quote"
+            );
             assertGt(paid + badDebt, 0, "POST OPT LIQ: no debt removed");
             assertEq(
                 debtAfter.borrowerDebt,
@@ -2523,6 +3116,63 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
                 shareAfter.totalAssets,
                 shareBefore.totalAssets,
                 "POST OPT LIQ: share assets changed"
+            );
+        }
+    }
+
+    function _assertCanLiquidateQuote(
+        ExpectedLiquidationQuoteLib.ExpectedQuote memory expectedQuote,
+        uint256 debtAmount,
+        bool exact
+    ) internal {
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = debtAmount;
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower;
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
+            collateralToken: address(shareCToken),
+            debtToken: address(debtCToken),
+            numAccounts: 1,
+            liquidateExact: exact,
+            liquidatedShares: 0,
+            debtRepaid: 0,
+            badDebt: 0
+        });
+
+        vm.prank(address(debtCToken));
+        try shareCToken.marketManager()
+            .canLiquidate(debtAmounts, receiver, accounts, action) returns (
+            IMarketManager.LiqResult memory result,
+            uint256[] memory adjustedDebtAmounts
+        ) {
+            assertTrue(
+                expectedQuote.valid,
+                "PRE OPT LIQ: manager quote succeeded unexpectedly"
+            );
+            assertEq(
+                result.debtRepaid,
+                expectedQuote.debtRepaid,
+                "PRE OPT LIQ: manager debt quote"
+            );
+            assertEq(
+                result.liquidatedShares[0],
+                expectedQuote.collateralSeized,
+                "PRE OPT LIQ: manager seized quote"
+            );
+            assertEq(
+                result.badDebtRealized,
+                expectedQuote.badDebt,
+                "PRE OPT LIQ: manager bad debt quote"
+            );
+            assertEq(
+                adjustedDebtAmounts[0],
+                expectedQuote.debtRepaid + expectedQuote.badDebt,
+                "PRE OPT LIQ: adjusted debt amount"
+            );
+        } catch {
+            assertFalse(
+                expectedQuote.valid,
+                "PRE OPT LIQ: manager quote failed unexpectedly"
             );
         }
     }

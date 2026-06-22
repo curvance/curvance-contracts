@@ -27,13 +27,17 @@ import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
 import {ICToken} from "contracts/interfaces/ICToken.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {IMarketManager} from "contracts/interfaces/IMarketManager.sol";
 import {IPositionManager} from "contracts/interfaces/IPositionManager.sol";
 import {
     IPendlePTOracle
 } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import {IPMarket} from "contracts/interfaces/external/pendle/IPMarket.sol";
+import {
+    ExpectedLiquidationQuoteLib
+} from "tests/market/ExpectedLiquidationQuoteLib.sol";
 
-/// @notice Stateful launch-risk model for PT-only collateral nested with
+/// @notice Stateful model for PT-only collateral nested with
 ///         borrow, PM callback windows, liquidation, and oracle/adaptor faults.
 contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
     address internal constant _PT_ORACLE =
@@ -43,6 +47,14 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
     address internal constant _LP_STETH =
         0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2;
     uint32 internal constant _PT_TWAP_DURATION = 12;
+
+    function _ptAssetAddress() internal pure virtual returns (address) {
+        return _PT_STETH;
+    }
+
+    function _pendleMarketAddress() internal pure virtual returns (address) {
+        return _LP_STETH;
+    }
 
     PendlePrincipalTokenAdaptor public ptAdaptor;
     SimpleCToken public pendlePTCToken;
@@ -54,7 +66,7 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
 
     address public liquidityProvider;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         _deployCombinedStethQuoteAdaptor();
@@ -64,7 +76,7 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         _seedMarketLiquidity(liquidityProvider);
 
         PendlePTNestedCompositionHandler.HandlerConfig memory config;
-        config.ptAsset = IERC20(_PT_STETH);
+        config.ptAsset = IERC20(_ptAssetAddress());
         config.debtAsset = IERC20(address(usdc));
         config.ptCToken = pendlePTCToken;
         config.debtCToken = borrowableCUSDC;
@@ -74,20 +86,38 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         config.stethFallbackFeed = mockStethFeed;
         config.combinedPrimaryFeed = combinedPrimaryFeed;
         config.combinedSecondaryFeed = combinedSecondaryFeed;
-        config.pendleMarket = _LP_STETH;
+        config.pendleMarket = _pendleMarketAddress();
         config.twapDuration = _PT_TWAP_DURATION;
         config.chainlinkHeartbeat = chainlinkAdaptor.DEFAULT_HEARTBEAT();
         config.combinedHeartbeat = combinedStethFeed.secondaryHeartbeat();
         config.borrower = user1;
         config.receiver = user2;
         config.liquidator = user3;
+        config.secondaryCollateralOwner = user4;
         config.seedHolder = liquidityProvider;
 
         handler = new PendlePTNestedCompositionHandler(config);
 
         marketManagerIsolated.addPositionManager(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](25);
+        bytes4[] memory selectors = _targetSelectors();
+        targetContract(address(handler));
+        targetSelector(
+            FuzzSelector({addr: address(handler), selectors: selectors})
+        );
+
+        excludeSender(address(0));
+        excludeSender(address(handler));
+        excludeSender(address(pendlePTCToken));
+        excludeSender(address(borrowableCUSDC));
+    }
+
+    function _targetSelectors()
+        internal
+        pure
+        returns (bytes4[] memory selectors)
+    {
+        selectors = new bytes4[](31);
         selectors[0] =
         PendlePTNestedCompositionHandler.setDebtOracleMode.selector;
         selectors[1] =
@@ -117,39 +147,101 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         selectors[15] =
         PendlePTNestedCompositionHandler.removePtCollateralFor.selector;
         selectors[16] = PendlePTNestedCompositionHandler.withdrawPt.selector;
-        selectors[17] = PendlePTNestedCompositionHandler.redeemPt.selector;
+        selectors[17] = PendlePTNestedCompositionHandler.withdrawPtFor.selector;
         selectors[18] =
-        PendlePTNestedCompositionHandler.redeemPtCollateral.selector;
+        PendlePTNestedCompositionHandler.withdrawPtCollateral.selector;
         selectors[19] =
-        PendlePTNestedCompositionHandler.redeemPtCollateralFor.selector;
-        selectors[20] =
-        PendlePTNestedCompositionHandler.transferPtCTokens.selector;
-        selectors[21] =
-        PendlePTNestedCompositionHandler.transferFromPtCTokens.selector;
+        PendlePTNestedCompositionHandler.withdrawPtCollateralFor.selector;
+        selectors[20] = PendlePTNestedCompositionHandler.redeemPt.selector;
+        selectors[21] = PendlePTNestedCompositionHandler.redeemPtFor.selector;
         selectors[22] =
-        PendlePTNestedCompositionHandler.withdrawPtByPositionManager.selector;
-        selectors[23] = PendlePTNestedCompositionHandler.liquidate.selector;
+        PendlePTNestedCompositionHandler.redeemPtCollateral.selector;
+        selectors[23] =
+        PendlePTNestedCompositionHandler.redeemPtCollateralFor.selector;
         selectors[24] =
+        PendlePTNestedCompositionHandler.transferPtCTokens.selector;
+        selectors[25] =
+        PendlePTNestedCompositionHandler.transferFromPtCTokens.selector;
+        selectors[26] =
+        PendlePTNestedCompositionHandler.withdrawPtByPositionManager.selector;
+        selectors[27] = PendlePTNestedCompositionHandler.liquidate.selector;
+        selectors[28] =
         PendlePTNestedCompositionHandler.liquidateExact.selector;
-
-        targetContract(address(handler));
-        targetSelector(
-            FuzzSelector({addr: address(handler), selectors: selectors})
-        );
-
-        excludeSender(address(0));
-        excludeSender(address(handler));
-        excludeSender(address(pendlePTCToken));
-        excludeSender(address(borrowableCUSDC));
+        selectors[29] =
+        PendlePTNestedCompositionHandler.depositSecondaryPtCollateral.selector;
+        selectors[30] =
+        PendlePTNestedCompositionHandler.removeSecondaryPtCollateral.selector;
     }
 
-    function invariant_pendlePTLaunchRiskState() public view {
+    function invariant_pendlePTNestedState() public view {
         _assert_badOracleNeverAllowsBorrowValue();
         _assert_badOracleNeverAllowsCollateralExtraction();
         _assert_badOracleNeverAllowsLiquidationValue();
         _assert_pmCallbackRollbackNeverMovesValue();
         _assert_ptCollateralAccounting();
         _assert_debtAccounting();
+    }
+
+    function test_pendlePTNestedCompositionHandler_selectorCoverageSmokeSequence()
+        public
+    {
+        handler.setDebtOracleMode(0);
+        handler.setQuoteOracleMode(0);
+        handler.setPtOracleMode(0);
+        handler.setPmCallbackMode(0);
+        handler.skipTime(1);
+        handler.depositPtIdle(1 ether);
+        handler.depositPtAsCollateral(5 ether);
+        handler.depositSecondaryPtCollateral(2 ether);
+        handler.removeSecondaryPtCollateral(1e18);
+        handler.postPtCollateral(1e18);
+        handler.seedDebtRowWithCanBorrow(10e6);
+        handler.seedDebtRowWithCanBorrowWithNotify(10e6);
+        handler.borrow(100e6);
+        handler.borrowFor(100e6);
+        handler.setPmCallbackMode(0);
+        handler.borrowForPositionManager(10e6);
+        handler.repay(1);
+        handler.removePtCollateral(1e18);
+        handler.removePtCollateralFor(1e18);
+        handler.withdrawPt(1e18);
+        handler.withdrawPtFor(1e18);
+        handler.withdrawPtCollateral(1e18);
+        handler.withdrawPtCollateralFor(1e18);
+        handler.redeemPt(1e18);
+        handler.redeemPtFor(1e18);
+        handler.redeemPtCollateral(1e18);
+        handler.redeemPtCollateralFor(1e18);
+        handler.transferPtCTokens(1e18);
+        handler.transferFromPtCTokens(1e18);
+        handler.setPmCallbackMode(4);
+        handler.withdrawPtByPositionManager(1e18);
+        handler.setDebtOracleMode(1);
+        handler.setQuoteOracleMode(1);
+        handler.setPtOracleMode(1);
+        handler.liquidate();
+        handler.liquidateExact(10e6);
+
+        assertFalse(
+            handler.badOracleBorrowMovedValue(), "bad oracle borrow smoke"
+        );
+        assertFalse(
+            handler.badOracleCollateralMovedValue(),
+            "bad oracle collateral smoke"
+        );
+        assertFalse(
+            handler.badOracleLiquidationMovedValue(),
+            "bad oracle liquidation smoke"
+        );
+
+        bytes4[] memory selectors = _targetSelectors();
+        for (uint256 i; i < selectors.length; ++i) {
+            assertGt(
+                handler.selectorHitCount(selectors[i]),
+                0,
+                "selector not hit in smoke sequence"
+            );
+        }
     }
 
     function _assert_badOracleNeverAllowsBorrowValue() internal view {
@@ -181,19 +273,27 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
     }
 
     function _assert_ptCollateralAccounting() internal view {
+        address secondaryCollateralOwner = handler.secondaryCollateralOwner();
         uint256 borrowerPosted = pendlePTCToken.collateralPosted(user1);
+        uint256 secondaryPosted =
+            pendlePTCToken.collateralPosted(secondaryCollateralOwner);
         assertLe(
             borrowerPosted,
             pendlePTCToken.balanceOf(user1),
             "borrower PT collateral exceeds balance"
         );
-        assertEq(
-            pendlePTCToken.marketCollateralPosted(),
-            borrowerPosted,
-            "PT market collateral differs from modeled borrower collateral"
+        assertLe(
+            secondaryPosted,
+            pendlePTCToken.balanceOf(secondaryCollateralOwner),
+            "secondary PT collateral exceeds balance"
         );
         assertEq(
-            IERC20(_PT_STETH).balanceOf(address(pendlePTCToken)),
+            pendlePTCToken.marketCollateralPosted(),
+            borrowerPosted + secondaryPosted,
+            "PT market collateral differs from modeled actor collateral"
+        );
+        assertEq(
+            IERC20(_ptAssetAddress()).balanceOf(address(pendlePTCToken)),
             pendlePTCToken.totalAssets(),
             "PT cToken assets differ from PT held"
         );
@@ -214,6 +314,11 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
             borrowableCUSDC.debtBalance(address(handler)),
             0,
             "handler unexpectedly has debt"
+        );
+        assertEq(
+            borrowableCUSDC.debtBalance(handler.secondaryCollateralOwner()),
+            0,
+            "secondary collateral owner unexpectedly has debt"
         );
         assertGe(
             borrowableCUSDC.debtBalance(user1),
@@ -265,28 +370,29 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         );
 
         PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
-        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.market = IPMarket(_pendleMarketAddress());
         assetConfig.twapDuration = _PT_TWAP_DURATION;
         assetConfig.quoteAsset = _STETH;
         assetConfig.quoteAssetDecimals = 18;
-        ptAdaptor.addAsset(_PT_STETH, assetConfig);
+        ptAdaptor.addAsset(_ptAssetAddress(), assetConfig);
 
         oracleManager.addApprovedAdaptor(address(ptAdaptor));
         oracleManager.addAssetPricingAdaptor(
-            _PT_STETH, address(ptAdaptor), 100, 50, 100, 50
+            _ptAssetAddress(), address(ptAdaptor), 100, 50, 100, 50
         );
 
         pendlePTCToken = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_PT_STETH),
+            IERC20(_ptAssetAddress()),
             address(marketManagerIsolated)
         );
         oracleManager.addCTokenSupport(address(pendlePTCToken));
 
         _prepareUSDC(address(this), 1_000_000e6);
         usdc.approve(address(borrowableCUSDC), type(uint256).max);
-        deal(_PT_STETH, address(this), 100 ether);
-        IERC20(_PT_STETH).approve(address(pendlePTCToken), type(uint256).max);
+        deal(_ptAssetAddress(), address(this), 100 ether);
+        IERC20(_ptAssetAddress())
+            .approve(address(pendlePTCToken), type(uint256).max);
 
         marketManagerIsolated.listTokens(
             address(pendlePTCToken), address(borrowableCUSDC)
@@ -297,14 +403,32 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
 
     function _seedMarketLiquidity(address provider) internal {
         _prepareUSDC(provider, 1_000_000e6);
-        deal(_PT_STETH, provider, 100 ether);
+        deal(_ptAssetAddress(), provider, 100 ether);
 
         vm.startPrank(provider);
         usdc.approve(address(borrowableCUSDC), type(uint256).max);
         borrowableCUSDC.deposit(1_000_000e6, provider);
-        IERC20(_PT_STETH).approve(address(pendlePTCToken), type(uint256).max);
+        IERC20(_ptAssetAddress())
+            .approve(address(pendlePTCToken), type(uint256).max);
         pendlePTCToken.deposit(100 ether, provider);
         vm.stopPrank();
+    }
+}
+
+contract PendlePTCurrentNestedCompositionInvariant is
+    PendlePTNestedCompositionInvariant
+{
+    address internal constant _PT_STETH_24DEC2025 =
+        0xb253Eff1104802b97aC7E3aC9FdD73AecE295a2c;
+    address internal constant _LP_STETH_24DEC2025 =
+        0x34280882267ffa6383B363E278B027Be083bBe3b;
+
+    function _ptAssetAddress() internal pure override returns (address) {
+        return _PT_STETH_24DEC2025;
+    }
+
+    function _pendleMarketAddress() internal pure override returns (address) {
+        return _LP_STETH_24DEC2025;
     }
 }
 
@@ -329,6 +453,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         address borrower;
         address receiver;
         address liquidator;
+        address secondaryCollateralOwner;
         address seedHolder;
     }
 
@@ -365,9 +490,11 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         uint256 borrowerBalance;
         uint256 receiverBalance;
         uint256 liquidatorBalance;
+        uint256 secondaryBalance;
         uint256 handlerBalance;
         uint256 seedBalance;
         uint256 borrowerPosted;
+        uint256 secondaryPosted;
         uint256 marketPosted;
         uint256 totalSupply;
         uint256 totalAssets;
@@ -375,6 +502,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         uint256 borrowerUnderlying;
         uint256 receiverUnderlying;
         uint256 liquidatorUnderlying;
+        uint256 secondaryUnderlying;
         uint256 handlerUnderlying;
     }
 
@@ -406,6 +534,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
     address public immutable borrower;
     address public immutable receiver;
     address public immutable liquidator;
+    address public immutable secondaryCollateralOwner;
     address public immutable seedHolder;
 
     DebtOracleMode public debtOracleMode;
@@ -423,6 +552,8 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
     uint256 public successfulBorrows;
     uint256 public collateralExtractionAttempts;
     uint256 public liquidationAttempts;
+    uint256 public totalSelectorHits;
+    mapping(bytes4 => uint256) public selectorHitCount;
     uint256 public successfulLiquidations;
 
     constructor(HandlerConfig memory config) {
@@ -443,12 +574,15 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         borrower = config.borrower;
         receiver = config.receiver;
         liquidator = config.liquidator;
+        secondaryCollateralOwner = config.secondaryCollateralOwner;
         seedHolder = config.seedHolder;
 
         _syncOracles();
     }
 
     modifier checkPostActionInvariants() {
+        ++selectorHitCount[msg.sig];
+        ++totalSelectorHits;
         _;
         _assertPostActionInvariants();
     }
@@ -524,6 +658,44 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
 
         skip(1201);
         _syncOracles();
+    }
+
+    function depositSecondaryPtCollateral(uint256 assets)
+        external
+        checkPostActionInvariants
+    {
+        assets = bound(assets, 1e15, 25 ether);
+        deal(address(ptAsset), secondaryCollateralOwner, assets);
+
+        PtSnapshot memory beforeAction = _ptSnapshot();
+        vm.startPrank(secondaryCollateralOwner);
+        ptAsset.approve(address(ptCToken), assets);
+        try ptCToken.depositAsCollateral(
+            assets, secondaryCollateralOwner
+        ) returns (
+            uint256 shares
+        ) {
+            _assertSecondaryPtDepositDelta(beforeAction, shares, assets);
+        } catch {}
+        vm.stopPrank();
+
+        skip(1201);
+        _syncOracles();
+    }
+
+    function removeSecondaryPtCollateral(uint256 sharesSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 posted = ptCToken.collateralPosted(secondaryCollateralOwner);
+        if (posted == 0) return;
+
+        uint256 shares = bound(sharesSeed, 1, posted);
+        PtSnapshot memory beforeAction = _ptSnapshot();
+        vm.prank(secondaryCollateralOwner);
+        try ptCToken.removeCollateral(shares) {
+            _assertSecondaryRemoveCollateralDelta(beforeAction, shares);
+        } catch {}
     }
 
     function postPtCollateral(uint256 sharesSeed)
@@ -745,7 +917,64 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         if (maxAssets == 0) return;
         uint256 assets = bound(assetsSeed, 1, maxAssets);
         uint256 shares = ptCToken.previewWithdraw(assets);
-        _attemptWithdraw(assets, shares, receiver, false);
+        _attemptWithdraw(assets, shares, receiver, false, false, false);
+    }
+
+    function withdrawPtFor(uint256 assetsSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 balance = ptCToken.balanceOf(borrower);
+        if (balance == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 maxAssets = ptCToken.convertToAssets(balance);
+        if (maxAssets == 0) return;
+        uint256 assets = bound(assetsSeed, 1, maxAssets);
+        uint256 shares = ptCToken.previewWithdraw(assets);
+
+        vm.prank(borrower);
+        ptCToken.approve(address(this), shares);
+        _attemptWithdraw(assets, shares, receiver, false, true, false);
+    }
+
+    function withdrawPtCollateral(uint256 assetsSeed)
+        public
+        checkPostActionInvariants
+    {
+        uint256 posted = ptCToken.collateralPosted(borrower);
+        if (posted == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 maxAssets = ptCToken.convertToAssets(posted);
+        if (maxAssets == 0) return;
+        uint256 assets = bound(assetsSeed, 1, maxAssets);
+        uint256 shares = ptCToken.previewWithdraw(assets);
+        _attemptWithdraw(assets, shares, receiver, false, false, true);
+    }
+
+    function withdrawPtCollateralFor(uint256 assetsSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 posted = ptCToken.collateralPosted(borrower);
+        if (posted == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 maxAssets = ptCToken.convertToAssets(posted);
+        if (maxAssets == 0) return;
+        uint256 assets = bound(assetsSeed, 1, maxAssets);
+        uint256 shares = ptCToken.previewWithdraw(assets);
+
+        vm.prank(borrower);
+        ptCToken.approve(address(this), shares);
+        _attemptWithdraw(assets, shares, receiver, false, true, true);
     }
 
     function redeemPt(uint256 sharesSeed) public checkPostActionInvariants {
@@ -759,6 +988,25 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         uint256 assets = ptCToken.previewRedeem(shares);
         if (assets == 0) return;
         _attemptRedeem(shares, assets, receiver, false, false);
+    }
+
+    function redeemPtFor(uint256 sharesSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 balance = ptCToken.balanceOf(borrower);
+        if (balance == 0) return;
+
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
+        uint256 shares = bound(sharesSeed, 1, balance);
+        uint256 assets = ptCToken.previewRedeem(shares);
+        if (assets == 0) return;
+
+        vm.prank(borrower);
+        ptCToken.setDelegateApproval(address(this), true);
+        _attemptRedeem(shares, assets, receiver, false, true);
     }
 
     function redeemPtCollateral(uint256 sharesSeed)
@@ -840,7 +1088,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         if (maxAssets == 0) return;
         uint256 assets = bound(assetsSeed, 1, maxAssets);
         uint256 shares = ptCToken.previewWithdraw(assets);
-        _attemptWithdraw(assets, shares, address(this), true);
+        _attemptWithdraw(assets, shares, address(this), true, false, false);
     }
 
     function liquidate() external checkPostActionInvariants {
@@ -972,7 +1220,9 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         uint256 assets,
         uint256 shares,
         address outputReceiver,
-        bool positionManager
+        bool positionManager,
+        bool delegated,
+        bool forceCollateral
     ) internal {
         bool badOracle = _badOracle();
         uint256 debtBefore = debtCToken.debtBalance(borrower);
@@ -983,7 +1233,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             shares,
             beforeAction.borrowerBalance,
             beforeAction.borrowerPosted,
-            false
+            forceCollateral
         );
 
         bool success;
@@ -992,6 +1242,52 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
                 assets, borrower, _emptyDeleverageAction(assets)
             ) {
                 success = true;
+            } catch {}
+        } else if (forceCollateral) {
+            if (delegated) {
+                try ptCToken.withdrawCollateral(
+                    assets, outputReceiver, borrower
+                ) returns (
+                    uint256 actualShares
+                ) {
+                    success = true;
+                    assertEq(
+                        actualShares,
+                        shares,
+                        "POST WITHDRAW COLLATERAL FOR: shares"
+                    );
+                    assertEq(
+                        ptCToken.allowance(borrower, address(this)),
+                        0,
+                        "POST WITHDRAW COLLATERAL FOR: allowance"
+                    );
+                } catch {}
+            } else {
+                vm.prank(borrower);
+                try ptCToken.withdrawCollateral(
+                    assets, outputReceiver, borrower
+                ) returns (
+                    uint256 actualShares
+                ) {
+                    success = true;
+                    assertEq(
+                        actualShares,
+                        shares,
+                        "POST WITHDRAW COLLATERAL: shares"
+                    );
+                } catch {}
+            }
+        } else if (delegated) {
+            try ptCToken.withdraw(assets, outputReceiver, borrower) returns (
+                uint256 actualShares
+            ) {
+                success = true;
+                assertEq(actualShares, shares, "POST WITHDRAW FOR: shares");
+                assertEq(
+                    ptCToken.allowance(borrower, address(this)),
+                    0,
+                    "POST WITHDRAW FOR: allowance"
+                );
             } catch {}
         } else {
             vm.prank(borrower);
@@ -1072,6 +1368,13 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
                     assertEq(actualAssets, assets, "POST REDEEM: assets");
                 } catch {}
             }
+        } else if (delegated) {
+            try ptCToken.redeemFor(shares, outputReceiver, borrower) returns (
+                uint256 actualAssets
+            ) {
+                success = true;
+                assertEq(actualAssets, assets, "POST REDEEM FOR IDLE: assets");
+            } catch {}
         } else {
             vm.prank(borrower);
             try ptCToken.redeem(shares, outputReceiver, borrower) returns (
@@ -1169,6 +1472,19 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
 
         liquidationAttempts++;
         bool badOracle = _badOracle();
+        ExpectedLiquidationQuoteLib.ExpectedQuote memory expectedQuote;
+        if (!badOracle) {
+            expectedQuote = ExpectedLiquidationQuoteLib.expectedQuote(
+                IMarketManager(address(marketManager)),
+                marketManager.centralRegistry(),
+                address(ptCToken),
+                address(debtCToken),
+                borrower,
+                debtAmount,
+                exact
+            );
+            _assertCanLiquidateQuote(expectedQuote, debtAmount, exact);
+        }
 
         uint256 borrowerDebt = debtCToken.debtBalance(borrower);
         deal(
@@ -1216,12 +1532,39 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             return;
         }
 
+        if (!success) {
+            assertFalse(
+                expectedQuote.valid,
+                "POST LIQ: valid pre-liquidation quote failed"
+            );
+            return;
+        }
+
         if (success) {
             successfulLiquidations++;
             uint256 paid = debtBefore.liquidatorCash - debtAfter.liquidatorCash;
             uint256 seized = ptBefore.borrowerPosted - ptAfter.borrowerPosted;
             uint256 badDebt = debtBefore.totalAssets - debtAfter.totalAssets;
 
+            assertTrue(
+                expectedQuote.valid,
+                "POST LIQ: liquidation succeeded without valid quote"
+            );
+            assertEq(
+                paid,
+                expectedQuote.debtRepaid,
+                "POST LIQ: paid != expected quote"
+            );
+            assertEq(
+                seized,
+                expectedQuote.collateralSeized,
+                "POST LIQ: seized != expected quote"
+            );
+            assertEq(
+                badDebt,
+                expectedQuote.badDebt,
+                "POST LIQ: bad debt != expected quote"
+            );
             assertGt(paid + badDebt, 0, "POST LIQ: no debt removed");
             assertEq(
                 debtAfter.borrowerDebt,
@@ -1249,6 +1592,64 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
                 ptAfter.marketPosted,
                 ptBefore.marketPosted - seized,
                 "POST LIQ: market collateral delta"
+            );
+        }
+    }
+
+    function _assertCanLiquidateQuote(
+        ExpectedLiquidationQuoteLib.ExpectedQuote memory expectedQuote,
+        uint256 debtAmount,
+        bool exact
+    ) internal {
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = debtAmount;
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower;
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
+            collateralToken: address(ptCToken),
+            debtToken: address(debtCToken),
+            numAccounts: 1,
+            liquidateExact: exact,
+            liquidatedShares: 0,
+            debtRepaid: 0,
+            badDebt: 0
+        });
+
+        vm.prank(address(debtCToken));
+        try marketManager.canLiquidate(
+            debtAmounts, liquidator, accounts, action
+        ) returns (
+            IMarketManager.LiqResult memory result,
+            uint256[] memory adjustedDebtAmounts
+        ) {
+            assertTrue(
+                expectedQuote.valid,
+                "PRE LIQ: manager quote succeeded unexpectedly"
+            );
+            assertEq(
+                result.debtRepaid,
+                expectedQuote.debtRepaid,
+                "PRE LIQ: manager debt quote"
+            );
+            assertEq(
+                result.liquidatedShares[0],
+                expectedQuote.collateralSeized,
+                "PRE LIQ: manager seized quote"
+            );
+            assertEq(
+                result.badDebtRealized,
+                expectedQuote.badDebt,
+                "PRE LIQ: manager bad debt quote"
+            );
+            assertEq(
+                adjustedDebtAmounts[0],
+                expectedQuote.debtRepaid + expectedQuote.badDebt,
+                "PRE LIQ: adjusted debt amount"
+            );
+        } catch {
+            assertFalse(
+                expectedQuote.valid,
+                "PRE LIQ: manager quote failed unexpectedly"
             );
         }
     }
@@ -1357,9 +1758,13 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         snapshot.borrowerBalance = ptCToken.balanceOf(borrower);
         snapshot.receiverBalance = ptCToken.balanceOf(receiver);
         snapshot.liquidatorBalance = ptCToken.balanceOf(liquidator);
+        snapshot.secondaryBalance =
+            ptCToken.balanceOf(secondaryCollateralOwner);
         snapshot.handlerBalance = ptCToken.balanceOf(address(this));
         snapshot.seedBalance = ptCToken.balanceOf(seedHolder);
         snapshot.borrowerPosted = ptCToken.collateralPosted(borrower);
+        snapshot.secondaryPosted =
+            ptCToken.collateralPosted(secondaryCollateralOwner);
         snapshot.marketPosted = ptCToken.marketCollateralPosted();
         snapshot.totalSupply = ptCToken.totalSupply();
         snapshot.totalAssets = ptCToken.totalAssets();
@@ -1367,6 +1772,8 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         snapshot.borrowerUnderlying = ptAsset.balanceOf(borrower);
         snapshot.receiverUnderlying = ptAsset.balanceOf(receiver);
         snapshot.liquidatorUnderlying = ptAsset.balanceOf(liquidator);
+        snapshot.secondaryUnderlying =
+            ptAsset.balanceOf(secondaryCollateralOwner);
         snapshot.handlerUnderlying = ptAsset.balanceOf(address(this));
     }
 
@@ -1387,6 +1794,8 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
 
     function _assertPostActionInvariants() internal view {
         uint256 borrowerPosted = ptCToken.collateralPosted(borrower);
+        uint256 secondaryPosted =
+            ptCToken.collateralPosted(secondaryCollateralOwner);
         assertFalse(
             badOracleBorrowMovedValue,
             "POST ACTION: bad oracle borrow moved value"
@@ -1408,9 +1817,14 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             ptCToken.balanceOf(borrower),
             "POST ACTION: posted PT exceeds borrower balance"
         );
+        assertLe(
+            secondaryPosted,
+            ptCToken.balanceOf(secondaryCollateralOwner),
+            "POST ACTION: secondary posted PT exceeds balance"
+        );
         assertEq(
             ptCToken.marketCollateralPosted(),
-            borrowerPosted,
+            borrowerPosted + secondaryPosted,
             "POST ACTION: PT market posted drift"
         );
         assertEq(
@@ -1431,6 +1845,11 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             0,
             "POST ACTION: handler debt"
         );
+        assertEq(
+            debtCToken.debtBalance(secondaryCollateralOwner),
+            0,
+            "POST ACTION: secondary debt"
+        );
         assertGe(
             debtCToken.debtBalance(borrower),
             debtCToken.marketOutstandingDebt(),
@@ -1445,6 +1864,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         uint256 knownPtBalances = ptCToken.balanceOf(address(0))
             + ptCToken.balanceOf(borrower) + ptCToken.balanceOf(receiver)
             + ptCToken.balanceOf(liquidator)
+            + ptCToken.balanceOf(secondaryCollateralOwner)
             + ptCToken.balanceOf(address(this))
             + ptCToken.balanceOf(seedHolder);
         assertEq(
@@ -1500,6 +1920,69 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
                 : beforeAction.marketPosted,
             "POST PT DEPOSIT: market posted delta"
         );
+        assertEq(
+            afterAction.secondaryBalance,
+            beforeAction.secondaryBalance,
+            "POST PT DEPOSIT: secondary balance changed"
+        );
+        assertEq(
+            afterAction.secondaryPosted,
+            beforeAction.secondaryPosted,
+            "POST PT DEPOSIT: secondary posted changed"
+        );
+    }
+
+    function _assertSecondaryPtDepositDelta(
+        PtSnapshot memory beforeAction,
+        uint256 shares,
+        uint256 assets
+    ) internal view {
+        PtSnapshot memory afterAction = _ptSnapshot();
+        assertEq(
+            afterAction.secondaryBalance,
+            beforeAction.secondaryBalance + shares,
+            "POST SECONDARY PT DEPOSIT: secondary share delta"
+        );
+        assertEq(
+            afterAction.secondaryPosted,
+            beforeAction.secondaryPosted + shares,
+            "POST SECONDARY PT DEPOSIT: secondary posted delta"
+        );
+        assertEq(
+            afterAction.marketPosted,
+            beforeAction.marketPosted + shares,
+            "POST SECONDARY PT DEPOSIT: market posted delta"
+        );
+        assertEq(
+            afterAction.totalSupply,
+            beforeAction.totalSupply + shares,
+            "POST SECONDARY PT DEPOSIT: supply delta"
+        );
+        assertEq(
+            afterAction.totalAssets,
+            beforeAction.totalAssets + assets,
+            "POST SECONDARY PT DEPOSIT: assets delta"
+        );
+        assertEq(
+            afterAction.underlyingHeld,
+            beforeAction.underlyingHeld + assets,
+            "POST SECONDARY PT DEPOSIT: underlying held delta"
+        );
+        assertEq(
+            afterAction.secondaryUnderlying,
+            beforeAction.secondaryUnderlying - assets,
+            "POST SECONDARY PT DEPOSIT: secondary underlying delta"
+        );
+        assertEq(
+            afterAction.borrowerBalance,
+            beforeAction.borrowerBalance,
+            "POST SECONDARY PT DEPOSIT: borrower balance changed"
+        );
+        assertEq(
+            afterAction.borrowerPosted,
+            beforeAction.borrowerPosted,
+            "POST SECONDARY PT DEPOSIT: borrower posted changed"
+        );
     }
 
     function _assertPostCollateralDelta(
@@ -1541,6 +2024,47 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             ptCToken.balanceOf(borrower),
             beforeAction.borrowerBalance,
             "POST REMOVE: borrower balance changed"
+        );
+        assertEq(
+            ptCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance,
+            "POST REMOVE: secondary balance changed"
+        );
+        assertEq(
+            ptCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted,
+            "POST REMOVE: secondary posted changed"
+        );
+    }
+
+    function _assertSecondaryRemoveCollateralDelta(
+        PtSnapshot memory beforeAction,
+        uint256 shares
+    ) internal view {
+        assertEq(
+            ptCToken.collateralPosted(secondaryCollateralOwner),
+            beforeAction.secondaryPosted - shares,
+            "POST SECONDARY REMOVE: secondary posted delta"
+        );
+        assertEq(
+            ptCToken.marketCollateralPosted(),
+            beforeAction.marketPosted - shares,
+            "POST SECONDARY REMOVE: market posted delta"
+        );
+        assertEq(
+            ptCToken.balanceOf(secondaryCollateralOwner),
+            beforeAction.secondaryBalance,
+            "POST SECONDARY REMOVE: secondary balance changed"
+        );
+        assertEq(
+            ptCToken.balanceOf(borrower),
+            beforeAction.borrowerBalance,
+            "POST SECONDARY REMOVE: borrower balance changed"
+        );
+        assertEq(
+            ptCToken.collateralPosted(borrower),
+            beforeAction.borrowerPosted,
+            "POST SECONDARY REMOVE: borrower posted changed"
         );
     }
 
