@@ -71,6 +71,7 @@ contract FreshBorrowRowStateInvariant is TestBaseBorrowableCToken {
     }
 
     function invariant_badOracleNeverAllowsBorrowValue() public view {
+        handler.assertPostActionInvariants();
         assertFalse(
             handler.badOracleBorrowMovedValue(),
             "bad oracle allowed borrow value movement"
@@ -214,6 +215,10 @@ contract FreshBorrowRowStateHandler is Test {
         ++selectorHitCount[msg.sig];
         ++totalSelectorHits;
         _;
+        _assertPostActionInvariants();
+    }
+
+    function assertPostActionInvariants() external view {
         _assertPostActionInvariants();
     }
 

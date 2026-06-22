@@ -174,6 +174,7 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
     }
 
     function invariant_pendlePTNestedState() public view {
+        handler.assertPostActionInvariants();
         _assert_badOracleNeverAllowsBorrowValue();
         _assert_badOracleNeverAllowsCollateralExtraction();
         _assert_badOracleNeverAllowsLiquidationValue();
@@ -584,6 +585,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         ++selectorHitCount[msg.sig];
         ++totalSelectorHits;
         _;
+        _assertPostActionInvariants();
+    }
+
+    function assertPostActionInvariants() external view {
         _assertPostActionInvariants();
     }
 

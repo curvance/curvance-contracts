@@ -202,6 +202,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
     }
 
     function invariant_optimizerShareCollateralState() public view {
+        handler.assertPostActionInvariants();
         _assert_badOracleNeverAllowsBorrowValue();
         _assert_badOracleWithDebtNeverAllowsOptimizerCollateralExtraction();
         _assert_optimizerShareDebtSurfaceRemainsDisabled();
@@ -427,7 +428,9 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
 
         uint256 knownOptimizerShares = harness.balanceOf(address(0))
             + harness.balanceOf(address(this)) + harness.balanceOf(user1)
-            + harness.balanceOf(user2) + harness.balanceOf(address(handler))
+            + harness.balanceOf(user2)
+            + harness.balanceOf(handler.secondaryCollateralOwner())
+            + harness.balanceOf(address(handler))
             + harness.balanceOf(address(shareCToken));
         assertEq(
             knownOptimizerShares,
@@ -1000,6 +1003,10 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         ++selectorHitCount[msg.sig];
         ++totalSelectorHits;
         _;
+        _assertPostActionInvariants();
+    }
+
+    function assertPostActionInvariants() external view {
         _assertPostActionInvariants();
     }
 
