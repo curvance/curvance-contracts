@@ -76,6 +76,10 @@ contract FreshBorrowRowStateInvariant is TestBaseBorrowableCToken {
             handler.badOracleBorrowMovedValue(),
             "bad oracle allowed borrow value movement"
         );
+        assertFalse(
+            handler.badOracleCollateralMovedValue(),
+            "bad oracle allowed collateral removal"
+        );
     }
 
     function test_freshBorrowRowStateHandler_selectorCoverageSmokeSequence()
@@ -93,8 +97,19 @@ contract FreshBorrowRowStateInvariant is TestBaseBorrowableCToken {
         handler.seedDebtRowWithCanBorrowWithNotify(1);
         handler.borrow(1e6);
         handler.borrowFor(1e6);
+        handler.setCollateralOracleMode(2);
+        handler.removeCollateral(1e18);
+        handler.setCollateralOracleMode(0);
         handler.repay(0);
         handler.removeCollateral(1e18);
+
+        assertFalse(
+            handler.badOracleBorrowMovedValue(), "bad oracle borrow smoke"
+        );
+        assertFalse(
+            handler.badOracleCollateralMovedValue(),
+            "bad oracle collateral smoke"
+        );
 
         bytes4[] memory selectors = _targetSelectors();
         for (uint256 i; i < selectors.length; ++i) {
@@ -158,11 +173,13 @@ contract FreshBorrowRowStateHandler is Test {
     OracleMode public debtOracleMode;
     OracleMode public collateralOracleMode;
     bool public badOracleBorrowMovedValue;
+    bool public badOracleCollateralMovedValue;
 
     uint256 public borrowAttempts;
     uint256 public badOracleBorrowAttempts;
     uint256 public successfulBorrows;
     uint256 public receiverBorrows;
+    uint256 public collateralRemovalAttempts;
     uint256 public totalSelectorHits;
     mapping(bytes4 => uint256) public selectorHitCount;
 
@@ -308,12 +325,32 @@ contract FreshBorrowRowStateHandler is Test {
             return;
         }
 
+        _syncOracles();
+        try debtCToken.accrueIfNeeded() {} catch {}
+
         uint256 shares = bound(sharesSeed, 1, posted);
+        bool badOracle = _badOracle();
+        uint256 debtBefore = debtCToken.debtBalance(borrower);
+        collateralRemovalAttempts++;
+
         CollateralSnapshot memory beforeAction = _collateralSnapshot();
+        bool success;
         vm.prank(borrower);
         try collateralCToken.removeCollateral(shares) {
+            success = true;
             _assertRemoveCollateralDelta(beforeAction, shares);
         } catch {}
+
+        if (badOracle && debtBefore > 0) {
+            CollateralSnapshot memory afterAction = _collateralSnapshot();
+            if (
+                success
+                    || afterAction.borrowerPosted < beforeAction.borrowerPosted
+                    || afterAction.marketPosted < beforeAction.marketPosted
+            ) {
+                badOracleCollateralMovedValue = true;
+            }
+        }
     }
 
     function removeSecondaryCollateral(uint256 sharesSeed)
@@ -454,8 +491,7 @@ contract FreshBorrowRowStateHandler is Test {
 
         try debtCToken.accrueIfNeeded() {} catch {}
 
-        bool badOracle = debtOracleMode != OracleMode.Normal
-            || collateralOracleMode != OracleMode.Normal;
+        bool badOracle = _badOracle();
         if (badOracle) {
             badOracleBorrowAttempts++;
         }
@@ -806,6 +842,11 @@ contract FreshBorrowRowStateHandler is Test {
                 "POST BORROW: receiver cash changed"
             );
         }
+    }
+
+    function _badOracle() internal view returns (bool) {
+        return debtOracleMode != OracleMode.Normal
+            || collateralOracleMode != OracleMode.Normal;
     }
 
     function _syncOracles() internal {

@@ -202,6 +202,11 @@ contract PendlePTNestedCompositionInvariant is TestBaseMarketIsolated {
         handler.borrowFor(100e6);
         handler.setPmCallbackMode(0);
         handler.borrowForPositionManager(10e6);
+        handler.setPmCallbackMode(5);
+        handler.borrowForPositionManager(10e6);
+        handler.setPmCallbackMode(6);
+        handler.withdrawPtByPositionManager(1e18);
+        handler.setPmCallbackMode(0);
         handler.repay(1);
         handler.removePtCollateral(1e18);
         handler.removePtCollateralFor(1e18);
@@ -484,7 +489,9 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         BorrowRevert,
         BorrowTransferThenRevert,
         RedeemRevert,
-        RedeemTransferThenRevert
+        RedeemTransferThenRevert,
+        BorrowZeroDebtOracle,
+        RedeemCombinedPrimaryZero
     }
 
     struct PtSnapshot {
@@ -620,7 +627,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         external
         checkPostActionInvariants
     {
-        pmCallbackMode = PmCallbackMode(modeSeed % 5);
+        pmCallbackMode = PmCallbackMode(modeSeed % 7);
     }
 
     function skipTime(uint256 secondsSeed) external checkPostActionInvariants {
@@ -832,7 +839,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             return;
         }
 
-        if (badOracle) {
+        if (badOracle || _badOracle()) {
             _flagBadOracleBorrowMovement(success, beforeAction, afterAction);
             return;
         }
@@ -1124,6 +1131,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         if (pmCallbackMode == PmCallbackMode.BorrowRevert) {
             revert("PM_BORROW_CALLBACK_REVERT");
         }
+        if (pmCallbackMode == PmCallbackMode.BorrowZeroDebtOracle) {
+            debtOracleMode = DebtOracleMode.Zero;
+            _syncOracles();
+        }
     }
 
     function onRedeem(
@@ -1138,6 +1149,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         }
         if (pmCallbackMode == PmCallbackMode.RedeemRevert) {
             revert("PM_REDEEM_CALLBACK_REVERT");
+        }
+        if (pmCallbackMode == PmCallbackMode.RedeemCombinedPrimaryZero) {
+            quoteOracleMode = QuoteOracleMode.CombinedPrimaryZero;
+            _syncOracles();
         }
     }
 
@@ -1175,7 +1190,7 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         }
 
         DebtSnapshot memory afterAction = _debtSnapshot();
-        if (badOracle) {
+        if (badOracle || _badOracle()) {
             _flagBadOracleBorrowMovement(success, beforeAction, afterAction);
             return;
         }
@@ -1314,7 +1329,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
             return;
         }
 
-        if (badOracle && debtBefore > 0 && collateralRedeemed > 0) {
+        if (
+            (badOracle || _badOracle()) && debtBefore > 0
+                && collateralRedeemed > 0
+        ) {
             _flagBadOracleCollateralMovement(
                 success, beforeAction, afterAction, true
             );
@@ -1391,7 +1409,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         }
 
         PtSnapshot memory afterAction = _ptSnapshot();
-        if (badOracle && debtBefore > 0 && collateralRedeemed > 0) {
+        if (
+            (badOracle || _badOracle()) && debtBefore > 0
+                && collateralRedeemed > 0
+        ) {
             _flagBadOracleCollateralMovement(
                 success, beforeAction, afterAction, true
             );
@@ -1437,7 +1458,10 @@ contract PendlePTNestedCompositionHandler is Test, IPositionManager {
         }
 
         PtSnapshot memory afterAction = _ptSnapshot();
-        if (badOracle && debtBefore > 0 && collateralRedeemed > 0) {
+        if (
+            (badOracle || _badOracle()) && debtBefore > 0
+                && collateralRedeemed > 0
+        ) {
             _flagBadOracleCollateralMovement(
                 success, beforeAction, afterAction, false
             );

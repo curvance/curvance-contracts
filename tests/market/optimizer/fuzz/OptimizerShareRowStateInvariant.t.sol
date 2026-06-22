@@ -518,6 +518,11 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         handler.borrowFor(20_000e6);
         handler.setPmCallbackMode(3);
         handler.borrowForPositionManager(500e6);
+        handler.setPmCallbackMode(7);
+        handler.borrowForPositionManager(500e6);
+        handler.setPmCallbackMode(8);
+        handler.withdrawOptimizerByPositionManager(250e6);
+        handler.setPmCallbackMode(0);
         handler.repay(1);
         handler.repayFor(0);
     }
@@ -889,7 +894,9 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         BorrowDepositAndPost,
         RedeemRevert,
         RedeemTransferThenRevert,
-        RedeemWithdrawAndRepay
+        RedeemWithdrawAndRepay,
+        BorrowZeroDebtOracle,
+        RedeemZeroOptimizerOracle
     }
 
     LendingOptimizerHarness public optimizer;
@@ -1030,7 +1037,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         external
         checkPostActionInvariants
     {
-        pmCallbackMode = PmCallbackMode(modeSeed % 7);
+        pmCallbackMode = PmCallbackMode(modeSeed % 9);
     }
 
     function skipTime(uint256 secondsSeed) external checkPostActionInvariants {
@@ -1700,7 +1707,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         }
 
         if (
-            badOracle && debtBefore.borrowerDebt > 0
+            (badOracle || _badOracle()) && debtBefore.borrowerDebt > 0
                 && debtAfter.borrowerDebt > 0
                 && afterAction.borrowerPosted < beforeAction.borrowerPosted
         ) {
@@ -2920,7 +2927,7 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             return;
         }
 
-        if (badOracle) {
+        if (badOracle || _badOracle()) {
             badOracleBorrowMovedValue = true;
             return;
         }
@@ -3536,6 +3543,10 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         if (pmCallbackMode == PmCallbackMode.BorrowRevert) {
             revert("PM_BORROW_CALLBACK_REVERT");
         }
+        if (pmCallbackMode == PmCallbackMode.BorrowZeroDebtOracle) {
+            debtOracleMode = OracleMode.Zero;
+            _syncOracles();
+        }
         if (pmCallbackMode == PmCallbackMode.BorrowDepositAndPost) {
             usdc.approve(address(optimizer), borrowAssets);
             lastPmBorrowOptimizerShares =
@@ -3560,6 +3571,10 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         }
         if (pmCallbackMode == PmCallbackMode.RedeemRevert) {
             revert("PM_REDEEM_CALLBACK_REVERT");
+        }
+        if (pmCallbackMode == PmCallbackMode.RedeemZeroOptimizerOracle) {
+            optimizerOracleMode = OracleMode.Zero;
+            _syncOracles();
         }
         if (pmCallbackMode == PmCallbackMode.RedeemWithdrawAndRepay) {
             lastPmRedeemOptimizerShares = collateralAssets;
