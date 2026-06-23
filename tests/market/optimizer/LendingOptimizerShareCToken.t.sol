@@ -46,8 +46,8 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizerShareCToken_symbolsStayReadable() public {
-        assertEq(optimizer.symbol(), "vFlagUSDC");
-        assertEq(optimizerCToken.symbol(), "cvFlagUSDC");
+        assertEq(optimizer.symbol(), "FlagUSDC");
+        assertEq(optimizerCToken.symbol(), "cFlagUSDC");
         assertEq(optimizerCToken.asset(), address(optimizer));
         assertTrue(optimizerCToken.isBorrowable(), "DynamicIRM requires borrowable identity");
         assertEq(optimizerCToken.marketOutstandingDebt(), 0, "wrapper debt must start at zero");

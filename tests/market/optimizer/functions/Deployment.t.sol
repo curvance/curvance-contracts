@@ -42,7 +42,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
 
         // Verify ERC20 metadata
         assertEq(optimizer.name(), "Flagship USDC Vault");
-        assertEq(optimizer.symbol(), "vFlagUSDC");
+        assertEq(optimizer.symbol(), "FlagUSDC");
         assertEq(optimizer.decimals(), IERC20(USDC_MONAD).decimals());
 
         // Verify constants
@@ -94,7 +94,7 @@ contract TestLendingOptimizerDeployment is TestBaseLendingOptimizer {
         );
 
         assertEq(optimizer.name(), "Prime USDC Vault");
-        assertEq(optimizer.symbol(), "vPrimeUSDC");
+        assertEq(optimizer.symbol(), "PrimeUSDC");
     }
 
     function test_lendingOptimizer_deployment_success_multipleMarkets() public {
