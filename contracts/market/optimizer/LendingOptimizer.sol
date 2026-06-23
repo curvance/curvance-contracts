@@ -216,7 +216,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         centralRegistry = _centralRegistry;
         _asset = asset_;
         _name = string.concat(vaultNamePrefix_, " ", asset_.symbol(), " Vault");
-        _symbol = string.concat("v", vaultSymbolPrefix_, asset_.symbol());
+        _symbol = string.concat(vaultSymbolPrefix_, asset_.symbol());
         _decimals = asset_.decimals();
         // Store fee as BPS.
         fee = _feeBps;
