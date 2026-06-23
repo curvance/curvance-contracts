@@ -53,8 +53,6 @@ contract TokensPeggedToSamePriceFeed is TestBaseMarketIsolated {
         mockUsdtFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         sUSDeVaultAggregator = new VaultAggregator(address(susde), _USDE_ADDRESS, address(mockUsdtFeed), "100");
 
-        oracleManager.addApprovedAdaptor(address(sUSDeVaultAggregator));
-
         chainlinkAdaptor.addAsset(
             _USDT_ADDRESS,
             true,

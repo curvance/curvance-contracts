@@ -12,10 +12,10 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
-        
+
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -144,6 +144,39 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(3900e18);
     }
 
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenCollateralRequiredBeforeAssetsOrCollateralMove()
+        public
+    {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+
+        vm.prank(user1);
+        borrowableCUSDC.borrow(1000e6, user1);
+
+        skip(20 minutes);
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        _redeemCollateralBorrowableCDaiForUser1(1999e18);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance, "redeemCollateralFor should not transfer assets");
+        assertEq(borrowableCDAI.balanceOf(user1), balance, "cDAI balance should not change");
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral, "collateral should not be removed");
+        assertEq(borrowableCDAI.totalSupply(), totalSupply, "total supply should not change");
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "market collateral should not change");
+        assertEq(borrowableCUSDC.debtBalance(user1), debt, "debt should not change");
+    }
+
     function test_borrowableCTokenRedeemCollateralFor_success() public {
         skip(20 minutes);
 
@@ -172,7 +205,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCDAI.approve(user2, collateralRedeemed);
         vm.stopPrank();
-        
+
         vm.startPrank(user2);
         uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();

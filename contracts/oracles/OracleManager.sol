@@ -396,20 +396,6 @@ contract OracleManager is IOracleManager {
         cTokens[newCToken] = newUnderlying;
     }
 
-    /// @notice Removes a Curvance token's support in the Oracle Manager.
-    /// @dev Requires that the Curvance token is supported.
-    /// @param cTokenToRemove The address of the Curvance token to remove
-    ///                       support for.
-    function removeCTokenSupport(address cTokenToRemove) external {
-        _checkElevatedPermissions();
-
-        // Validate `newCToken` has already been registered as a cToken.
-        if (cTokens[cTokenToRemove] == address(0)) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        delete cTokens[cTokenToRemove];
-    }
 
     /// @notice Removes adaptor approval for `adaptorToRemove`, then,
     ///         adds adaptor approval for `adaptorToAdd`.
@@ -426,6 +412,7 @@ contract OracleManager is IOracleManager {
         if (isApprovedAdaptor[adaptorToAdd]) {
             revert OracleManager__InvalidParameter();
         }
+        _checkAdaptorShape(adaptorToAdd);
 
         // Validate `adaptorToRemove` is currently supported.
         _checkIsApprovedAdaptor(adaptorToRemove);
@@ -444,6 +431,7 @@ contract OracleManager is IOracleManager {
         if (isApprovedAdaptor[adaptorToAdd]) {
             revert OracleManager__InvalidParameter();
         }
+        _checkAdaptorShape(adaptorToAdd);
 
         isApprovedAdaptor[adaptorToAdd] = true;
     }
@@ -1229,6 +1217,20 @@ contract OracleManager is IOracleManager {
         }
 
         return NO_ERROR;
+    }
+
+    /// @notice Checks whether `adaptor` is a contract-shaped oracle adaptor.
+    /// @param adaptor The address of the adaptor to validate.
+    function _checkAdaptorShape(address adaptor) internal view {
+        if (adaptor.code.length == 0) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        try IOracleAdaptor(adaptor).adaptorType() returns (uint256 adaptorType) {
+            adaptorType;
+        } catch {
+            revert OracleManager__InvalidParameter();
+        }
     }
 
     /// @notice Checks whether `adaptor` is an approved adaptor or not.

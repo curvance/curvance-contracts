@@ -700,6 +700,82 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
     // NO-SWAP TESTS
 
+    function testRedeemSwapAndDeposit_fail_forceRedeemCollateralExpectedSharesTooHighRollsBack()
+        public
+    {
+        _setUpSimpleCUSDC_borrowableCDAI();
+
+        _prepareDAI(user1, 100 ether);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 100 ether);
+        uint256 originalShares = borrowableCDAI.deposit(100 ether, user1);
+        borrowableCDAI.postCollateral(originalShares);
+        borrowableCDAI.setDelegateApproval(address(vaultZapper), true);
+        vm.stopPrank();
+
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1)
+                + marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
+
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(borrowableCDAI);
+        redeemAction.shares = originalShares;
+        redeemAction.forceRedeemCollateral = true;
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = _TEST_SWAP_SLIPPAGE;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(vaultZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 100 ether;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector, params
+        );
+
+        uint256 userDaiBefore = dai.balanceOf(user1);
+        uint256 userUsdcBefore = usdc.balanceOf(user1);
+        uint256 cDaiSharesBefore = borrowableCDAI.balanceOf(user1);
+        uint256 cDaiCollateralBefore = borrowableCDAI.collateralPosted(user1);
+        uint256 cDaiMarketCollateralBefore =
+            borrowableCDAI.marketCollateralPosted();
+        uint256 cUsdcSharesBefore = simpleCUSDC.balanceOf(user1);
+        uint256 cUsdcTotalAssetsBefore = simpleCUSDC.totalAssets();
+
+        vm.prank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        vaultZapper.redeemSwapAndDeposit(
+            address(simpleCUSDC),
+            redeemAction,
+            swapAction,
+            type(uint256).max,
+            false,
+            user1
+        );
+
+        assertEq(borrowableCDAI.balanceOf(user1), cDaiSharesBefore);
+        assertEq(borrowableCDAI.collateralPosted(user1), cDaiCollateralBefore);
+        assertEq(
+            borrowableCDAI.marketCollateralPosted(), cDaiMarketCollateralBefore
+        );
+        assertEq(simpleCUSDC.balanceOf(user1), cUsdcSharesBefore);
+        assertEq(simpleCUSDC.totalAssets(), cUsdcTotalAssetsBefore);
+        assertEq(dai.balanceOf(user1), userDaiBefore);
+        assertEq(usdc.balanceOf(user1), userUsdcBefore);
+        _assertVaultZapperHasNoResidue();
+    }
+
     function test_vaultZapper_success_swapAndDeposit_noSwap() public {
         _setUpSimpleCSFRAX_borrowableCUSDC();
 

@@ -21,6 +21,7 @@ import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
 import {IERC165} from "contracts/interfaces/IERC165.sol";
 import {IPositionManager} from "contracts/interfaces/IPositionManager.sol";
 import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {IChainlink} from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import {ERC20} from "contracts/libraries/external/ERC20.sol";
 import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 import {CentralRegistry} from "contracts/architecture/CentralRegistry.sol";
@@ -45,8 +46,8 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
     }
 
     function test_lendingOptimizerShareCToken_symbolsStayReadable() public {
-        assertEq(optimizer.symbol(), "vFlagUSDC");
-        assertEq(optimizerCToken.symbol(), "cvFlagUSDC");
+        assertEq(optimizer.symbol(), "FlagUSDC");
+        assertEq(optimizerCToken.symbol(), "cFlagUSDC");
         assertEq(optimizerCToken.asset(), address(optimizer));
         assertTrue(optimizerCToken.isBorrowable(), "DynamicIRM requires borrowable identity");
         assertEq(optimizerCToken.marketOutstandingDebt(), 0, "wrapper debt must start at zero");
@@ -598,11 +599,17 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertEq(address(shareCToken.marketManager()), address(optimizerMarket));
         assertEq(address(debtCToken.marketManager()), address(optimizerMarket));
         assertEq(shareCToken.asset(), address(optimizer));
+        assertEq(optimizer.asset(), USDC_MONAD);
         assertEq(debtCToken.asset(), USDC_MONAD);
         assertTrue(shareCToken.isBorrowable(), "DynamicIRM-compatible identity");
         assertTrue(debtCToken.isBorrowable(), "paired debt side is borrowable");
         assertEq(_oracleManager.cTokens(address(shareCToken)), address(optimizer));
         assertEq(_oracleManager.cTokens(address(debtCToken)), USDC_MONAD);
+
+        address[] memory approvedMarkets = optimizer.getApprovedMarkets();
+        assertEq(approvedMarkets.length, 1);
+        assertEq(approvedMarkets[0], cUSDC_WMON_MARKET);
+        assertTrue(approvedMarkets[0] != address(debtCToken), "launch debt cToken must not be an optimizer market");
 
         address[] memory listedTokens = optimizerMarket.queryTokensListed();
         assertEq(listedTokens.length, 2);
@@ -613,6 +620,28 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertEq(optimizerMarket.debtCaps(address(shareCToken)), 0);
         assertEq(optimizerMarket.collateralCaps(address(debtCToken)), 0);
         assertEq(optimizerMarket.debtCaps(address(debtCToken)), 1_000_000e6);
+
+        (bool feedConfigured, IChainlink feed, uint8 feedDecimals,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+        assertEq(feedDecimals, 8);
+        VaultAggregator optimizerVaultFeed = VaultAggregator(address(feed));
+        assertEq(optimizerVaultFeed.vault(), address(optimizer));
+        assertEq(optimizerVaultFeed.asset(), USDC_MONAD);
+
+        (uint256 optimizerPrice, uint256 optimizerPriceError) =
+            _oracleManager.getPrice(address(optimizer), true, true);
+        assertGt(optimizerPrice, 0, "optimizer share price");
+        assertEq(optimizerPriceError, 0, "optimizer share price error");
+
+        (uint256 collateralSharesPrice, uint256 debtUnderlyingPrice) =
+            _oracleManager.getPriceIsolatedPair(
+                address(shareCToken),
+                address(debtCToken),
+                BAD_SOURCE
+            );
+        assertGt(collateralSharesPrice, 0, "optimizer-share collateral price");
+        assertGt(debtUnderlyingPrice, 0, "paired debt price");
 
         IOracleAdaptor.PriceGuard memory guard = _chainlinkAdaptor.getPriceGuard(address(optimizer), true);
         assertEq(uint256(guard.minPrice), 0);
@@ -632,6 +661,42 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
 
         vm.expectRevert(LendingOptimizerShareCToken.LendingOptimizerShareCToken__BorrowDisabled.selector);
         shareCToken.flashLoan(1, "");
+    }
+
+    function test_lendingOptimizerShareCToken_vaultAssetDriftBlocksIsolatedPairPricing()
+        public
+    {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        (bool feedConfigured, IChainlink feed,,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+
+        VaultAggregator optimizerVaultFeed = VaultAggregator(address(feed));
+        vm.mockCall(
+            address(optimizer),
+            abi.encodeWithSelector(ILendingOptimizer.asset.selector),
+            abi.encode(makeAddr("driftedOptimizerAsset"))
+        );
+
+        (, int256 directAnswer,,,) = optimizerVaultFeed.latestRoundData();
+        assertEq(directAnswer, 0);
+
+        (uint256 optimizerPrice, uint256 optimizerPriceError) =
+            _oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(optimizerPrice, 0);
+        assertEq(optimizerPriceError, BAD_SOURCE);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        _oracleManager.getPriceIsolatedPair(
+            address(shareCToken),
+            address(debtCToken),
+            BAD_SOURCE
+        );
     }
 
     function test_lendingOptimizerShareCToken_launchBorrowPathAccruesOptimizerBeforeCollateralCheck()
@@ -664,6 +729,88 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertGt(optimizer.totalAssets(), staleTotalAssets, "borrow collateral check must sync optimizer NAV");
         assertEq(shareCToken.collateralPosted(address(this)), wrapperShares);
         assertEq(debtCToken.debtBalance(address(this)), 20_000e6);
+    }
+
+    function test_lendingOptimizerShareCToken_rebalanceThenFreshBorrowRevertsAtomicallyWhenOptimizerPriceFails()
+        public
+    {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(10_000e6);
+
+        (
+            ,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken
+        ) = _deployOptimizerShareLaunchMarket();
+
+        uint256 lendAssets = 100_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
+        shareCToken.postCollateral(wrapperShares);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 market0AssetsBefore = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+        uint256 market2AssetsBefore = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
+        );
+        uint256 market2TargetAssets = (totalAssetsBefore * 20) / 100;
+        uint256 rebalanceAssets = market2AssetsBefore - market2TargetAssets;
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            int256(rebalanceAssets)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            int256(0)
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            -int256(rebalanceAssets)
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        _rebalance(optimizer, actions, _unconstrainedBounds());
+
+        uint256 rebalancedTotalAssets = optimizer.totalAssets();
+        assertApproxEqAbs(rebalancedTotalAssets, totalAssetsBefore, 10, "rebalance should preserve NAV");
+        assertGt(
+            IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+                IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+            ),
+            market0AssetsBefore,
+            "rebalance should move assets into market 0"
+        );
+
+        vm.mockCall(
+            address(optimizer),
+            abi.encodeWithSelector(ILendingOptimizer.asset.selector),
+            abi.encode(makeAddr("driftedOptimizerAssetAfterRebalance"))
+        );
+
+        uint256 borrowerAssetBalanceBefore = IERC20(USDC_MONAD).balanceOf(address(this));
+        uint256 marketCollateralBefore = shareCToken.marketCollateralPosted();
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        debtCToken.borrow(20_000e6, address(this));
+
+        assertEq(optimizer.totalAssets(), rebalancedTotalAssets, "optimizer NAV should roll back");
+        assertEq(IERC20(USDC_MONAD).balanceOf(address(this)), borrowerAssetBalanceBefore, "borrow assets");
+        assertEq(debtCToken.debtBalance(address(this)), 0, "fresh debt must not be recorded");
+        assertEq(shareCToken.collateralPosted(address(this)), wrapperShares, "collateral should stay posted");
+        assertEq(shareCToken.marketCollateralPosted(), marketCollateralBefore, "market collateral");
     }
 
     function test_lendingOptimizerShareCToken_launchWithdrawCollateralAfterRepayAccruesOptimizer()
@@ -1006,41 +1153,6 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         );
     }
 
-    function test_lendingOptimizerShareCToken_oracleSupportRemovalLeavesMarketLiveButBlocksLiquidation()
-        public
-    {
-        (
-            MarketManagerIsolated optimizerMarket,
-            BorrowableCToken debtCToken,
-            LendingOptimizerShareCToken shareCToken
-        ) = _deployOptimizerShareLaunchMarket();
-
-        uint256 lendAssets = 100_000e6;
-        deal(USDC_MONAD, address(this), lendAssets);
-        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
-        debtCToken.deposit(lendAssets, address(this));
-
-        uint256 optimizerShares = optimizer.balanceOf(address(this));
-        IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
-        uint256 wrapperShares = shareCToken.deposit(optimizerShares, address(this));
-
-        _oracleManager.removeCTokenSupport(address(shareCToken));
-        assertEq(_oracleManager.cTokens(address(shareCToken)), address(0));
-        assertEq(optimizerMarket.collateralCaps(address(shareCToken)), 1_000_000e6);
-        assertEq(optimizerMarket.debtCaps(address(debtCToken)), 1_000_000e6);
-
-        shareCToken.postCollateral(wrapperShares);
-        debtCToken.borrow(20_000e6, address(this));
-
-        assertEq(shareCToken.collateralPosted(address(this)), wrapperShares);
-        assertEq(debtCToken.debtBalance(address(this)), 20_000e6);
-
-        address[] memory accounts = new address[](1);
-        accounts[0] = address(this);
-        vm.prank(makeAddr("oracleSupportRemovalLiquidator"));
-        vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-        debtCToken.liquidate(accounts, address(shareCToken));
-    }
 
     function test_lendingOptimizerShareCToken_liquidationAccruesStaleOptimizerCollateral()
         public

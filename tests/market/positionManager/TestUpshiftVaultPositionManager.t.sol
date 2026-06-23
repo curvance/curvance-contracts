@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { UpshiftVaultPositionManager } from "contracts/market/position-management/UpshiftVaultPositionManager.sol";
-import { BasePositionManager } from "contracts/market/position-management/BasePositionManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IVault } from "contracts/interfaces/IVault.sol";
-import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import {Test} from "forge-std/Test.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import {
+    UpshiftVaultPositionManager
+} from "contracts/market/position-management/UpshiftVaultPositionManager.sol";
+import {
+    BasePositionManager
+} from "contracts/market/position-management/BasePositionManager.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
+import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
+import {ICToken, AccountSnapshot} from "contracts/interfaces/ICToken.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {
+    MarketManagerIsolated
+} from "contracts/market/isolated/MarketManagerIsolated.sol";
+import {IVault} from "contracts/interfaces/IVault.sol";
+import {
+    IChainlink
+} from "contracts/interfaces/external/chainlink/IChainlink.sol";
+
+import {TestBaseMarketIsolated} from "tests/market/TestBaseMarketIsolated.sol";
 
 /// @dev
 /// Test overview:
@@ -41,17 +51,22 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
     UpshiftVaultPositionManager public positionManager;
 
     // Live Monad contracts
-    ICentralRegistry public liveCentralRegistry = ICentralRegistry(0x1310f352f1389969Ece6741671c4B919523912fF);
-    MarketManagerIsolated public liveMarketManager = MarketManagerIsolated(0xBBE7A3c45aDBb16F6490767b663428c34aA341Eb);
-    BorrowableCToken public borrowableCSAUSD = BorrowableCToken(0x84C5aF20b58818631164Bb7d798E457fcFACD9Ac);
-    BorrowableCToken public borrowableCAUSD = BorrowableCToken(0xfD493ce1A0ae986e09d17004B7E748817a47d73c);
+    ICentralRegistry public liveCentralRegistry =
+        ICentralRegistry(0x1310f352f1389969Ece6741671c4B919523912fF);
+    MarketManagerIsolated public liveMarketManager =
+        MarketManagerIsolated(0xBBE7A3c45aDBb16F6490767b663428c34aA341Eb);
+    BorrowableCToken public borrowableCSAUSD =
+        BorrowableCToken(0x84C5aF20b58818631164Bb7d798E457fcFACD9Ac);
+    BorrowableCToken public borrowableCAUSD =
+        BorrowableCToken(0xfD493ce1A0ae986e09d17004B7E748817a47d73c);
 
     address public SAUSD_ADDRESS = 0xD793c04B87386A6bb84ee61D98e0065FdE7fdA5E;
     address public AUSD_ADDRESS = 0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a;
     address public WMON_ADDRESS = 0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A;
 
     // KyberSwap router
-    address public kyberSwapRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+    address public kyberSwapRouter =
+        0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
 
     // Acquired balances for tests
     uint256 public user1SAUSDBalance;
@@ -59,7 +74,9 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
 
     function setUp() public override {
         // Fork Monad at pinned block for deterministic execution.
-        vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_ARCHIVE"), FORK_BLOCK);
+        vm.createSelectFork(
+            vm.envString("MON_NODE_URI_MONAD_ARCHIVE"), FORK_BLOCK
+        );
 
         address emergencyCouncil = liveCentralRegistry.emergencyCouncil();
 
@@ -72,9 +89,7 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
 
         // Deploy position manager
         positionManager = new UpshiftVaultPositionManager(
-            liveCentralRegistry,
-            address(liveMarketManager),
-            WMON_ADDRESS
+            liveCentralRegistry, address(liveMarketManager), WMON_ADDRESS
         );
 
         // Add position manager to market
@@ -92,15 +107,18 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
 
         // Deposit sAUSD as collateral
-        IERC20(SAUSD_ADDRESS).approve(address(borrowableCSAUSD), type(uint256).max);
+        IERC20(SAUSD_ADDRESS)
+            .approve(address(borrowableCSAUSD), type(uint256).max);
         borrowableCSAUSD.depositAsCollateral(depositAmount, user1);
 
         // Borrow AUSD against sAUSD collateral
         borrowableCAUSD.borrow(depositAmount / 5, user1);
 
         // Get oracle prices before time skip
-        IChainlink sAUSDAggregator = IChainlink(0x6b5a6A0DFA18B32081AAFFA6310cE221637b5d7D);
-        IChainlink ausdAggregator = IChainlink(0xCaAbf2C777a3426eAfFB79A0675909cdCAfa3D23);
+        IChainlink sAUSDAggregator =
+            IChainlink(0x6b5a6A0DFA18B32081AAFFA6310cE221637b5d7D);
+        IChainlink ausdAggregator =
+            IChainlink(0xCaAbf2C777a3426eAfFB79A0675909cdCAfa3D23);
         (, int256 sAUSDPrice,,,) = sAUSDAggregator.latestRoundData();
         (, int256 ausdPrice,,,) = ausdAggregator.latestRoundData();
 
@@ -110,12 +128,24 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         vm.mockCall(
             address(sAUSDAggregator),
             abi.encodeWithSignature("latestRoundData()"),
-            abi.encode(uint80(1), sAUSDPrice, block.timestamp, block.timestamp, uint80(1))
+            abi.encode(
+                uint80(1),
+                sAUSDPrice,
+                block.timestamp,
+                block.timestamp,
+                uint80(1)
+            )
         );
         vm.mockCall(
             address(ausdAggregator),
             abi.encodeWithSignature("latestRoundData()"),
-            abi.encode(uint80(1), ausdPrice, block.timestamp, block.timestamp, uint80(1))
+            abi.encode(
+                uint80(1),
+                ausdPrice,
+                block.timestamp,
+                block.timestamp,
+                uint80(1)
+            )
         );
 
         borrowableCAUSD.accrueIfNeeded();
@@ -130,7 +160,8 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         UpshiftVaultPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCSAUSD));
         deleverageAction.collateralAssets = sAusdToRedeem;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCAUSD));
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCAUSD));
         deleverageAction.repayAssets = repayAssets;
         // No swap actions needed - redeemed asset (AUSD) is the debt asset
 
@@ -141,52 +172,23 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory debtAfter = borrowableCAUSD.getSnapshot(user1);
         AccountSnapshot memory collAfter = borrowableCSAUSD.getSnapshot(user1);
 
-        assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
+        assertLt(
+            debtAfter.debtBalance,
+            debtBefore.debtBalance,
+            "Debt should be reduced after deleverage"
+        );
         assertGe(
             debtBefore.debtBalance - debtAfter.debtBalance,
             repayAssets,
             "Debt reduction should satisfy requested repayment floor"
         );
-        assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
+        assertLt(
+            collAfter.collateralPosted,
+            collBefore.collateralPosted,
+            "Collateral should be reduced after deleverage"
+        );
 
         vm.stopPrank();
-    }
-
-    function testVaultRedeem_revertsWhenRequestRedeemDoesNotTransferReturnedAssets() public {
-        UpshiftVaultPositionManagerHarness harness = new UpshiftVaultPositionManagerHarness(
-            liveCentralRegistry,
-            address(liveMarketManager),
-            WMON_ADDRESS
-        );
-        MockUpshiftAsset asset = new MockUpshiftAsset();
-        MockUpshiftVault vault = new MockUpshiftVault(asset);
-
-        vault.setRequestRedeemResult(100e18, 99e18);
-
-        vm.expectRevert(
-            BasePositionManager.BasePositionManager__InvalidParam.selector
-        );
-        harness.exposedVaultRedeem(address(vault), 100e18);
-    }
-
-    function testVaultRedeem_acceptsWhenRequestRedeemTransfersReturnedAssets() public {
-        UpshiftVaultPositionManagerHarness harness = new UpshiftVaultPositionManagerHarness(
-            liveCentralRegistry,
-            address(liveMarketManager),
-            WMON_ADDRESS
-        );
-        MockUpshiftAsset asset = new MockUpshiftAsset();
-        MockUpshiftVault vault = new MockUpshiftVault(asset);
-
-        vault.setRequestRedeemResult(100e18, 100e18);
-
-        uint256 assetsReceived = harness.exposedVaultRedeem(address(vault), 100e18);
-
-        assertEq(assetsReceived, 100e18, "reported assets");
-        assertEq(asset.balanceOf(address(harness)), 100e18, "transferred assets");
-        assertEq(vault.lastShares(), 100e18, "requestRedeem shares");
-        assertEq(vault.lastReceiverAddr(), address(harness), "requestRedeem receiver");
-        assertEq(vault.lastHolderAddr(), address(harness), "requestRedeem holder");
     }
 
     /// INTERNAL HELPERS ///
@@ -198,30 +200,34 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         (uint256 collRatio, uint256 collReqSoft, uint256 collReqHard) =
             liveMarketManager.collConfig(address(borrowableCSAUSD));
         (
-            uint256 liqIncBase, uint256 liqIncCurve,
-            uint256 liqIncMin, uint256 liqIncMax,
-            uint256 closeFactorBase, ,
-            uint256 closeFactorMin, uint256 closeFactorMax
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
+            uint256 liqIncMin,
+            uint256 liqIncMax,
+            uint256 closeFactorBase,,
+            uint256 closeFactorMin,
+            uint256 closeFactorMax
         ) = liveMarketManager.liquidationConfig(address(borrowableCSAUSD));
 
         // Update csAUSD with higher collateral cap (only changing caps)
         // Note: collReqSoft/Hard and liqInc values are stored with BPS added,
         // so we subtract BPS to get the raw values expected by updateTokenConfig
-        MarketManagerIsolated.TokenConfig memory csAusdConfig = MarketManagerIsolated.TokenConfig({
-            cToken: address(borrowableCSAUSD),
-            collRatio: collRatio,
-            collReqSoft: collReqSoft - BPS,
-            collReqHard: collReqHard - BPS,
-            liqIncBase: liqIncBase - BPS,
-            liqIncHard: (liqIncBase - BPS) + liqIncCurve,
-            liqIncMin: liqIncMin - BPS,
-            liqIncMax: liqIncMax - BPS,
-            closeFactorBase: closeFactorBase,
-            closeFactorMin: closeFactorMin,
-            closeFactorMax: closeFactorMax,
-            collateralCap: 1_000_000e18, // 1M sAUSD collateral cap
-            debtCap: 1_000_000e18 // 1M sAUSD debt cap
-        });
+        MarketManagerIsolated.TokenConfig memory csAusdConfig =
+            MarketManagerIsolated.TokenConfig({
+                cToken: address(borrowableCSAUSD),
+                collRatio: collRatio,
+                collReqSoft: collReqSoft - BPS,
+                collReqHard: collReqHard - BPS,
+                liqIncBase: liqIncBase - BPS,
+                liqIncHard: (liqIncBase - BPS) + liqIncCurve,
+                liqIncMin: liqIncMin - BPS,
+                liqIncMax: liqIncMax - BPS,
+                closeFactorBase: closeFactorBase,
+                closeFactorMin: closeFactorMin,
+                closeFactorMax: closeFactorMax,
+                collateralCap: 1_000_000e18, // 1M sAUSD collateral cap
+                debtCap: 1_000_000e18 // 1M sAUSD debt cap
+            });
 
         vm.prank(emergencyCouncil);
         liveMarketManager.updateTokenConfig(csAusdConfig);
@@ -230,28 +236,32 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         (collRatio, collReqSoft, collReqHard) =
             liveMarketManager.collConfig(address(borrowableCAUSD));
         (
-            liqIncBase, liqIncCurve,
-            liqIncMin, liqIncMax,
-            closeFactorBase, ,
-            closeFactorMin, closeFactorMax
+            liqIncBase,
+            liqIncCurve,
+            liqIncMin,
+            liqIncMax,
+            closeFactorBase,,
+            closeFactorMin,
+            closeFactorMax
         ) = liveMarketManager.liquidationConfig(address(borrowableCAUSD));
 
         // Update cAUSD with higher debt cap (only changing caps)
-        MarketManagerIsolated.TokenConfig memory cAusdConfig = MarketManagerIsolated.TokenConfig({
-            cToken: address(borrowableCAUSD),
-            collRatio: collRatio,
-            collReqSoft: collReqSoft - BPS,
-            collReqHard: collReqHard - BPS,
-            liqIncBase: liqIncBase - BPS,
-            liqIncHard: (liqIncBase - BPS) + liqIncCurve,
-            liqIncMin: liqIncMin - BPS,
-            liqIncMax: liqIncMax - BPS,
-            closeFactorBase: closeFactorBase,
-            closeFactorMin: closeFactorMin,
-            closeFactorMax: closeFactorMax,
-            collateralCap: 1_000_000e18, // 1M AUSD collateral cap
-            debtCap: 1_000_000e18 // 1M AUSD debt cap
-        });
+        MarketManagerIsolated.TokenConfig memory cAusdConfig =
+            MarketManagerIsolated.TokenConfig({
+                cToken: address(borrowableCAUSD),
+                collRatio: collRatio,
+                collReqSoft: collReqSoft - BPS,
+                collReqHard: collReqHard - BPS,
+                liqIncBase: liqIncBase - BPS,
+                liqIncHard: (liqIncBase - BPS) + liqIncCurve,
+                liqIncMin: liqIncMin - BPS,
+                liqIncMax: liqIncMax - BPS,
+                closeFactorBase: closeFactorBase,
+                closeFactorMin: closeFactorMin,
+                closeFactorMax: closeFactorMax,
+                collateralCap: 1_000_000e18, // 1M AUSD collateral cap
+                debtCap: 1_000_000e18 // 1M AUSD debt cap
+            });
 
         vm.prank(emergencyCouncil);
         liveMarketManager.updateTokenConfig(cAusdConfig);
@@ -271,11 +281,18 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
         (bool success,) = kyberSwapRouter.call(_lpSwapCalldata());
         require(success, "KyberSwap WMON->AUSD failed for liquidity provider");
 
-        liquidityProviderAUSDBalance = IERC20(AUSD_ADDRESS).balanceOf(liquidityProvider);
-        require(liquidityProviderAUSDBalance > 0, "Liquidity provider should have AUSD");
+        liquidityProviderAUSDBalance =
+            IERC20(AUSD_ADDRESS).balanceOf(liquidityProvider);
+        require(
+            liquidityProviderAUSDBalance > 0,
+            "Liquidity provider should have AUSD"
+        );
 
-        IERC20(AUSD_ADDRESS).approve(address(borrowableCAUSD), type(uint256).max);
-        borrowableCAUSD.deposit(liquidityProviderAUSDBalance, liquidityProvider);
+        IERC20(AUSD_ADDRESS)
+            .approve(address(borrowableCAUSD), type(uint256).max);
+        borrowableCAUSD.deposit(
+            liquidityProviderAUSDBalance, liquidityProvider
+        );
         vm.stopPrank();
     }
 
@@ -318,17 +335,99 @@ contract TestUpshiftVaultPositionManager is TestBaseMarketIsolated {
     }
 }
 
-contract UpshiftVaultPositionManagerHarness is UpshiftVaultPositionManager {
-    constructor(
-        ICentralRegistry cr,
-        address mm,
-        address wNative
-    ) UpshiftVaultPositionManager(cr, mm, wNative) {}
+contract TestUpshiftVaultPositionManagerVaultRedeem is Test {
+    UpshiftMockCentralRegistry internal registry;
+    UpshiftVaultPositionManagerHarness internal harness;
 
-    function exposedVaultRedeem(
-        address vault,
-        uint256 shares
-    ) external returns (uint256) {
+    function setUp() public {
+        registry = new UpshiftMockCentralRegistry();
+        address marketManager = makeAddr("marketManager");
+        registry.setMarketManager(marketManager, true);
+
+        harness = new UpshiftVaultPositionManagerHarness(
+            ICentralRegistry(address(registry)),
+            marketManager,
+            makeAddr("wNative")
+        );
+    }
+
+    function testVaultRedeem_revertsWhenRequestRedeemDoesNotTransferReturnedAssets()
+        public
+    {
+        MockUpshiftAsset asset = new MockUpshiftAsset();
+        MockUpshiftVault vault = new MockUpshiftVault(asset);
+
+        vault.setRequestRedeemResult(100e18, 99e18);
+
+        vm.expectRevert(
+            BasePositionManager.BasePositionManager__InvalidParam.selector
+        );
+        harness.exposedVaultRedeem(address(vault), 100e18);
+    }
+
+    function testVaultRedeem_acceptsWhenRequestRedeemTransfersReturnedAssets()
+        public
+    {
+        MockUpshiftAsset asset = new MockUpshiftAsset();
+        MockUpshiftVault vault = new MockUpshiftVault(asset);
+
+        vault.setRequestRedeemResult(100e18, 100e18);
+
+        uint256 assetsReceived =
+            harness.exposedVaultRedeem(address(vault), 100e18);
+
+        assertEq(assetsReceived, 100e18, "reported assets");
+        assertEq(
+            asset.balanceOf(address(harness)), 100e18, "transferred assets"
+        );
+        assertEq(vault.lastShares(), 100e18, "requestRedeem shares");
+        assertEq(
+            vault.lastReceiverAddr(),
+            address(harness),
+            "requestRedeem receiver"
+        );
+        assertEq(
+            vault.lastHolderAddr(), address(harness), "requestRedeem holder"
+        );
+    }
+}
+
+contract UpshiftMockCentralRegistry {
+    mapping(address => bool) internal _marketManagers;
+
+    function setMarketManager(address marketManager, bool isSupported)
+        external
+    {
+        _marketManagers[marketManager] = isSupported;
+    }
+
+    function isMarketManager(address marketManager)
+        external
+        view
+        returns (bool)
+    {
+        return _marketManagers[marketManager];
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        external
+        pure
+        returns (bool)
+    {
+        return interfaceId == 0x01ffc9a7
+            || interfaceId == type(ICentralRegistry).interfaceId;
+    }
+}
+
+contract UpshiftVaultPositionManagerHarness is UpshiftVaultPositionManager {
+    constructor(ICentralRegistry cr, address mm, address wNative)
+        UpshiftVaultPositionManager(cr, mm, wNative)
+    {}
+
+    function exposedVaultRedeem(address vault, uint256 shares)
+        external
+        returns (uint256)
+    {
         return _vaultRedeem(vault, shares);
     }
 }

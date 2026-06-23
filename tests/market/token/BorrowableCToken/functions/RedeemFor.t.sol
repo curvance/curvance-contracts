@@ -16,7 +16,7 @@ contract RedeemForTest is TestBaseMarketIsolated {
 
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -33,7 +33,7 @@ contract RedeemForTest is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), _ONE + _ONE);
         borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
 
-        
+
         // Approve delegated collateral removal for `user1` by `user2`.
         borrowableCDAI.setDelegateApproval(user2, true);
         vm.stopPrank();
@@ -140,11 +140,25 @@ contract RedeemForTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
         _redeemBorrowableCDaiForUser1(1000e18);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance);
+        assertEq(borrowableCDAI.balanceOf(user1), balance);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral);
+        assertEq(borrowableCUSDC.debtBalance(user1), debt);
     }
 
     function test_borrowableCTokenRedeemFor_success() public {
@@ -186,15 +200,15 @@ contract RedeemForTest is TestBaseMarketIsolated {
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
+
         borrowableCUSDC.accrueIfNeeded();
-        
+
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
+
         assertGt(debtAfterAccrual, 100e6);
         assertGt(debtAfterAccrual, debtBeforeAccrual);
-        
+
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
         assertEq(debtIncrease, assetsIncrease);
@@ -238,15 +252,15 @@ contract RedeemForTest is TestBaseMarketIsolated {
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
+
         borrowableCUSDC.accrueIfNeeded();
-        
+
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
+
         assertGt(debtAfterAccrual, 100e6);
         assertGt(debtAfterAccrual, debtBeforeAccrual);
-        
+
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
         assertEq(debtIncrease, assetsIncrease);

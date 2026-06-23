@@ -5,10 +5,10 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -216,7 +216,7 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         centralRegistry = _centralRegistry;
         _asset = asset_;
         _name = string.concat(vaultNamePrefix_, " ", asset_.symbol(), " Vault");
-        _symbol = string.concat("v", vaultSymbolPrefix_, asset_.symbol());
+        _symbol = string.concat(vaultSymbolPrefix_, asset_.symbol());
         _decimals = asset_.decimals();
         // Store fee as BPS.
         fee = _feeBps;

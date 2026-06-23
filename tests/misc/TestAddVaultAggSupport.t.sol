@@ -7,6 +7,7 @@ import {AddChainLinkSupport} from "script/deployment/AddChainLinkSupport.s.sol";
 import {AddChainlinkVaultAggSupport} from "script/deployment/AddChainlinkVaultAggSupport.s.sol";
 import {AddRedstoneSupport} from "script/deployment/AddRedstoneSupport.s.sol";
 import {AddRedstoneVaultAggSupport} from "script/deployment/AddRedstoneVaultAggSupport.s.sol";
+import {AddStaticPriceAggregator} from "script/deployment/AddStaticPriceAggregator.s.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
 import {ChainlinkAdaptor} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -28,6 +29,12 @@ contract AddChainlinkSupportHarness is AddChainLinkSupport {
 }
 
 contract AddRedstoneSupportHarness is AddRedstoneSupport {
+    modifier recordEvents() override {
+        _;
+    }
+}
+
+contract AddStaticPriceAggregatorHarness is AddStaticPriceAggregator {
     modifier recordEvents() override {
         _;
     }
@@ -477,7 +484,161 @@ contract AddSupportGuardRevertingRedstoneAdaptor {
     function removeAsset(address) external pure {}
 }
 
+contract AddSupportWriteRevertingRedstoneAdaptor {
+    function addAsset(
+        address,
+        bool,
+        uint8,
+        string memory
+    ) external pure {}
+
+    function assetConfig(
+        address,
+        bool
+    ) external pure returns (bytes32, uint8, uint48, uint200) {
+        return (Bytes32Helper.toBytes32("ASSET"), 8, 0, 0);
+    }
+
+    function writePrice(address, bool, uint48) external pure {
+        revert("write failed");
+    }
+
+    function removeAsset(address) external pure {}
+}
+
 contract TestAddVaultAggSupport is Test {
+    function test_addStaticPriceAggregator_invalidGuardPreflightsBeforeAdaptorMutation()
+        public
+    {
+        AddStaticPriceAggregatorHarness script = new AddStaticPriceAggregatorHarness();
+        AddSupportRevertingChainlinkAdaptor adaptor =
+            new AddSupportRevertingChainlinkAdaptor();
+        AddVaultAggSupportToken asset =
+            new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
+
+        vm.expectRevert("invalid guard config");
+        script.run(
+            address(asset),
+            1e18,
+            address(adaptor),
+            address(2),
+            6 hours,
+            true,
+            AddStaticPriceAggregator.PriceGuard({
+                enabled: true,
+                inUSD: true,
+                timestampSubtract: 0,
+                ips: 0,
+                basePrice: 0,
+                minPrice: 0
+            })
+        );
+    }
+
+    function test_addStaticPriceAggregator_guardFailureRemovesAdaptorSupportBeforeRevert()
+        public
+    {
+        vm.warp(1_000_000);
+
+        AddStaticPriceAggregatorHarness script = new AddStaticPriceAggregatorHarness();
+        AddSupportGuardRevertingChainlinkAdaptor adaptor =
+            new AddSupportGuardRevertingChainlinkAdaptor();
+        AddVaultAggSupportToken asset =
+            new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
+
+        vm.expectCall(
+            address(adaptor),
+            abi.encodeWithSignature("removeAsset(address)", address(asset))
+        );
+        vm.expectRevert("guard set failed");
+        script.run(
+            address(asset),
+            1e18,
+            address(adaptor),
+            address(2),
+            6 hours,
+            true,
+            AddStaticPriceAggregator.PriceGuard({
+                enabled: true,
+                inUSD: true,
+                timestampSubtract: 0,
+                ips: 0,
+                basePrice: 8e17,
+                minPrice: 0
+            })
+        );
+    }
+
+    function test_addStaticPriceAggregator_oracleRegistrationFailureRemovesAdaptorSupportBeforeRevert()
+        public
+    {
+        AddStaticPriceAggregatorHarness script = new AddStaticPriceAggregatorHarness();
+        AddVaultAggSupportAdaptor adaptor = new AddVaultAggSupportAdaptor();
+        AddSupportRevertingOracleManager oracleManager =
+            new AddSupportRevertingOracleManager();
+        AddVaultAggSupportToken asset =
+            new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
+
+        vm.expectCall(
+            address(adaptor),
+            abi.encodeWithSignature("removeAsset(address)", address(asset))
+        );
+        vm.expectRevert("oracle support failed");
+        script.run(
+            address(asset),
+            1e18,
+            address(adaptor),
+            address(oracleManager),
+            6 hours,
+            true,
+            AddStaticPriceAggregator.PriceGuard({
+                enabled: false,
+                inUSD: true,
+                timestampSubtract: 0,
+                ips: 0,
+                basePrice: 0,
+                minPrice: 0
+            })
+        );
+    }
+
+    function test_addStaticPriceAggregator_setsGuardBeforeOracleSupport()
+        public
+    {
+        vm.warp(1_000_000);
+
+        AddStaticPriceAggregatorHarness script = new AddStaticPriceAggregatorHarness();
+        AddVaultAggSupportOracleManager oracleManager =
+            new AddVaultAggSupportOracleManager();
+        AddVaultAggSupportAdaptor adaptor = new AddVaultAggSupportAdaptor();
+        AddVaultAggSupportToken asset =
+            new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
+
+        script.run(
+            address(asset),
+            2e18,
+            address(adaptor),
+            address(oracleManager),
+            6 hours,
+            true,
+            AddStaticPriceAggregator.PriceGuard({
+                enabled: true,
+                inUSD: true,
+                timestampSubtract: 8 days,
+                ips: 99,
+                basePrice: 2e18,
+                minPrice: 0
+            })
+        );
+
+        _assertGuardConfig(
+            adaptor, address(asset), true, 1_000_000 - 8 days, 99, 2e18, 0
+        );
+        _assertOracleSupport(oracleManager, address(asset), address(adaptor));
+        assertTrue(adaptor.aggregatorForAsset(address(asset)) != address(0));
+        assertEq(adaptor.heartbeatForAsset(address(asset)), 6 hours);
+    }
+
     function test_addChainlinkSupport_invalidGuardPreflightsBeforeAdaptorMutation() public {
         AddChainlinkSupportHarness script = new AddChainlinkSupportHarness();
         AddSupportRevertingChainlinkAdaptor adaptor =
@@ -651,6 +812,38 @@ contract TestAddVaultAggSupport is Test {
                 timestampSubtract: 0,
                 ips: 0,
                 basePrice: 8e17,
+                minPrice: 0
+            })
+        );
+    }
+
+    function test_addRedstoneCoreSupport_writeFailureRemovesAdaptorSupportBeforeRevert() public {
+        AddRedstoneSupportHarness script = new AddRedstoneSupportHarness();
+        AddSupportWriteRevertingRedstoneAdaptor adaptor =
+            new AddSupportWriteRevertingRedstoneAdaptor();
+        AddVaultAggSupportToken asset =
+            new AddVaultAggSupportToken("ASSET", 8, address(0), 1e18);
+
+        vm.expectCall(
+            address(adaptor),
+            abi.encodeWithSignature("removeAsset(address)", address(asset))
+        );
+        vm.expectRevert("write failed");
+        script.run(
+            address(asset),
+            address(adaptor),
+            address(2),
+            AddRedstoneSupport.PullFeed({
+                payload: "",
+                timestamp: uint48(block.timestamp),
+                id: "ASSET"
+            }),
+            AddRedstoneSupport.PriceGuard({
+                enabled: false,
+                inUSD: true,
+                timestampSubtract: 0,
+                ips: 0,
+                basePrice: 0,
                 minPrice: 0
             })
         );

@@ -163,6 +163,60 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         assertEq(snapshots[0].collateralPosted, 0);
         assertEq(snapshots[0].debtBalance, 0);
     }
+
+    function test_getPricesForMarket_success_skipsZeroExposureStaleDebtRowWhilePricingLiveCollateral()
+        public
+    {
+        _openDaiCollateralOnlyPosition();
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(errorCode, BAD_SOURCE, "test setup should make USDC stale");
+
+        (
+            AccountSnapshot[] memory snapshots,
+            uint256[] memory prices,
+            uint256 numAssets
+        ) = oracleManager.getPricesForMarket(
+            user1,
+            _daiCollateralUsdcDebtAssets(),
+            BAD_SOURCE
+        );
+
+        assertEq(numAssets, 2);
+        assertGt(prices[0], 0, "live collateral should be priced");
+        assertEq(snapshots[0].asset, address(borrowableCDAI));
+        assertTrue(snapshots[0].isCollateral);
+        assertGt(snapshots[0].collateralPosted, 0, "collateralPosted");
+        assertEq(snapshots[0].debtBalance, 0, "collateral debtBalance");
+
+        assertEq(prices[1], 0, "zero-exposure stale row should not be priced");
+        assertEq(snapshots[1].asset, address(borrowableCUSDC));
+        assertEq(snapshots[1].collateralPosted, 0);
+        assertEq(snapshots[1].debtBalance, 0);
+    }
+
+    function test_getPricesForMarket_revertsWhenCollateralOnlyOracleIsStale()
+        public
+    {
+        _openDaiCollateralOnlyPosition();
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockDaiFeed.setMockUpdatedAt(staleTimestamp);
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_DAI_ADDRESS, true, true);
+        assertEq(errorCode, BAD_SOURCE, "test setup should make DAI stale");
+
+        address[] memory assetsToPrice = new address[](1);
+        assetsToPrice[0] = address(borrowableCDAI);
+
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        oracleManager.getPricesForMarket(user1, assetsToPrice, BAD_SOURCE);
+    }
 function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
     // Set up market with two borrowable cTokens.
     _deployBorrowableCDAI();
@@ -324,6 +378,31 @@ function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
         dai.approve(address(borrowableCDAI), 200e18);
         borrowableCDAI.depositAsCollateral(200e18, user1);
         borrowableCUSDC.borrow(100e6, user1);
+        vm.stopPrank();
+    }
+
+    function _openDaiCollateralOnlyPosition() internal {
+        _deployBorrowableCDAI();
+        _setMockFeedsInitial();
+        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 150, 180, 150, 180);
+        oracleManager.addAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor), 150, 180, 150, 180);
+
+        oracleManager.addCTokenSupport(address(borrowableCDAI));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+
+        _prepareDAI(address(this), 77777);
+        _prepareUSDC(address(this), 77777);
+        dai.approve(address(borrowableCDAI), type(uint256).max);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
+
+        marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(borrowableCDAI), 5000e18, 5000e18);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 5000e6, 5000e6);
+
+        _prepareDAI(user1, 200e18);
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 200e18);
+        borrowableCDAI.depositAsCollateral(200e18, user1);
         vm.stopPrank();
     }
 

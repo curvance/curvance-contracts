@@ -1,156 +1,231 @@
-<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
-
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1773687595"/></p>
 <h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Curvance Protocol</h1>
 
-Main dependencies:
+Curvance protocol smart contracts. This repo uses Foundry for Solidity
+builds/tests and pnpm for JavaScript helper dependencies.
 
-- [Rust](https://www.rust-lang.org/): foundry compiler
-  - Confirm you have rust with `rustc --version`
-- [Foundry](https://book.getfoundry.sh/getting-started/installation): compile and run the smart contracts on a local development network
-  - Confirm you have Foundry with `forge -V`
-- [Solhint](https://github.com/protofire/solhint): linter
-  - Confirm you have the `solidity` plugin by Juan Blanco in VSCode -- Search settings in VSCode for `Solidity: Linter`, should be set to `solhint`
-- [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
-  - Confirm you have the `solidity` plugin by Juan Blanco in VSCode -- Search settings in VSCode for `Solidity: Formatter`, should be set to `prettier`
+## Security
+
+Curvance maintains a public bug bounty for deployed smart contracts. Submit
+potential vulnerabilities to security@curvance.com and allow the team time to
+investigate before public disclosure.
+
+Current scope, exclusions, payout guidance, and public audit links are maintained
+at [docs.curvance.com](https://docs.curvance.com).
+
+## Requirements
+
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+  - Confirm with `forge -V`.
+- Node.js with Corepack or pnpm
+  - `package.json` pins `pnpm@11.1.1`.
+- Git submodules
+  - External Solidity dependencies live under `lib/`.
+- Optional editor tooling
+  - [Solhint](https://github.com/protofire/solhint)
+  - [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity)
 
 ## Setup
 
-1. Copy `.env.sample` and fill it out with your own information
-2. Ensure you have `forge` installed, A guide can be found [here](https://book.getfoundry.sh/getting-started/installation)
-3. Happy building, all dependencies are gitmodule linked & remapping can be found in `remappings.txt` which should be picked up automatically
+1. Clone the repo and initialize submodules.
 
-## Code Safety
+```sh
+git submodule update --init --recursive
+```
 
-The Curvance Protocol codebase is rather large with different parts of the codebase at different levels of maturity. Review our public audit reports for what has been audited to better understand what is mature versus still in development (potentially with bugs).
+2. Install JavaScript dependencies for helper scripts.
 
-## Internal code guidelines
+```sh
+pnpm install
+```
 
-### Imports order
+3. Copy `.env.sample` to `.env` and fill in the RPC URLs and private key
+   values needed for fork tests or scripts.
 
-1. Internally-Developed Contracts; At the top of the contract
-2. Internally-Developed Libraries
-3. Externally-Developed Libraries
-4. Internally-Developed Interfaces
-5. Externally-Developed Interfaces
-6. Internally-Developed Test Contracts
-7. Externally-Developed Test Contracts
-8. Internally-Developed Mocks
-9. Externally-Developed Mocks; At the bottom of the contract
+```sh
+cp .env.sample .env
+```
 
-### Smart contract order
+On Windows PowerShell:
 
-1. Types; At the top of the contract
-2. Constants
-3. Storage
-4. Events
-5. Errors
-6. Constructor
-7. External Functions
-8. Public Functions
-9. Internal Functions
-10. Private Functions; At the bottom of the contract
+```powershell
+Copy-Item .env.sample .env
+```
 
-### Custom Struct Types
-
-In cases of custom structs used for storing permanent data such as token or oracle configurations we try to pack the data as tightly as possible to reduce runtime SLOAD costs, while runtime local memory structs always use full size e.g. uint256 to save on converting local values back and forth from uint256.
-
-### A/B state variables
-
-Instead of booleans, we use 0, 1, 2 (0 for false, 1/2 for true) in hotpath areas to minimize runtime gas costs such as our Reentryguard implementation.
-
-### Precompiled selectors
-
-For contracts close to the Spurious Dragon contract size limit we store specific custom error selectors. In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
-
-### Permissioned function validation
-
-Rather than modifiers we utilize internal functions with direct action control checks as we'd prefer an extra JUMP call than having to inline many instances of permissioning checks, this is to decrease smart contract size.
-
-For adding new risk to the system (e.g. adding a new asset), elevated permissioning is required, while removing risk from the system (pausing a market function) has standard dao permissioning.
-
-### Solidity Versioning
-
-Currently, Curvance Protocol is developed on 0.8.26 to make use of transient storage opcodes.
-
-### Linting
-
-- Prettier is set to have `printWidth` of 79 however comments sometimes do not take this, but are enforced in code review. Please ensure your commented lines do not exceed 79 characters.
-
-## Foundry tips
-
-### Build & compile
-
-Compile all contracts
+4. Build the contracts.
 
 ```sh
 forge build
 ```
 
-### Run tests
+## Repository Layout
 
-Compile all smart contracts & run all tests in /tests
+- `contracts/`: production contracts, libraries, interfaces, mocks, and views.
+- `tests/`: active Foundry test root from `foundry.toml`.
+- `disabled_tests/`: deprecated-surface tests for depreciated contracts kept out of normal Foundry runs.
+- `script/`: Forge scripts.
+- `lib/`: git submodule dependencies.
+- `artifacts/` and `cache/`: generated Foundry output.
 
-- To run a specific test use `--match-contract`
-- For more details like console logs add `-vv`
+## Code Safety
+
+The contract set is large and individual components may have different launch,
+audit, or deprecation status. Check the current deployment plan and public audit
+reports before treating a contract as live scope. Deprecated contracts may still
+have tests under `disabled_tests/` so repeated reports can be closed without
+running those tests in the active suite.
+
+## Common Commands
+
+### Build
+
+```sh
+forge build
+```
+
+### Run Tests
+
+Run the active Foundry test suite:
 
 ```sh
 forge test
 ```
 
-### Check coverage
+Run a specific file:
 
-Compile all smart contracts and check test coverage
+```sh
+forge test --match-path tests/oracles/OracleManager/functions/GetPrice.t.sol
+```
+
+Run a specific test name:
+
+```sh
+forge test --match-test test_getPrice_success
+```
+
+Add verbosity when debugging:
+
+```sh
+forge test -vv
+```
+
+### Coverage
 
 ```sh
 forge coverage
 ```
 
-### Execute script
-
-Execute a specific script using forge
+### Scripts
 
 ```sh
-forge script script/<something>.s.sol
+forge script script/<script-name>.s.sol
 ```
 
-## Code Reviews
+### Optional Fuzzing Helpers
 
-Reviews are a very important part of our development process. Two approvals are required to merge a pull request.
+The `Makefile` includes Echidna and Medusa helpers. They require the matching
+fuzzer binaries to be installed locally.
 
-For certain topics, that come up several times during review discussions, this document is the source of truth if it covers the topic (e.g. best practices in Solidity).
-
-If you think something needs to be changed in the code, please require changes. Often times reviewers just mention something they feel should maybe look different, but they approve anyways. Your input is important, and it is not a bad thing to discuss it with the pull request author before merging.
-
-### Assignment
-
-Github will automatically assign 2 developers in a round robin structure, counted against to how many pull request reviews
-they are already assigned to.
-
-## Branching strategy
-
-For now we are using a simple `feature` -> `develop` -> `main` branching model.
-
-### Steps for working on a new feature
-
-- Branch feature branch off of `develop`
-- Branch name should be `clickupIssueId-branch-name-based-on-task-title`
-- Once your branch is ready, open a pull request and set `develop` as target branch
-
-### Release
-
-For now, admins will merge `develop` with `main` to keep it up to date.
-
-```
-git checkout develop
-git merge main // we prevent conflicts on main, resolve conflicts on develop
-git checkout main
-git merge development
+```sh
+make echidna-local
+make medusa-local
 ```
 
-This process will probably change later on.
+## Solidity and Formatting
+
+- Solidity compiler: `0.8.28`.
+- EVM version: `cancun`.
+- Foundry output directory: `artifacts/`.
+- Active test root: `tests/`.
+- Solidity line length: 79 columns.
+- Solidity indentation: 4 spaces.
+- Repo line endings: LF, except Windows batch files.
+
+These values are configured in `foundry.toml`, `.editorconfig`, `.gitattributes`,
+`.prettierrc.yaml`, and `.solhint.json`.
+
+## Internal Code Guidelines
+
+### Import Order
+
+1. Internally developed contracts
+2. Internally developed libraries
+3. Externally developed libraries
+4. Internally developed interfaces
+5. Externally developed interfaces
+6. Internally developed test contracts
+7. Externally developed test contracts
+8. Internally developed mocks
+9. Externally developed mocks
+
+### Contract Layout
+
+1. Types
+2. Constants
+3. Storage
+4. Events
+5. Errors
+6. Constructor
+7. External functions
+8. Public functions
+9. Internal functions
+10. Private functions
+
+### Struct Packing
+
+Structs used for permanent storage, such as token or oracle configuration, should
+be packed tightly to reduce runtime SLOAD cost. Local memory structs should use
+full-size values such as `uint256` when that avoids repeated conversion work.
+
+### A/B State Variables
+
+Hot paths may use `0`, `1`, and `2` state flags instead of booleans when the gas
+saving is worth the extra documentation burden. Document the meaning at the
+storage field or constant.
+
+### Precomputed Selectors
+
+Contracts near the Spurious Dragon size limit may store precomputed custom error
+selectors. When a selector is used in three or more direct reverts, store it as a
+documented constant and use direct revert assembly where that reduces bytecode.
+
+### Permission Checks
+
+Prefer internal permission-check functions over modifiers for repeated checks.
+This keeps permission logic explicit while avoiding repeated modifier inlining in
+large contracts.
+
+Adding risk to the system, such as listing a new asset, requires elevated
+permissions. Removing risk, such as pausing a market action, uses standard DAO
+permissions unless the contract documents a stricter path.
+
+## Code Review
+
+Two approvals are required before a pull request can merge.
+
+If a change should block merge, request changes instead of leaving the concern as
+a non-blocking comment. For recurring Solidity style questions, this README is
+the default reference when it covers the topic.
+
+GitHub automatically assigns two developers in a round-robin pattern and accounts
+for existing review load.
+
+## Branching Strategy
+
+The repo currently uses:
+
+```text
+feature -> develop -> main
+```
+
+Feature branches should branch from `develop`, and pull requests should target
+`develop` unless a maintainer gives different release instructions. Branch names
+should use a short, descriptive task name.
+
+Admins sync `develop` into `main` for releases.
 
 ## Additional Information
 
-*Last updated: 8/24/2025*
+*Last updated: 2026-06-19*
 
 *Maintained by: Curvance Core Team*

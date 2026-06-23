@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "../../../../contracts/libraries/ReentrancyGuardTr
 /// Do NOT copy anything here into production code unless you really know what you are doing.
 contract MockReentrancyGuard is ReentrancyGuard {
     /// @dev SEE: `ReentrancyGuard`.
-    uint256 public constant _REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
+    uint256 public constant _REENTRANCY_GUARD_SLOT = 0x8000000000ab143c06;
 
     uint256 public enterTimes;
 
@@ -16,7 +16,7 @@ contract MockReentrancyGuard is ReentrancyGuard {
     function isReentrancyGuardLocked() public view returns (bool locked) {
         /// @solidity memory-safe-assembly
         assembly {
-            if eq(sload(_REENTRANCY_GUARD_SLOT), address()) { locked := true }
+            locked := iszero(iszero(tload(_REENTRANCY_GUARD_SLOT)))
         }
     }
 
@@ -34,6 +34,10 @@ contract MockReentrancyGuard is ReentrancyGuard {
 
     function callGuardedToUnguarded() public nonReentrant {
         callbackTargetUnguarded();
+    }
+
+    function guardedLockStateDuringCall() public nonReentrant returns (bool) {
+        return isReentrancyGuardLocked();
     }
 
     function callGuardedToReadGuarded() public nonReentrant {
