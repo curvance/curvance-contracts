@@ -25,7 +25,8 @@ contract DeployProtocolManager is DeployScript {
         address managerAddress,
         ProtocolManager.PermsConfig memory permsConfig,
         address[] memory managedAddresses,
-        ProtocolManager.PeriodLimits[] memory limits
+        ProtocolManager.PeriodLimits[] memory limits,
+        string memory deploymentName
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
 
@@ -37,6 +38,6 @@ contract DeployProtocolManager is DeployScript {
             limits
         );
 
-        emit ContractDeployed(address(protocolManager), "ProtocolManager");
+        emit ContractDeployed(address(protocolManager), deploymentName);
     }
 }
