@@ -256,11 +256,18 @@ contract RedstoneCoreAdaptor is
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
         AssetConfig storage config = assetConfig[asset][inUSD];
+        bytes32 dataFeedId = Bytes32Helper.toBytes32(id);
+        uint8 feedDecimals = decimals != 0 ? decimals : 8;
 
-        config.dataFeedId = Bytes32Helper.toBytes32(id);
+        if (config.dataFeedId != dataFeedId || config.decimals != feedDecimals) {
+            config.price = 0;
+            config.redstoneTimestamp = 0;
+        }
+
+        config.dataFeedId = dataFeedId;
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
-        config.decimals = decimals != 0 ? decimals : 8;
+        config.decimals = feedDecimals;
         
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;

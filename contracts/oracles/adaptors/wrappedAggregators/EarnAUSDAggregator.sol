@@ -24,6 +24,8 @@ contract EarnAUSDAggregator is VaultAggregator {
     function _getExchangeRate() internal view override returns (
         uint256 result
     ) {
+        if (!_isAssetConfigValid()) return 0;
+
         // Earn AUSD contract returns naturally in `_vaultDecimalPrecision`
         // format, so no adjustment needed.
         result = IEarnAUSD(vault).getSharePrice();

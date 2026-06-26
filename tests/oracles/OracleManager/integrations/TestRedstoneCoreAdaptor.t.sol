@@ -231,6 +231,82 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
     }
 
+    function test_ReconfigureFeedIdClearsCachedPrice() public {
+        uint48 redstoneTimestamp = uint48(block.timestamp * 1000);
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            redstoneTimestamp
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS,
+            address(adaptor),
+            100,
+            50,
+            100,
+            50
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertEq(price, 60000e18);
+
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, "TBTC");
+
+        (,, uint48 cachedTimestamp, uint200 cachedPrice) =
+            adaptor.assetConfig(_WBTC_ADDRESS, true);
+        assertEq(cachedTimestamp, 0);
+        assertEq(cachedPrice, 0);
+
+        (price, errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 2);
+        assertEq(price, 0);
+
+        redstonePayload = getRedstonePayload(
+            "TBTC:61000:8",
+            redstoneSignerKeys
+        );
+        encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (success, ) = address(adaptor).call(encodedFunctionWithRedstonePayload);
+        assertTrue(success);
+
+        (price, errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertEq(price, 61000e18);
+    }
+
 
     function test_PriceGuard_success_staticCap_basePrice_showsOnRead() public {
         // Write initial price: $60,000
