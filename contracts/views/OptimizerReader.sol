@@ -103,7 +103,7 @@ contract OptimizerReader {
     uint256 public constant CAP_BUFFER_BPS = 5;
 
     /// @notice Number of chunks used by optimalRebalance greedy allocation.
-    uint256 public REBALANCE_CHUNKS = 20;
+    uint256 public REBALANCE_CHUNKS = 200;
 
     /// IMMUTABLES ///
 
