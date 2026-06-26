@@ -15,7 +15,7 @@ import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
-    uint256 internal constant EXCHANGE_RATE_ROUNDING_TOLERANCE = 3_333_333;
+    uint256 internal constant EXCHANGE_RATE_ROUNDING_TOLERANCE_ASSETS = 3;
 
     OptimizerReader reader;
 
@@ -1364,7 +1364,13 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
     ) internal {
         if (actual >= expected) return;
 
-        assertLe(expected - actual, EXCHANGE_RATE_ROUNDING_TOLERANCE, err);
+        uint256 assetLoss = FixedPointMathLib.fullMulDivUp(
+            expected - actual,
+            optimizer.totalSupply(),
+            WAD
+        );
+
+        assertLe(assetLoss, EXCHANGE_RATE_ROUNDING_TOLERANCE_ASSETS, err);
     }
 
     // ============ Allocation Bounds from OptimizerReader ============
