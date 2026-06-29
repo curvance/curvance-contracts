@@ -11,10 +11,10 @@ contract RedeemCollateralTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
-        
+
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
-        
+
         usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         dai.approve(address(borrowableCDAI), 10e18 + 77777);
 
@@ -122,11 +122,25 @@ contract RedeemCollateralTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+        uint256 debt = borrowableCUSDC.debtBalance(user1);
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
         _redeemCollateralBorrowableCDai(3900e18);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance);
+        assertEq(borrowableCDAI.balanceOf(user1), balance);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral);
+        assertEq(borrowableCUSDC.debtBalance(user1), debt);
     }
 
     function test_borrowableCTokenRedeemCollateral_success() public {
@@ -157,7 +171,7 @@ contract RedeemCollateralTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCDAI.approve(user2, collateralRedeemed);
         vm.stopPrank();
-        
+
         vm.startPrank(user2);
         uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();

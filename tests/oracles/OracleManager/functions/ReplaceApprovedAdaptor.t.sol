@@ -53,6 +53,28 @@ contract ReplaceApprovedAdaptorTest is TestBaseOracleManager {
         );
     }
 
+    function test_replaceApprovedAdaptor_fail_whenNewAdaptorHasNoCode() public {
+        vm.expectRevert(
+            OracleManager.OracleManager__InvalidParameter.selector
+        );
+        oracleManager.replaceApprovedAdaptor(
+            address(chainlinkAdaptor),
+            address(1)
+        );
+    }
+
+    function test_replaceApprovedAdaptor_fail_whenNewAdaptorIsNotOracleAdaptor()
+        public
+    {
+        vm.expectRevert(
+            OracleManager.OracleManager__InvalidParameter.selector
+        );
+        oracleManager.replaceApprovedAdaptor(
+            address(chainlinkAdaptor),
+            address(this)
+        );
+    }
+
     function test_replaceApprovedAdaptor_success() public {
 
         assertTrue(oracleManager.isApprovedAdaptor(address(chainlinkAdaptor)));

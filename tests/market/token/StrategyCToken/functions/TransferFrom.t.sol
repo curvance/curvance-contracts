@@ -38,6 +38,43 @@ contract TransferFromTest is TestBaseStrategyCToken {
         pendleStrategyCTokenSTETH.transferFrom(address(this), user1, 100);
     }
 
+    function test_strategyCTokenTransferFrom_fail_whenCollateralIsRequired() public {
+        borrowableCDAI.deposit(1_000e18, address(this));
+        deal(address(LP_wstETH_24Dec2025), user1, 150e18);
+
+        vm.startPrank(user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 150e18);
+        uint256 collateralShares = pendleStrategyCTokenSTETH.deposit(100e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(collateralShares);
+        borrowableCDAI.borrow(50e18, user1);
+        uint256 idleShares = pendleStrategyCTokenSTETH.deposit(50e18, user1);
+        pendleStrategyCTokenSTETH.approve(user2, collateralShares + idleShares);
+        vm.stopPrank();
+
+        skip(20 minutes);
+
+        uint256 transferAmount = collateralShares + idleShares;
+        uint256 ownerBalance = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 receiverBalance = pendleStrategyCTokenSTETH.balanceOf(user3);
+        uint256 collateral = pendleStrategyCTokenSTETH.collateralPosted(user1);
+        uint256 totalCollateral = pendleStrategyCTokenSTETH.marketCollateralPosted();
+        uint256 debt = borrowableCDAI.debtBalance(user1);
+        uint256 allowance = pendleStrategyCTokenSTETH.allowance(user1, user2);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(user2);
+        pendleStrategyCTokenSTETH.transferFrom(user1, user3, transferAmount);
+
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), ownerBalance);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user3), receiverBalance);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user1), collateral);
+        assertEq(pendleStrategyCTokenSTETH.marketCollateralPosted(), totalCollateral);
+        assertEq(borrowableCDAI.debtBalance(user1), debt);
+        assertEq(pendleStrategyCTokenSTETH.allowance(user1, user2), allowance);
+    }
+
     function test_strategyCTokenTransferFrom_success() public {
         deal(address(pendleStrategyCTokenSTETH), address(this), 100e18);
 

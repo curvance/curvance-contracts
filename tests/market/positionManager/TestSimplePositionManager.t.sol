@@ -6,7 +6,11 @@ import {
     SimplePositionManager
 } from "contracts/market/position-management/SimplePositionManager.sol";
 import {SimpleCToken} from "contracts/market/token/SimpleCToken.sol";
+import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
 import {MockCalldataChecker} from "contracts/mocks/MockCalldataChecker.sol";
+import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
+import {OracleManager} from "contracts/oracles/OracleManager.sol";
+import {ERC20} from "contracts/libraries/external/ERC20.sol";
 import {MockSimpleCToken} from "contracts/mocks/MockSimpleCToken.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
@@ -29,6 +33,44 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
     SimplePositionManager public positionManager;
     MockSimpleCToken internal unlistedCToken;
+
+    struct PMDeleverageRollbackState {
+        AccountSnapshot debtSnapshot;
+        AccountSnapshot collateralSnapshot;
+        uint256 cTokenBalance;
+        uint256 marketCollateral;
+        uint256 userDai;
+        uint256 userUsdc;
+        uint256 pmDai;
+        uint256 pmUsdc;
+        uint256 targetDai;
+        uint256 targetUsdc;
+    }
+
+    struct PMTerminalCautionContext {
+        MarketManagerIsolated market;
+        SimplePositionManager pm;
+        OracleFlipToken debt;
+        OracleFlipToken collateral;
+        SimpleCToken collateralCToken;
+        BorrowableCToken debtCToken;
+        ExactOutTestSwapTarget swapTarget;
+        MockV3Aggregator terminalDebtFeed;
+    }
+
+    struct PMTerminalCautionState {
+        AccountSnapshot debtSnapshot;
+        AccountSnapshot collateralSnapshot;
+        uint256 cTokenBalance;
+        uint256 marketCollateral;
+        uint256 marketDebt;
+        uint256 userDebtToken;
+        uint256 userCollateralToken;
+        uint256 pmDebtToken;
+        uint256 pmCollateralToken;
+        uint256 targetDebtToken;
+        uint256 targetCollateralToken;
+    }
 
     receive() external payable {}
 
@@ -934,6 +976,122 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testLeverage_fail_whenTerminalCanBorrowRejectsAfterRealRouteAndRollsBack()
+        public
+    {
+        ExactOutTestSwapTarget swapTarget = new ExactOutTestSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(swapTarget),
+            address(new MockCalldataChecker(address(swapTarget)))
+        );
+
+        uint256 startingCollateral = 1_000e6;
+        uint256 borrowAssets = 3_000e18;
+        uint256 swapOut = 3_000e6;
+        _prepareUSDC(address(swapTarget), swapOut);
+
+        vm.startPrank(user);
+        deal(address(usdc), user, startingCollateral);
+        usdc.approve(address(borrowableCUSDC), startingCollateral);
+        borrowableCUSDC.depositAsCollateral(startingCollateral, user);
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = borrowAssets;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = borrowAssets;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(swapTarget);
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            ExactOutTestSwapTarget.exactSwap.selector,
+            address(dai),
+            address(usdc),
+            borrowAssets,
+            3_000e6
+        );
+        leverageAction.swapAction.slippage = 0;
+
+        AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user);
+        uint256 userDaiBefore = dai.balanceOf(user);
+        uint256 targetDaiBefore = dai.balanceOf(address(swapTarget));
+        uint256 targetUsdcBefore = usdc.balanceOf(address(swapTarget));
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral
+            .selector
+        );
+        positionManager.leverage(leverageAction, 0.999e18);
+        vm.stopPrank();
+
+        AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user);
+        assertEq(debtAfter.debtBalance, debtBefore.debtBalance);
+        assertEq(collAfter.collateralPosted, collBefore.collateralPosted);
+        assertEq(dai.balanceOf(user), userDaiBefore);
+        assertEq(dai.balanceOf(address(swapTarget)), targetDaiBefore);
+        assertEq(usdc.balanceOf(address(swapTarget)), targetUsdcBefore);
+        _assertSimplePositionManagerHasNoResidue();
+    }
+
+    function testLeverage_fail_whenPrefundedCollateralResidueTerminalCheckRejectsAndRollsBack()
+        public
+    {
+        ExactOutTestSwapTarget swapTarget = new ExactOutTestSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(swapTarget),
+            address(new MockCalldataChecker(address(swapTarget)))
+        );
+
+        uint256 borrowAssets = 3_000e18;
+        _prepareUSDC(address(swapTarget), 3_000e6);
+        deal(address(usdc), address(positionManager), 25e6);
+
+        vm.startPrank(user);
+        deal(address(usdc), user, 1_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000e6);
+        borrowableCUSDC.depositAsCollateral(1_000e6, user);
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = borrowAssets;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = borrowAssets;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(swapTarget);
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            ExactOutTestSwapTarget.exactSwap.selector,
+            address(dai),
+            address(usdc),
+            borrowAssets,
+            3_000e6
+        );
+        leverageAction.swapAction.slippage = 0;
+
+        AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user);
+        uint256 pmDaiBefore = dai.balanceOf(address(positionManager));
+        uint256 pmUsdcBefore = usdc.balanceOf(address(positionManager));
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral
+            .selector
+        );
+        positionManager.leverage(leverageAction, 0.999e18);
+        vm.stopPrank();
+
+        AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user);
+        assertEq(debtAfter.debtBalance, debtBefore.debtBalance);
+        assertEq(collAfter.collateralPosted, collBefore.collateralPosted);
+        assertEq(dai.balanceOf(address(positionManager)), pmDaiBefore);
+        assertEq(usdc.balanceOf(address(positionManager)), pmUsdcBefore);
+    }
+
     function testLeverage_sweepsPreExistingCollateralResidueIntoPosition()
         public
     {
@@ -1289,6 +1447,63 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             borrowableCUSDC.marketCollateralPosted(), marketCollateralBefore
         );
         _assertSimplePositionManagerHasNoResidue();
+
+        vm.stopPrank();
+    }
+
+    function testDeLeverage_fail_whenPrefundedDebtResidueTerminalCheckRejectsAndRollsBack()
+        public
+    {
+        testLeverage();
+
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        ExactOutTestSwapTarget swapTarget = new ExactOutTestSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(swapTarget),
+            address(new MockCalldataChecker(address(swapTarget)))
+        );
+
+        uint256 targetDaiOut = 1 ether;
+        uint256 pmResidue = 25 ether;
+        deal(address(dai), address(swapTarget), targetDaiOut);
+        deal(address(dai), address(positionManager), pmResidue);
+
+        vm.startPrank(user);
+
+        PMDeleverageRollbackState memory stateBefore =
+            _pmDeleverageRollbackState(address(swapTarget));
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = 900e6;
+        deleverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(swapTarget);
+        deleverageAction.swapActions[0].call = abi.encodeWithSelector(
+            ExactOutTestSwapTarget.exactSwap.selector,
+            address(usdc),
+            address(dai),
+            900e6,
+            targetDaiOut
+        );
+        deleverageAction.swapActions[0].slippage = 0.999e18;
+        deleverageAction.repayAssets = targetDaiOut;
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral
+            .selector
+        );
+        positionManager.deleverage(deleverageAction, 0.999e18);
+
+        _assertPMDeleverageRollbackStateEq(
+            _pmDeleverageRollbackState(address(swapTarget)), stateBefore
+        );
 
         vm.stopPrank();
     }
@@ -1700,6 +1915,234 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testLeverage_fail_whenTerminalDebtOracleTurnsCautionAndRollsBackRealPM()
+        public
+    {
+        PMTerminalCautionContext memory ctx = _setupTerminalCautionPMMarket();
+
+        (, uint256 normalDebtError) =
+            oracleManager.getPrice(address(ctx.debt), true, false);
+        assertEq(normalDebtError, 0, "debt oracle should start clean");
+
+        PMTerminalCautionState memory stateBefore =
+            _pmTerminalCautionState(ctx);
+
+        SimplePositionManager.LeverageAction memory leverageAction =
+            _terminalCautionLeverageAction(ctx, 100e18, 100e18);
+
+        vm.prank(user);
+        vm.expectRevert(OracleManager.OracleManager__ErrorCodeFlagged.selector);
+        ctx.pm.leverage(leverageAction, 0.05e18);
+
+        _assertPMTerminalCautionStateEq(
+            _pmTerminalCautionState(ctx), stateBefore
+        );
+        assertEq(ctx.terminalDebtFeed.latestAnswer(), 1e8);
+    }
+
+    function _setupTerminalCautionPMMarket()
+        internal
+        returns (PMTerminalCautionContext memory ctx)
+    {
+        ctx.market = new MarketManagerIsolated(
+            ICentralRegistry(address(centralRegistry)), 10e18, false
+        );
+        centralRegistry.addMarketManager(address(ctx.market));
+
+        ctx.debt = new OracleFlipToken("PM Debt", "pmDEBT", 18);
+        ctx.collateral = new OracleFlipToken("PM Collateral", "pmCOLL", 18);
+
+        ctx.collateralCToken = new SimpleCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(address(ctx.collateral)),
+            address(ctx.market)
+        );
+        ctx.debtCToken = new BorrowableCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(address(ctx.debt)),
+            address(ctx.market),
+            _deployDynamicIRM(address(ctx.debt))
+        );
+        IRMs[block.chainid][address(
+                ctx.debt
+            )].setLinkedToken(address(ctx.debtCToken));
+
+        ctx.pm = new SimplePositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(ctx.market),
+            _WETH_ADDRESS
+        );
+        ctx.market.addPositionManager(address(ctx.pm));
+
+        MockV3Aggregator collateralFeed = new MockV3Aggregator(8, 1e8);
+        MockV3Aggregator primaryDebtFeed = new MockV3Aggregator(8, 1e8);
+        ctx.terminalDebtFeed = new MockV3Aggregator(8, 1e8);
+
+        chainlinkAdaptor.addAsset(
+            address(ctx.collateral), true, address(collateralFeed), 0
+        );
+        chainlinkAdaptor.addAsset(
+            address(ctx.debt), true, address(primaryDebtFeed), 0
+        );
+        dualChainlinkAdaptor.addAsset(
+            address(ctx.debt), true, address(ctx.terminalDebtFeed), 0
+        );
+
+        oracleManager.addAssetPricingAdaptor(
+            address(ctx.collateral),
+            address(chainlinkAdaptor),
+            500,
+            50,
+            500,
+            50
+        );
+        oracleManager.addAssetPricingAdaptor(
+            address(ctx.debt), address(chainlinkAdaptor), 250, 150, 250, 150
+        );
+        oracleManager.addAssetPricingAdaptor(
+            address(ctx.debt),
+            address(dualChainlinkAdaptor),
+            250,
+            150,
+            250,
+            150
+        );
+        oracleManager.addCTokenSupport(address(ctx.collateralCToken));
+        oracleManager.addCTokenSupport(address(ctx.debtCToken));
+
+        ctx.debt.mint(address(this), 20_000e18);
+        ctx.collateral.mint(address(this), 20_000e18);
+        ctx.debt.approve(address(ctx.debtCToken), type(uint256).max);
+        ctx.collateral
+            .approve(address(ctx.collateralCToken), type(uint256).max);
+
+        ctx.market
+            .listTokens(address(ctx.collateralCToken), address(ctx.debtCToken));
+        _setCTokenConfigBasic(
+            ctx.market, address(ctx.collateralCToken), 100_000e18, 0
+        );
+        _setCTokenConfigBasic(
+            ctx.market, address(ctx.debtCToken), 100_000e18, 100_000e18
+        );
+
+        ctx.debtCToken.deposit(10_000e18, address(this));
+
+        ctx.collateral.mint(user, 1_000e18);
+        vm.startPrank(user);
+        ctx.collateral
+            .approve(address(ctx.collateralCToken), type(uint256).max);
+        ctx.collateralCToken.depositAsCollateral(1_000e18, user);
+        vm.stopPrank();
+
+        ctx.swapTarget = new ExactOutTestSwapTarget();
+        centralRegistry.setExternalCalldataChecker(
+            address(ctx.swapTarget),
+            address(new MockCalldataChecker(address(ctx.swapTarget)))
+        );
+
+        ctx.collateral.mint(address(ctx.swapTarget), 100e18);
+        ctx.collateral
+            .configureOracleFlip(
+                address(ctx.collateralCToken),
+                address(ctx.pm),
+                address(ctx.collateralCToken),
+                ctx.terminalDebtFeed,
+                102e6
+            );
+    }
+
+    function _terminalCautionLeverageAction(
+        PMTerminalCautionContext memory ctx,
+        uint256 borrowAssets,
+        uint256 collateralOut
+    )
+        internal
+        view
+        returns (SimplePositionManager.LeverageAction memory action)
+    {
+        action.borrowableCToken = IBorrowableCToken(address(ctx.debtCToken));
+        action.borrowAssets = borrowAssets;
+        action.cToken = ICToken(address(ctx.collateralCToken));
+        action.expectedShares = 1;
+        action.swapAction.inputToken = address(ctx.debt);
+        action.swapAction.inputAmount = borrowAssets;
+        action.swapAction.outputToken = address(ctx.collateral);
+        action.swapAction.target = address(ctx.swapTarget);
+        action.swapAction.call = abi.encodeWithSelector(
+            ExactOutTestSwapTarget.exactSwap.selector,
+            address(ctx.debt),
+            address(ctx.collateral),
+            borrowAssets,
+            collateralOut
+        );
+        action.swapAction.slippage = 0.3e18;
+    }
+
+    function _pmTerminalCautionState(PMTerminalCautionContext memory ctx)
+        internal
+        view
+        returns (PMTerminalCautionState memory state)
+    {
+        state.debtSnapshot = ctx.debtCToken.getSnapshot(user);
+        state.collateralSnapshot = ctx.collateralCToken.getSnapshot(user);
+        state.cTokenBalance = ctx.collateralCToken.balanceOf(user);
+        state.marketCollateral = ctx.collateralCToken.marketCollateralPosted();
+        state.marketDebt = ctx.debtCToken.marketOutstandingDebt();
+        state.userDebtToken = ctx.debt.balanceOf(user);
+        state.userCollateralToken = ctx.collateral.balanceOf(user);
+        state.pmDebtToken = ctx.debt.balanceOf(address(ctx.pm));
+        state.pmCollateralToken = ctx.collateral.balanceOf(address(ctx.pm));
+        state.targetDebtToken = ctx.debt.balanceOf(address(ctx.swapTarget));
+        state.targetCollateralToken =
+            ctx.collateral.balanceOf(address(ctx.swapTarget));
+    }
+
+    function _assertPMTerminalCautionStateEq(
+        PMTerminalCautionState memory actual,
+        PMTerminalCautionState memory expected
+    ) internal pure {
+        assertEq(
+            actual.debtSnapshot.debtBalance, expected.debtSnapshot.debtBalance
+        );
+        assertEq(
+            actual.collateralSnapshot.collateralPosted,
+            expected.collateralSnapshot.collateralPosted
+        );
+        assertEq(actual.cTokenBalance, expected.cTokenBalance);
+        assertEq(actual.marketCollateral, expected.marketCollateral);
+        assertEq(actual.marketDebt, expected.marketDebt);
+        assertEq(actual.userDebtToken, expected.userDebtToken);
+        assertEq(actual.userCollateralToken, expected.userCollateralToken);
+        assertEq(actual.pmDebtToken, expected.pmDebtToken);
+        assertEq(actual.pmCollateralToken, expected.pmCollateralToken);
+        assertEq(actual.targetDebtToken, expected.targetDebtToken);
+        assertEq(actual.targetCollateralToken, expected.targetCollateralToken);
+    }
+
+    function _setCTokenConfigBasic(
+        MarketManagerIsolated manager,
+        address cToken,
+        uint256 collateralCap,
+        uint256 debtCap
+    ) internal {
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 10;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
+
+        manager.updateTokenConfig(tokenConfig);
+    }
+
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
 
@@ -1719,6 +2162,44 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function _pmDeleverageRollbackState(address swapTarget)
+        internal
+        view
+        returns (PMDeleverageRollbackState memory state)
+    {
+        state.debtSnapshot = borrowableCDAI.getSnapshot(user);
+        state.collateralSnapshot = borrowableCUSDC.getSnapshot(user);
+        state.cTokenBalance = borrowableCUSDC.balanceOf(user);
+        state.marketCollateral = borrowableCUSDC.marketCollateralPosted();
+        state.userDai = dai.balanceOf(user);
+        state.userUsdc = usdc.balanceOf(user);
+        state.pmDai = dai.balanceOf(address(positionManager));
+        state.pmUsdc = usdc.balanceOf(address(positionManager));
+        state.targetDai = dai.balanceOf(swapTarget);
+        state.targetUsdc = usdc.balanceOf(swapTarget);
+    }
+
+    function _assertPMDeleverageRollbackStateEq(
+        PMDeleverageRollbackState memory actual,
+        PMDeleverageRollbackState memory expected
+    ) internal pure {
+        assertEq(
+            actual.debtSnapshot.debtBalance, expected.debtSnapshot.debtBalance
+        );
+        assertEq(
+            actual.collateralSnapshot.collateralPosted,
+            expected.collateralSnapshot.collateralPosted
+        );
+        assertEq(actual.cTokenBalance, expected.cTokenBalance);
+        assertEq(actual.marketCollateral, expected.marketCollateral);
+        assertEq(actual.userDai, expected.userDai);
+        assertEq(actual.userUsdc, expected.userUsdc);
+        assertEq(actual.pmDai, expected.pmDai);
+        assertEq(actual.pmUsdc, expected.pmUsdc);
+        assertEq(actual.targetDai, expected.targetDai);
+        assertEq(actual.targetUsdc, expected.targetUsdc);
+    }
+
     function _assertSimplePositionManagerHasNoResidue() internal view {
         assertEq(address(positionManager).balance, 0, "PM native residue");
         assertEq(
@@ -1735,5 +2216,78 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             0,
             "PM cDAI residue"
         );
+    }
+}
+
+contract OracleFlipToken is ERC20 {
+    string internal _name;
+    string internal _symbol;
+    uint8 internal _decimals;
+
+    address public triggerCaller;
+    address public triggerFrom;
+    address public triggerTo;
+    MockV3Aggregator public triggerFeed;
+    int256 public triggerAnswer;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+    }
+
+    function name() public view override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view override returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
+    function configureOracleFlip(
+        address caller,
+        address from,
+        address to,
+        MockV3Aggregator feed,
+        int256 answer
+    ) external {
+        triggerCaller = caller;
+        triggerFrom = from;
+        triggerTo = to;
+        triggerFeed = feed;
+        triggerAnswer = answer;
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override
+    {
+        amount;
+        if (
+            msg.sender == triggerCaller && from == triggerFrom
+                && to == triggerTo && address(triggerFeed) != address(0)
+        ) {
+            triggerFeed.updateAnswer(triggerAnswer);
+        }
+    }
+}
+
+contract ExactOutTestSwapTarget {
+    function exactSwap(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external {
+        IERC20(inputToken).transferFrom(msg.sender, address(this), inputAmount);
+        IERC20(outputToken).transfer(msg.sender, outputAmount);
     }
 }

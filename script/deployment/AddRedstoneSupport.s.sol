@@ -83,8 +83,14 @@ contract AddRedstoneSupport is DeployScript {
             feed.timestamp
         );
         bytes memory write = abi.encodePacked(encodedFunction, feed.payload);
-        (bool success, ) = address(adaptor).call(write);
-        require(success, "Failed to write price");
+        (bool success, bytes memory revertData) = address(adaptor).call(write);
+        if (!success) {
+            adaptor.removeAsset(asset);
+            if (revertData.length == 0) {
+                revert("Failed to write price");
+            }
+            _revertWithData(revertData);
+        }
 
         // Finalize oracle support
         _setGuardedPriceConfig(

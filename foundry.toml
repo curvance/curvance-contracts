@@ -36,6 +36,12 @@ line_length = 79
 [fuzz]
 runs = 50
 
+[invariant]
+# Keep the default full-suite CI job under the 20 minute cap. Override with
+# FOUNDRY_INVARIANT_DEPTH=500 for launch stress chunks.
+runs = 50
+depth = 200
+
 # Suppress common linting notes
 [lint]
 

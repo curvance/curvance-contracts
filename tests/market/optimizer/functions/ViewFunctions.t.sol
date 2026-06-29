@@ -420,7 +420,7 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(mockOptimizer, 500);
+            reader.optimalRebalance(mockOptimizer, 500, 200);
 
         assertEq(actions.length, 0, "Zero markets: empty actions");
         assertEq(bounds.length, 0, "Zero markets: empty bounds");
@@ -444,7 +444,7 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
 
         // With working oracle, small rebalance should be below threshold → empty.
         (LendingOptimizer.ReallocationAction[] memory actionsNormal, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
         assertEq(
             actionsNormal.length,
             0,
@@ -466,7 +466,7 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
 
         // With oracle error, threshold check is skipped → actions returned.
         (LendingOptimizer.ReallocationAction[] memory actionsError, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
         assertGt(
             actionsError.length,
             0,

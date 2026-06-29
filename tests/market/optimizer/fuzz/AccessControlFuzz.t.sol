@@ -66,7 +66,7 @@ contract AccessControlFuzz is TestBaseLendingOptimizer {
 
         vm.mockCall(
             address(liveCentralRegistry),
-            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, caller),
+            abi.encodeWithSelector(ICentralRegistry.hasElevatedPermissions.selector, caller),
             abi.encode(false)
         );
 

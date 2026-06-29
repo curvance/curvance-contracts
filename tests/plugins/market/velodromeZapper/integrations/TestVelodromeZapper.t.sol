@@ -398,6 +398,66 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
     }
 
+    function testRedeemAndExitVelodrome_fail_forceRedeemCollateralMinimumOutRollsBack()
+        public
+    {
+        testEnterVelodromeWithCTokenWithCollateralize();
+
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1)
+                + marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
+
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(veloCTokenWETHUSDC);
+        redeemAction.shares = 0.00006 ether;
+        redeemAction.forceRedeemCollateral = true;
+
+        uint256 userSharesBefore = veloCTokenWETHUSDC.balanceOf(user1);
+        uint256 collateralBefore = veloCTokenWETHUSDC.collateralPosted(user1);
+        uint256 marketCollateralBefore = veloCTokenWETHUSDC.marketCollateralPosted();
+        uint256 receiverWethBefore = IERC20(_WETH).balanceOf(user1);
+        uint256 receiverUsdcBefore = IERC20(_USDC).balanceOf(user1);
+        uint256 receiverLpBefore = IERC20(_VELODROME_WETH_USDC).balanceOf(user1);
+        uint256 zapperLpBefore = IERC20(_VELODROME_WETH_USDC).balanceOf(
+            address(velodromeZapper)
+        );
+        uint256 zapperWethBefore = IERC20(_WETH).balanceOf(address(velodromeZapper));
+        uint256 zapperUsdcBefore = IERC20(_USDC).balanceOf(address(velodromeZapper));
+
+        vm.startPrank(user1);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
+
+        vm.expectRevert(VelodromeZapper.VelodromeZapper__SlippageError.selector);
+        velodromeZapper.redeemAndExitVelodrome(
+            redeemAction,
+            _VELODROME_ROUTER,
+            VelodromeZapper.ZapAction(
+                _VELODROME_WETH_USDC,
+                redeemAction.shares,
+                _WETH,
+                type(uint256).max,
+                false
+            ),
+            new SwapperLib.Swap[](0),
+            user1
+        );
+        vm.stopPrank();
+
+        assertEq(veloCTokenWETHUSDC.balanceOf(user1), userSharesBefore);
+        assertEq(veloCTokenWETHUSDC.collateralPosted(user1), collateralBefore);
+        assertEq(veloCTokenWETHUSDC.marketCollateralPosted(), marketCollateralBefore);
+        assertEq(IERC20(_WETH).balanceOf(user1), receiverWethBefore);
+        assertEq(IERC20(_USDC).balanceOf(user1), receiverUsdcBefore);
+        assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), receiverLpBefore);
+        assertEq(
+            IERC20(_VELODROME_WETH_USDC).balanceOf(address(velodromeZapper)),
+            zapperLpBefore
+        );
+        assertEq(IERC20(_WETH).balanceOf(address(velodromeZapper)), zapperWethBefore);
+        assertEq(IERC20(_USDC).balanceOf(address(velodromeZapper)), zapperUsdcBefore);
+    }
+
     function testExitVelodrome_fail_PostVelodromeSwapSafeSlippage() public {
         deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
 

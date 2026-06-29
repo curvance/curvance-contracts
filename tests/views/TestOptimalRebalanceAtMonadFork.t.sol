@@ -33,7 +33,7 @@ contract TestOptimalRebalanceCurrentMonadFork is Test {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(LENDING_OPTIMIZER, DEFAULT_SLIPPAGE_BPS);
+            reader.optimalRebalance(LENDING_OPTIMIZER, DEFAULT_SLIPPAGE_BPS, 200);
 
         assertGe(optimizer.totalAssets(), cachedAssets, "reader should accrue optimizer state");
         assertEq(actions.length, bounds.length, "actions and bounds length mismatch");

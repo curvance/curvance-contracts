@@ -949,6 +949,31 @@ contract TestProtocolManagerMassPause is TestBaseMarketIsolated {
         massPause.pauseAll(_emptyArray());
     }
 
+    function test_pauseAll_autoDiscoverSkipsRemovedMarketButExplicitCanReachIt()
+        public
+    {
+        centralRegistry.removeMarketManager(address(marketManager2));
+        assertFalse(centralRegistry.isMarketManager(address(marketManager2)));
+
+        address[] memory registered = centralRegistry.marketManagers();
+        assertEq(registered.length, 1);
+        assertEq(registered[0], address(marketManagerIsolated));
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 1, 0);
+        massPause.pauseAll(_emptyArray());
+        _assertM1AllPaused();
+        _assertM2AllUnpaused();
+
+        address[] memory removedMarket = new address[](1);
+        removedMarket[0] = address(marketManager2);
+
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolManagerMassPause.MassPauseExecuted("All", true, 1, 0);
+        massPause.pauseAll(removedMarket);
+        _assertM2AllPaused();
+    }
+
     /// ==================== IDEMPOTENCY (UNPAUSE) ==================== ///
 
     function test_unpauseTokenLevelEntryActions_idempotent() public {

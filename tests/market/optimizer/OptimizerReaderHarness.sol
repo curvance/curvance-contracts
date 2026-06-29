@@ -9,14 +9,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract OptimizerReaderHarness is OptimizerReader {
 
     constructor(
-        ICentralRegistry _centralRegistry,
-        uint256 rebalanceChunks
+        ICentralRegistry _centralRegistry
     ) OptimizerReader(
         _centralRegistry,
         0
-    ) {
-        REBALANCE_CHUNKS = rebalanceChunks;
-    }
+    ) {}
 
     /// @notice Exposes _removeDustActions for direct testing.
     /// @dev Returns the modified idealAssets alongside the boolean result

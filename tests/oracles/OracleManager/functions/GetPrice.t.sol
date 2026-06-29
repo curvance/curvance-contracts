@@ -44,6 +44,10 @@ contract Oracle {
             return IOracleAdaptor.PricingResult(0, true, true);
         }
     }
+
+    function adaptorType() external pure returns (uint256) {
+        return 0;
+    }
 }
 
 contract MutableDenominationOracle {

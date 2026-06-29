@@ -209,7 +209,7 @@ contract TestLendingOptimizerDonationInflation is TestBaseLendingOptimizer {
         (
             LendingOptimizer.ReallocationAction[] memory actions,
             LendingOptimizer.AllocationBound[] memory bounds
-        ) = reader.optimalRebalance(address(harness), 500);
+        ) = reader.optimalRebalance(address(harness), 500, 200);
 
         harness.rebalance(actions, bounds);
 
