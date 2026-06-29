@@ -1768,6 +1768,13 @@ contract ProtocolReader {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshot(account);
 
+            if (
+                snapshots[i].collateralPosted == 0 &&
+                snapshots[i].debtBalance == 0
+            ) {
+                continue;
+            }
+
             if (snapshots[i].isCollateral) {
                 (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, true);
                 prices[i] = (prices[i] * _exchangeRate(asset)) / WAD;
