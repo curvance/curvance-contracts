@@ -17,6 +17,10 @@ import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStanda
 ///      rate between the oracle aggregator's asset and the principal token
 ///      is calculated and applied to the underlying aggregator's answer.
 ///
+///      This aggregator is intended for PTs whose SY does not have a material
+///      principal-loss path. Use `PendlePTLossAwareAggregator` when SY/NAV
+///      losses should reduce PT pricing.
+///
 ///      Validation is done on contract deployment to ensure that the linked
 ///      contracts have the expected asset addresses supported and that any
 ///      difference in decimals between the assets MUST be adjusted so that
@@ -97,7 +101,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     ///         underlying `asset`, normalized in `WAD`.
     /// @return The current exchange rate between `PT` and the underlying
     ///         `asset`, in `WAD`.
-    function _getExchangeRate() internal view returns (uint256) {
+    function _getExchangeRate() internal view virtual returns (uint256) {
         // If the PT has expired directly return `WAD`
         // to price it 1:1 with underlying asset.
         if (block.timestamp >= _expiry) {

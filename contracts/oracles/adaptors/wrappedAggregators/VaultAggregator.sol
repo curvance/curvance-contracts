@@ -82,11 +82,16 @@ contract VaultAggregator is BaseWrappedAggregator {
         uint256 result
     ) {
         // Lock actions via zero answer if the vault's asset identity drifts
-        // from the feed/decimal configuration assumed by this aggregator.
-        if (ICToken(vault).asset() != asset) return 0;
+        // from the feed configuration assumed by this aggregator.
+        if (!_isAssetConfigValid()) return 0;
 
         // Return exchange rate in `_vaultDecimalPrecision` format directly.
         result = IERC4626(vault).convertToAssets(_vaultDecimalPrecision);
+    }
+
+    /// @notice Returns whether the vault still matches the configured asset.
+    function _isAssetConfigValid() internal view virtual returns (bool) {
+        return ICToken(vault).asset() == asset;
     }
 
     /// @notice Validates whether `_vault`'s asset() is `_asset`.

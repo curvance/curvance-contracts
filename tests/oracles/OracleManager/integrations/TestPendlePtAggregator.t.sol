@@ -4,6 +4,9 @@ pragma solidity 0.8.28;
 import {
     PendlePTAggregator
 } from "contracts/oracles/adaptors/wrappedAggregators/PendlePTAggregator.sol";
+import {
+    PendlePTLossAwareAggregator
+} from "contracts/oracles/adaptors/wrappedAggregators/PendlePTLossAwareAggregator.sol";
 import {TestBaseOracleManager} from "../TestBaseOracleManager.sol";
 import {
     BaseWrappedAggregator
@@ -16,6 +19,12 @@ import {
 import {
     IPPrincipalToken
 } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
+import {
+    IPYieldToken
+} from "contracts/interfaces/external/pendle/IPYieldToken.sol";
+import {
+    IStandardizedYield
+} from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import {
     ChainlinkAdaptor
 } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -30,6 +39,7 @@ import {console2} from "forge-std/console2.sol";
 
 contract TestPendlePtAggregator is TestBaseOracleManager {
     PendlePTAggregator public aggregator;
+    PendlePTLossAwareAggregator public lossAwareAggregator;
 
     // remove this comment next commit
 
@@ -185,6 +195,61 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
         );
     }
 
+    function test_success_lossAwareSyLossReducesPendlePtPrice() public {
+        _deployLossAwareAggregatorCorrectly();
+
+        uint256 syIndex = 0.9e18;
+        uint256 pyIndex = 1e18;
+        _mockPendleIndices(syIndex, pyIndex, false, 0);
+
+        (, int256 rawEthUsd,,,) =
+            lossAwareAggregator.underlyingAggregator().latestRoundData();
+        (, int256 adjustedAnswer,,,) = lossAwareAggregator.latestRoundData();
+
+        uint256 expectedExchangeRate =
+            (_currentDiscountExchangeRate() * syIndex) / pyIndex;
+        int256 expectedAnswer =
+            (rawEthUsd * int256(expectedExchangeRate)) / int256(WAD);
+
+        assertEq(adjustedAnswer, expectedAnswer);
+    }
+
+    function test_success_lossAwarePostExpirySyLossStillReducesPendlePtPrice()
+        public
+    {
+        _deployLossAwareAggregatorCorrectly();
+
+        uint256 syIndex = 0.9e18;
+        uint256 pyIndex = 1e18;
+        _mockPendleIndices(syIndex, pyIndex, false, 0);
+        vm.warp(IPPrincipalToken(PT_weETH_25JUN2026).expiry());
+
+        (, int256 rawEthUsd,,,) =
+            lossAwareAggregator.underlyingAggregator().latestRoundData();
+        (, int256 adjustedAnswer,,,) = lossAwareAggregator.latestRoundData();
+
+        int256 expectedAnswer =
+            (rawEthUsd * int256(syIndex)) / int256(pyIndex);
+
+        assertEq(adjustedAnswer, expectedAnswer);
+    }
+
+    function test_success_lossAwareZeroStoredPyIndexUsesSyIndexWhenNotSameBlock()
+        public
+    {
+        _deployLossAwareAggregatorCorrectly();
+
+        _mockPendleIndices(1e18, 0, true, uint128(block.number - 1));
+
+        (, int256 rawEthUsd,,,) =
+            lossAwareAggregator.underlyingAggregator().latestRoundData();
+        (, int256 adjustedAnswer,,,) = lossAwareAggregator.latestRoundData();
+
+        int256 expectedAnswer =
+            (rawEthUsd * int256(_currentDiscountExchangeRate())) / int256(WAD);
+        assertEq(adjustedAnswer, expectedAnswer);
+    }
+
     function test_fail_ChainlinkAdaptorBubblesZeroUnderlyingAnswer() public {
         _deployAggregatorCorrectly();
 
@@ -298,6 +363,54 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
             CHAINLINK_ETH_USD,
             discountOneYearBPS,
             "100"
+        );
+    }
+
+    function _deployLossAwareAggregatorCorrectly() internal {
+        lossAwareAggregator = new PendlePTLossAwareAggregator(
+            PT_weETH_25JUN2026,
+            eETH,
+            CHAINLINK_ETH_USD,
+            discountOneYearBPS,
+            "100"
+        );
+    }
+
+    function _currentDiscountExchangeRate() internal view returns (uint256) {
+        uint256 timeToExpiry =
+            IPPrincipalToken(PT_weETH_25JUN2026).expiry() - block.timestamp;
+        return WAD
+            - ((timeToExpiry * discountOneYearBPS * 1e14) / SECONDS_PER_YEAR);
+    }
+
+    function _mockPendleIndices(
+        uint256 syIndex,
+        uint256 pyIndexStored,
+        bool doCacheIndexSameBlock,
+        uint128 pyIndexLastUpdatedBlock
+    ) internal {
+        address sy = IPPrincipalToken(PT_weETH_25JUN2026).SY();
+        address yt = IPPrincipalToken(PT_weETH_25JUN2026).YT();
+
+        vm.mockCall(
+            sy,
+            abi.encodeWithSelector(IStandardizedYield.exchangeRate.selector),
+            abi.encode(syIndex)
+        );
+        vm.mockCall(
+            yt,
+            abi.encodeWithSelector(IPYieldToken.pyIndexStored.selector),
+            abi.encode(pyIndexStored)
+        );
+        vm.mockCall(
+            yt,
+            abi.encodeWithSelector(IPYieldToken.doCacheIndexSameBlock.selector),
+            abi.encode(doCacheIndexSameBlock)
+        );
+        vm.mockCall(
+            yt,
+            abi.encodeWithSelector(IPYieldToken.pyIndexLastUpdatedBlock.selector),
+            abi.encode(pyIndexLastUpdatedBlock)
         );
     }
 }
