@@ -88,6 +88,7 @@ contract OptimizerReader {
 
     error OptimizerReader__Unauthorized();
     error OptimizerReader__InvalidMultiplier();
+    error OptimizerReader__InvalidRebalanceChunks();
 
     /// EVENTS ///
 
@@ -101,9 +102,6 @@ contract OptimizerReader {
 
     /// @notice Default cap headroom used by optimalRebalance planning.
     uint256 public constant CAP_BUFFER_BPS = 5;
-
-    /// @notice Number of chunks used by optimalRebalance greedy allocation.
-    uint256 public REBALANCE_CHUNKS = 20;
 
     /// IMMUTABLES ///
 
@@ -359,24 +357,31 @@ contract OptimizerReader {
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
+    /// @param rebalanceChunks Number of chunks used by the greedy allocation.
     /// @return actions The rebalance actions array matching approvedCTokensList order,
     ///                 or empty if no rebalance is needed.
     /// @return bounds The allocation bounds array matching approvedCTokensList order,
     ///                or empty if no rebalance is needed.
     function optimalRebalance(
         address optimizer,
-        uint256 slippageBps
+        uint256 slippageBps,
+        uint256 rebalanceChunks
     ) external returns (
         LendingOptimizer.ReallocationAction[] memory actions,
         LendingOptimizer.AllocationBound[] memory bounds
     ) {
+        if (rebalanceChunks == 0) {
+            revert OptimizerReader__InvalidRebalanceChunks();
+        }
+
         ILendingOptimizer(optimizer).accrueIfNeeded();
-        return _optimalRebalance(optimizer, slippageBps);
+        return _optimalRebalance(optimizer, slippageBps, rebalanceChunks);
     }
 
     function _optimalRebalance(
         address optimizer,
-        uint256 slippageBps
+        uint256 slippageBps,
+        uint256 rebalanceChunks
     ) internal view returns (
         LendingOptimizer.ReallocationAction[] memory actions,
         LendingOptimizer.AllocationBound[] memory bounds
@@ -392,7 +397,7 @@ contract OptimizerReader {
         uint256[] memory currentAssets;
         uint256 totalAssets;
         (idealAssets, currentAssets,) =
-            _computeIdealAllocation(optimizer, markets, badMarkets);
+            _computeIdealAllocation(optimizer, markets, badMarkets, rebalanceChunks);
         for (uint256 i; i < currentAssets.length; ++i) {
             totalAssets += currentAssets[i];
         }
@@ -452,7 +457,8 @@ contract OptimizerReader {
     function _computeIdealAllocation(
         address optimizer,
         address[] memory markets,
-        address[] memory badMarkets
+        address[] memory badMarkets,
+        uint256 rebalanceChunks
     ) internal view returns (
         uint256[] memory idealAssets,
         uint256[] memory currentAssets,
@@ -527,10 +533,10 @@ contract OptimizerReader {
         ta -= lockedAssets;
 
         // Chunked greedy allocation: split distributable total into fixed-size chunks.
-        uint256 chunkSize = ta / REBALANCE_CHUNKS;
+        uint256 chunkSize = ta / rebalanceChunks;
 
-        for (uint256 c; c < REBALANCE_CHUNKS; ++c) {
-            uint256 chunk = (c == REBALANCE_CHUNKS - 1) ? ta - (chunkSize * (REBALANCE_CHUNKS - 1)) : chunkSize;
+        for (uint256 c; c < rebalanceChunks; ++c) {
+            uint256 chunk = (c == rebalanceChunks - 1) ? ta - (chunkSize * (rebalanceChunks - 1)) : chunkSize;
             if (chunk == 0) continue;
 
             uint256 bestRate;

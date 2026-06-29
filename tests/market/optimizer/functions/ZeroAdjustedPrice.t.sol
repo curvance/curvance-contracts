@@ -200,7 +200,7 @@ contract TestZeroAdjustedPrice is TestBaseLendingOptimizer {
         _mockAdaptorPrice(collAsset0, 0, true);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         assertTrue(actions.length > 0, "Should have rebalance actions");
         assertLt(
@@ -218,7 +218,7 @@ contract TestZeroAdjustedPrice is TestBaseLendingOptimizer {
         (
             LendingOptimizer.ReallocationAction[] memory actions,
             LendingOptimizer.AllocationBound[] memory bounds
-        ) = reader.optimalRebalance(address(optimizer), 500);
+        ) = reader.optimalRebalance(address(optimizer), 500, 200);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
 

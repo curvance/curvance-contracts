@@ -44,7 +44,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         optimizer.deposit(100_000e6, address(this));
 
         (LendingOptimizer.ReallocationAction[] memory actions,
-         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500);
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500, 200);
 
         assertEq(actions.length, 0, "Single market should return empty actions");
         assertEq(bounds.length, 0, "Single market should return empty bounds");
@@ -55,7 +55,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         _setUpOneMarket();
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         assertEq(actions.length, 0, "Dead shares only: single market should be empty");
     }
@@ -81,7 +81,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         // Second call: residual deltas are at most 1-2 wei from cToken rounding.
         // With exchange rate > 1, these convert to 0 shares → dust → empty arrays.
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         // If the filter worked, arrays should be empty (all residuals are dust).
         // If not empty, the residuals are non-dust — still valid, just larger
@@ -104,7 +104,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         );
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
     }
@@ -115,7 +115,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         _depositToAllMarkets(50_000e6);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
     }
@@ -129,7 +129,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(365 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
     }
@@ -147,7 +147,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         );
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertZeroSum(actions);
     }
@@ -159,7 +159,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(180 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertZeroSum(actions);
     }
@@ -178,7 +178,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         uint256 totalAssetsBefore = _currentOptimizerAssets();
 
@@ -212,7 +212,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         // Second rebalance: rates shifted, some deltas may be dust-filtered.
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         uint256 totalAssetsBefore = _currentOptimizerAssets();
 
@@ -247,7 +247,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(5 * 365 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         // After 5 years of accrual, residual deltas from chunk rounding
         // should be filtered. Verify core invariants hold either way.
@@ -271,7 +271,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(10 * 365 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
         _assertZeroSum(actions);
@@ -280,7 +280,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         if (actions.length > 0) {
             (LendingOptimizer.ReallocationAction[] memory a,
              LendingOptimizer.AllocationBound[] memory b) =
-                reader.optimalRebalance(address(optimizer), 500);
+                reader.optimalRebalance(address(optimizer), 500, 200);
             optimizer.rebalance(a, b);
         }
     }
@@ -298,7 +298,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         // Confirm arrays are empty.
         assertEq(actions.length, 0, "Should be empty for single market");
@@ -329,7 +329,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
 
         // Second call.
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         // Either empty (all residuals are dust) or very small non-dust movements.
         uint256 totalMovement;
@@ -384,7 +384,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         );
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
     }
@@ -420,7 +420,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         );
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertZeroSum(actions);
     }
@@ -441,7 +441,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
@@ -476,7 +476,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(daysToSkip * 1 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
         _assertZeroSum(actions);
@@ -545,7 +545,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         );
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         // Core invariants must hold regardless of array emptiness.
         _assertAllActionsNonDust(actions);
@@ -561,7 +561,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
         skip(365 days);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
         _assertZeroSum(actions);
@@ -622,7 +622,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
     function _executeAndValidate() internal {
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
 
         _assertAllActionsNonDust(actions);
         _assertZeroSum(actions);
@@ -636,7 +636,7 @@ contract TestDustFilter is TestBaseLendingOptimizer {
     function _executeOptimalRebalance() internal {
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500);
+            reader.optimalRebalance(address(optimizer), 500, 200);
         if (actions.length > 0) optimizer.rebalance(actions, bounds);
     }
 

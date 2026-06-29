@@ -9,7 +9,8 @@ import { OptimizerReader } from "contracts/views/OptimizerReader.sol";
 
 contract DeployLendingOptimizer is DeployScript {
     function run(
-        string memory name,
+        string memory vaultNamePrefix,
+        string memory vaultSymbolPrefix,
         address depositAsset,
         address centralRegistryAddress,
         address[] memory ctokens,
@@ -20,11 +21,19 @@ contract DeployLendingOptimizer is DeployScript {
     ) external recordEvents {
         IERC20 asset = IERC20(depositAsset);
         ICentralRegistry icr = ICentralRegistry(centralRegistryAddress);
-        LendingOptimizer optimizer = new LendingOptimizer(asset, name, name, icr, ctokens, caps, feeInBps);
+        LendingOptimizer optimizer = new LendingOptimizer(
+            asset,
+            vaultNamePrefix,
+            vaultSymbolPrefix,
+            icr,
+            ctokens,
+            caps,
+            feeInBps
+        );
 
         emit ContractDeployed(
             address(optimizer),
-            string.concat("Optimizers.", name)
+            string.concat("Optimizers.", vaultNamePrefix)
         );
 
         if(deployReader) {

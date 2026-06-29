@@ -33,7 +33,7 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
 
         optimizer = LendingOptimizer(LENDING_OPTIMIZER);
         centralRegistry = ICentralRegistryHighChunksExt(CENTRAL_REGISTRY);
-        reader = new OptimizerReaderHarness(ICentralRegistry(CENTRAL_REGISTRY), 100);
+        reader = new OptimizerReaderHarness(ICentralRegistry(CENTRAL_REGISTRY));
 
         address ec = centralRegistry.emergencyCouncil();
         address[] memory markets = optimizer.getApprovedMarkets();
@@ -47,10 +47,8 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
     }
 
     function test_highChunkReaderExecutesAllCapsPlan() public {
-        assertEq(reader.REBALANCE_CHUNKS(), 100, "reader should use 100 chunks");
-
         (LendingOptimizer.ReallocationAction[] memory actions, LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(LENDING_OPTIMIZER, DEFAULT_SLIPPAGE_BPS);
+            reader.optimalRebalance(LENDING_OPTIMIZER, DEFAULT_SLIPPAGE_BPS, 100);
 
         uint256 moved = _totalMoved(actions);
         console2.log("actions", actions.length);
