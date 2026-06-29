@@ -42,6 +42,7 @@ contract ProtocolReader {
         bool mintPaused;
         bool collateralizationPaused;
         bool borrowPaused;
+        bool redeemPaused;
         bool isBorrowable;
         uint256 collRatio;
         uint256 maxLeverage;
@@ -230,6 +231,8 @@ contract ProtocolReader {
             StaticMarketToken[] memory tokens = new StaticMarketToken[](
                 numTokens
             );
+            bool redeemPaused =
+                MarketManagerIsolated(address(mm)).redeemPaused() == 2;
 
             uint256[] memory uniqueAdapters;
             for (uint256 j; j < numTokens; ++j) {
@@ -242,7 +245,11 @@ contract ProtocolReader {
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleA);
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleB);
 
-                tokens[j] = _getStaticTokenConfig(mm, cToken);
+                tokens[j] = _getStaticTokenConfig(
+                    mm,
+                    cToken,
+                    redeemPaused
+                );
                 tokens[j].adapters = [oracleA, oracleB];
             }
 
@@ -1197,11 +1204,13 @@ contract ProtocolReader {
     /// @param mm The market manager to pull static token data from.
     /// @param cToken The address of the cToken to pull static token
     ///               configuration of.
+    /// @param redeemPaused Whether market-wide redemptions are paused.
     /// @return t A StaticMarketToken struct containing static token
     ///           configuration information.
     function _getStaticTokenConfig(
         IMarketManager mm,
-        ICToken cToken
+        ICToken cToken,
+        bool redeemPaused
     ) internal view returns (StaticMarketToken memory t) {
         t._address = address(cToken);
         t.name = cToken.name();
@@ -1215,6 +1224,7 @@ contract ProtocolReader {
         t.isListed = _isListed(mm, address(cToken));
         (t.mintPaused, t.collateralizationPaused, t.borrowPaused) =
             mm.actionsPaused(address(cToken));
+        t.redeemPaused = redeemPaused;
         t.isBorrowable = cToken.isBorrowable();
         (t.collRatio, t.collReqSoft, t.collReqHard) = _collConfig(mm, address(cToken));
         t.maxLeverage = _mulDiv(BPS, BPS, BPS - t.collRatio);
@@ -1757,6 +1767,13 @@ contract ProtocolReader {
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshot(account);
+
+            if (
+                snapshots[i].collateralPosted == 0 &&
+                snapshots[i].debtBalance == 0
+            ) {
+                continue;
+            }
 
             if (snapshots[i].isCollateral) {
                 (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, true);
