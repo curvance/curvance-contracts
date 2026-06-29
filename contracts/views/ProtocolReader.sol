@@ -20,10 +20,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
-interface IMarketRedeemPause {
-    function redeemPaused() external view returns (uint8);
-}
-
 contract ProtocolReader {
     /// TYPES ///
 
@@ -236,7 +232,7 @@ contract ProtocolReader {
                 numTokens
             );
             bool redeemPaused =
-                IMarketRedeemPause(address(mm)).redeemPaused() == 2;
+                MarketManagerIsolated(address(mm)).redeemPaused() == 2;
 
             uint256[] memory uniqueAdapters;
             for (uint256 j; j < numTokens; ++j) {
