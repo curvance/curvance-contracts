@@ -154,6 +154,29 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, recipient);
     }
 
+    function testSwapUnpackCheckCallDataRevert__InvalidNativeInputToken()
+        public
+    {
+        address invalidNative = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        recipient = address(this);
+        swapAction.inputToken = invalidNative;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = WMON_ADDRESS;
+        swapAction.target = kuruRouter;
+        swapAction.call = _buildKuruCalldata(
+            invalidNative,
+            WMON_ADDRESS,
+            5e6
+        );
+
+        vm.expectRevert(
+            KuruCalldataChecker
+                .KuruCalldataChecker__InvalidNativeTokenAddress
+                .selector
+        );
+        checker.checkCalldata(swapAction, recipient);
+    }
+
     function testSwapUnpackCheckCallDataRevert__OutputTokenError() public {
         recipient = address(this);
         swapAction.inputToken = _USDC_ADDRESS;
@@ -163,6 +186,29 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.call = _buildKuruCalldata(_USDC_ADDRESS, WMON_ADDRESS, 5e6);
 
         vm.expectRevert(BaseSwapChecker.CalldataChecker__OutputTokenError.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testSwapUnpackCheckCallDataRevert__InvalidNativeOutputToken()
+        public
+    {
+        address invalidNative = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        recipient = address(this);
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 5e6;
+        swapAction.outputToken = invalidNative;
+        swapAction.target = kuruRouter;
+        swapAction.call = _buildKuruCalldata(
+            _USDC_ADDRESS,
+            invalidNative,
+            5e6
+        );
+
+        vm.expectRevert(
+            KuruCalldataChecker
+                .KuruCalldataChecker__InvalidNativeTokenAddress
+                .selector
+        );
         checker.checkCalldata(swapAction, recipient);
     }
 

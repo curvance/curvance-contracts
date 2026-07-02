@@ -1,16 +1,27 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { DeployScript } from "../utils/DeployScript.sol";
+import {DeployScript} from "../utils/DeployScript.sol";
+import {
+    OracleDeploymentPreflight
+} from "../utils/OracleDeploymentPreflight.sol";
 
-import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
-import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import {
+    RedstoneCoreAdaptor
+} from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
+import {
+    RedstoneClassicAdaptor
+} from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
+import {
+    BaseOracleAdaptor
+} from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import {OracleManager} from "contracts/oracles/OracleManager.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {
+    RedstoneAdaptorMulticallChecker
+} from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import {CentralRegistry} from "contracts/architecture/CentralRegistry.sol";
 
 contract AddRedstoneSupport is DeployScript {
     struct PullFeed {
@@ -42,20 +53,22 @@ contract AddRedstoneSupport is DeployScript {
         PushFeed memory feed,
         PriceGuard memory guardConfig
     ) external recordEvents {
+        _validateOptionalPriceGuard(guardConfig);
+        _validateClassicPreflight(asset, adaptorAddr, oracleManager, feed);
+
         RedstoneClassicAdaptor adaptor = RedstoneClassicAdaptor(adaptorAddr);
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
-        _validatePriceGuard(guardConfig);
         adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
 
         _setGuardedPriceConfig(
-            BaseOracleAdaptor(address(adaptor)),
-            asset,
-            guardConfig
+            BaseOracleAdaptor(address(adaptor)), asset, guardConfig
         );
 
-        _addAssetPricingAdaptor(manager, BaseOracleAdaptor(address(adaptor)), asset);
+        _addAssetPricingAdaptor(
+            manager, BaseOracleAdaptor(address(adaptor)), asset
+        );
     }
 
     function run(
@@ -65,11 +78,12 @@ contract AddRedstoneSupport is DeployScript {
         PullFeed memory feed,
         PriceGuard memory guardConfig
     ) external recordEvents {
+        _validateOptionalPriceGuard(guardConfig);
+        _validateCorePreflight(asset, adaptor, oracleManager, feed);
+
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(adaptor);
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
-
-        _validatePriceGuard(guardConfig);
 
         // Add oracle support
         adaptor.addAsset(asset, true, token.decimals(), feed.id);
@@ -77,10 +91,7 @@ contract AddRedstoneSupport is DeployScript {
 
         // Push the first price on-chain
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint48)",
-            asset,
-            true,
-            feed.timestamp
+            "writePrice(address,bool,uint48)", asset, true, feed.timestamp
         );
         bytes memory write = abi.encodePacked(encodedFunction, feed.payload);
         (bool success, bytes memory revertData) = address(adaptor).call(write);
@@ -94,12 +105,41 @@ contract AddRedstoneSupport is DeployScript {
 
         // Finalize oracle support
         _setGuardedPriceConfig(
-            BaseOracleAdaptor(address(adaptor)),
-            asset,
-            guardConfig
+            BaseOracleAdaptor(address(adaptor)), asset, guardConfig
         );
 
-        _addAssetPricingAdaptor(manager, BaseOracleAdaptor(address(adaptor)), asset);
+        _addAssetPricingAdaptor(
+            manager, BaseOracleAdaptor(address(adaptor)), asset
+        );
+    }
+
+    function _validateClassicPreflight(
+        address asset,
+        address adaptorAddr,
+        address oracleManager,
+        PushFeed memory feed
+    ) internal view {
+        OracleDeploymentPreflight.requireNonZero(asset);
+        OracleDeploymentPreflight.requireContract(adaptorAddr);
+        OracleDeploymentPreflight.requireContract(oracleManager);
+        OracleDeploymentPreflight.requireContract(feed.feed);
+        OracleDeploymentPreflight.requireHeartbeat(feed.heartbeat);
+        OracleDeploymentPreflight.requireNonEmptyString(feed.id);
+    }
+
+    function _validateCorePreflight(
+        address asset,
+        address adaptorAddr,
+        address oracleManager,
+        PullFeed memory feed
+    ) internal view {
+        OracleDeploymentPreflight.requireNonZero(asset);
+        OracleDeploymentPreflight.requireContract(adaptorAddr);
+        OracleDeploymentPreflight.requireContract(oracleManager);
+        OracleDeploymentPreflight.requireNonEmptyString(feed.id);
+        if (feed.timestamp == 0) {
+            revert OracleDeploymentPreflight.OracleDeploymentPreflight__InvalidPreflight();
+        }
     }
 
     function _setGuardedPriceConfig(
@@ -118,7 +158,8 @@ contract AddRedstoneSupport is DeployScript {
             guardConfig.ips,
             guardConfig.basePrice,
             guardConfig.minPrice
-        ) {} catch (bytes memory revertData) {
+        ) {}
+        catch (bytes memory revertData) {
             adaptor.removeAsset(asset);
             _revertWithData(revertData);
         }
@@ -130,42 +171,35 @@ contract AddRedstoneSupport is DeployScript {
         address asset
     ) internal {
         try manager.addAssetPricingAdaptor(
-            asset,
-            address(adaptor),
-            250,
-            220,
-            250,
-            220
-        ) {} catch (bytes memory revertData) {
+            asset, address(adaptor), 250, 220, 250, 220
+        ) {}
+        catch (bytes memory revertData) {
             adaptor.removeAsset(asset);
             _revertWithData(revertData);
         }
     }
 
-    function _validatePriceGuard(PriceGuard memory guardConfig) internal view {
-        if (!guardConfig.enabled) {
-            return;
-        }
-
-        require(guardConfig.basePrice != 0, "invalid guard config");
-        require(guardConfig.basePrice <= type(uint88).max, "invalid guard config");
-        require(guardConfig.minPrice <= guardConfig.basePrice, "invalid guard config");
-        require(guardConfig.ips <= type(uint40).max, "invalid guard config");
-
-        if (guardConfig.ips == 0) {
-            require(guardConfig.timestampSubtract == 0, "invalid guard config");
-        } else {
-            require(guardConfig.timestampSubtract >= 7 days, "invalid guard config");
-            require(guardConfig.timestampSubtract < block.timestamp, "invalid guard config");
-        }
+    function _validateOptionalPriceGuard(PriceGuard memory guardConfig)
+        internal
+        view
+    {
+        OracleDeploymentPreflight.validateRelativeGuardIfEnabled(
+            guardConfig.enabled,
+            guardConfig.timestampSubtract,
+            guardConfig.ips,
+            guardConfig.basePrice,
+            guardConfig.minPrice
+        );
     }
 
-    function _guardTimestamp(
-        PriceGuard memory guardConfig
-    ) internal view returns (uint256) {
-        return guardConfig.ips > 0 ?
-            block.timestamp - guardConfig.timestampSubtract :
-            0;
+    function _guardTimestamp(PriceGuard memory guardConfig)
+        internal
+        view
+        returns (uint256)
+    {
+        return guardConfig.ips > 0
+            ? block.timestamp - guardConfig.timestampSubtract
+            : 0;
     }
 
     function _revertWithData(bytes memory revertData) internal pure {
@@ -182,9 +216,11 @@ contract AddRedstoneSupport is DeployScript {
         ICentralRegistry icr,
         OracleManager oracleManager
     ) public useDeployer returns (RedstoneClassicAdaptor) {
-        RedstoneClassicAdaptor adaptor  = new RedstoneClassicAdaptor(icr);
+        RedstoneClassicAdaptor adaptor = new RedstoneClassicAdaptor(icr);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        emit ContractDeployed(address(adaptor),"adaptors.RedstoneClassicAdaptor");
+        emit ContractDeployed(
+            address(adaptor), "adaptors.RedstoneClassicAdaptor"
+        );
 
         return adaptor;
     }
@@ -200,24 +236,18 @@ contract AddRedstoneSupport is DeployScript {
         redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
         redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
 
-        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH", 1 minutes);
-        emit ContractDeployed(
-            address(adaptor),
-            "adaptors.RedstoneCoreAdaptor"
-        );
+        RedstoneCoreAdaptor adaptor =
+            new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH", 1 minutes);
+        emit ContractDeployed(address(adaptor), "adaptors.RedstoneCoreAdaptor");
 
-        address multicallChecker = address(
-            new RedstoneAdaptorMulticallChecker(icr)
-        );
+        address multicallChecker =
+            address(new RedstoneAdaptorMulticallChecker(icr));
         emit ContractDeployed(
             multicallChecker,
             "calldataCheckers.RedstoneAdaptorMulticallChecker"
         );
 
-        registry.setMulticallChecker(
-            address(adaptor),
-            multicallChecker
-        );
+        registry.setMulticallChecker(address(adaptor), multicallChecker);
         oracleManager.addApprovedAdaptor(address(adaptor));
 
         return adaptor;

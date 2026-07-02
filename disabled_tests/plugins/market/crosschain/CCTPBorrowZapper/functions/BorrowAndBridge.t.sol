@@ -141,6 +141,9 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
     function test_borrowAndBridge_fail_whenCCTPIsNotConfigured() public {
         centralRegistry.setTokenMessager(address(0));
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 zapperDaiBefore = dai.balanceOf(address(CCTPZapper));
+        uint256 zapperUsdcBefore = usdc.balanceOf(address(CCTPZapper));
 
         vm.startPrank(user1);
 
@@ -152,10 +155,48 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore);
+        assertEq(dai.balanceOf(address(CCTPZapper)), zapperDaiBefore);
+        assertEq(usdc.balanceOf(address(CCTPZapper)), zapperUsdcBefore);
+    }
+
+    function test_borrowAndBridge_fail_beforeDebtWhenRemoteMessengerIsMissing() public {
+        MockTokenMessengerForCCTPBorrowZapper tokenMessenger = new MockTokenMessengerForCCTPBorrowZapper();
+        MockWormholeRelayerForCCTPBorrowZapper relayer = new MockWormholeRelayerForCCTPBorrowZapper();
+        tokenMessenger.setRemoteTokenMessenger(bytes32(0));
+        centralRegistry.setTokenMessager(address(tokenMessenger));
+        centralRegistry.setCrosschainRelayer(address(relayer));
+        CCTPZapper.setCCTPDeliveryProvider(42161, relayer.getDefaultDeliveryProvider(), true);
+
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 zapperDaiBefore = dai.balanceOf(address(CCTPZapper));
+        uint256 zapperUsdcBefore = usdc.balanceOf(address(CCTPZapper));
+
+        vm.startPrank(user1);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
+
+        vm.expectRevert(CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector);
+        CCTPZapper.borrowAndBridge{value: messageFee}(
+            address(borrowableCDAI), 500e18, swapAction, 42161, 0, destinationReceiver
+        );
+
+        vm.stopPrank();
+
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore);
+        assertEq(dai.balanceOf(address(CCTPZapper)), zapperDaiBefore);
+        assertEq(usdc.balanceOf(address(CCTPZapper)), zapperUsdcBefore);
+        assertEq(tokenMessenger.lastAmount(), 0);
+        assertEq(relayer.lastTargetChain(), 0);
+        assertEq(relayer.lastMessageKeyType(), 0);
     }
 
     function test_borrowAndBridge_fail_whenGasTokenIsNotEnough() public {
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+        uint256 debtBefore = borrowableCDAI.debtBalance(user1);
+        uint256 zapperDaiBefore = dai.balanceOf(address(CCTPZapper));
+        uint256 zapperUsdcBefore = usdc.balanceOf(address(CCTPZapper));
 
         vm.startPrank(user1);
 
@@ -167,6 +208,10 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         );
 
         vm.stopPrank();
+
+        assertEq(borrowableCDAI.debtBalance(user1), debtBefore);
+        assertEq(dai.balanceOf(address(CCTPZapper)), zapperDaiBefore);
+        assertEq(usdc.balanceOf(address(CCTPZapper)), zapperUsdcBefore);
     }
 
     function test_borrowAndBridge_fail_TightSwapSafeSlippage() public {
@@ -315,17 +360,36 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         uint256 balancePrior = dai.balanceOf(address(CCTPZapper));
         uint256 debtBefore = borrowableCDAI.debtBalance(user1);
         uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
+        uint256 userNativeBefore = user1.balance;
+        uint256 excessNativeFee = 0.25 ether;
 
         vm.startPrank(user1);
         borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
-        CCTPZapper.borrowAndBridge{value: messageFee}(
+        CCTPZapper.borrowAndBridge{value: messageFee + excessNativeFee}(
             address(borrowableCDAI), 500e18, noSwapAction, 42161, 0, destinationReceiver
         );
         vm.stopPrank();
 
+        bytes32 receiverAsBytes32 = bytes32(uint256(uint160(destinationReceiver)));
+
         assertEq(tokenMessenger.lastAmount(), 500e18);
+        assertEq(tokenMessenger.lastMintRecipient(), receiverAsBytes32);
+        assertEq(tokenMessenger.lastDestinationCaller(), receiverAsBytes32);
         assertEq(borrowableCDAI.debtBalance(user1), debtBefore + 500e18);
         assertEq(dai.balanceOf(address(CCTPZapper)), balancePrior + tokenMessenger.lastAmount());
+        assertEq(dai.allowance(address(CCTPZapper), address(tokenMessenger)), 0);
+        assertEq(relayer.lastValue(), messageFee);
+        assertEq(relayer.lastTargetChain(), 23);
+        assertEq(relayer.lastTargetAddress(), destinationReceiver);
+        assertEq(abi.decode(relayer.lastPayload(), (address)), user1);
+        assertEq(relayer.lastGasLimit(), 300_000);
+        assertEq(relayer.lastRefundChain(), 23);
+        assertEq(relayer.lastRefundAddress(), destinationReceiver);
+        assertEq(relayer.lastDeliveryProvider(), relayer.getDefaultDeliveryProvider());
+        assertEq(relayer.lastMessageKeyType(), 2);
+        assertEq(relayer.lastMessageKeyEncoded(), abi.encodePacked(centralRegistry.domain(), tokenMessenger.nextNonce()));
+        assertEq(relayer.lastConsistencyLevel(), 15);
+        assertEq(user1.balance, userNativeBefore - messageFee);
     }
 
     function test_borrowAndBridge_destinationDeliveryToReceiverFinalizesCCTP() public {
@@ -423,8 +487,13 @@ contract MockTokenMessengerForCCTPBorrowZapper is ITokenMessenger {
     uint256 public lastAmount;
     bytes32 public lastMintRecipient;
     bytes32 public lastDestinationCaller;
+    bytes32 public remoteTokenMessenger = bytes32(uint256(1));
     MockWormholeRelayerForCCTPBorrowZapper public relayerToMutate;
     address public providerAfterBurn;
+
+    function setRemoteTokenMessenger(bytes32 remoteTokenMessenger_) external {
+        remoteTokenMessenger = remoteTokenMessenger_;
+    }
 
     function setProviderMutation(MockWormholeRelayerForCCTPBorrowZapper relayer, address provider) external {
         relayerToMutate = relayer;
@@ -444,19 +513,23 @@ contract MockTokenMessengerForCCTPBorrowZapper is ITokenMessenger {
         return nextNonce;
     }
 
-    function remoteTokenMessengers(uint32) external pure returns (bytes32) {
-        return bytes32(uint256(1));
+    function remoteTokenMessengers(uint32) external view returns (bytes32) {
+        return remoteTokenMessenger;
     }
 }
 
 contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
+    uint256 public lastValue;
     uint16 public lastTargetChain;
     address public lastTargetAddress;
     bytes public lastPayload;
+    uint256 public lastGasLimit;
     uint16 public lastRefundChain;
     address public lastRefundAddress;
     address public lastDeliveryProvider;
     uint8 public lastMessageKeyType;
+    bytes public lastMessageKeyEncoded;
+    uint8 public lastConsistencyLevel;
     address public defaultDeliveryProvider = address(this);
 
     function sendToEvm(
@@ -465,22 +538,26 @@ contract MockWormholeRelayerForCCTPBorrowZapper is IWormholeRelayer {
         bytes memory payload,
         uint256,
         uint256,
-        uint256,
+        uint256 gasLimit,
         uint16 refundChain,
         address refundAddress,
         address deliveryProvider,
         MessageKey[] memory messageKeys,
-        uint8
+        uint8 consistencyLevel
     ) external payable returns (uint64 sequence) {
+        lastValue = msg.value;
         lastTargetChain = targetChain;
         lastTargetAddress = targetAddress;
         lastPayload = payload;
+        lastGasLimit = gasLimit;
         lastRefundChain = refundChain;
         lastRefundAddress = refundAddress;
         lastDeliveryProvider = deliveryProvider;
         if (messageKeys.length > 0) {
             lastMessageKeyType = messageKeys[0].keyType;
+            lastMessageKeyEncoded = messageKeys[0].encodedKey;
         }
+        lastConsistencyLevel = consistencyLevel;
         return 456;
     }
 

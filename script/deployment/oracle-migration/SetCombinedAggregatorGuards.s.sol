@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { DeployScript } from "../../utils/DeployScript.sol";
-import { ICombinedAggregator } from "contracts/interfaces/ICombinedAggregator.sol";
+import {DeployScript} from "../../utils/DeployScript.sol";
+import {
+    OracleDeploymentPreflight
+} from "../../utils/OracleDeploymentPreflight.sol";
+import {
+    ICombinedAggregator
+} from "contracts/interfaces/ICombinedAggregator.sol";
 
 contract SetCombinedAggregatorGuards is DeployScript {
     struct PriceGuard {
@@ -18,14 +23,43 @@ contract SetCombinedAggregatorGuards is DeployScript {
         PriceGuard guard;
     }
 
-    function run(CombinedAggregatorGuard[] calldata guards) external recordEvents {
+    function run(CombinedAggregatorGuard[] calldata guards)
+        external
+        recordEvents
+    {
+        _validatePreflight(guards);
+
         for (uint256 i; i < guards.length; ++i) {
             CombinedAggregatorGuard calldata item = guards[i];
             if (!item.guard.enabled) {
                 continue;
             }
 
-            ICombinedAggregator(item.aggregator).setGuardedPriceConfig(
+            ICombinedAggregator(item.aggregator)
+                .setGuardedPriceConfig(
+                    item.guard.timestampStart,
+                    item.guard.ips,
+                    item.guard.basePrice,
+                    item.guard.minPrice
+                );
+        }
+    }
+
+    function _validatePreflight(CombinedAggregatorGuard[] calldata guards)
+        internal
+        view
+    {
+        OracleDeploymentPreflight.requireNonEmpty(guards.length);
+
+        for (uint256 i; i < guards.length; ++i) {
+            CombinedAggregatorGuard calldata item = guards[i];
+            if (!item.guard.enabled) {
+                continue;
+            }
+
+            OracleDeploymentPreflight.requireContract(item.aggregator);
+            OracleDeploymentPreflight.validateAbsoluteGuardIfEnabled(
+                item.guard.enabled,
                 item.guard.timestampStart,
                 item.guard.ips,
                 item.guard.basePrice,

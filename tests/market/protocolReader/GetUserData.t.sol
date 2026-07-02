@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract GetUserDataTest is TestBaseMarketIsolated {
@@ -196,6 +197,61 @@ contract GetUserDataTest is TestBaseMarketIsolated {
         );
         assertFalse(loanSizeError);
         assertFalse(oracleError);
+    }
+
+    function test_hypotheticalLiquidityOf_skipsZeroExposureStaleDebtRow()
+        external
+    {
+        vm.warp(
+            marketManagerIsolated.accountAssets(user1) +
+            marketManagerIsolated.MIN_HOLD_PERIOD()
+        );
+
+        uint256 repayBuffer = borrowableCUSDC.debtBalance(user1) + 10e6;
+        _prepareUSDC(user1, repayBuffer);
+
+        vm.startPrank(user1);
+        usdc.approve(address(borrowableCUSDC), repayBuffer);
+        borrowableCUSDC.repay(0);
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
+        assertEq(accountAssets.length, 2, "closed debt row should remain listed");
+        assertEq(accountAssets[1], address(borrowableCUSDC));
+
+        uint256 staleTimestamp =
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1;
+        mockUsdcFeed.setMockUpdatedAt(staleTimestamp);
+        (, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(errorCode, BAD_SOURCE, "test setup should make USDC stale");
+
+        ProtocolReader.HypotheticalResult memory liquidity =
+            protocolReader.hypotheticalLiquidityOf(
+                marketManagerIsolated,
+                user1,
+                address(0),
+                0,
+                0,
+                0
+            );
+
+        assertGt(liquidity.collateral, 0, "live collateral should be priced");
+        assertEq(liquidity.debt, 0, "closed debt should have no value");
+        assertFalse(
+            liquidity.oracleError,
+            "zero-exposure stale debt row should not trip reader oracle error"
+        );
+
+        ProtocolReader.UserMarket memory market = _findUserMarket(
+            protocolReader.getUserData(user1),
+            address(marketManagerIsolated)
+        );
+        assertFalse(
+            market.errorCodeHit,
+            "user data should mirror zero-exposure skip"
+        );
     }
 
     function test_hypotheticalLeverageOf_saturatedDebtCapReturnsZeroBorrowable()
