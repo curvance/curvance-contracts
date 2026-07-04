@@ -1,29 +1,42 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import {
+    MarketManagerIsolated
+} from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
+import {BPS, WAD} from "contracts/libraries/ConstantsLib.sol";
 
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import {
+    FixedPointMathLib
+} from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
-import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {ICToken} from "contracts/interfaces/ICToken.sol";
+import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
+import {IMarketManager} from "contracts/interfaces/IMarketManager.sol";
+import {IDynamicIRM} from "contracts/interfaces/IDynamicIRM.sol";
+import {IERC20} from "contracts/interfaces/IERC20.sol";
+import {ILendingOptimizer} from "contracts/interfaces/ILendingOptimizer.sol";
+import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
+import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
+import {
+    IChainlink
+} from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import {
+    LendingOptimizer
+} from "contracts/market/optimizer/LendingOptimizer.sol";
 
 interface IChainlinkAdaptor {
-    function assetConfig(
-        address asset,
-        bool inUSD
-    ) external view returns (bool isConfigured, address aggregatorProxy, uint8 decimals, uint24 heartbeat);
+    function assetConfig(address asset, bool inUSD)
+        external
+        view
+        returns (
+            bool isConfigured,
+            address aggregatorProxy,
+            uint8 decimals,
+            uint24 heartbeat
+        );
 }
 
 contract OptimizerReader {
@@ -81,7 +94,19 @@ contract OptimizerReader {
         uint256 debt;
         uint256 fees;
         uint256 maxAllocation;
+        uint256 hardMaxAllocation;
         IDynamicIRM irm;
+        bool canWithdraw;
+        bool canDeposit;
+        bool isBad;
+    }
+
+    struct MoveCandidate {
+        uint256 sourceIdx;
+        uint256 destIdx;
+        uint256 amount;
+        uint256 score;
+        bool found;
     }
 
     /// ERRORS ///
@@ -92,7 +117,9 @@ contract OptimizerReader {
 
     /// EVENTS ///
 
-    event StalenessMultiplierUpdated(uint256 oldMultiplier, uint256 newMultiplier);
+    event StalenessMultiplierUpdated(
+        uint256 oldMultiplier, uint256 newMultiplier
+    );
 
     /// CONSTANTS ///
 
@@ -102,6 +129,8 @@ contract OptimizerReader {
 
     /// @notice Default cap headroom used by optimalRebalance planning.
     uint256 public constant CAP_BUFFER_BPS = 5;
+    /// @notice Tiny asset-unit headroom for hard-cap planner moves.
+    uint256 internal constant HARD_CAP_ROUNDING_BUFFER = 4;
 
     /// IMMUTABLES ///
 
@@ -154,9 +183,11 @@ contract OptimizerReader {
     /// @param optimizers The LendingOptimizer addresses.
     /// @return badOptimizers An array of cToken arrays, where each inner array
     ///         contains the bad markets for the corresponding optimizer.
-    function multiIsBadCheck(
-        address[] calldata optimizers
-    ) external view returns (address[][] memory badOptimizers) {
+    function multiIsBadCheck(address[] calldata optimizers)
+        external
+        view
+        returns (address[][] memory badOptimizers)
+    {
         uint256 len = optimizers.length;
         badOptimizers = new address[][](len);
 
@@ -177,10 +208,13 @@ contract OptimizerReader {
     /// @param optimizer The LendingOptimizer address.
     /// @return bad Array of optimizer cToken addresses whose
     ///         collateral has a stale oracle or breached PriceGuard.
-    function isBad(
-        address optimizer
-    ) external view returns (address[] memory bad) {
-        address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
+    function isBad(address optimizer)
+        external
+        view
+        returns (address[] memory bad)
+    {
+        address[] memory markets =
+            ILendingOptimizer(optimizer).getApprovedMarkets();
         uint256 numMarkets = markets.length;
 
         // Temporary array sized to max possible flags.
@@ -205,8 +239,11 @@ contract OptimizerReader {
                 address collateralAsset = ICToken(listed[j]).asset();
 
                 // Check oracle staleness (applies to all markets).
-                if (_stalenessMultiplierBps > 0 &&
-                    _isOracleStale(collateralAsset, _stalenessMultiplierBps)
+                if (
+                    _stalenessMultiplierBps > 0
+                        && _isOracleStale(
+                            collateralAsset, _stalenessMultiplierBps
+                        )
                 ) {
                     flagged = true;
                     break;
@@ -235,9 +272,10 @@ contract OptimizerReader {
     /// @notice Returns market data for a list of LendingOptimizers.
     /// @param optimizers The LendingOptimizer addresses.
     /// @return data The market data for each optimizer.
-    function getOptimizerMarketData(
-        address[] calldata optimizers
-    ) external returns (OptimizerMarketData[] memory data) {
+    function getOptimizerMarketData(address[] calldata optimizers)
+        external
+        returns (OptimizerMarketData[] memory data)
+    {
         uint256 len = optimizers.length;
         data = new OptimizerMarketData[](len);
 
@@ -265,9 +303,7 @@ contract OptimizerReader {
                 uint256 liquidity = _assetsHeld(cToken);
                 uint256 allocationCap = opt.allocationCaps(cTokens[j]);
                 uint256 maxAllocation = FixedPointMathLib.mulDiv(
-                    data[i].totalAssets,
-                    allocationCap,
-                    WAD
+                    data[i].totalAssets, allocationCap, WAD
                 );
                 uint256 allocationCapUtilizationBps = maxAllocation == 0
                     ? 0
@@ -312,16 +348,16 @@ contract OptimizerReader {
     /// @dev Does not account for the optimizer's performance fee.
     /// @param optimizer The LendingOptimizer address.
     /// @return apy The annualized supply APY in WAD.
-    function getOptimizerAPY(
-        address optimizer
-    ) public returns (uint256 apy) {
+    function getOptimizerAPY(address optimizer) public returns (uint256 apy) {
         ILendingOptimizer(optimizer).accrueIfNeeded();
         apy = _getOptimizerAPY(optimizer);
     }
 
-    function _getOptimizerAPY(
-        address optimizer
-    ) internal view returns (uint256 apy) {
+    function _getOptimizerAPY(address optimizer)
+        internal
+        view
+        returns (uint256 apy)
+    {
         ILendingOptimizer opt = ILendingOptimizer(optimizer);
         uint256 ta = opt.totalAssets();
         if (ta == 0) return 0;
@@ -331,15 +367,13 @@ contract OptimizerReader {
 
         for (uint256 i; i < markets.length; ++i) {
             IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-            uint256 allocated = ct.convertToAssets(
-                _balanceOf(address(ct), optimizer)
-            );
+            uint256 allocated =
+                ct.convertToAssets(_balanceOf(address(ct), optimizer));
 
-            uint256 rate = _IRM(ct).supplyRate(
-                _assetsHeld(ct),
-                _outstandingDebt(ct),
-                _interestFee(ct)
-            );
+            uint256 rate = _IRM(ct)
+                .supplyRate(
+                    _assetsHeld(ct), _outstandingDebt(ct), _interestFee(ct)
+                );
 
             weightedRate += FixedPointMathLib.mulDiv(allocated, rate, ta);
         }
@@ -366,10 +400,13 @@ contract OptimizerReader {
         address optimizer,
         uint256 slippageBps,
         uint256 rebalanceChunks
-    ) external returns (
-        LendingOptimizer.ReallocationAction[] memory actions,
-        LendingOptimizer.AllocationBound[] memory bounds
-    ) {
+    )
+        external
+        returns (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        )
+    {
         if (rebalanceChunks == 0) {
             revert OptimizerReader__InvalidRebalanceChunks();
         }
@@ -382,11 +419,16 @@ contract OptimizerReader {
         address optimizer,
         uint256 slippageBps,
         uint256 rebalanceChunks
-    ) internal view returns (
-        LendingOptimizer.ReallocationAction[] memory actions,
-        LendingOptimizer.AllocationBound[] memory bounds
-    ) {
-        address[] memory markets = ILendingOptimizer(optimizer).getApprovedMarkets();
+    )
+        internal
+        view
+        returns (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        )
+    {
+        address[] memory markets =
+            ILendingOptimizer(optimizer).getApprovedMarkets();
 
         if (markets.length == 0) return (actions, bounds);
 
@@ -396,8 +438,9 @@ contract OptimizerReader {
         uint256[] memory idealAssets;
         uint256[] memory currentAssets;
         uint256 totalAssets;
-        (idealAssets, currentAssets,) =
-            _computeIdealAllocation(optimizer, markets, badMarkets, rebalanceChunks);
+        (idealAssets, currentAssets,) = _computeIdealAllocation(
+            optimizer, markets, badMarkets, rebalanceChunks
+        );
         for (uint256 i; i < currentAssets.length; ++i) {
             totalAssets += currentAssets[i];
         }
@@ -413,14 +456,36 @@ contract OptimizerReader {
             return (actions, bounds);
         }
 
+        ILendingOptimizer opt = ILendingOptimizer(optimizer);
+        if (
+            !_idealWithinHardCaps(opt, markets, idealAssets, totalAssets)
+                || !_postActionWithinHardCaps(
+                    optimizer, opt, markets, currentAssets, idealAssets
+                )
+        ) {
+            return (
+                new LendingOptimizer.ReallocationAction[](0),
+                new LendingOptimizer.AllocationBound[](0)
+            );
+        }
+
         actions = new LendingOptimizer.ReallocationAction[](markets.length);
         bounds = new LendingOptimizer.AllocationBound[](markets.length);
 
-        _buildActionsAndBounds(markets, idealAssets, currentAssets, totalAssets, slippageBps, actions, bounds);
+        _buildActionsAndBounds(
+            markets,
+            idealAssets,
+            currentAssets,
+            totalAssets,
+            slippageBps,
+            actions,
+            bounds
+        );
 
         if (badMarkets.length == 0) {
             address underlying = ILendingOptimizer(optimizer).asset();
-            (uint256 price, uint256 errorCode) = ORACLE_MANAGER.getPrice(underlying, true, true);
+            (uint256 price, uint256 errorCode) =
+                ORACLE_MANAGER.getPrice(underlying, true, true);
 
             // Only apply threshold if price is reliable.
             if (errorCode == 0 && price > 0) {
@@ -447,23 +512,26 @@ contract OptimizerReader {
         }
     }
 
-    /// @dev Chunked greedy allocation: computes the ideal per-market asset
-    ///      distribution for a LendingOptimizer, respecting allocation caps
-    ///      and market pause states.
-    ///      When `badMarkets` is non-empty, those markets are forced to
-    ///      maxAllocation = 0, causing full withdrawal and optimal
-    ///      redistribution across the remaining good markets.
+    /// @dev Chunked greedy rebalancing: starts from current allocations and
+    ///      applies executable source-to-destination moves in memory.
+    ///      Normal moves require the destination post-move APY to be strictly
+    ///      greater than the source post-move APY. Bad-market and cap-repair
+    ///      moves are forced safety paths and can use hard cap room.
     ///      Separated from the public functions to avoid stack-too-deep.
     function _computeIdealAllocation(
         address optimizer,
         address[] memory markets,
         address[] memory badMarkets,
         uint256 rebalanceChunks
-    ) internal view returns (
-        uint256[] memory idealAssets,
-        uint256[] memory currentAssets,
-        MarketAlloc[] memory m
-    ) {
+    )
+        internal
+        view
+        returns (
+            uint256[] memory idealAssets,
+            uint256[] memory currentAssets,
+            MarketAlloc[] memory m
+        )
+    {
         uint256 numMarkets = markets.length;
         idealAssets = new uint256[](numMarkets);
         currentAssets = new uint256[](numMarkets);
@@ -474,16 +542,14 @@ contract OptimizerReader {
         {
             for (uint256 i; i < numMarkets; ++i) {
                 IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-                uint256 ca = ct.convertToAssets(
-                    _balanceOf(address(ct), optimizer)
-                );
+                uint256 ca =
+                    ct.convertToAssets(_balanceOf(address(ct), optimizer));
                 currentAssets[i] = ca;
+                idealAssets[i] = ca;
                 ta += ca;
 
                 uint256 assetsHeld = _assetsHeld(ct);
-                m[i].simAssetsHeld = assetsHeld > ca
-                    ? assetsHeld - ca
-                    : 0;
+                m[i].simAssetsHeld = assetsHeld;
                 m[i].debt = _outstandingDebt(ct);
                 m[i].fees = _interestFee(ct);
                 m[i].irm = _IRM(ct);
@@ -492,167 +558,246 @@ contract OptimizerReader {
 
         if (ta == 0) return (idealAssets, currentAssets, m);
 
-        // Second pass: compute maxAllocation, adjust for pause states,
-        // and force bad markets to zero allocation.
-        uint256 lockedAssets;
+        // Second pass: compute soft/hard caps and market eligibility flags.
         {
             ILendingOptimizer opt = ILendingOptimizer(optimizer);
-            uint256 bufferBps = _selectCapBuffer(opt, markets, badMarkets, currentAssets, ta);
+            uint256 bufferBps =
+                _selectCapBuffer(opt, markets, badMarkets, currentAssets, ta);
             for (uint256 i; i < numMarkets; ++i) {
-                uint256 current = currentAssets[i];
-                m[i].maxAllocation = _bufferedMaxAllocation(opt, markets[i], ta, bufferBps);
+                m[i].maxAllocation =
+                    _bufferedMaxAllocation(opt, markets[i], ta, bufferBps);
+                m[i].hardMaxAllocation = _maxAllocation(opt, markets[i], ta);
+                m[i].isBad = _isBadMarket(markets[i], badMarkets);
 
-                MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
+                MarketManagerIsolated mm =
+                    MarketManagerIsolated(address(_marketManager(markets[i])));
                 // Two orthogonal constraints drive allocation policy:
-                //  - cannotAddMore: bad or mint-paused — no new deposits.
+                //  - cannotAddMore: bad, mint-paused, or redeem-paused —
+                //    no new deposits into non-redeemable markets.
                 //  - cannotWithdraw: redeem-paused — must keep current position.
-                bool cannotAddMore = _isBadMarket(markets[i], badMarkets)
-                    || _isMintPaused(markets[i], IMarketManager(address(mm)));
-                bool cannotWithdraw = mm.redeemPaused() == 2;
+                bool canRedeem = mm.redeemPaused() != 2;
+                m[i].canWithdraw = canRedeem;
+                m[i].canDeposit = canRedeem && !m[i].isBad
+                    && !_isMintPaused(markets[i], IMarketManager(address(mm)));
 
-                if (cannotWithdraw) {
-                    // Position is locked; exclude from distributable pool.
-                    m[i].simAssetsHeld += current;
-                    lockedAssets += current;
-                    idealAssets[i] = current;
-                    // If also cannot add, freeze at current; otherwise floor at current.
-                    if (cannotAddMore) {
-                        m[i].maxAllocation = current;
-                    } else if (m[i].maxAllocation < current) {
-                        m[i].maxAllocation = current;
-                    }
-                } else if (cannotAddMore) {
-                    // Can withdraw, cannot add → drain to 0.
-                    m[i].maxAllocation = 0;
-                }
+                // Redeem-paused positions are locked and frozen at current.
+                // Can withdraw, cannot add -> drain to 0.
                 // else: normal greedy allocation at cap-based maxAllocation.
             }
         }
 
-        // Subtract locked assets from the distributable total.
-        ta -= lockedAssets;
-
-        // Chunked greedy allocation: split distributable total into fixed-size chunks.
         uint256 chunkSize = ta / rebalanceChunks;
+        if (chunkSize == 0) chunkSize = 1;
+        uint256 maxIterations = rebalanceChunks * numMarkets * 2;
 
-        for (uint256 c; c < rebalanceChunks; ++c) {
-            uint256 chunk = (c == rebalanceChunks - 1) ? ta - (chunkSize * (rebalanceChunks - 1)) : chunkSize;
-            if (chunk == 0) continue;
+        _applyForcedMoves(idealAssets, m, chunkSize, maxIterations, true);
+        _applyForcedMoves(idealAssets, m, chunkSize, maxIterations, false);
+        _applyNormalMoves(idealAssets, m, chunkSize, maxIterations);
 
-            uint256 bestRate;
-            uint256 bestIdx;
-            bool found;
-
+        if (!_allWithinHardCaps(idealAssets, m)) {
             for (uint256 i; i < numMarkets; ++i) {
-                if (idealAssets[i] + chunk > m[i].maxAllocation) continue;
-
-                uint256 rate = m[i].irm.supplyRate(
-                    m[i].simAssetsHeld + chunk,
-                    m[i].debt,
-                    m[i].fees
-                );
-
-                if (!found || rate > bestRate) {
-                    bestRate = rate;
-                    bestIdx = i;
-                    found = true;
-                }
-            }
-
-            if (found) {
-                idealAssets[bestIdx] += chunk;
-                m[bestIdx].simAssetsHeld += chunk;
+                idealAssets[i] = currentAssets[i];
             }
         }
-
-        _fillResidualAllocation(idealAssets, m, ta);
     }
 
-    function _fillResidualAllocation(
+    function _applyForcedMoves(
         uint256[] memory idealAssets,
         MarketAlloc[] memory m,
-        uint256 totalAssets
+        uint256 chunkSize,
+        uint256 maxIterations,
+        bool badOnly
     ) internal view {
-        uint256 allocated;
-        for (uint256 i; i < idealAssets.length; ++i) {
-            allocated += idealAssets[i];
+        for (uint256 i; i < maxIterations; ++i) {
+            MoveCandidate memory move_ =
+                _bestForcedMove(idealAssets, m, chunkSize, badOnly);
+            if (!move_.found) return;
+
+            _applyMove(idealAssets, m, move_);
         }
+    }
 
-        if (allocated >= totalAssets) return;
+    function _applyNormalMoves(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 chunkSize,
+        uint256 maxIterations
+    ) internal view {
+        for (uint256 i; i < maxIterations; ++i) {
+            MoveCandidate memory move_ =
+                _bestNormalMove(idealAssets, m, chunkSize);
+            if (!move_.found) return;
 
-        uint256 remaining = totalAssets - allocated;
-        while (remaining > 0) {
-            uint256 bestRate;
-            uint256 bestIdx;
-            uint256 bestAmount;
-            bool found;
+            _applyMove(idealAssets, m, move_);
+        }
+    }
 
-            for (uint256 i; i < idealAssets.length; ++i) {
-                if (idealAssets[i] >= m[i].maxAllocation) continue;
+    function _bestForcedMove(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 chunkSize,
+        bool badOnly
+    ) internal view returns (MoveCandidate memory best) {
+        uint256 numMarkets = idealAssets.length;
 
-                uint256 capacity = m[i].maxAllocation - idealAssets[i];
-                uint256 amount = capacity < remaining ? capacity : remaining;
+        for (uint256 i; i < numMarkets; ++i) {
+            uint256 sourceRoom = _forcedSourceRoom(idealAssets, m, i, badOnly);
+            if (sourceRoom == 0) continue;
+
+            for (uint256 j; j < numMarkets; ++j) {
+                if (i == j) continue;
+
+                uint256 amount = _moveAmount(
+                    chunkSize,
+                    sourceRoom,
+                    _destinationRoom(idealAssets, m, j, true)
+                );
                 if (amount == 0) continue;
 
-                uint256 rate = m[i].irm.supplyRate(
-                    m[i].simAssetsHeld + amount,
-                    m[i].debt,
-                    m[i].fees
-                );
+                uint256 destRate = m[j].irm
+                    .supplyRate(
+                        m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
+                    );
 
-                if (!found || rate > bestRate) {
-                    bestRate = rate;
-                    bestIdx = i;
-                    bestAmount = amount;
-                    found = true;
+                if (!best.found || destRate > best.score) {
+                    best = MoveCandidate(i, j, amount, destRate, true);
                 }
             }
-
-            if (!found) break;
-
-            idealAssets[bestIdx] += bestAmount;
-            m[bestIdx].simAssetsHeld += bestAmount;
-            remaining -= bestAmount;
-        }
-
-        if (remaining > 0 && remaining <= idealAssets.length) {
-            _allocateRoundingResidual(idealAssets, m, remaining);
         }
     }
 
-    function _allocateRoundingResidual(
+    function _bestNormalMove(
         uint256[] memory idealAssets,
         MarketAlloc[] memory m,
-        uint256 remaining
-    ) internal view {
-        uint256 bestRate;
-        uint256 bestIdx;
-        bool found;
+        uint256 chunkSize
+    ) internal view returns (MoveCandidate memory best) {
+        uint256 numMarkets = idealAssets.length;
 
-        for (uint256 i; i < idealAssets.length; ++i) {
-            uint256 rate = m[i].irm.supplyRate(
-                m[i].simAssetsHeld + remaining,
-                m[i].debt,
-                m[i].fees
-            );
+        for (uint256 i; i < numMarkets; ++i) {
+            uint256 sourceRoom = _normalSourceRoom(idealAssets, m, i);
+            if (sourceRoom == 0) continue;
 
-            if (!found || rate > bestRate) {
-                bestRate = rate;
-                bestIdx = i;
-                found = true;
+            for (uint256 j; j < numMarkets; ++j) {
+                if (i == j) continue;
+
+                uint256 amount = _moveAmount(
+                    chunkSize,
+                    sourceRoom,
+                    _destinationRoom(idealAssets, m, j, false)
+                );
+                if (amount == 0) continue;
+
+                uint256 sourceRateAfter = m[i].irm
+                    .supplyRate(
+                        m[i].simAssetsHeld - amount, m[i].debt, m[i].fees
+                    );
+                uint256 destRateAfter = m[j].irm
+                    .supplyRate(
+                        m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
+                    );
+
+                if (destRateAfter <= sourceRateAfter) continue;
+
+                uint256 spread = destRateAfter - sourceRateAfter;
+                if (!best.found || spread > best.score) {
+                    best = MoveCandidate(i, j, amount, spread, true);
+                }
+            }
+        }
+    }
+
+    function _forcedSourceRoom(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 i,
+        bool badOnly
+    ) internal pure returns (uint256) {
+        if (!m[i].canWithdraw) return 0;
+
+        if (badOnly) {
+            if (!m[i].isBad) return 0;
+            return _min(idealAssets[i], m[i].simAssetsHeld);
+        }
+
+        if (m[i].isBad || idealAssets[i] <= m[i].hardMaxAllocation) {
+            return 0;
+        }
+
+        return
+            _min(idealAssets[i] - m[i].hardMaxAllocation, m[i].simAssetsHeld);
+    }
+
+    function _normalSourceRoom(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 i
+    ) internal pure returns (uint256) {
+        if (m[i].isBad || !m[i].canWithdraw) return 0;
+        return _min(idealAssets[i], m[i].simAssetsHeld);
+    }
+
+    function _destinationRoom(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m,
+        uint256 i,
+        bool hardCap
+    ) internal pure returns (uint256) {
+        if (!m[i].canDeposit) return 0;
+
+        uint256 maxAllocation =
+            hardCap ? m[i].hardMaxAllocation : m[i].maxAllocation;
+        if (idealAssets[i] >= maxAllocation) return 0;
+
+        uint256 room = maxAllocation - idealAssets[i];
+        if (hardCap) {
+            if (room <= HARD_CAP_ROUNDING_BUFFER) return 0;
+            unchecked {
+                room -= HARD_CAP_ROUNDING_BUFFER;
             }
         }
 
-        if (found) {
-            idealAssets[bestIdx] += remaining;
-            m[bestIdx].simAssetsHeld += remaining;
-        }
+        return room;
     }
 
-    function _fullyAllocated(
+    function _moveAmount(
+        uint256 chunkSize,
+        uint256 sourceRoom,
+        uint256 destRoom
+    ) internal pure returns (uint256) {
+        return _min(chunkSize, _min(sourceRoom, destRoom));
+    }
+
+    function _applyMove(
         uint256[] memory idealAssets,
-        uint256 totalAssets
+        MarketAlloc[] memory m,
+        MoveCandidate memory move_
+    ) internal pure {
+        idealAssets[move_.sourceIdx] -= move_.amount;
+        m[move_.sourceIdx].simAssetsHeld -= move_.amount;
+        idealAssets[move_.destIdx] += move_.amount;
+        m[move_.destIdx].simAssetsHeld += move_.amount;
+    }
+
+    function _allWithinHardCaps(
+        uint256[] memory idealAssets,
+        MarketAlloc[] memory m
     ) internal pure returns (bool) {
+        for (uint256 i; i < idealAssets.length; ++i) {
+            if (idealAssets[i] > m[i].hardMaxAllocation) return false;
+        }
+
+        return true;
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    function _fullyAllocated(uint256[] memory idealAssets, uint256 totalAssets)
+        internal
+        pure
+        returns (bool)
+    {
         uint256 allocated;
         for (uint256 i; i < idealAssets.length; ++i) {
             allocated += idealAssets[i];
@@ -685,22 +830,95 @@ contract OptimizerReader {
                 );
             } else {
                 actions[i] = LendingOptimizer.ReallocationAction(
-                    IBorrowableCToken(markets[i]),
-                    int256(0)
+                    IBorrowableCToken(markets[i]), int256(0)
                 );
             }
 
             if (ta > 0) {
-                uint256 idealBps = FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
+                uint256 idealBps =
+                    FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
                 bounds[i] = LendingOptimizer.AllocationBound(
                     markets[i],
                     idealBps > slippageBps ? idealBps - slippageBps : 0,
-                    idealBps + slippageBps > 10000 ? 10000 : idealBps + slippageBps
+                    idealBps + slippageBps > 10000
+                        ? 10000
+                        : idealBps + slippageBps
                 );
             } else {
-                bounds[i] = LendingOptimizer.AllocationBound(markets[i], 0, 10000);
+                bounds[i] =
+                    LendingOptimizer.AllocationBound(markets[i], 0, 10000);
             }
         }
+    }
+
+    function _idealWithinHardCaps(
+        ILendingOptimizer opt,
+        address[] memory markets,
+        uint256[] memory idealAssets,
+        uint256 totalAssets
+    ) internal view returns (bool) {
+        if (totalAssets == 0) return true;
+
+        for (uint256 i; i < markets.length; ++i) {
+            uint256 hardMax = FixedPointMathLib.mulDiv(
+                totalAssets, opt.allocationCaps(markets[i]), WAD
+            );
+            if (idealAssets[i] > hardMax) return false;
+        }
+
+        return true;
+    }
+
+    function _postActionWithinHardCaps(
+        address optimizer,
+        ILendingOptimizer opt,
+        address[] memory markets,
+        uint256[] memory currentAssets,
+        uint256[] memory idealAssets
+    ) internal view returns (bool) {
+        uint256 numMarkets = markets.length;
+        uint256[] memory postAssets = new uint256[](numMarkets);
+        uint256 postTotal;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            postAssets[i] =
+                _postActionAssets(optimizer, markets[i], currentAssets[i], idealAssets[i]);
+            postTotal += postAssets[i];
+        }
+
+        if (postTotal == 0) return true;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            uint256 hardMax = FixedPointMathLib.mulDiv(
+                postTotal, opt.allocationCaps(markets[i]), WAD
+            );
+            if (postAssets[i] > hardMax) return false;
+        }
+
+        return true;
+    }
+
+    function _postActionAssets(
+        address optimizer,
+        address market,
+        uint256 currentAssets,
+        uint256 idealAssets
+    ) internal view returns (uint256) {
+        IBorrowableCToken ct = IBorrowableCToken(market);
+        uint256 currentShares = _balanceOf(market, optimizer);
+
+        if (idealAssets > currentAssets) {
+            uint256 sharesToMint = ct.previewDeposit(idealAssets - currentAssets);
+            return ct.convertToAssets(currentShares + sharesToMint);
+        }
+
+        if (currentAssets > idealAssets) {
+            uint256 sharesToBurn = ct.previewWithdraw(currentAssets - idealAssets);
+            if (sharesToBurn >= currentShares) return 0;
+            return ct.convertToAssets(currentShares - sharesToBurn);
+        }
+
+        return currentAssets;
     }
 
     function _selectCapBuffer(
@@ -711,7 +929,9 @@ contract OptimizerReader {
         uint256 totalAssets
     ) internal view returns (uint256 bufferBps) {
         for (uint256 i = CAP_BUFFER_BPS;; --i) {
-            if (_hasEnoughBufferedCapacity(opt, markets, badMarkets, currentAssets, totalAssets, i)) {
+            if (_hasEnoughBufferedCapacity(
+                    opt, markets, badMarkets, currentAssets, totalAssets, i
+                )) {
                 return i;
             }
 
@@ -730,7 +950,8 @@ contract OptimizerReader {
         uint256 capacity;
 
         for (uint256 i; i < markets.length; ++i) {
-            MarketManagerIsolated mm = MarketManagerIsolated(address(_marketManager(markets[i])));
+            MarketManagerIsolated mm =
+                MarketManagerIsolated(address(_marketManager(markets[i])));
             bool cannotAddMore = _isBadMarket(markets[i], badMarkets)
                 || _isMintPaused(markets[i], IMarketManager(address(mm)));
             bool cannotWithdraw = mm.redeemPaused() == 2;
@@ -738,7 +959,9 @@ contract OptimizerReader {
             if (cannotWithdraw) {
                 capacity += currentAssets[i];
             } else if (!cannotAddMore) {
-                capacity += _bufferedMaxAllocation(opt, markets[i], totalAssets, bufferBps);
+                capacity += _bufferedMaxAllocation(
+                    opt, markets[i], totalAssets, bufferBps
+                );
             }
 
             if (capacity >= totalAssets) return true;
@@ -758,6 +981,16 @@ contract OptimizerReader {
         if (cap <= buffer) return 0;
 
         return FixedPointMathLib.mulDiv(totalAssets, cap - buffer, WAD);
+    }
+
+    function _maxAllocation(
+        ILendingOptimizer opt,
+        address market,
+        uint256 totalAssets
+    ) internal view returns (uint256) {
+        return FixedPointMathLib.mulDiv(
+            totalAssets, opt.allocationCaps(market), WAD
+        );
     }
 
     /// @dev Removes dust rebalance deltas — entries whose absolute value
@@ -788,9 +1021,7 @@ contract OptimizerReader {
                 : currentAssets[i] - idealAssets[i];
 
             if (IBorrowableCToken(markets[i]).convertToShares(absDelta) == 0) {
-                imbalance += isDeposit
-                    ? -int256(absDelta)
-                    : int256(absDelta);
+                imbalance += isDeposit ? -int256(absDelta) : int256(absDelta);
                 idealAssets[i] = currentAssets[i];
             }
         }
@@ -799,9 +1030,8 @@ contract OptimizerReader {
         // over-represented side. If trimming creates new dust the
         // excess flips direction and the loop continues.
         if (imbalance != 0) {
-            uint256 excess = imbalance > 0
-                ? uint256(imbalance)
-                : uint256(-imbalance);
+            uint256 excess =
+                imbalance > 0 ? uint256(imbalance) : uint256(-imbalance);
             bool reduceDeposits = imbalance > 0;
 
             while (excess > 0) {
@@ -851,7 +1081,10 @@ contract OptimizerReader {
                         ? idealAssets[bestIdx] - currentAssets[bestIdx]
                         : currentAssets[bestIdx] - idealAssets[bestIdx];
 
-                    if (IBorrowableCToken(markets[bestIdx]).convertToShares(remaining) == 0) {
+                    if (
+                        IBorrowableCToken(markets[bestIdx])
+                                .convertToShares(remaining) == 0
+                    ) {
                         // Over-reduced: remainder is dust. Zero it
                         // and flip direction with the leftover.
                         idealAssets[bestIdx] = currentAssets[bestIdx];
@@ -872,34 +1105,39 @@ contract OptimizerReader {
     }
 
     /// @dev Returns true if `market` is in the `badMarkets` array.
-    function _isBadMarket(
-        address market,
-        address[] memory badMarkets
-    ) internal pure returns (bool) {
+    function _isBadMarket(address market, address[] memory badMarkets)
+        internal
+        pure
+        returns (bool)
+    {
         for (uint256 i; i < badMarkets.length; ++i) {
             if (badMarkets[i] == market) return true;
         }
         return false;
     }
 
-    function _balanceOf(
-        address token,
-        address account
-    ) internal view returns (uint256 result) {
+    function _balanceOf(address token, address account)
+        internal
+        view
+        returns (uint256 result)
+    {
         result = ICToken(token).balanceOf(account);
     }
 
-    function _assetsHeld(
-        IBorrowableCToken token
-    ) internal view returns (uint256 result) {
+    function _assetsHeld(IBorrowableCToken token)
+        internal
+        view
+        returns (uint256 result)
+    {
         result = token.assetsHeld();
     }
 
     /// @dev Returns true if minting is paused for `cToken`.
-    function _isMintPaused(
-        address cToken,
-        IMarketManager mm
-    ) internal view returns (bool mp) {
+    function _isMintPaused(address cToken, IMarketManager mm)
+        internal
+        view
+        returns (bool mp)
+    {
         (mp,,) = mm.actionsPaused(cToken);
     }
 
@@ -908,27 +1146,35 @@ contract OptimizerReader {
         mp = _isMintPaused(cToken, _marketManager(cToken));
     }
 
-    function _marketManager(
-        address cToken
-    ) internal view returns (IMarketManager mm) {
+    function _marketManager(address cToken)
+        internal
+        view
+        returns (IMarketManager mm)
+    {
         mm = ICToken(cToken).marketManager();
     }
 
-    function _IRM(
-        IBorrowableCToken token
-    ) internal view returns (IDynamicIRM result) {
+    function _IRM(IBorrowableCToken token)
+        internal
+        view
+        returns (IDynamicIRM result)
+    {
         result = token.IRM();
     }
 
-    function _outstandingDebt(
-        IBorrowableCToken token
-    ) internal view returns (uint256 result) {
+    function _outstandingDebt(IBorrowableCToken token)
+        internal
+        view
+        returns (uint256 result)
+    {
         result = token.marketOutstandingDebt();
     }
 
-    function _interestFee(
-        IBorrowableCToken token
-    ) internal view returns (uint256 result) {
+    function _interestFee(IBorrowableCToken token)
+        internal
+        view
+        returns (uint256 result)
+    {
         result = token.interestFee();
     }
 
@@ -938,40 +1184,38 @@ contract OptimizerReader {
     /// @param collateralAsset The underlying collateral asset address.
     /// @param multiplierBps The staleness multiplier in BPS (e.g., 15000 = 1.5x).
     /// @return True if the oracle feed is stale.
-    function _isOracleStale(
-        address collateralAsset,
-        uint256 multiplierBps
-    ) internal view returns (bool) {
-        address[] memory adaptors = ORACLE_MANAGER.getPricingAdaptors(
-            collateralAsset
-        );
+    function _isOracleStale(address collateralAsset, uint256 multiplierBps)
+        internal
+        view
+        returns (bool)
+    {
+        address[] memory adaptors =
+            ORACLE_MANAGER.getPricingAdaptors(collateralAsset);
 
         (, address aggregatorProxy,, uint24 heartbeat) =
             IChainlinkAdaptor(adaptors[0]).assetConfig(collateralAsset, true);
 
-        (,,, uint256 updatedAt,) = IChainlink(aggregatorProxy).latestRoundData();
+        (,,, uint256 updatedAt,) =
+            IChainlink(aggregatorProxy).latestRoundData();
 
         unchecked {
-            return block.timestamp - updatedAt >
-                uint256(heartbeat) * multiplierBps / 10000;
+            return block.timestamp - updatedAt
+                > uint256(heartbeat) * multiplierBps / 10000;
         }
     }
 
     /// @dev Checks whether a collateral asset's adjusted oracle price is zero,
     ///      which indicates a PriceGuard floor breach in Curvance adaptors.
-    function _isOraclePriceZero(
-        address collateralAsset
-    ) internal view returns (bool) {
-        address[] memory adaptors = ORACLE_MANAGER.getPricingAdaptors(
-            collateralAsset
-        );
+    function _isOraclePriceZero(address collateralAsset)
+        internal
+        view
+        returns (bool)
+    {
+        address[] memory adaptors =
+            ORACLE_MANAGER.getPricingAdaptors(collateralAsset);
 
-        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptors[0])
-            .getPrice(
-                collateralAsset,
-                true,
-                true
-            );
+        IOracleAdaptor.PricingResult memory result =
+            IOracleAdaptor(adaptors[0]).getPrice(collateralAsset, true, true);
 
         return result.price == 0;
     }

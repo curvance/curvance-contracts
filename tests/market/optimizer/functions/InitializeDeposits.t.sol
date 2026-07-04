@@ -231,6 +231,39 @@ contract TestLendingOptimizerInitializeDeposits is TestBaseLendingOptimizer {
         optimizer.mint(1000e6, address(this));
     }
 
+    function test_lendingOptimizer_setMintPaused_fail_whenNotInitialized() public {
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        optimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            1_000
+        );
+
+        assertEq(optimizer.maxDeposit(address(this)), 0, "uninitialized deposit max");
+        assertEq(optimizer.maxMint(address(this)), 0, "uninitialized mint max");
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
+        optimizer.setMintPaused(true);
+
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__NotInitialized.selector);
+        optimizer.setMintPaused(false);
+    }
+
     function test_lendingOptimizer_initializeDeposits_withMultipleMarkets_targetFirst() public {
         address[] memory approvedCTokens = new address[](3);
         approvedCTokens[0] = cUSDC_WMON_MARKET;

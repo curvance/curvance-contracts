@@ -133,6 +133,67 @@ contract TestLendingOptimizerMaxExitLiquidity is TestBaseLendingOptimizer {
         );
     }
 
+    function test_lendingOptimizer_maxRedeemCanAdvertiseZeroAssetRoundingDust()
+        public
+    {
+        _setUpOneMarket();
+        harness = LendingOptimizerHarness(address(optimizer));
+        _depositToHarness(user1, 30_000e6);
+
+        uint256 targetAssets = harness.totalSupply() / 2;
+        assertGt(targetAssets, 1, "precondition: target assets");
+
+        uint256 optimizerShares =
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness));
+        assertGt(optimizerShares, 0, "precondition: optimizer market shares");
+
+        harness.exposed_setTotalAssets(targetAssets);
+
+        vm.mockCall(
+            cUSDC_WMON_MARKET,
+            abi.encodeWithSelector(
+                IBorrowableCToken.convertToAssets.selector, optimizerShares
+            ),
+            abi.encode(targetAssets)
+        );
+        vm.mockCall(
+            cUSDC_WMON_MARKET,
+            abi.encodeWithSelector(IBorrowableCToken.assetsHeld.selector),
+            abi.encode(uint256(1))
+        );
+        vm.mockCall(
+            cUSDC_WMON_MARKET,
+            abi.encodeWithSelector(
+                IBorrowableCToken.previewDeposit.selector, uint256(1)
+            ),
+            abi.encode(uint256(0))
+        );
+        vm.mockCall(
+            cUSDC_WMON_MARKET,
+            abi.encodeWithSelector(
+                IBorrowableCToken.previewRedeem.selector, uint256(0)
+            ),
+            abi.encode(uint256(0))
+        );
+
+        uint256 maxRedeem = harness.maxRedeem(user1);
+        assertGt(maxRedeem, 0, "maxRedeem advertises dust shares");
+        assertEq(
+            harness.maxWithdraw(user1), 1, "maxWithdraw advertises one asset"
+        );
+        assertEq(
+            harness.previewRedeem(maxRedeem),
+            0,
+            "optimizer preview maps dust shares to zero assets"
+        );
+
+        vm.prank(user1);
+        vm.expectRevert(
+            LendingOptimizer.LendingOptimizer__InvalidParameter.selector
+        );
+        harness.redeem(maxRedeem, user1, user1);
+    }
+
     function test_optimizerReader_redeemableReportsShareValueNotLiquidityCap()
         public
     {
@@ -142,8 +203,7 @@ contract TestLendingOptimizerMaxExitLiquidity is TestBaseLendingOptimizer {
         _mockAllMarketsIlliquid();
 
         OptimizerReader reader = new OptimizerReader(
-            ICentralRegistry(address(liveCentralRegistry)),
-            0
+            ICentralRegistry(address(liveCentralRegistry)), 0
         );
         address[] memory optimizers = new address[](1);
         optimizers[0] = address(harness);

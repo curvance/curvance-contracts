@@ -265,6 +265,37 @@ contract TestLendingOptimizerDeposit is TestBaseLendingOptimizer {
         assertGt(optimizer.totalSupply(), shares1 + shares2, "Total supply should include dead shares + user shares");
     }
 
+    function test_lendingOptimizer_deposit_success_afterAllUserSharesRedeemed() public {
+        uint256 initialUserDeposit = 10_000e6;
+        deal(USDC_MONAD, user1, initialUserDeposit, true);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), initialUserDeposit);
+        uint256 userShares = optimizer.deposit(initialUserDeposit, user1);
+        uint256 assetsRedeemed = optimizer.redeem(userShares, user1, user1);
+        vm.stopPrank();
+
+        assertGt(assetsRedeemed, 0, "full user redeem should return assets");
+        assertEq(optimizer.balanceOf(user1), 0, "user shares should be fully redeemed");
+        assertGt(optimizer.totalSupply(), 0, "dead shares should remain after user exit");
+        assertGt(optimizer.totalAssets(), 0, "dead-share reserve should keep optimizer funded");
+        assertGt(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer)),
+            0,
+            "optimizer should retain cToken balance for the dead-share reserve"
+        );
+        assertEq(optimizer.maxDeposit(user2), type(uint256).max, "deposits should still be advertised as open");
+
+        uint256 followOnDeposit = 1_000e6;
+        deal(USDC_MONAD, user2, followOnDeposit, true);
+        vm.startPrank(user2);
+        IERC20(USDC_MONAD).approve(address(optimizer), followOnDeposit);
+        uint256 followOnShares = optimizer.deposit(followOnDeposit, user2);
+        vm.stopPrank();
+
+        assertGt(followOnShares, 0, "next depositor should receive shares");
+        assertEq(optimizer.balanceOf(user2), followOnShares, "next depositor should own minted shares");
+    }
+
     function test_lendingOptimizer_deposit_success_afterTimePasses() public {
         vm.startPrank(user1);
 

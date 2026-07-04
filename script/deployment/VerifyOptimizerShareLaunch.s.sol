@@ -6,17 +6,28 @@ import {Script} from "forge-std/Script.sol";
 import {
     IChainlinkStyleAdaptor
 } from "contracts/interfaces/IChainlinkStyleAdaptor.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {ICToken} from "contracts/interfaces/ICToken.sol";
 import {ILendingOptimizer} from "contracts/interfaces/ILendingOptimizer.sol";
 import {IMarketManager} from "contracts/interfaces/IMarketManager.sol";
 import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
 import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
+import {IPositionManager} from "contracts/interfaces/IPositionManager.sol";
+import {
+    LendingOptimizerShareCToken
+} from "contracts/market/token/LendingOptimizerShareCToken.sol";
 import {
     VaultAggregator
 } from "contracts/oracles/adaptors/wrappedAggregators/VaultAggregator.sol";
 
+interface ICentralRegistryBound {
+    function centralRegistry() external view returns (ICentralRegistry);
+}
+
 contract VerifyOptimizerShareLaunch is Script {
     error VerifyOptimizerShareLaunch__InvalidConfig();
+
+    uint256 internal constant _DEBT_SURFACE_PROBE_ASSETS = 1;
 
     struct Config {
         address optimizer;
@@ -25,7 +36,9 @@ contract VerifyOptimizerShareLaunch is Script {
         address oracleManager;
         address oracleAdaptor;
         address vaultAggregator;
+        address expectedUnderlyingAggregator;
         address expectedUnderlying;
+        bytes32 expectedDataFeedId;
         uint256 expectedCollateralCap;
         uint8 expectedFeedDecimals;
         uint24 expectedHeartbeat;
@@ -43,7 +56,10 @@ contract VerifyOptimizerShareLaunch is Script {
         config.oracleManager = vm.envAddress("OPTIMIZER_ORACLE_MANAGER");
         config.oracleAdaptor = vm.envAddress("OPTIMIZER_ORACLE_ADAPTOR");
         config.vaultAggregator = vm.envAddress("OPTIMIZER_VAULT_AGGREGATOR");
+        config.expectedUnderlyingAggregator =
+            vm.envAddress("OPTIMIZER_UNDERLYING_AGGREGATOR");
         config.expectedUnderlying = vm.envAddress("OPTIMIZER_UNDERLYING");
+        config.expectedDataFeedId = vm.envBytes32("OPTIMIZER_DATA_FEED_ID");
         config.expectedCollateralCap =
             vm.envUint("OPTIMIZER_SHARE_COLLATERAL_CAP");
         config.expectedFeedDecimals = _envUint8("OPTIMIZER_FEED_DECIMALS");
@@ -78,16 +94,13 @@ contract VerifyOptimizerShareLaunch is Script {
             revert VerifyOptimizerShareLaunch__InvalidConfig();
         }
 
-        if (
-            ILendingOptimizer(config.optimizer).centralRegistry()
-                    .oracleManager() != config.oracleManager
-        ) {
-            revert VerifyOptimizerShareLaunch__InvalidConfig();
-        }
+        _requireBoundRegistries(config);
 
         if (ICToken(config.shareCToken).asset() != config.optimizer) {
             revert VerifyOptimizerShareLaunch__InvalidConfig();
         }
+
+        _requireShareDebtSurfacesDisabled(config.shareCToken);
 
         if (
             address(ICToken(config.shareCToken).marketManager())
@@ -123,6 +136,26 @@ contract VerifyOptimizerShareLaunch is Script {
             revert VerifyOptimizerShareLaunch__InvalidConfig();
         }
 
+        IOracleManager oracleManager = IOracleManager(config.oracleManager);
+        if (!oracleManager.isSupportedAsset(config.optimizer)) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        address[] memory pricingAdaptors =
+            oracleManager.getPricingAdaptors(config.optimizer);
+        bool routeFound;
+        uint256 numAdaptors = pricingAdaptors.length;
+        for (uint256 i; i < numAdaptors; ++i) {
+            if (pricingAdaptors[i] == config.oracleAdaptor) {
+                routeFound = true;
+                break;
+            }
+        }
+
+        if (!routeFound) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
         (
             bool isConfigured,
             address configuredAggregator,
@@ -152,6 +185,25 @@ contract VerifyOptimizerShareLaunch is Script {
             revert VerifyOptimizerShareLaunch__InvalidConfig();
         }
 
+        if (
+            address(
+                        VaultAggregator(config.vaultAggregator)
+                            .underlyingAggregator()
+                    ) != config.expectedUnderlyingAggregator
+                || VaultAggregator(config.vaultAggregator).getDataFeedId()
+                    != config.expectedDataFeedId
+                || VaultAggregator(config.vaultAggregator).decimals()
+                    != config.expectedFeedDecimals
+        ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        (uint80 roundId, int256 answer,, uint256 updatedAt,) =
+            VaultAggregator(config.vaultAggregator).latestRoundData();
+        if (roundId == 0 || answer <= 0 || updatedAt == 0) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
         IOracleAdaptor.PriceGuard memory guard = IOracleAdaptor(
                 config.oracleAdaptor
             ).getPriceGuard(config.optimizer, true);
@@ -162,6 +214,131 @@ contract VerifyOptimizerShareLaunch is Script {
                 || guard.basePrice != config.expectedGuardBasePrice
                 || guard.minPrice != config.expectedGuardMinPrice
         ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        _requireAdaptorPricePath(config.oracleAdaptor, config.optimizer);
+    }
+
+    function _requireBoundRegistries(Config memory config) internal view {
+        ICentralRegistry optimizerRegistry =
+            ILendingOptimizer(config.optimizer).centralRegistry();
+        if (optimizerRegistry.oracleManager() != config.oracleManager) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        if (
+            ICentralRegistryBound(config.shareCToken).centralRegistry()
+                != optimizerRegistry
+        ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        if (
+            ICentralRegistryBound(config.marketManager).centralRegistry()
+                != optimizerRegistry
+        ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+    }
+
+    function _requireShareDebtSurfacesDisabled(address shareCToken)
+        internal
+        view
+    {
+        _requireShareDebtSurfaceDisabled(
+            shareCToken,
+            abi.encodeWithSignature(
+                "borrow(uint256,address)",
+                _DEBT_SURFACE_PROBE_ASSETS,
+                address(this)
+            )
+        );
+        _requireShareDebtSurfaceDisabled(
+            shareCToken,
+            abi.encodeWithSignature(
+                "borrowFor(uint256,address,address)",
+                _DEBT_SURFACE_PROBE_ASSETS,
+                address(this),
+                address(this)
+            )
+        );
+        IPositionManager.LeverageAction memory emptyAction;
+        _requireShareDebtSurfaceDisabled(
+            shareCToken,
+            abi.encodeWithSelector(
+                LendingOptimizerShareCToken.borrowForPositionManager.selector,
+                _DEBT_SURFACE_PROBE_ASSETS,
+                address(this),
+                emptyAction
+            )
+        );
+        _requireShareDebtSurfaceDisabled(
+            shareCToken,
+            abi.encodeWithSignature(
+                "flashLoan(uint256,bytes)", _DEBT_SURFACE_PROBE_ASSETS, ""
+            )
+        );
+    }
+
+    function _requireShareDebtSurfaceDisabled(
+        address shareCToken,
+        bytes memory callData
+    ) internal view {
+        (bool success, bytes memory returnData) =
+            shareCToken.staticcall(callData);
+        if (success || returnData.length < 4) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        bytes4 selector;
+        /// @solidity memory-safe-assembly
+        assembly {
+            selector := mload(add(returnData, 32))
+        }
+
+        if (
+            selector
+                != LendingOptimizerShareCToken.LendingOptimizerShareCToken__BorrowDisabled
+                    .selector
+        ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+    }
+
+    function _requireAdaptorPricePath(address adaptor, address asset)
+        internal
+        view
+    {
+        (bool success, bytes memory returnData) = adaptor.staticcall(
+            abi.encodeCall(IOracleAdaptor.isSupportedAsset, (asset))
+        );
+        if (
+            !success || returnData.length < 32
+                || !abi.decode(returnData, (bool))
+        ) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        _requireAdaptorPrice(adaptor, asset, true);
+        _requireAdaptorPrice(adaptor, asset, false);
+    }
+
+    function _requireAdaptorPrice(
+        address adaptor,
+        address asset,
+        bool getLower
+    ) internal view {
+        (bool success, bytes memory returnData) = adaptor.staticcall(
+            abi.encodeCall(IOracleAdaptor.getPrice, (asset, true, getLower))
+        );
+        if (!success || returnData.length < 96) {
+            revert VerifyOptimizerShareLaunch__InvalidConfig();
+        }
+
+        IOracleAdaptor.PricingResult memory result =
+            abi.decode(returnData, (IOracleAdaptor.PricingResult));
+        if (result.price == 0 || result.hadError || !result.inUSD) {
             revert VerifyOptimizerShareLaunch__InvalidConfig();
         }
     }

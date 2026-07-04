@@ -120,6 +120,31 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         assertEq(apy, 0, "APY should be 0 when totalAssets is 0");
     }
 
+    /// @notice APY accrues stale optimizer NAV before calculating weighted rate.
+    function test_getOptimizerAPY_accruesStaleOptimizerBeforeRateCalculation()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+        _depositToAllMarketsUnconstrained(50_000e6);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(365 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: cached optimizer NAV is stale"
+        );
+
+        uint256 apy = reader.getOptimizerAPY(address(optimizer));
+
+        assertGt(apy, 0, "APY should remain non-zero after accrual");
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "reader must refresh optimizer NAV before APY"
+        );
+    }
+
     // ==================== getOptimizerMarketData ====================
 
     /// @notice Market data returns correct structure for a single optimizer.
@@ -176,6 +201,44 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
             optimizer.totalAssets(),
             3,
             "totalAssets should match optimizer"
+        );
+    }
+
+    /// @notice Market data accrues stale optimizer NAV before reporting.
+    function test_getOptimizerMarketData_accruesStaleOptimizerBeforeReporting()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+        _depositToAllMarketsUnconstrained(50_000e6);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(365 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: cached optimizer NAV is stale"
+        );
+
+        address[] memory optimizers = new address[](1);
+        optimizers[0] = address(optimizer);
+
+        OptimizerReader.OptimizerMarketData[] memory data =
+            reader.getOptimizerMarketData(optimizers);
+
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "reader must refresh optimizer NAV"
+        );
+        assertEq(
+            data[0].totalAssets,
+            optimizer.totalAssets(),
+            "reported totalAssets should be refreshed"
+        );
+        assertEq(
+            data[0].sharePrice,
+            optimizer.exchangeRate(),
+            "reported sharePrice should be refreshed"
         );
     }
 
@@ -403,6 +466,50 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
         );
     }
 
+    /// @notice User data accrues stale optimizer NAV before reporting redeemable assets.
+    function test_getOptimizerUserData_accruesStaleOptimizerBeforeRedeemable()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+
+        deal(USDC_MONAD, address(this), 100_000e6);
+        IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
+        optimizer.deposit(100_000e6, address(this));
+
+        uint256 shares = optimizer.balanceOf(address(this));
+        uint256 staleRedeemable = optimizer.convertToAssets(shares);
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(365 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: cached optimizer NAV is stale"
+        );
+
+        address[] memory optimizers = new address[](1);
+        optimizers[0] = address(optimizer);
+
+        OptimizerReader.OptimizerUserData[] memory data =
+            reader.getOptimizerUserData(optimizers, address(this));
+
+        assertEq(data[0].shareBalance, shares, "share balance should be stable");
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "reader must refresh optimizer NAV"
+        );
+        assertGt(
+            data[0].redeemable,
+            staleRedeemable,
+            "redeemable should include accrued optimizer NAV"
+        );
+        assertEq(
+            data[0].redeemable,
+            optimizer.convertToAssets(shares),
+            "reported redeemable should be refreshed"
+        );
+    }
+
     // ==================== optimalRebalance: Zero Markets ====================
 
     /// @notice An optimizer with no approved markets returns empty arrays.
@@ -471,6 +578,33 @@ contract TestViewFunctions is TestBaseLendingOptimizer {
             actionsError.length,
             0,
             "Oracle error: threshold skipped, actions returned"
+        );
+    }
+
+    /// @notice optimalRebalance accrues stale optimizer NAV before planning.
+    function test_optimalRebalance_accruesStaleOptimizerBeforePlanning()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+        _depositToAllMarketsUnconstrained(50_000e6);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(365 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: cached optimizer NAV is stale"
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) =
+            reader.optimalRebalance(address(optimizer), 500, 200);
+
+        assertEq(actions.length, bounds.length, "rebalance arrays should align");
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "reader must refresh optimizer NAV before planning"
         );
     }
 

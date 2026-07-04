@@ -10,6 +10,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
 /// @title Oracle Staleness Tests
 /// @notice Tests the staleness check in isBad: when a collateral asset's
@@ -152,6 +153,61 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
 
         address[] memory bad = reader.isBad(address(optimizer));
         assertEq(bad.length, 3, "One second past threshold should be stale");
+    }
+
+    /// @notice A future-dated feed is treated as stale instead of reverting.
+    function test_isBad_staleness_futureDatedFeed_flagsMarketWithoutRevert()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+
+        _futureDateCollateralFeed(cUSDC_WMON_MARKET);
+
+        address[] memory bad = reader.isBad(address(optimizer));
+        assertEq(bad.length, 1, "Only future-dated market should be flagged");
+        assertEq(bad[0], cUSDC_WMON_MARKET);
+    }
+
+    function test_isBad_staleness_nonChainlinkPrimaryAdaptorRevertsAsConfigCaveat()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+
+        address collAsset = _collaterals[cUSDC_WMON_MARKET];
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            liveCentralRegistry,
+            "MockOracleAdaptor"
+        );
+        _oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(collAsset);
+        mockAdaptor.setPrice(collAsset, 1e18, 1e18);
+        _oracleManager.replaceAssetPricingAdaptor(
+            collAsset,
+            address(_chainlinkAdaptor),
+            address(mockAdaptor),
+            0,
+            0,
+            0,
+            0
+        );
+
+        vm.expectRevert();
+        reader.isBad(address(optimizer));
+    }
+
+    function test_isBad_staleness_missingPricingAdaptorRevertsAsConfigCaveat()
+        public
+    {
+        _setUpThreeMarketsUnconstrained();
+
+        address collAsset = _collaterals[cUSDC_WMON_MARKET];
+        _oracleManager.removeAssetPricingAdaptor(
+            collAsset,
+            address(_chainlinkAdaptor)
+        );
+
+        vm.expectRevert();
+        reader.isBad(address(optimizer));
     }
 
     // ==================== Feed Refreshed ====================
@@ -434,6 +490,18 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
         (, IChainlink aggregator,, ) = _chainlinkAdaptor.assetConfig(collAsset, true);
         (,,, uint256 updatedAt,) = aggregator.latestRoundData();
         return block.timestamp - updatedAt;
+    }
+
+    function _futureDateCollateralFeed(address market) internal {
+        address collAsset = _collaterals[market];
+        (, IChainlink aggregator,, ) = _chainlinkAdaptor.assetConfig(collAsset, true);
+        (uint80 roundId,,,,) = aggregator.latestRoundData();
+        MockV3Aggregator(address(aggregator)).updateRoundData(
+            roundId + 1,
+            1e8,
+            block.timestamp + 1 hours,
+            block.timestamp + 1 hours
+        );
     }
 
     /// @dev Sets up 3 markets with 100% caps and harvest permissions.

@@ -227,6 +227,64 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         optimizer.rebalance(actions, bounds);
     }
 
+    function test_lendingOptimizer_rebalance_capFailureRollsBackExternalMarketActions() public {
+        _depositToAllMarkets(10_000e6);
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 idleUnderlyingBefore = IERC20(USDC_MONAD).balanceOf(address(optimizer));
+        uint256 market0SharesBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
+        uint256 market1SharesBefore = IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer));
+        uint256 market2SharesBefore = IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer));
+
+        uint256 transferAmount = 5_000e6;
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            -int256(transferAmount)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            int256(0)
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            int256(transferAmount)
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+        vm.expectRevert(LendingOptimizer.LendingOptimizer__AllocationExceedsCap.selector);
+        optimizer.rebalance(actions, bounds);
+
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "optimizer total assets rollback");
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(address(optimizer)),
+            idleUnderlyingBefore,
+            "optimizer idle underlying rollback"
+        );
+        assertEq(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer)),
+            market0SharesBefore,
+            "withdrawn market shares rollback"
+        );
+        assertEq(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer)),
+            market1SharesBefore,
+            "untouched market shares unchanged"
+        );
+        assertEq(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer)),
+            market2SharesBefore,
+            "deposit target market shares rollback"
+        );
+    }
+
     function test_lendingOptimizer_rebalance_fail_whenUnauthorized() public {
         _depositToAllMarkets(10_000e6);
 
@@ -395,6 +453,82 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         assertGt(assets, 0, "Should be able to redeem after rebalance");
     }
 
+    function test_lendingOptimizer_rebalance_roundTripRoundingLossIsBoundedAndNoIdleUnderlying() public {
+        LendingOptimizerHarness testOptimizer = _deployTwoMarketOptimizer();
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(testOptimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        testOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        _depositToLocalMarket(testOptimizer, 10_000e6, cUSDC_WMON_MARKET);
+        _depositToLocalMarket(testOptimizer, 10_000e6, cUSDC_WBTC_MARKET);
+
+        uint256 totalAssetsBefore = testOptimizer.totalAssets();
+        uint256 totalSupplyBefore = testOptimizer.totalSupply();
+        uint256 exchangeRateBefore = testOptimizer.exchangeRate();
+        uint256 idleBefore = IERC20(USDC_MONAD).balanceOf(address(testOptimizer));
+
+        LendingOptimizer.AllocationBound[] memory bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WMON_MARKET, minBps: 0, maxBps: BPS });
+        bounds[1] = LendingOptimizer.AllocationBound({ cToken: cUSDC_WBTC_MARKET, minBps: 0, maxBps: BPS });
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        uint256 cycles = 20;
+        uint256 rebalanceAmount = 1_000e6;
+        for (uint256 i; i < cycles; ++i) {
+            LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](2);
+            actions[0] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET),
+                -int256(rebalanceAmount)
+            );
+            actions[1] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WBTC_MARKET),
+                int256(rebalanceAmount)
+            );
+            testOptimizer.rebalance(actions, bounds);
+
+            actions[0] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WMON_MARKET),
+                int256(rebalanceAmount)
+            );
+            actions[1] = LendingOptimizer.ReallocationAction(
+                IBorrowableCToken(cUSDC_WBTC_MARKET),
+                -int256(rebalanceAmount)
+            );
+            testOptimizer.rebalance(actions, bounds);
+        }
+
+        uint256 marketAssetsAfter = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(testOptimizer))
+        ) + IBorrowableCToken(cUSDC_WBTC_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(testOptimizer))
+        );
+        uint256 totalAssetsAfter = testOptimizer.totalAssets();
+        assertLe(totalAssetsAfter, totalAssetsBefore, "round-trip rebalance should not create assets");
+        uint256 loss = totalAssetsBefore - totalAssetsAfter;
+
+        assertEq(totalSupplyBefore, testOptimizer.totalSupply(), "rebalance should not mint or burn optimizer shares");
+        assertEq(totalAssetsAfter, marketAssetsAfter, "cached assets should match actual market positions");
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(address(testOptimizer)),
+            idleBefore,
+            "round-trip rebalance should not leave idle underlying"
+        );
+        assertLe(loss, cycles * 4, "round-trip loss should stay at cToken rounding scale");
+        assertLe(testOptimizer.exchangeRate(), exchangeRateBefore, "rebalance should not inflate share price");
+    }
+
     function test_lendingOptimizer_rebalance_fail_whenAssetMismatch() public {
         // Deposit to all markets equally.
         _depositToAllMarkets(10_000e6);
@@ -426,6 +560,58 @@ contract TestLendingOptimizerRebalance is TestBaseLendingOptimizer {
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
         vm.expectRevert(LendingOptimizer.LendingOptimizer__AssetMismatch.selector);
         optimizer.rebalance(actions, bounds);
+    }
+
+    function test_lendingOptimizer_rebalance_zeroShareDepositRevertsAndRollsBackWithdrawal() public {
+        skip(365 days);
+        optimizer.accrueIfNeeded();
+
+        assertEq(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).convertToShares(1),
+            0,
+            "target market should round one base unit to zero shares"
+        );
+
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 sourceSharesBefore = IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer));
+        uint256 idleBefore = IERC20(USDC_MONAD).balanceOf(address(optimizer));
+
+        LendingOptimizer.ReallocationAction[] memory actions = new LendingOptimizer.ReallocationAction[](3);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WMON_MARKET),
+            -int256(1)
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WBTC_MARKET),
+            int256(1)
+        );
+        actions[2] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(cUSDC_WETH_MARKET),
+            int256(0)
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBounds();
+
+        vm.expectRevert(bytes4(0xc0883a55)); // BaseCToken__ZeroAmount()
+        optimizer.rebalance(actions, bounds);
+
+        assertEq(optimizer.totalAssets(), totalAssetsBefore, "total assets should roll back");
+        assertEq(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer)),
+            sourceSharesBefore,
+            "withdrawn source shares should roll back"
+        );
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(address(optimizer)),
+            idleBefore,
+            "no withdrawn underlying should remain idle"
+        );
     }
 
     function test_lendingOptimizer_rebalance_success_emitsRebalancedEvent() public {

@@ -60,6 +60,55 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
         assertEq(optimizer.allocationCaps(cUSDC_WBTC_MARKET), WAD, "New market cap should be 100%");
     }
 
+    function test_lendingOptimizer_addApprovedAsset_registrationDoesNotAutoSeedNewMarket() public {
+        _setUpOneMarket();
+
+        uint256 seedAssets = 10_000e6;
+        deal(USDC_MONAD, address(this), seedAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), seedAssets);
+        optimizer.deposit(seedAssets, address(this));
+
+        uint256 existingMarketAssetsBefore = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasElevatedPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.addApprovedAsset(cUSDC_WBTC_MARKET, 10_000);
+
+        assertEq(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer)),
+            0,
+            "newly added market should start with zero optimizer shares"
+        );
+
+        uint256 userDeposit = 1_000e6;
+        deal(USDC_MONAD, user1, userDeposit);
+        vm.startPrank(user1);
+        IERC20(USDC_MONAD).approve(address(optimizer), userDeposit);
+        uint256 mintedShares = optimizer.deposit(userDeposit, user1);
+        vm.stopPrank();
+
+        uint256 existingMarketAssetsAfter = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
+        );
+
+        assertGt(mintedShares, 0, "deposit should still mint optimizer shares");
+        assertEq(
+            IBorrowableCToken(cUSDC_WBTC_MARKET).balanceOf(address(optimizer)),
+            0,
+            "zero-weight new market should not receive pro-rata deposits"
+        );
+        assertGt(
+            existingMarketAssetsAfter,
+            existingMarketAssetsBefore,
+            "existing nonzero market should receive the deposit"
+        );
+    }
+
     function test_lendingOptimizer_addApprovedAsset_fail_whenUnauthorized() public {
         _setUpOneMarket();
 
@@ -364,4 +413,5 @@ contract TestLendingOptimizerAddApprovedAsset is TestBaseLendingOptimizer {
             abi.encode(true)
         );
     }
+
 }

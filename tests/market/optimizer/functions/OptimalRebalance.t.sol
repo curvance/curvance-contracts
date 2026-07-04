@@ -783,6 +783,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         // ---- Path A: static ----
         skip(14 days);
+        optimizer.accrueIfNeeded();
         uint256 rateStatic = optimizer.exchangeRate();
 
         // ---- Path B: rebalance after shocks ----
@@ -802,6 +803,7 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         optimizer.accrueIfNeeded();
         _executeOptimalRebalance();
         skip(14 days);
+        optimizer.accrueIfNeeded();
         uint256 rateRebalanced = optimizer.exchangeRate();
 
         assertGe(
@@ -1222,7 +1224,9 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500, 200);
 
         // Market 1 should be completely frozen.
-        assertEq(actions[1].assetsOrBps, 0, "Should not move assets for both-paused market");
+        if (actions.length > 0) {
+            assertEq(actions[1].assetsOrBps, 0, "Should not move assets for both-paused market");
+        }
     }
 
     /// @notice Rebalance with 2 of 3 markets redeem-paused should still
@@ -1274,9 +1278,12 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) = reader.optimalRebalance(address(optimizer), 500, 200);
 
-        // Neither paused market should have withdrawals.
-        assertTrue(actions[0].assetsOrBps >= 0, "Should not withdraw from redeem-paused WMON");
-        assertTrue(actions[1].assetsOrBps >= 0, "Should not withdraw from redeem-paused WBTC");
+        // Neither paused market should move. Empty arrays are acceptable when
+        // the only movable market is already the only active market.
+        if (actions.length > 0) {
+            assertEq(actions[0].assetsOrBps, 0, "Should freeze redeem-paused WMON");
+            assertEq(actions[1].assetsOrBps, 0, "Should freeze redeem-paused WBTC");
+        }
 
         // Execute and let yield accrue.
         optimizer.accrueIfNeeded();
@@ -1615,6 +1622,65 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
         assertEq(totalDeposits, totalWithdrawals, "reader actions must balance exactly");
         optimizer.rebalance(actions, bounds);
+    }
+
+    function test_optimalRebalance_exactCapResidualDoesNotReturnNonExecutablePlan() public {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = cUSDC_WMON_MARKET;
+        approvedCTokens[1] = cUSDC_WBTC_MARKET;
+
+        uint256[] memory caps = new uint256[](2);
+        caps[0] = 5_000;
+        caps[1] = 5_000;
+
+        optimizer = new LendingOptimizerHarness(
+            IERC20(USDC_MONAD),
+            liveCentralRegistry,
+            approvedCTokens,
+            caps,
+            0
+        );
+
+        uint256 initAssets = 77777;
+        deal(USDC_MONAD, address(this), initAssets);
+        IERC20(USDC_MONAD).approve(address(optimizer), initAssets);
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        optimizer.initializeDeposits(cUSDC_WMON_MARKET);
+
+        uint256 depositAmount = 100_000e6 + 23;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(
+            depositAmount, address(this), cUSDC_WMON_MARKET
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory actions,
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500, 200);
+
+        if (actions.length > 0) {
+            uint256 totalDeposits;
+            uint256 totalWithdrawals;
+            for (uint256 i; i < actions.length; ++i) {
+                if (actions[i].assetsOrBps > 0) {
+                    totalDeposits += uint256(actions[i].assetsOrBps);
+                } else if (actions[i].assetsOrBps < 0) {
+                    totalWithdrawals += uint256(-actions[i].assetsOrBps);
+                }
+            }
+
+            assertEq(totalDeposits, totalWithdrawals, "reader actions must balance exactly");
+            optimizer.rebalance(actions, bounds);
+        }
     }
 
     // ============ USD Threshold ============

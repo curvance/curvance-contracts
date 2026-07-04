@@ -4,15 +4,20 @@ pragma solidity 0.8.28;
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 /// @title Attack Boundary Regression Tests for LendingOptimizer
 /// @notice Exercises attack-boundary scenarios against the optimizer's accounting
 /// @dev These tests preserve current defensive behavior for known attack-boundary scenarios
 contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
+
+    bytes4 internal constant REENTRANCY_SELECTOR =
+        bytes4(keccak256("Reentrancy()"));
 
     address attacker = address(0xBAD);
     address victim = address(0xFACE);
@@ -193,6 +198,11 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
 
         // Attacker should not have captured yield disproportionately
         int256 attackerGain = int256(attackerAssets) - int256(1_000_000e6);
+        assertLt(
+            attackerGain,
+            int256(10e6),
+            "Attacker gain should stay below timing materiality bound"
+        );
 
         emit log_named_int("Attacker gain (6 decimals)", attackerGain);
     }
@@ -374,15 +384,597 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
     // ATTACK 8: Reentrancy via cToken callback
     // =========================================================================
 
-    /// @notice Verify: Reentrancy protection works
-    /// @dev All state-changing functions have nonReentrant modifier
-    function test_attackBoundary_reentrancy_protection() public {
-        deal(USDC_MONAD, address(this), 100_000e6);
-        IERC20(USDC_MONAD).approve(address(optimizer), 100_000e6);
+    /// @notice Verify: malicious approved-market callbacks cannot reenter optimizer state changes.
+    /// @dev This models a callback-enabled cToken listed as an optimizer market.
+    function test_attackBoundary_maliciousApprovedMarketReentryBlockedDuringDepositAndWithdraw() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        MaliciousOptimizerMarket maliciousMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(
+                IMarketManager.isListed.selector,
+                address(maliciousMarket)
+            ),
+            abi.encode(true)
+        );
 
-        // Normal deposit should work
-        uint256 shares = optimizer.deposit(100_000e6, address(this));
-        assertGt(shares, 0, "Deposit should succeed");
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = address(maliciousMarket);
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        LendingOptimizer callbackOptimizer = new LendingOptimizer(
+            IERC20(USDC_MONAD),
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+        maliciousMarket.setOptimizer(address(callbackOptimizer));
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(callbackOptimizer), type(uint256).max);
+
+        maliciousMarket.setReentryEnabled(true);
+        callbackOptimizer.initializeDeposits(address(maliciousMarket));
+
+        assertTrue(maliciousMarket.reentryAttempted(), "init reentry attempted");
+        assertFalse(maliciousMarket.reentrySucceeded(), "init reentry blocked");
+        assertEq(
+            maliciousMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "init reentry selector"
+        );
+
+        maliciousMarket.resetReentry();
+        maliciousMarket.setReentryEnabled(true);
+        uint256 shares = callbackOptimizer.deposit(100_000e6, address(this));
+
+        assertGt(shares, 0, "deposit should succeed");
+        assertTrue(maliciousMarket.reentryAttempted(), "deposit reentry attempted");
+        assertFalse(maliciousMarket.reentrySucceeded(), "deposit reentry blocked");
+        assertEq(
+            maliciousMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "deposit reentry selector"
+        );
+
+        maliciousMarket.resetReentry();
+        maliciousMarket.setReentryEnabled(true);
+        callbackOptimizer.withdraw(10_000e6, address(this), address(this));
+
+        assertTrue(maliciousMarket.reentryAttempted(), "withdraw reentry attempted");
+        assertFalse(maliciousMarket.reentrySucceeded(), "withdraw reentry blocked");
+        assertEq(
+            maliciousMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "withdraw reentry selector"
+        );
+
+        maliciousMarket.resetReentry();
+        maliciousMarket.setReentryEnabled(true);
+        uint256 assets = callbackOptimizer.mint(1e6, address(this));
+
+        assertGt(assets, 0, "mint should succeed");
+        assertTrue(maliciousMarket.reentryAttempted(), "mint reentry attempted");
+        assertFalse(maliciousMarket.reentrySucceeded(), "mint reentry blocked");
+        assertEq(
+            maliciousMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "mint reentry selector"
+        );
+
+        maliciousMarket.resetReentry();
+        maliciousMarket.setReentryEnabled(true);
+        uint256 redeemedAssets = callbackOptimizer.redeem(1e6, address(this), address(this));
+
+        assertGt(redeemedAssets, 0, "redeem should succeed");
+        assertTrue(maliciousMarket.reentryAttempted(), "redeem reentry attempted");
+        assertFalse(maliciousMarket.reentrySucceeded(), "redeem reentry blocked");
+        assertEq(
+            maliciousMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "redeem reentry selector"
+        );
+    }
+
+    /// @notice Verify: underlying token callbacks cannot reenter optimizer state changes.
+    /// @dev This models an ERC20 with transfer hooks around optimizer asset movement.
+    function test_attackBoundary_callbackUnderlyingCannotReenterDuringOptimizerAssetTransfers() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        CallbackOptimizerAsset callbackAsset = new CallbackOptimizerAsset();
+        MaliciousOptimizerMarket callbackMarket = new MaliciousOptimizerMarket(
+            address(callbackAsset),
+            validManager
+        );
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(
+                IMarketManager.isListed.selector,
+                address(callbackMarket)
+            ),
+            abi.encode(true)
+        );
+
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = address(callbackMarket);
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        LendingOptimizer callbackOptimizer = new LendingOptimizer(
+            IERC20(address(callbackAsset)),
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+        callbackMarket.setOptimizer(address(callbackOptimizer));
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        callbackAsset.mint(address(this), 77777 + 100_000e18);
+        callbackAsset.approve(address(callbackOptimizer), type(uint256).max);
+
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.ToOptimizer
+        );
+        callbackOptimizer.initializeDeposits(address(callbackMarket));
+
+        assertTrue(callbackAsset.reentryAttempted(), "init asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "init asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "init asset selector"
+        );
+
+        callbackAsset.resetReentry();
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.ToOptimizer
+        );
+        uint256 shares = callbackOptimizer.deposit(100_000e18, address(this));
+
+        assertGt(shares, 0, "callback-asset deposit shares");
+        assertTrue(callbackAsset.reentryAttempted(), "deposit asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "deposit asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "deposit asset selector"
+        );
+
+        callbackAsset.resetReentry();
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.FromOptimizer
+        );
+        callbackOptimizer.withdraw(10_000e18, address(this), address(this));
+
+        assertTrue(callbackAsset.reentryAttempted(), "withdraw asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "withdraw asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "withdraw asset selector"
+        );
+
+        callbackAsset.resetReentry();
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.ToOptimizer
+        );
+        uint256 assets = callbackOptimizer.mint(1e18, address(this));
+
+        assertGt(assets, 0, "callback-asset mint assets");
+        assertTrue(callbackAsset.reentryAttempted(), "mint asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "mint asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "mint asset selector"
+        );
+
+        callbackAsset.resetReentry();
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.FromOptimizer
+        );
+        uint256 redeemedAssets = callbackOptimizer.redeem(1e18, address(this), address(this));
+
+        assertGt(redeemedAssets, 0, "callback-asset redeem assets");
+        assertTrue(callbackAsset.reentryAttempted(), "redeem asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "redeem asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "redeem asset selector"
+        );
+
+        callbackAsset.resetReentry();
+        callbackAsset.mint(address(callbackOptimizer), 1e18);
+        callbackAsset.configureReentry(
+            address(callbackOptimizer),
+            CallbackOptimizerAsset.ReentryMode.FromOptimizer
+        );
+
+        uint256 daoBalanceBefore = callbackAsset.balanceOf(liveCentralRegistry.daoAddress());
+        callbackOptimizer.skim();
+
+        assertEq(
+            callbackAsset.balanceOf(liveCentralRegistry.daoAddress()) -
+                daoBalanceBefore,
+            1e18,
+            "skim transfers idle asset"
+        );
+        assertTrue(callbackAsset.reentryAttempted(), "skim asset callback");
+        assertFalse(callbackAsset.reentrySucceeded(), "skim asset reentry blocked");
+        assertEq(
+            callbackAsset.reentryRevertSelector(),
+            REENTRANCY_SELECTOR,
+            "skim asset selector"
+        );
+    }
+
+    /// @notice Verify: permissioned lifecycle callbacks cannot reenter optimizer state changes.
+    /// @dev This covers rebalance/remove callbacks separately from public ERC4626-style flows.
+    function test_attackBoundary_permissionedLifecycleMaliciousMarketReentryBlockedDuringRebalanceAndRemoval() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasHarvestPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        MaliciousOptimizerMarket lifecycleMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(lifecycleMarket));
+        LendingOptimizer lifecycleOptimizer = _newTwoMarketOptimizer(
+            IERC20(USDC_MONAD),
+            address(lifecycleMarket),
+            cUSDC_WMON_MARKET
+        );
+        lifecycleMarket.setOptimizer(address(lifecycleOptimizer));
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(lifecycleOptimizer), type(uint256).max);
+        lifecycleOptimizer.initializeDeposits(address(lifecycleMarket));
+        lifecycleOptimizer.deposit(100_000e6, address(this));
+
+        lifecycleMarket.resetReentry();
+        lifecycleMarket.setReentryEnabled(true);
+        lifecycleOptimizer.rebalance(
+            _actions2(address(lifecycleMarket), -int256(10_000e6), cUSDC_WMON_MARKET, int256(10_000e6)),
+            _bounds2(address(lifecycleMarket), cUSDC_WMON_MARKET)
+        );
+
+        assertTrue(lifecycleMarket.reentryAttempted(), "rebalance withdraw reentry attempted");
+        assertFalse(lifecycleMarket.reentrySucceeded(), "rebalance withdraw reentry blocked");
+        assertEq(
+            lifecycleMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "rebalance withdraw reentry selector"
+        );
+
+        lifecycleMarket.resetReentry();
+        lifecycleMarket.setReentryEnabled(true);
+        lifecycleOptimizer.rebalance(
+            _actions2(address(lifecycleMarket), int256(5_000e6), cUSDC_WMON_MARKET, -int256(5_000e6)),
+            _bounds2(address(lifecycleMarket), cUSDC_WMON_MARKET)
+        );
+
+        assertTrue(lifecycleMarket.reentryAttempted(), "rebalance deposit reentry attempted");
+        assertFalse(lifecycleMarket.reentrySucceeded(), "rebalance deposit reentry blocked");
+        assertEq(
+            lifecycleMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "rebalance deposit reentry selector"
+        );
+
+        lifecycleMarket.resetReentry();
+        lifecycleMarket.setReentryEnabled(true);
+        lifecycleOptimizer.removeApprovedAsset(
+            address(lifecycleMarket),
+            _removeAction(cUSDC_WMON_MARKET),
+            _bounds1(cUSDC_WMON_MARKET)
+        );
+
+        assertTrue(lifecycleMarket.reentryAttempted(), "remove redeem reentry attempted");
+        assertFalse(lifecycleMarket.reentrySucceeded(), "remove redeem reentry blocked");
+        assertEq(
+            lifecycleMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "remove redeem reentry selector"
+        );
+        assertEq(lifecycleOptimizer.numApprovedMarkets(), 1, "removed malicious market");
+
+        MaliciousOptimizerMarket targetMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(targetMarket));
+        LendingOptimizer removeToMaliciousOptimizer = _newTwoMarketOptimizer(
+            IERC20(USDC_MONAD),
+            cUSDC_WMON_MARKET,
+            address(targetMarket)
+        );
+        targetMarket.setOptimizer(address(removeToMaliciousOptimizer));
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(removeToMaliciousOptimizer), type(uint256).max);
+        removeToMaliciousOptimizer.initializeDeposits(cUSDC_WMON_MARKET);
+        removeToMaliciousOptimizer.deposit(100_000e6, address(this));
+
+        targetMarket.resetReentry();
+        targetMarket.setReentryEnabled(true);
+        removeToMaliciousOptimizer.removeApprovedAsset(
+            cUSDC_WMON_MARKET,
+            _removeAction(address(targetMarket)),
+            _bounds1(address(targetMarket))
+        );
+
+        assertTrue(targetMarket.reentryAttempted(), "remove deposit reentry attempted");
+        assertFalse(targetMarket.reentrySucceeded(), "remove deposit reentry blocked");
+        assertEq(
+            targetMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "remove deposit reentry selector"
+        );
+        assertEq(removeToMaliciousOptimizer.numApprovedMarkets(), 1, "removed source market");
+    }
+
+    /// @notice Verify: approved-market accrual callbacks cannot reenter accrual-only optimizer entrypoints.
+    /// @dev `exchangeRateUpdated()` and `accrueIfNeeded()` call approved cToken hooks without moving user assets.
+    function test_attackBoundary_maliciousApprovedMarketReentryBlockedDuringAccrualEntrypoints() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        MaliciousOptimizerMarket accrualMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(accrualMarket));
+        LendingOptimizer accrualOptimizer = _newSingleMarketOptimizer(
+            IERC20(USDC_MONAD),
+            address(accrualMarket)
+        );
+        accrualMarket.setOptimizer(address(accrualOptimizer));
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(accrualOptimizer), type(uint256).max);
+        accrualOptimizer.initializeDeposits(address(accrualMarket));
+        accrualOptimizer.deposit(100_000e6, address(this));
+
+        accrualMarket.setReentryOnAccrue(true);
+        accrualMarket.setReentryEnabled(true);
+
+        accrualMarket.resetReentry();
+        assertGt(accrualOptimizer.exchangeRateUpdated(), 0, "exchange rate settled");
+        assertTrue(accrualMarket.reentryAttempted(), "exchangeRateUpdated reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "exchangeRateUpdated reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "exchangeRateUpdated reentry selector"
+        );
+
+        accrualMarket.resetReentry();
+        accrualOptimizer.accrueIfNeeded();
+        assertTrue(accrualMarket.reentryAttempted(), "accrueIfNeeded reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "accrueIfNeeded reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "accrueIfNeeded reentry selector"
+        );
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+
+        accrualMarket.resetReentry();
+        accrualOptimizer.setFee(100);
+        assertTrue(accrualMarket.reentryAttempted(), "setFee accrue reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "setFee accrue reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "setFee accrue reentry selector"
+        );
+        assertEq(accrualOptimizer.fee(), 100, "setFee still settles");
+    }
+
+    /// @notice Verify: optimizer share movement cannot be reentered while it refreshes approved-market NAV.
+    /// @dev `transfer` and `transferFrom` both call `_accrueIfNeeded()` before moving shares.
+    function test_attackBoundary_maliciousApprovedMarketReentryBlockedDuringShareMovement() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        MaliciousOptimizerMarket accrualMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(accrualMarket));
+        LendingOptimizer accrualOptimizer = _newSingleMarketOptimizer(
+            IERC20(USDC_MONAD),
+            address(accrualMarket)
+        );
+        accrualMarket.setOptimizer(address(accrualOptimizer));
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(accrualOptimizer), type(uint256).max);
+        accrualOptimizer.initializeDeposits(address(accrualMarket));
+        uint256 userShares = accrualOptimizer.deposit(100_000e6, address(this));
+        uint256 transferAmount = userShares / 4;
+        assertGt(transferAmount, 0, "test setup shares");
+
+        accrualMarket.setReentryOnAccrue(true);
+        accrualMarket.setReentryEnabled(true);
+
+        uint256 ownerBefore = accrualOptimizer.balanceOf(address(this));
+        uint256 victimBefore = accrualOptimizer.balanceOf(victim);
+        accrualMarket.resetReentry();
+        assertTrue(accrualOptimizer.transfer(victim, transferAmount), "transfer settled");
+        assertTrue(accrualMarket.reentryAttempted(), "transfer accrue reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "transfer accrue reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "transfer accrue reentry selector"
+        );
+        assertEq(accrualOptimizer.balanceOf(address(this)), ownerBefore - transferAmount, "owner transfer delta");
+        assertEq(accrualOptimizer.balanceOf(victim), victimBefore + transferAmount, "victim transfer delta");
+
+        uint256 delegatedAmount = transferAmount / 2;
+        assertGt(delegatedAmount, 0, "delegated transfer shares");
+        accrualOptimizer.approve(attacker, delegatedAmount);
+
+        ownerBefore = accrualOptimizer.balanceOf(address(this));
+        victimBefore = accrualOptimizer.balanceOf(victim);
+        accrualMarket.resetReentry();
+        vm.prank(attacker);
+        assertTrue(accrualOptimizer.transferFrom(address(this), victim, delegatedAmount), "transferFrom settled");
+        assertTrue(accrualMarket.reentryAttempted(), "transferFrom accrue reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "transferFrom accrue reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "transferFrom accrue reentry selector"
+        );
+        assertEq(accrualOptimizer.balanceOf(address(this)), ownerBefore - delegatedAmount, "owner transferFrom delta");
+        assertEq(accrualOptimizer.balanceOf(victim), victimBefore + delegatedAmount, "victim transferFrom delta");
+        assertEq(accrualOptimizer.allowance(address(this), attacker), 0, "delegated allowance consumed");
+    }
+
+    function _newSingleMarketOptimizer(
+        IERC20 asset,
+        address market
+    ) internal returns (LendingOptimizer callbackOptimizer) {
+        address[] memory approvedCTokens = new address[](1);
+        approvedCTokens[0] = market;
+
+        uint256[] memory allocationCapsBps = new uint256[](1);
+        allocationCapsBps[0] = 10_000;
+
+        callbackOptimizer = new LendingOptimizer(
+            asset,
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+    }
+
+    function _newTwoMarketOptimizer(
+        IERC20 asset,
+        address market0,
+        address market1
+    ) internal returns (LendingOptimizer callbackOptimizer) {
+        address[] memory approvedCTokens = new address[](2);
+        approvedCTokens[0] = market0;
+        approvedCTokens[1] = market1;
+
+        uint256[] memory allocationCapsBps = new uint256[](2);
+        allocationCapsBps[0] = 10_000;
+        allocationCapsBps[1] = 10_000;
+
+        callbackOptimizer = new LendingOptimizer(
+            asset,
+            "Flagship",
+            "Flag",
+            liveCentralRegistry,
+            approvedCTokens,
+            allocationCapsBps,
+            0
+        );
+    }
+
+    function _mockMarketListed(address marketManager, address market) internal {
+        vm.mockCall(
+            marketManager,
+            abi.encodeWithSelector(IMarketManager.isListed.selector, market),
+            abi.encode(true)
+        );
+    }
+
+    function _actions2(
+        address market0,
+        int256 assets0,
+        address market1,
+        int256 assets1
+    ) internal pure returns (LendingOptimizer.ReallocationAction[] memory actions) {
+        actions = new LendingOptimizer.ReallocationAction[](2);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(market0),
+            assets0
+        );
+        actions[1] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(market1),
+            assets1
+        );
+    }
+
+    function _removeAction(
+        address targetMarket
+    ) internal pure returns (LendingOptimizer.ReallocationAction[] memory actions) {
+        actions = new LendingOptimizer.ReallocationAction[](1);
+        actions[0] = LendingOptimizer.ReallocationAction(
+            IBorrowableCToken(targetMarket),
+            int256(BPS)
+        );
+    }
+
+    function _bounds2(
+        address market0,
+        address market1
+    ) internal pure returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        bounds = new LendingOptimizer.AllocationBound[](2);
+        bounds[0] = LendingOptimizer.AllocationBound(market0, 0, BPS);
+        bounds[1] = LendingOptimizer.AllocationBound(market1, 0, BPS);
+    }
+
+    function _bounds1(
+        address market
+    ) internal pure returns (LendingOptimizer.AllocationBound[] memory bounds) {
+        bounds = new LendingOptimizer.AllocationBound[](1);
+        bounds[0] = LendingOptimizer.AllocationBound(market, 0, BPS);
     }
 
     // =========================================================================
@@ -738,5 +1330,229 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
             100,
             "totalAssets should match sum of markets"
         );
+    }
+}
+
+contract MaliciousOptimizerMarket {
+    address public immutable asset;
+    address public immutable marketManager;
+
+    address public optimizer;
+    uint256 public totalSupply;
+    bool public reentryEnabled;
+    bool public reenterOnAccrue;
+    bool public reentryAttempted;
+    bool public reentrySucceeded;
+    bytes public lastReentryData;
+
+    mapping(address => uint256) public balanceOf;
+
+    constructor(address asset_, address marketManager_) {
+        asset = asset_;
+        marketManager = marketManager_;
+    }
+
+    function setOptimizer(address optimizer_) external {
+        optimizer = optimizer_;
+    }
+
+    function setReentryEnabled(bool enabled) external {
+        reentryEnabled = enabled;
+    }
+
+    function setReentryOnAccrue(bool enabled) external {
+        reenterOnAccrue = enabled;
+    }
+
+    function resetReentry() external {
+        reentryAttempted = false;
+        reentrySucceeded = false;
+        delete lastReentryData;
+    }
+
+    function isBorrowable() external pure returns (bool) {
+        return true;
+    }
+
+    function convertToAssets(uint256 shares) external pure returns (uint256) {
+        return shares;
+    }
+
+    function convertToShares(uint256 assets) external pure returns (uint256) {
+        return assets;
+    }
+
+    function previewDeposit(uint256 assets) external pure returns (uint256) {
+        return assets;
+    }
+
+    function previewWithdraw(uint256 assets) external pure returns (uint256) {
+        return assets;
+    }
+
+    function previewRedeem(uint256 shares) external pure returns (uint256) {
+        return shares;
+    }
+
+    function previewMint(uint256 shares) external pure returns (uint256) {
+        return shares;
+    }
+
+    function exchangeRate() external pure returns (uint256) {
+        return WAD;
+    }
+
+    function assetsHeld() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
+    function totalAssets() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
+    function accrueIfNeeded() external {
+        if (reenterOnAccrue) _attemptReentry();
+    }
+
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+        IERC20(asset).transferFrom(msg.sender, address(this), assets);
+        _attemptReentry();
+
+        shares = assets;
+        balanceOf[receiver] += shares;
+        totalSupply += shares;
+    }
+
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external returns (uint256 shares) {
+        shares = assets;
+        balanceOf[owner] -= shares;
+        totalSupply -= shares;
+
+        IERC20(asset).transfer(receiver, assets);
+        _attemptReentry();
+    }
+
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets) {
+        assets = shares;
+        balanceOf[owner] -= shares;
+        totalSupply -= shares;
+
+        IERC20(asset).transfer(receiver, assets);
+        _attemptReentry();
+    }
+
+    function lastReentrySelector() external view returns (bytes4 selector) {
+        bytes memory data = lastReentryData;
+        if (data.length >= 4) {
+            assembly {
+                selector := mload(add(data, 32))
+            }
+        }
+    }
+
+    function _attemptReentry() internal {
+        if (!reentryEnabled || reentryAttempted) return;
+
+        reentryAttempted = true;
+        IERC20(asset).approve(optimizer, 1);
+
+        try LendingOptimizer(optimizer).deposit(1, address(this)) returns (uint256) {
+            reentrySucceeded = true;
+        } catch (bytes memory reason) {
+            lastReentryData = reason;
+        }
+
+        IERC20(asset).approve(optimizer, 0);
+    }
+}
+
+contract CallbackOptimizerAsset is ERC20 {
+    enum ReentryMode {
+        None,
+        ToOptimizer,
+        FromOptimizer
+    }
+
+    address public optimizer;
+    ReentryMode public reentryMode;
+    bool public reentryAttempted;
+    bool public reentrySucceeded;
+    bytes4 public reentryRevertSelector;
+
+    function name() public pure override returns (string memory) {
+        return "Callback Asset";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "CALL";
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 18;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
+    function configureReentry(
+        address optimizer_,
+        ReentryMode reentryMode_
+    ) external {
+        optimizer = optimizer_;
+        reentryMode = reentryMode_;
+        reentryAttempted = false;
+        reentrySucceeded = false;
+        reentryRevertSelector = bytes4(0);
+    }
+
+    function resetReentry() external {
+        reentryAttempted = false;
+        reentrySucceeded = false;
+        reentryRevertSelector = bytes4(0);
+    }
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256
+    ) internal override {
+        if (
+            optimizer == address(0) ||
+            reentryMode == ReentryMode.None ||
+            reentryAttempted
+        ) {
+            return;
+        }
+
+        if (reentryMode == ReentryMode.ToOptimizer && to != optimizer) return;
+        if (reentryMode == ReentryMode.FromOptimizer && from != optimizer) {
+            return;
+        }
+
+        reentryAttempted = true;
+        _approve(address(this), optimizer, 1);
+
+        (bool success, bytes memory data) = optimizer.call(
+            abi.encodeWithSelector(
+                LendingOptimizer.deposit.selector,
+                1,
+                address(this)
+            )
+        );
+        reentrySucceeded = success;
+        if (!success && data.length >= 4) {
+            reentryRevertSelector = bytes4(data);
+        }
+
+        _approve(address(this), optimizer, 0);
     }
 }

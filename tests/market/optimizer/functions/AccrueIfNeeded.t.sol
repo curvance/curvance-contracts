@@ -104,6 +104,15 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         return FixedPointMathLib.fullMulDiv(feeAssets, supply, currentAssets - feeAssets);
     }
 
+    function _mintDonationMarketShares(uint256 assets) internal returns (uint256 shares) {
+        deal(USDC_MONAD, address(this), assets);
+        IERC20(USDC_MONAD).approve(cUSDC_WMON_MARKET, assets);
+        shares = IBorrowableCToken(cUSDC_WMON_MARKET).deposit(
+            assets,
+            address(this)
+        );
+    }
+
     // ==================== BASIC ACCRUAL BEHAVIOR ====================
 
     function test_lendingOptimizer_accrueIfNeeded_noRevertOnEmptyState() public {
@@ -310,6 +319,142 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
                 "Fee shares should match formula"
             );
         }
+    }
+
+    /// @notice Documents current fee-dust behavior: sub-base-unit fees are forgone.
+    function test_lendingOptimizer_accrueIfNeeded_tinyProfitIncrementsCanBypassPerformanceFee() public {
+        _setUpHarness();
+
+        address dao = _daoAddress();
+        uint256 daoSharesBefore = harness.balanceOf(dao);
+        uint256 watermarkBefore = harness.exchangeRateHighWatermark();
+        uint256 cumulativeDonatedAssets;
+
+        for (uint256 i; i < 20; ++i) {
+            uint256 donationAssets = 9;
+            deal(USDC_MONAD, address(this), donationAssets);
+            IERC20(USDC_MONAD).approve(cUSDC_WMON_MARKET, donationAssets);
+            uint256 donatedShares = IBorrowableCToken(cUSDC_WMON_MARKET).deposit(
+                donationAssets,
+                address(this)
+            );
+            IERC20(cUSDC_WMON_MARKET).transfer(address(harness), donatedShares);
+
+            uint256 totalAssetsBefore = harness.totalAssets();
+            harness.accrueIfNeeded();
+
+            cumulativeDonatedAssets += harness.totalAssets() - totalAssetsBefore;
+            assertEq(
+                harness.balanceOf(dao),
+                daoSharesBefore,
+                "sub-fee-unit profit increment should mint no DAO shares"
+            );
+        }
+
+        assertGt(cumulativeDonatedAssets, 0, "test setup should create cumulative profit");
+        assertGt(
+            harness.exchangeRateHighWatermark(),
+            watermarkBefore,
+            "watermark should advance across fee-free tiny increments"
+        );
+        assertEq(harness.balanceOf(dao), daoSharesBefore, "cumulative tiny profits minted no fee shares");
+    }
+
+    /// @notice Same-state baseline: split tiny accruals avoid fee shares that
+    ///         the equivalent donated cToken shares would mint if accrued once.
+    function test_lendingOptimizer_accrueIfNeeded_splitTinyProfitsAvoidFeesVersusOneShot() public {
+        _setUpHarness();
+
+        address dao = _daoAddress();
+        uint256 daoSharesBefore = harness.balanceOf(dao);
+        uint256 snapshotId = vm.snapshotState();
+        uint256 chunks = 20;
+        uint256 donationAssets = 9;
+        uint256 totalDonatedShares;
+
+        for (uint256 i; i < chunks; ++i) {
+            uint256 donatedShares = _mintDonationMarketShares(donationAssets);
+            totalDonatedShares += donatedShares;
+            IERC20(cUSDC_WMON_MARKET).transfer(address(harness), donatedShares);
+            harness.accrueIfNeeded();
+        }
+
+        uint256 splitFeeShares = harness.balanceOf(dao) - daoSharesBefore;
+        assertEq(splitFeeShares, 0, "split tiny accruals mint no fee shares");
+
+        assertTrue(
+            vm.revertToState(snapshotId),
+            "failed to restore pre-split fee state"
+        );
+
+        uint256 oneShotDaoSharesBefore = harness.balanceOf(dao);
+        uint256 oneShotDonatedShares;
+        for (uint256 i; i < chunks; ++i) {
+            oneShotDonatedShares += _mintDonationMarketShares(donationAssets);
+        }
+        assertEq(
+            oneShotDonatedShares,
+            totalDonatedShares,
+            "baseline must donate identical cToken shares"
+        );
+
+        IERC20(cUSDC_WMON_MARKET).transfer(address(harness), oneShotDonatedShares);
+        harness.accrueIfNeeded();
+
+        uint256 oneShotFeeShares = harness.balanceOf(dao) - oneShotDaoSharesBefore;
+        assertGt(
+            oneShotFeeShares,
+            splitFeeShares,
+            "one-shot accrual mints fee shares while split accrual does not"
+        );
+    }
+
+    /// @notice Documents the second fee-dust branch: positive fee assets can still mint zero shares.
+    function test_lendingOptimizer_accrueIfNeeded_positiveFeeAssetsCanMintZeroFeeShares() public {
+        _setUpHarness();
+
+        address dao = _daoAddress();
+        uint256 daoSharesBefore = harness.balanceOf(dao);
+        uint256 supplyBefore = harness.totalSupply();
+        uint256 watermarkBefore = harness.exchangeRateHighWatermark();
+
+        uint256 donationAssets = 19;
+        deal(USDC_MONAD, address(this), donationAssets);
+        IERC20(USDC_MONAD).approve(cUSDC_WMON_MARKET, donationAssets);
+        uint256 donatedShares = IBorrowableCToken(cUSDC_WMON_MARKET).deposit(
+            donationAssets,
+            address(this)
+        );
+        IERC20(cUSDC_WMON_MARKET).transfer(address(harness), donatedShares);
+
+        IBorrowableCToken(cUSDC_WMON_MARKET).accrueIfNeeded();
+        uint256 rawTa = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(harness))
+        );
+        uint256 highAssets = FixedPointMathLib.fullMulDivUp(
+            watermarkBefore,
+            supplyBefore,
+            WAD
+        );
+        uint256 profit = rawTa - highAssets;
+        uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, harness.fee(), BPS);
+        uint256 feeShares = FixedPointMathLib.fullMulDiv(
+            feeAssets,
+            supplyBefore,
+            rawTa - feeAssets
+        );
+
+        assertGt(feeAssets, 0, "test setup must create positive fee assets");
+        assertEq(feeShares, 0, "positive fee assets should still round to zero shares");
+
+        harness.accrueIfNeeded();
+
+        assertEq(harness.balanceOf(dao), daoSharesBefore, "positive fee assets minted no DAO shares");
+        assertGt(
+            harness.exchangeRateHighWatermark(),
+            watermarkBefore,
+            "watermark should still advance after zero-share fee accrual"
+        );
     }
 
     function test_lendingOptimizer_accrueIfNeeded_updatesWatermarkOnFeeAccrual() public {
@@ -555,27 +700,30 @@ contract TestLendingOptimizerAccrueIfNeeded is TestBaseLendingOptimizer {
         IERC20(USDC_MONAD).approve(address(harness), 100_000e6);
         harness.deposit(100_000e6, address(this));
 
-        // Trigger accrual
+        // Establish a post-accrual baseline.
         skip(2 days);
-        harness.exchangeRate();
+        harness.accrueIfNeeded();
 
-        // Record totalAssets
+        // Record cached state
         uint256 totalAssetsBefore = harness.totalAssets();
+        uint256 cachedRateBefore = harness.exchangeRate();
 
         // Skip forward
         skip(12 hours);
 
         // exchangeRateUpdated should internally call accrueIfNeeded
-        harness.exchangeRate();
+        uint256 updatedRate = harness.exchangeRateUpdated();
 
         uint256 totalAssetsAfter = harness.totalAssets();
 
         // totalAssets should have increased due to yield accrual
-        assertGe(
+        assertGt(
             totalAssetsAfter,
             totalAssetsBefore,
             "exchangeRateUpdated should reflect yield in totalAssets"
         );
+        assertGt(updatedRate, cachedRateBefore, "exchangeRateUpdated should return fresh rate");
+        assertEq(updatedRate, harness.exchangeRate(), "exchangeRateUpdated return should match cached rate after accrual");
     }
 
     // ==================== FUZZ TESTS ====================

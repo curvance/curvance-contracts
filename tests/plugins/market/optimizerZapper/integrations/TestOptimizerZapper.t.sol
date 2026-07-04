@@ -75,6 +75,54 @@ contract TestUniswapV3ExactInputSingleChecker is BaseSwapChecker {
     }
 }
 
+contract ReentrantOptimizerZapperSwapTarget {
+    IERC20 internal immutable inputToken;
+    IERC20 internal immutable outputToken;
+
+    bool public reentryAttempted;
+    bool public reentrySucceeded;
+
+    constructor(IERC20 inputToken_, IERC20 outputToken_) {
+        inputToken = inputToken_;
+        outputToken = outputToken_;
+    }
+
+    function swapAndAttemptReentry(
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint256 reentryAmount,
+        address zapper,
+        address optimizer,
+        address receiver
+    ) external {
+        inputToken.transferFrom(msg.sender, address(this), inputAmount);
+
+        reentryAttempted = true;
+        outputToken.approve(zapper, reentryAmount);
+
+        SwapperLib.Swap memory reentryAction = SwapperLib.Swap({
+            inputToken: address(outputToken),
+            inputAmount: reentryAmount,
+            outputToken: address(outputToken),
+            target: address(0),
+            slippage: 0,
+            call: bytes("")
+        });
+
+        try OptimizerZapper(zapper)
+            .swapAndDeposit(
+                optimizer, false, reentryAction, 1, receiver
+            ) returns (
+            uint256
+        ) {
+            reentrySucceeded = true;
+        } catch {}
+
+        outputToken.approve(zapper, 0);
+        outputToken.transfer(msg.sender, outputAmount);
+    }
+}
+
 contract TestOptimizerZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
@@ -183,6 +231,55 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             shares,
             "Balance should match returned shares"
         );
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
+    }
+
+    function testSwapAndDeposit_MaliciousSwapTargetCannotReenterZapper()
+        public
+    {
+        ReentrantOptimizerZapperSwapTarget swapTarget =
+            new ReentrantOptimizerZapperSwapTarget(dai, usdc);
+        centralRegistry.setExternalCalldataChecker(
+            address(swapTarget),
+            address(new MockCalldataChecker(address(swapTarget)))
+        );
+
+        uint256 inputAmount = 1000e18;
+        uint256 outputAmount = 1000e6;
+        uint256 reentryAmount = 10e6;
+        _prepareDAI(user1, inputAmount);
+        _prepareUSDC(address(swapTarget), outputAmount + reentryAmount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = inputAmount;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = address(swapTarget);
+        swapAction.call = abi.encodeWithSelector(
+            ReentrantOptimizerZapperSwapTarget.swapAndAttemptReentry.selector,
+            inputAmount,
+            outputAmount,
+            reentryAmount,
+            address(optimizerZapper),
+            address(optimizer),
+            user1
+        );
+        swapAction.slippage = 0;
+
+        uint256 expectedShares = optimizer.previewDeposit(outputAmount);
+        vm.startPrank(user1);
+        dai.approve(address(optimizerZapper), inputAmount);
+        uint256 shares = optimizerZapper.swapAndDeposit(
+            address(optimizer), false, swapAction, expectedShares, user1
+        );
+        vm.stopPrank();
+
+        assertTrue(swapTarget.reentryAttempted(), "reentry attempted");
+        assertFalse(swapTarget.reentrySucceeded(), "reentry blocked");
+        assertEq(shares, expectedShares, "original call share output");
+        assertEq(optimizer.balanceOf(user1), shares, "only original shares");
+        assertEq(dai.balanceOf(address(swapTarget)), inputAmount);
+        assertEq(usdc.balanceOf(address(swapTarget)), reentryAmount);
         _assertOptimizerZapperHasNoResidue(address(optimizer));
     }
 
@@ -578,6 +675,68 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         assertEq(optimizer.totalAssets(), totalAssetsBefore);
         _assertOptimizerZapperHasNoResidue(address(optimizer));
         vm.stopPrank();
+    }
+
+    function testSwapAndDeposit_fail_StaleExpectedSharesAfterOptimizerNavIncreaseRollsBack()
+        public
+    {
+        uint256 amount = 1000e6;
+        _prepareUSDC(user1, amount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _USDC_ADDRESS;
+
+        uint256 staleExpectedShares = optimizer.previewDeposit(amount);
+        uint256 staleTotalAssets = optimizer.totalAssets();
+
+        address donor = makeAddr("optimizerNavDonor");
+        uint256 donationAssets = 100_000e6;
+        _prepareUSDC(donor, donationAssets);
+        vm.startPrank(donor);
+        usdc.approve(address(borrowableCUSDC), donationAssets);
+        uint256 donatedCTokenShares =
+            borrowableCUSDC.deposit(donationAssets, donor);
+        IERC20(address(borrowableCUSDC))
+            .transfer(address(optimizer), donatedCTokenShares);
+        vm.stopPrank();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale after cToken donation"
+        );
+
+        uint256 userUsdcBefore = usdc.balanceOf(user1);
+        uint256 optimizerSharesBefore = optimizer.balanceOf(user1);
+
+        vm.startPrank(user1);
+        usdc.approve(address(optimizerZapper), amount);
+        vm.expectRevert(
+            OptimizerZapper.OptimizerZapper__ExecutionError.selector
+        );
+        optimizerZapper.swapAndDeposit(
+            address(optimizer), false, swapAction, staleExpectedShares, user1
+        );
+        vm.stopPrank();
+
+        assertEq(usdc.balanceOf(user1), userUsdcBefore);
+        assertEq(optimizer.balanceOf(user1), optimizerSharesBefore);
+        assertEq(optimizer.totalAssets(), staleTotalAssets);
+        _assertOptimizerZapperHasNoResidue(address(optimizer));
+
+        optimizer.exchangeRateUpdated();
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual should absorb the donated cToken shares"
+        );
+        assertLt(
+            optimizer.previewDeposit(amount),
+            staleExpectedShares,
+            "stale expected shares should exceed fresh mint amount"
+        );
     }
 
     function testSwapAndDeposit_fail_ExternalSwapInsufficientSharesRollsBack()
@@ -983,6 +1142,7 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
         internal
         view
     {
+        address optimizerAsset = LendingOptimizer(optimizer_).asset();
         assertEq(address(optimizerZapper).balance, 0, "zapper native residue");
         assertEq(
             usdc.balanceOf(address(optimizerZapper)), 0, "zapper USDC residue"
@@ -997,6 +1157,11 @@ contract TestOptimizerZapper is TestBaseMarketIsolated {
             LendingOptimizer(optimizer_).balanceOf(address(optimizerZapper)),
             0,
             "zapper optimizer share residue"
+        );
+        assertEq(
+            IERC20(optimizerAsset).allowance(address(optimizerZapper), optimizer_),
+            0,
+            "zapper optimizer asset allowance residue"
         );
     }
 }

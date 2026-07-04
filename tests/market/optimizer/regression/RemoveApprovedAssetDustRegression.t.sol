@@ -65,6 +65,10 @@ contract RemoveApprovedAssetDustRegression is TestBaseLendingOptimizer {
 
         LendingOptimizer.AllocationBound[] memory bounds = _unconstrainedBoundsForRemoval(cUSDC_WETH_MARKET);
 
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 removedMarketAssets = IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
+            IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
+        );
         uint256 idleUsdcBefore = IERC20(USDC_MONAD).balanceOf(address(optimizer));
 
         // With the fix applied, the call completes without reverting.
@@ -76,6 +80,33 @@ contract RemoveApprovedAssetDustRegression is TestBaseLendingOptimizer {
         // Last-action dust sits idle on the optimizer — skim()-recoverable.
         uint256 idleUsdcAfter = IERC20(USDC_MONAD).balanceOf(address(optimizer));
         assertGt(idleUsdcAfter, idleUsdcBefore, "last-iteration dust left idle on optimizer");
+
+        uint256 idleDelta = idleUsdcAfter - idleUsdcBefore;
+        assertGt(
+            idleDelta,
+            (removedMarketAssets * 7_500) / 10_000,
+            "zero-share last target can leave a material idle remainder"
+        );
+        assertGe(
+            totalAssetsBefore - optimizer.totalAssets(),
+            idleDelta,
+            "idle remainder is excluded from post-removal totalAssets"
+        );
+
+        address dao = liveCentralRegistry.daoAddress();
+        uint256 daoAssetsBefore = IERC20(USDC_MONAD).balanceOf(dao);
+        optimizer.skim();
+
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(dao) - daoAssetsBefore,
+            idleDelta,
+            "DAO skim should receive the excluded idle remainder"
+        );
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(address(optimizer)),
+            idleUsdcBefore,
+            "skim should leave only pre-existing optimizer idle balance"
+        );
     }
 
     /// @notice Companion: workaround path. Reordering so the high-BPS target

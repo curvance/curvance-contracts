@@ -8,6 +8,9 @@ import {AddChainlinkVaultAggSupport} from "script/deployment/AddChainlinkVaultAg
 import {AddRedstoneSupport} from "script/deployment/AddRedstoneSupport.s.sol";
 import {AddRedstoneVaultAggSupport} from "script/deployment/AddRedstoneVaultAggSupport.s.sol";
 import {AddStaticPriceAggregator} from "script/deployment/AddStaticPriceAggregator.s.sol";
+import {
+    OracleDeploymentPreflight
+} from "script/utils/OracleDeploymentPreflight.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
 import {ChainlinkAdaptor} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -516,7 +519,11 @@ contract TestAddVaultAggSupport is Test {
         AddVaultAggSupportToken asset =
             new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
 
-        vm.expectRevert("invalid guard config");
+        vm.expectRevert(
+            OracleDeploymentPreflight
+                .OracleDeploymentPreflight__InvalidPreflight
+                .selector
+        );
         script.run(
             address(asset),
             1e18,
@@ -543,6 +550,8 @@ contract TestAddVaultAggSupport is Test {
         AddStaticPriceAggregatorHarness script = new AddStaticPriceAggregatorHarness();
         AddSupportGuardRevertingChainlinkAdaptor adaptor =
             new AddSupportGuardRevertingChainlinkAdaptor();
+        AddVaultAggSupportOracleManager oracleManager =
+            new AddVaultAggSupportOracleManager();
         AddVaultAggSupportToken asset =
             new AddVaultAggSupportToken("ASSET", 18, address(0), 1e18);
 
@@ -555,7 +564,7 @@ contract TestAddVaultAggSupport is Test {
             address(asset),
             1e18,
             address(adaptor),
-            address(2),
+            address(oracleManager),
             6 hours,
             true,
             AddStaticPriceAggregator.PriceGuard({
@@ -670,7 +679,11 @@ contract TestAddVaultAggSupport is Test {
         AddSupportRevertingRedstoneAdaptor adaptor =
             new AddSupportRevertingRedstoneAdaptor();
 
-        vm.expectRevert("invalid guard config");
+        vm.expectRevert(
+            OracleDeploymentPreflight
+                .OracleDeploymentPreflight__InvalidPreflight
+                .selector
+        );
         script.run(
             address(1),
             address(adaptor),
@@ -697,7 +710,11 @@ contract TestAddVaultAggSupport is Test {
         AddSupportRevertingRedstoneAdaptor adaptor =
             new AddSupportRevertingRedstoneAdaptor();
 
-        vm.expectRevert("invalid guard config");
+        vm.expectRevert(
+            OracleDeploymentPreflight
+                .OracleDeploymentPreflight__InvalidPreflight
+                .selector
+        );
         script.run(
             address(1),
             address(adaptor),
@@ -756,6 +773,9 @@ contract TestAddVaultAggSupport is Test {
         AddRedstoneSupportHarness script = new AddRedstoneSupportHarness();
         AddSupportGuardRevertingRedstoneAdaptor adaptor =
             new AddSupportGuardRevertingRedstoneAdaptor();
+        AddVaultAggSupportOracleManager oracleManager =
+            new AddVaultAggSupportOracleManager();
+        AddVaultAggSupportFeed feed = new AddVaultAggSupportFeed();
 
         vm.expectCall(
             address(adaptor),
@@ -765,10 +785,10 @@ contract TestAddVaultAggSupport is Test {
         script.run(
             address(1),
             address(adaptor),
-            address(2),
+            address(oracleManager),
             AddRedstoneSupport.PushFeed({
                 inUSD: true,
-                feed: address(3),
+                feed: address(feed),
                 heartbeat: 6 hours,
                 id: "ASSET"
             }),
@@ -789,6 +809,8 @@ contract TestAddVaultAggSupport is Test {
         AddRedstoneSupportHarness script = new AddRedstoneSupportHarness();
         AddSupportGuardRevertingRedstoneAdaptor adaptor =
             new AddSupportGuardRevertingRedstoneAdaptor();
+        AddVaultAggSupportOracleManager oracleManager =
+            new AddVaultAggSupportOracleManager();
         AddVaultAggSupportToken asset =
             new AddVaultAggSupportToken("ASSET", 8, address(0), 1e18);
 
@@ -800,7 +822,7 @@ contract TestAddVaultAggSupport is Test {
         script.run(
             address(asset),
             address(adaptor),
-            address(2),
+            address(oracleManager),
             AddRedstoneSupport.PullFeed({
                 payload: "",
                 timestamp: uint48(block.timestamp),
@@ -821,6 +843,8 @@ contract TestAddVaultAggSupport is Test {
         AddRedstoneSupportHarness script = new AddRedstoneSupportHarness();
         AddSupportWriteRevertingRedstoneAdaptor adaptor =
             new AddSupportWriteRevertingRedstoneAdaptor();
+        AddVaultAggSupportOracleManager oracleManager =
+            new AddVaultAggSupportOracleManager();
         AddVaultAggSupportToken asset =
             new AddVaultAggSupportToken("ASSET", 8, address(0), 1e18);
 
@@ -832,10 +856,10 @@ contract TestAddVaultAggSupport is Test {
         script.run(
             address(asset),
             address(adaptor),
-            address(2),
+            address(oracleManager),
             AddRedstoneSupport.PullFeed({
                 payload: "",
-                timestamp: uint48(block.timestamp),
+                timestamp: 1,
                 id: "ASSET"
             }),
             AddRedstoneSupport.PriceGuard({
@@ -885,6 +909,7 @@ contract TestAddVaultAggSupport is Test {
         AddVaultAggSupportAdaptor adaptor = new AddVaultAggSupportAdaptor();
         AddSupportRevertingOracleManager oracleManager =
             new AddSupportRevertingOracleManager();
+        AddVaultAggSupportFeed feed = new AddVaultAggSupportFeed();
 
         vm.expectCall(
             address(adaptor),
@@ -897,7 +922,7 @@ contract TestAddVaultAggSupport is Test {
             address(oracleManager),
             AddRedstoneSupport.PushFeed({
                 inUSD: true,
-                feed: address(3),
+                feed: address(feed),
                 heartbeat: 6 hours,
                 id: "ASSET"
             }),
@@ -931,7 +956,7 @@ contract TestAddVaultAggSupport is Test {
             address(oracleManager),
             AddRedstoneSupport.PullFeed({
                 payload: "",
-                timestamp: uint48(block.timestamp),
+                timestamp: 1,
                 id: "ASSET"
             }),
             AddRedstoneSupport.PriceGuard({

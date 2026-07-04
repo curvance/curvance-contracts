@@ -273,11 +273,11 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
             reader.optimalRebalance(address(optimizer), 500, 200);
 
         if (actions.length > 0) {
-            // No withdrawal from the paused market.
-            assertGe(
+            // No movement into or out of the paused market.
+            assertEq(
                 actions[0].assetsOrBps,
                 int256(0),
-                "Redeem-paused market must not be withdrawn from"
+                "Redeem-paused market must be frozen"
             );
         }
     }

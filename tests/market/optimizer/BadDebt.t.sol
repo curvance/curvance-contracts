@@ -477,6 +477,52 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function _optimizerAssetsFromApprovedMarkets()
+        internal
+        view
+        returns (uint256 assets)
+    {
+        assets += borrowableCUSDC.convertToAssets(
+            borrowableCUSDC.balanceOf(address(optimizer))
+        );
+        assets += borrowableCUSDC2.convertToAssets(
+            borrowableCUSDC2.balanceOf(address(optimizer))
+        );
+        assets += borrowableCUSDC3.convertToAssets(
+            borrowableCUSDC3.balanceOf(address(optimizer))
+        );
+    }
+
+    function _realizeSingleMarketBadDebtWithoutOptimizerAccrual() internal {
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        skip(30 days);
+        _refreshMockFeeds();
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(accounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "borrower debt should be cleared");
+    }
+
     // ==================== SINGLE MARKET BAD DEBT ====================
 
     function test_lendingOptimizer_badDebt_singleMarketBadDebt() public {
@@ -699,6 +745,90 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         assertEq(sharesPriceAfter, expectedSharesPrice);
     }
 
+    function test_lendingOptimizerShareCToken_directShareCTokenPriceIsStaleAfterBadDebtUntilAccrual() public {
+        (LendingOptimizerShareCToken shareCToken, MockV3Aggregator optimizerFeed) =
+            _deployOptimizerShareCTokenForBadDebtPricing();
+
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        (uint256 priceBeforeBadDebt, uint256 priceBeforeErrorCode) =
+            oracleManager.getPrice(address(shareCToken), true, true);
+        assertEq(priceBeforeErrorCode, 0);
+        uint256 totalAssetsBeforeBadDebt = optimizer.totalAssets();
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        skip(30 days);
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(accounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "borrower debt should be cleared");
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "optimizer NAV must still be cached before direct cToken price read"
+        );
+
+        (uint256 staleShareCTokenPrice, uint256 staleErrorCode) =
+            oracleManager.getPrice(address(shareCToken), true, true);
+        assertEq(staleErrorCode, 0);
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "direct share-cToken price read must not accrue optimizer"
+        );
+        assertEq(staleShareCTokenPrice, priceBeforeBadDebt, "direct share-cToken price stayed stale high");
+
+        shareCToken.exchangeRateUpdated();
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "wrapper accrual must sync optimizer bad-debt NAV loss"
+        );
+
+        (uint256 freshShareCTokenPrice, uint256 freshErrorCode) =
+            oracleManager.getPrice(address(shareCToken), true, true);
+        assertEq(freshErrorCode, 0);
+        assertLt(freshShareCTokenPrice, staleShareCTokenPrice, "fresh share-cToken price should include NAV loss");
+
+        (uint256 freshOptimizerPrice, uint256 optimizerErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(optimizerErrorCode, 0);
+        uint256 expectedShareCTokenPrice = FixedPointMathLib.mulDiv(
+            freshOptimizerPrice,
+            shareCToken.exchangeRate(),
+            WAD
+        );
+        assertEq(freshShareCTokenPrice, expectedShareCTokenPrice);
+    }
+
     function test_lendingOptimizerShareCToken_badDebtBlocksBorrowThroughFreshMarketPricing() public {
         (
             MarketManagerIsolated optimizerShareMarket,
@@ -809,6 +939,13 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         vm.prank(depositor1);
         shareCToken.removeCollateral(shares);
 
+        vm.prank(depositor1);
+        shareCToken.setDelegateApproval(spender, true);
+        assertTrue(shareCToken.isDelegate(depositor1, spender), "delegate should be approved");
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        vm.prank(spender);
+        shareCToken.removeCollateralFor(shares, depositor1);
+
         vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
         vm.prank(depositor1);
         shareCToken.transfer(receiver, shares);
@@ -840,6 +977,40 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
             totalAssetsBeforeBadDebt,
             "failed collateral movement must not commit optimizer accrual"
         );
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtStatusOfSyncsOptimizerShareCollateralPrice() public {
+        (
+            MarketManagerIsolated optimizerShareMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            uint256 totalAssetsBeforeBadDebt
+        ) = _prepareOptimizerShareAccountAfterBadDebt();
+
+        uint256 debtBeforeStatus = debtCToken.debtBalance(depositor1);
+        assertGt(debtBeforeStatus, 0, "precondition: account should carry debt");
+
+        (uint256 staleOptimizerPrice, uint256 staleErrorCode) =
+            oracleManager.getPrice(address(optimizer), true, true);
+        assertEq(staleErrorCode, 0);
+        uint256 staleMaxDebt =
+            _optimizerShareCollateralMaxDebtValue(shareCToken, depositor1, staleOptimizerPrice);
+        assertGt(staleMaxDebt, _usdcDebtValue(debtBeforeStatus), "stale NAV would leave account healthy");
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "precondition: optimizer NAV must still be cached before statusOf"
+        );
+
+        (, uint256 freshMaxDebt, uint256 freshDebt) = optimizerShareMarket.statusOf(depositor1);
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "statusOf must sync optimizer-share collateral NAV loss"
+        );
+        assertLt(freshMaxDebt, staleMaxDebt, "fresh status should reduce collateral capacity");
+        assertGt(freshDebt, freshMaxDebt, "fresh status should report the account underwater");
     }
 
     function test_lendingOptimizerShareCToken_badDebtLiquidatesThroughFreshMarketPricing() public {
@@ -881,6 +1052,122 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
             "liquidation should seize posted collateral"
         );
         assertGt(shareCToken.balanceOf(user2), 0, "liquidator should receive seized shares");
+    }
+
+    function test_lendingOptimizerShareCToken_badDebtBatchLiquidatesMultipleAccountsThroughFreshMarketPricing() public {
+        (
+            MarketManagerIsolated optimizerShareMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            MockV3Aggregator optimizerFeed
+        ) = _deployOptimizerShareLaunchMarketForBadDebt();
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = depositor1;
+        accounts[1] = depositor2;
+
+        uint256[] memory depositAmounts = new uint256[](2);
+        depositAmounts[0] = 100_000e6;
+        depositAmounts[1] = 80_000e6;
+
+        for (uint256 i; i < accounts.length; ++i) {
+            _prepareUSDC(accounts[i], depositAmounts[i]);
+            vm.startPrank(accounts[i]);
+            usdc.approve(address(optimizer), depositAmounts[i]);
+            optimizer.depositToMarket(depositAmounts[i], accounts[i], address(borrowableCUSDC));
+            uint256 optimizerShares = optimizer.balanceOf(accounts[i]);
+            IERC20(address(optimizer)).approve(address(shareCToken), optimizerShares);
+            shareCToken.depositAsCollateral(optimizerShares, accounts[i]);
+            vm.stopPrank();
+        }
+
+        _prepareUSDC(liquidityProvider, 200_000e6);
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(debtCToken), 200_000e6);
+        debtCToken.deposit(200_000e6, liquidityProvider);
+        vm.stopPrank();
+
+        for (uint256 i; i < accounts.length; ++i) {
+            (, uint256 maxDebtBeforeBadDebt,) = optimizerShareMarket.statusOf(accounts[i]);
+            uint256 initialBorrowAmount = FixedPointMathLib.mulDiv(
+                maxDebtBeforeBadDebt,
+                9970 * 1e6,
+                BPS * WAD
+            );
+            vm.prank(accounts[i]);
+            debtCToken.borrow(initialBorrowAmount, accounts[i]);
+        }
+
+        vm.warp(optimizerShareMarket.accountAssets(depositor1) + optimizerShareMarket.MIN_HOLD_PERIOD());
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        uint256 totalAssetsBeforeBadDebt = optimizer.totalAssets();
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+        optimizerFeed.updateAnswer(1e8);
+
+        address[] memory badDebtAccounts = new address[](1);
+        badDebtAccounts[0] = borrower1;
+
+        _prepareUSDC(user2, 10_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 10_000e6);
+        borrowableCUSDC.liquidate(badDebtAccounts, address(borrowableCDAI));
+        vm.stopPrank();
+
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "optimizer NAV must still be cached before batch liquidation"
+        );
+
+        uint256[] memory debtBefore = new uint256[](2);
+        uint256[] memory collateralBefore = new uint256[](2);
+        uint256 totalDebtBefore;
+        for (uint256 i; i < accounts.length; ++i) {
+            debtBefore[i] = debtCToken.debtBalance(accounts[i]);
+            collateralBefore[i] = shareCToken.collateralPosted(accounts[i]);
+            totalDebtBefore += debtBefore[i];
+        }
+        uint256 liquidatorSharesBefore = shareCToken.balanceOf(user2);
+
+        _prepareUSDC(user2, totalDebtBefore);
+        vm.startPrank(user2);
+        usdc.approve(address(debtCToken), totalDebtBefore);
+        debtCToken.liquidate(accounts, address(shareCToken));
+        vm.stopPrank();
+
+        assertLt(
+            optimizer.totalAssets(),
+            totalAssetsBeforeBadDebt,
+            "batch liquidation price path must sync optimizer NAV loss once"
+        );
+        for (uint256 i; i < accounts.length; ++i) {
+            assertLt(debtCToken.debtBalance(accounts[i]), debtBefore[i], "batch liquidation should reduce debt");
+            assertLt(
+                shareCToken.collateralPosted(accounts[i]),
+                collateralBefore[i],
+                "batch liquidation should seize posted collateral"
+            );
+        }
+        assertGt(
+            shareCToken.balanceOf(user2),
+            liquidatorSharesBefore,
+            "liquidator should receive seized shares from batch"
+        );
     }
 
     function test_lendingOptimizerShareCToken_badDebtLiquidateExactUsesFreshMarketPricing() public {
@@ -1284,6 +1571,247 @@ contract TestLendingOptimizerBadDebt is TestBaseMarketIsolated {
         // Rate should be preserved after new deposit
         uint256 rateAfterNewDeposit = optimizer.exchangeRateUpdated();
         assertApproxEqRel(rateAfterNewDeposit, rateAfterBadDebt, 0.001e18, "Rate preserved after deposit");
+    }
+
+    function test_lendingOptimizer_badDebt_depositAutoAccruesWithoutManualPreAccrual() public {
+        uint256 initialDeposit = 100_000e6;
+        _prepareUSDC(depositor1, initialDeposit);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), initialDeposit);
+        optimizer.depositToMarket(initialDeposit, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _realizeSingleMarketBadDebtWithoutOptimizerAccrual();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV must still be stale before deposit"
+        );
+
+        uint256 freshAssetsBeforeDeposit = _optimizerAssetsFromApprovedMarkets();
+        uint256 supplyBeforeDeposit = optimizer.totalSupply();
+        assertLt(freshAssetsBeforeDeposit, staleTotalAssets, "bad debt must reduce cToken-derived assets");
+
+        uint256 newDeposit = 50_000e6;
+        _prepareUSDC(depositor2, newDeposit);
+        vm.startPrank(depositor2);
+        usdc.approve(address(optimizer), newDeposit);
+        uint256 depositor2Shares = optimizer.deposit(newDeposit, depositor2);
+        vm.stopPrank();
+
+        uint256 trackedAssets = optimizer.totalAssets() - freshAssetsBeforeDeposit;
+        uint256 expectedShares = FixedPointMathLib.fullMulDiv(
+            trackedAssets,
+            supplyBeforeDeposit,
+            freshAssetsBeforeDeposit
+        );
+        uint256 staleShares = FixedPointMathLib.fullMulDiv(
+            trackedAssets,
+            supplyBeforeDeposit,
+            staleTotalAssets
+        );
+
+        assertApproxEqAbs(
+            optimizer.totalAssets(),
+            _optimizerAssetsFromApprovedMarkets(),
+            1,
+            "deposit should sync NAV to cTokens"
+        );
+        assertEq(depositor2Shares, expectedShares, "deposit must mint against fresh bad-debt NAV");
+        assertGt(depositor2Shares, staleShares, "stale NAV would have under-minted the new depositor");
+    }
+
+    function test_lendingOptimizer_badDebt_withdrawAutoAccruesWithoutManualPreAccrual() public {
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _realizeSingleMarketBadDebtWithoutOptimizerAccrual();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV must still be stale before withdraw"
+        );
+
+        uint256 freshAssetsBeforeWithdraw = _optimizerAssetsFromApprovedMarkets();
+        uint256 supplyBeforeWithdraw = optimizer.totalSupply();
+        assertLt(freshAssetsBeforeWithdraw, staleTotalAssets, "bad debt must reduce cToken-derived assets");
+
+        uint256 withdrawAmount = 10_000e6;
+        uint256 balanceBefore = usdc.balanceOf(depositor1);
+        vm.prank(depositor1);
+        uint256 sharesBurned = optimizer.withdraw(withdrawAmount, depositor1, depositor1);
+
+        uint256 actualCost = freshAssetsBeforeWithdraw - optimizer.totalAssets();
+        uint256 expectedShares = FixedPointMathLib.fullMulDivUp(
+            actualCost,
+            supplyBeforeWithdraw,
+            freshAssetsBeforeWithdraw
+        );
+        uint256 staleShares = FixedPointMathLib.fullMulDivUp(
+            actualCost,
+            supplyBeforeWithdraw,
+            staleTotalAssets
+        );
+
+        assertEq(usdc.balanceOf(depositor1) - balanceBefore, withdrawAmount, "withdraw should pay requested assets");
+        assertEq(optimizer.totalAssets(), _optimizerAssetsFromApprovedMarkets(), "withdraw should sync NAV to cTokens");
+        assertEq(sharesBurned, expectedShares, "withdraw must burn against fresh bad-debt NAV");
+        assertGt(sharesBurned, staleShares, "stale NAV would have under-burned the withdrawing depositor");
+    }
+
+    function test_lendingOptimizer_badDebt_redeemAutoAccruesWithoutManualPreAccrual() public {
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _realizeSingleMarketBadDebtWithoutOptimizerAccrual();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV must still be stale before redeem"
+        );
+
+        uint256 freshAssetsBeforeRedeem = _optimizerAssetsFromApprovedMarkets();
+        uint256 supplyBeforeRedeem = optimizer.totalSupply();
+        uint256 sharesToRedeem = optimizer.balanceOf(depositor1) / 3;
+        assertLt(freshAssetsBeforeRedeem, staleTotalAssets, "bad debt must reduce cToken-derived assets");
+
+        uint256 expectedFreshAssets = FixedPointMathLib.fullMulDiv(
+            sharesToRedeem,
+            freshAssetsBeforeRedeem,
+            supplyBeforeRedeem
+        );
+        uint256 staleAssets = FixedPointMathLib.fullMulDiv(
+            sharesToRedeem,
+            staleTotalAssets,
+            supplyBeforeRedeem
+        );
+
+        uint256 balanceBefore = usdc.balanceOf(depositor1);
+        vm.prank(depositor1);
+        uint256 assetsRedeemed = optimizer.redeem(sharesToRedeem, depositor1, depositor1);
+
+        assertEq(usdc.balanceOf(depositor1) - balanceBefore, assetsRedeemed, "redeem should transfer returned assets");
+        assertEq(optimizer.totalAssets(), _optimizerAssetsFromApprovedMarkets(), "redeem should sync NAV to cTokens");
+        assertApproxEqAbs(assetsRedeemed, expectedFreshAssets, 3, "redeem must pay against fresh bad-debt NAV");
+        assertLt(assetsRedeemed, staleAssets, "stale NAV would have overpaid the redeeming depositor");
+    }
+
+    function test_lendingOptimizer_badDebt_unrealizedUnderwaterWithdrawMatchesDirectCTokenAccounting() public {
+        uint256 depositAmount = 100_000e6;
+        _prepareUSDC(depositor1, depositAmount);
+        vm.startPrank(depositor1);
+        usdc.approve(address(optimizer), depositAmount);
+        optimizer.depositToMarket(depositAmount, depositor1, address(borrowableCUSDC));
+        vm.stopPrank();
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+        _createBorrower(
+            borrower1,
+            marketManagerIsolated,
+            ICToken(address(borrowableCDAI)),
+            IBorrowableCToken(address(borrowableCUSDC)),
+            10_000e18,
+            7000e6
+        );
+
+        mockDaiFeed.setMockAnswer(0.1e8);
+        _refreshMockFeeds();
+
+        (, uint256 maxDebt, uint256 debt) = marketManagerIsolated.statusOf(borrower1);
+        assertGt(debt, maxDebt, "precondition: borrower must be underwater before liquidation");
+
+        uint256 withdrawAmount = 10_000e6;
+        uint256 marketDebtBefore = borrowableCUSDC.marketOutstandingDebt();
+        uint256 cTokenTotalAssetsBefore = borrowableCUSDC.totalAssets();
+
+        assertGt(marketDebtBefore, 0, "precondition: market must carry borrower debt");
+        assertLe(withdrawAmount, borrowableCUSDC.assetsHeld(), "precondition: cToken liquidity must cover withdraw");
+
+        {
+            uint256 optimizerTotalAssets = optimizer.totalAssets();
+            uint256 optimizerCTokenShares = borrowableCUSDC.balanceOf(address(optimizer));
+            assertApproxEqAbs(
+                optimizerTotalAssets,
+                borrowableCUSDC.convertToAssets(optimizerCTokenShares),
+                1,
+                "precondition: optimizer NAV should match cToken accounting"
+            );
+        }
+
+        uint256 directCTokenSharesBurned;
+        uint256 directReceived;
+        {
+            uint256 snapshotId = vm.snapshotState();
+            address directReceiver = makeAddr("directReceiver");
+            uint256 directReceiverBefore = usdc.balanceOf(directReceiver);
+            vm.prank(address(optimizer));
+            directCTokenSharesBurned = borrowableCUSDC.withdraw(
+                withdrawAmount,
+                directReceiver,
+                address(optimizer)
+            );
+            directReceived = usdc.balanceOf(directReceiver) - directReceiverBefore;
+            assertTrue(vm.revertToState(snapshotId), "failed to restore pre-realization bad debt state");
+        }
+
+        uint256 optimizerReceived;
+        uint256 optimizerCTokenSharesBurned;
+        uint256 optimizerSharesBurned;
+        uint256 expectedOptimizerShares;
+        {
+            uint256 depositorBalanceBefore = usdc.balanceOf(depositor1);
+            uint256 optimizerSupplyBefore = optimizer.totalSupply();
+            uint256 optimizerCTokenSharesBefore = borrowableCUSDC.balanceOf(address(optimizer));
+            uint256 optimizerTotalAssetsBefore = optimizer.totalAssets();
+
+            vm.prank(depositor1);
+            optimizerSharesBurned = optimizer.withdraw(withdrawAmount, depositor1, depositor1);
+
+            optimizerReceived = usdc.balanceOf(depositor1) - depositorBalanceBefore;
+            optimizerCTokenSharesBurned =
+                optimizerCTokenSharesBefore - borrowableCUSDC.balanceOf(address(optimizer));
+            uint256 actualOptimizerCost = optimizerTotalAssetsBefore - optimizer.totalAssets();
+            expectedOptimizerShares = FixedPointMathLib.fullMulDivUp(
+                actualOptimizerCost,
+                optimizerSupplyBefore,
+                optimizerTotalAssetsBefore
+            );
+        }
+
+        assertEq(optimizerReceived, directReceived, "optimizer withdraw should match direct cToken payout");
+        assertEq(optimizerReceived, withdrawAmount, "optimizer withdraw should pay requested assets");
+        assertEq(
+            optimizerCTokenSharesBurned,
+            directCTokenSharesBurned,
+            "optimizer should burn the same cToken shares as direct withdrawal"
+        );
+        assertEq(optimizerSharesBurned, expectedOptimizerShares, "optimizer should price burned shares from cToken cost");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), marketDebtBefore, "withdraw should not realize borrower debt");
+        assertEq(
+            borrowableCUSDC.totalAssets(),
+            cTokenTotalAssetsBefore - withdrawAmount,
+            "pre-realization withdraw should use ordinary cToken accounting"
+        );
+        assertEq(
+            optimizer.totalAssets(),
+            borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(address(optimizer))),
+            "optimizer NAV should remain synced to direct cToken accounting"
+        );
     }
 
     // ==================== VESTING DURING BAD DEBT ====================
