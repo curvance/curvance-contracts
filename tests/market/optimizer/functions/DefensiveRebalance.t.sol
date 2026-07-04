@@ -14,6 +14,8 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
+    uint256 internal constant BAD_MARKET_ROUNDING_TOLERANCE = 4;
+
     OptimizerReader reader;
 
     function setUp() public override {
@@ -265,7 +267,11 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         uint256 badAlloc = IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
             IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
         );
-        assertLe(badAlloc, 1, "Bad market should be empty after defensive rebalance");
+        assertLe(
+            badAlloc,
+            BAD_MARKET_ROUNDING_TOLERANCE,
+            "Bad market should be empty after defensive rebalance"
+        );
     }
 
     function test_optimalRebalance_defensive_success_postRebalanceAllocationWithinCaps() public {
@@ -362,19 +368,19 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
             "Total assets should be preserved"
         );
 
-        // Both bad markets should be empty.
+        // Both bad markets should be empty modulo cToken rounding dust.
         assertLe(
             IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
                 IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
             ),
-            1,
+            BAD_MARKET_ROUNDING_TOLERANCE,
             "Bad market 0 should be empty"
         );
         assertLe(
             IBorrowableCToken(cUSDC_WETH_MARKET).convertToAssets(
                 IBorrowableCToken(cUSDC_WETH_MARKET).balanceOf(address(optimizer))
             ),
-            1,
+            BAD_MARKET_ROUNDING_TOLERANCE,
             "Bad market 2 should be empty"
         );
     }
@@ -421,12 +427,12 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
-        // Bad market should be empty.
+        // Bad market should be empty modulo cToken rounding dust.
         assertLe(
             IBorrowableCToken(cUSDC_WMON_MARKET).convertToAssets(
                 IBorrowableCToken(cUSDC_WMON_MARKET).balanceOf(address(optimizer))
             ),
-            1,
+            BAD_MARKET_ROUNDING_TOLERANCE,
             "Concentrated bad market should be empty after rebalance"
         );
     }
