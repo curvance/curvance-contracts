@@ -41,6 +41,7 @@ contract LendingOptimizerHandler is Test {
     uint256 public ghost_accrueCount;
     uint256 public ghost_lastExchangeRate;
     uint256 public ghost_underlyingDonated;
+    uint256 public ghost_cTokenSharesDonated;
     bool public ghost_reinitialized;
 
     // Track total shares minted / burned for supply consistency checks.
@@ -426,6 +427,40 @@ contract LendingOptimizerHandler is Test {
         } catch {
             // Unexpected token transfer failure.
         }
+
+        _updateExchangeRate();
+    }
+
+    /// @notice Donate approved-market cToken shares directly to the optimizer.
+    /// @dev Unlike idle underlying donations, approved cToken-share donations
+    ///      become listed-market backing once optimizer accounting accrues.
+    function donateApprovedMarketShares(
+        uint256 actorSeed,
+        uint256 marketSeed,
+        uint256 assets
+    ) external checkPostActionInvariants {
+        address actor = _selectActor(actorSeed);
+        address market = markets[marketSeed % markets.length];
+        assets = bound(assets, 1e6, 1_000_000e6);
+
+        deal(address(usdc), actor, assets);
+
+        vm.startPrank(actor);
+        usdc.approve(market, assets);
+        try IBorrowableCToken(market).deposit(assets, actor) returns (
+            uint256 shares
+        ) {
+            try IERC20(market).transfer(address(optimizer), shares) returns (
+                bool success
+            ) {
+                if (success) ghost_cTokenSharesDonated += shares;
+            } catch {
+                // Unexpected cToken transfer failure.
+            }
+        } catch {
+            // Expected if the selected market rejects fresh deposits.
+        }
+        vm.stopPrank();
 
         _updateExchangeRate();
     }

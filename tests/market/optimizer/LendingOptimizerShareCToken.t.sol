@@ -90,6 +90,7 @@ import {
 import {IBorrowableCToken} from "contracts/interfaces/IBorrowableCToken.sol";
 import {ICToken, AccountSnapshot} from "contracts/interfaces/ICToken.sol";
 import {ILendingOptimizer} from "contracts/interfaces/ILendingOptimizer.sol";
+import {IMarketManager} from "contracts/interfaces/IMarketManager.sol";
 import {IOracleAdaptor} from "contracts/interfaces/IOracleAdaptor.sol";
 import {IERC165} from "contracts/interfaces/IERC165.sol";
 import {IPositionManager} from "contracts/interfaces/IPositionManager.sol";
@@ -137,6 +138,30 @@ import {TestBaseLendingOptimizer} from "./TestBaseLendingOptimizer.sol";
 
 contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
     LendingOptimizerShareCToken internal optimizerCToken;
+
+    struct UnderEncodedDualSidedVaultFixture {
+        MarketManagerIsolated optimizerMarket;
+        BorrowableCToken debtCToken;
+        LendingOptimizerShareCToken shareCToken;
+        MockERC20 debtAsset;
+        DualSidedVaultPositionManager positionManager;
+        OptimizerShareSwapTarget swapTarget;
+        address account;
+        uint256 collateralBefore;
+        uint256 debtBefore;
+        uint256 staleTotalAssets;
+    }
+
+    struct PlainNestedWrapperDebtRepayFixture {
+        MarketManagerIsolated market;
+        BorrowableCToken debtCToken;
+        address borrower;
+        address repayer;
+        uint256 repayShares;
+        uint256 staleDebtPrice;
+        uint256 debtUnit;
+        uint256 minLoanSize;
+    }
 
     function setUp() public override {
         super.setUp();
@@ -587,6 +612,101 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
             staleAnswer,
             "same round answer should use current optimizer exchange rate"
         );
+    }
+
+    function test_lendingOptimizerShareCToken_externalRawVaultAggregatorUsesStaleInnerOptimizerPrice()
+        public
+    {
+        address depositor = makeAddr("externalRawVaultFeedDepositor");
+        (ExternalRawOptimizerShareVault vault, uint256 vaultShares,) =
+            _depositExternalRawVaultCollateral(depositor);
+        _registerOptimizerShareVaultPriceFeed();
+
+        (bool feedConfigured, IChainlink feed,,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+        VaultAggregator outerVaultFeed = new VaultAggregator(
+            address(vault),
+            address(optimizer),
+            address(feed),
+            "external-raw-vault/USD"
+        );
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before raw-vault feed read"
+        );
+
+        (, int256 staleAnswer,,,) = outerVaultFeed.latestRoundData();
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "chained raw-vault feed read must not accrue optimizer"
+        );
+
+        optimizer.accrueIfNeeded();
+
+        (, int256 freshAnswer,,,) = outerVaultFeed.latestRoundData();
+        assertGt(
+            freshAnswer,
+            staleAnswer,
+            "fresh chained raw-vault feed should include optimizer NAV"
+        );
+        assertEq(vault.balanceOf(depositor), vaultShares);
+    }
+
+    function test_lendingOptimizerShareCToken_externalSecondLayerVaultAggregatorUsesStaleInnerOptimizerPrice()
+        public
+    {
+        address depositor = makeAddr("externalWrapperVaultFeedDepositor");
+        (ExternalOptimizerShareCTokenVault vault, uint256 vaultShares,) =
+            _depositExternalWrapperVaultCollateral(depositor);
+        _registerOptimizerShareVaultPriceFeed();
+
+        (bool feedConfigured, IChainlink feed,,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+
+        VaultAggregator shareCTokenFeed = new VaultAggregator(
+            address(optimizerCToken),
+            address(optimizer),
+            address(feed),
+            "optimizer-cToken/USD"
+        );
+        VaultAggregator outerVaultFeed = new VaultAggregator(
+            address(vault),
+            address(optimizerCToken),
+            address(shareCTokenFeed),
+            "external-wrapper-vault/USD"
+        );
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before wrapper-vault feed read"
+        );
+
+        (, int256 staleAnswer,,,) = outerVaultFeed.latestRoundData();
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "chained wrapper-vault feed read must not accrue optimizer"
+        );
+
+        optimizer.accrueIfNeeded();
+
+        (, int256 freshAnswer,,,) = outerVaultFeed.latestRoundData();
+        assertGt(
+            freshAnswer,
+            staleAnswer,
+            "fresh chained wrapper-vault feed should include optimizer NAV"
+        );
+        assertEq(vault.balanceOf(depositor), vaultShares);
     }
 
     function test_lendingOptimizerShareCToken_riskReaderDirectShareCTokenStatusIsStaleUntilAccrual()
@@ -1088,6 +1208,105 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         optimizerCToken.skimAvailable();
         vm.clearMockedCalls();
+    }
+
+    function test_lendingOptimizer_directApprovedMarketShareDonationAccruesAsYieldWithoutCreditingDonor()
+        public
+    {
+        IBorrowableCToken market = IBorrowableCToken(cUSDC_WMON_MARKET);
+        address donor = makeAddr("approvedMarketShareDonor");
+        uint256 donationAssets = 1_000e6;
+
+        deal(USDC_MONAD, donor, donationAssets);
+        vm.startPrank(donor);
+        IERC20(USDC_MONAD).approve(address(market), donationAssets);
+        uint256 donatedMarketShares = market.deposit(donationAssets, donor);
+        vm.stopPrank();
+
+        optimizer.accrueIfNeeded();
+        uint256 totalAssetsBefore = optimizer.totalAssets();
+        uint256 totalSupplyBefore = optimizer.totalSupply();
+        uint256 donorOptimizerSharesBefore = optimizer.balanceOf(donor);
+        uint256 daoSharesBefore =
+            optimizer.balanceOf(liveCentralRegistry.daoAddress());
+        uint256 holderAssetsBefore =
+            optimizer.convertToAssets(optimizer.balanceOf(address(this)));
+        uint256 preDonationPreview = optimizer.previewDeposit(10_000e6);
+        uint256 donatedMarketAssets =
+            market.convertToAssets(donatedMarketShares);
+
+        vm.prank(donor);
+        IERC20(address(market))
+            .transfer(address(optimizer), donatedMarketShares);
+
+        assertEq(
+            optimizer.totalAssets(),
+            totalAssetsBefore,
+            "direct market-share donation must not update cached NAV"
+        );
+        assertEq(
+            optimizer.balanceOf(donor),
+            donorOptimizerSharesBefore,
+            "market-share donation must not mint optimizer shares"
+        );
+
+        optimizer.accrueIfNeeded();
+
+        assertApproxEqAbs(
+            optimizer.totalAssets(),
+            totalAssetsBefore + donatedMarketAssets,
+            4,
+            "direct market-share donation should accrue as optimizer yield"
+        );
+        assertEq(
+            market.balanceOf(donor),
+            0,
+            "donor should spend the donated cToken shares"
+        );
+        assertEq(
+            optimizer.balanceOf(donor),
+            donorOptimizerSharesBefore,
+            "donor still receives no optimizer shares after accrual"
+        );
+        assertGt(
+            optimizer.balanceOf(liveCentralRegistry.daoAddress()),
+            daoSharesBefore,
+            "performance fee should capture part of donated yield"
+        );
+        assertGt(
+            optimizer.totalSupply(),
+            totalSupplyBefore,
+            "only fee minting should expand optimizer supply"
+        );
+        assertGt(
+            optimizer.convertToAssets(optimizer.balanceOf(address(this))),
+            holderAssetsBefore,
+            "existing holders should receive net donated value"
+        );
+
+        uint256 postDonationPreview = optimizer.previewDeposit(10_000e6);
+        assertLt(
+            postDonationPreview,
+            preDonationPreview,
+            "later deposits should price against donated NAV"
+        );
+
+        deal(USDC_MONAD, donor, 10_000e6);
+        vm.startPrank(donor);
+        IERC20(USDC_MONAD).approve(address(optimizer), 10_000e6);
+        uint256 mintedShares = optimizer.deposit(10_000e6, donor);
+        vm.stopPrank();
+
+        assertEq(
+            optimizer.balanceOf(donor),
+            donorOptimizerSharesBefore + mintedShares,
+            "donor only receives shares from an actual optimizer deposit"
+        );
+        assertLt(
+            mintedShares,
+            preDonationPreview,
+            "donor cannot recover donated value through a later deposit"
+        );
     }
 
     function test_lendingOptimizerShareCToken_universalBalanceLentOptimizerSharesAccrueOnWithdraw()
@@ -1867,6 +2086,204 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         assertGt(optimizerDebtCToken.debtBalance(borrower), 0);
     }
 
+    function test_lendingOptimizer_plainBorrowableOptimizerDebtLiquidationWaitsForOptimizerAccrual()
+        public
+    {
+        (
+            ,
+            BorrowableCToken optimizerDebtCToken,
+            MockERC20 collateral,
+            SimpleCToken collateralCToken
+        ) = _deployPlainBorrowableOptimizerDebtMarket();
+
+        uint256 lenderShares = 1_000_000e6;
+        optimizerDebtCToken.deposit(lenderShares, address(this));
+
+        uint256 borrowShares = 250_000e6;
+        address borrower = makeAddr("plainOptimizerDebtLiqBorrower");
+        {
+            (uint256 staleDebtPrice, uint256 staleDebtPriceError) =
+                _oracleManager.getPrice(address(optimizer), true, false);
+            assertEq(staleDebtPriceError, NO_ERROR);
+            uint256 staleDebtValue =
+                FixedPointMathLib.mulDivUp(borrowShares, staleDebtPrice, 1e6);
+            uint256 collateralAmount =
+                FixedPointMathLib.mulDivUp(staleDebtValue + 10e18, BPS, 7000);
+
+            collateral.mint(borrower, collateralAmount);
+            vm.startPrank(borrower);
+            IERC20(address(collateral))
+                .approve(address(collateralCToken), collateralAmount);
+            collateralCToken.depositAsCollateral(collateralAmount, borrower);
+            optimizerDebtCToken.borrow(borrowShares, borrower);
+            vm.stopPrank();
+        }
+
+        address liquidator = makeAddr("plainOptimizerDebtLiquidator");
+        uint256 liquidatorShares = 500_000e6;
+        {
+            deal(USDC_MONAD, liquidator, liquidatorShares);
+            vm.startPrank(liquidator);
+            IERC20(USDC_MONAD).approve(address(optimizer), liquidatorShares);
+            optimizer.deposit(liquidatorShares, liquidator);
+            IERC20(address(optimizer))
+                .approve(address(optimizerDebtCToken), type(uint256).max);
+            vm.stopPrank();
+        }
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets * 20);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before plain debt liquidation"
+        );
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower;
+
+        vm.startPrank(liquidator);
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable
+                .selector
+        );
+        optimizerDebtCToken.liquidate(accounts, address(collateralCToken));
+        vm.stopPrank();
+
+        optimizer.accrueIfNeeded();
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal higher optimizer debt value"
+        );
+
+        uint256 borrowerDebtBefore = optimizerDebtCToken.debtBalance(borrower);
+        uint256 liquidatorCollateralBefore = collateralCToken.balanceOf(liquidator);
+        vm.startPrank(liquidator);
+        optimizerDebtCToken.liquidate(accounts, address(collateralCToken));
+        vm.stopPrank();
+
+        assertLt(
+            optimizerDebtCToken.debtBalance(borrower),
+            borrowerDebtBefore,
+            "fresh liquidation should reduce borrower optimizer-share debt"
+        );
+        assertGt(
+            collateralCToken.balanceOf(liquidator),
+            liquidatorCollateralBefore,
+            "liquidator should receive non-optimizer collateral"
+        );
+
+        vm.clearMockedCalls();
+    }
+
+    function test_lendingOptimizer_plainBorrowableOptimizerDebtLiquidationExactWaitsForOptimizerAccrual()
+        public
+    {
+        (
+            ,
+            BorrowableCToken optimizerDebtCToken,
+            MockERC20 collateral,
+            SimpleCToken collateralCToken
+        ) = _deployPlainBorrowableOptimizerDebtMarket();
+
+        uint256 lenderShares = 1_000_000e6;
+        optimizerDebtCToken.deposit(lenderShares, address(this));
+
+        uint256 borrowShares = 250_000e6;
+        address borrower = makeAddr("plainOptimizerDebtExactBorrower");
+        {
+            (uint256 staleDebtPrice, uint256 staleDebtPriceError) =
+                _oracleManager.getPrice(address(optimizer), true, false);
+            assertEq(staleDebtPriceError, NO_ERROR);
+            uint256 staleDebtValue =
+                FixedPointMathLib.mulDivUp(borrowShares, staleDebtPrice, 1e6);
+            uint256 collateralAmount =
+                FixedPointMathLib.mulDivUp(staleDebtValue + 10e18, BPS, 7000);
+
+            collateral.mint(borrower, collateralAmount);
+            vm.startPrank(borrower);
+            IERC20(address(collateral))
+                .approve(address(collateralCToken), collateralAmount);
+            collateralCToken.depositAsCollateral(collateralAmount, borrower);
+            optimizerDebtCToken.borrow(borrowShares, borrower);
+            vm.stopPrank();
+        }
+
+        address liquidator = makeAddr("plainOptimizerDebtExactLiquidator");
+        uint256 liquidatorShares = 500_000e6;
+        {
+            deal(USDC_MONAD, liquidator, liquidatorShares);
+            vm.startPrank(liquidator);
+            IERC20(USDC_MONAD).approve(address(optimizer), liquidatorShares);
+            optimizer.deposit(liquidatorShares, liquidator);
+            IERC20(address(optimizer))
+                .approve(address(optimizerDebtCToken), type(uint256).max);
+            vm.stopPrank();
+        }
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets * 20);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before exact plain debt liquidation"
+        );
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = borrowShares / 50;
+
+        vm.startPrank(liquidator);
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable
+                .selector
+        );
+        optimizerDebtCToken.liquidateExact(
+            debtAmounts,
+            accounts,
+            address(collateralCToken)
+        );
+        vm.stopPrank();
+
+        optimizer.accrueIfNeeded();
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal higher optimizer debt value"
+        );
+
+        uint256 borrowerDebtBefore = optimizerDebtCToken.debtBalance(borrower);
+        uint256 liquidatorOptimizerBefore = optimizer.balanceOf(liquidator);
+        uint256 liquidatorCollateralBefore = collateralCToken.balanceOf(liquidator);
+        vm.startPrank(liquidator);
+        optimizerDebtCToken.liquidateExact(
+            debtAmounts,
+            accounts,
+            address(collateralCToken)
+        );
+        vm.stopPrank();
+
+        assertEq(
+            liquidatorOptimizerBefore - optimizer.balanceOf(liquidator),
+            debtAmounts[0],
+            "fresh exact liquidation should collect requested optimizer-share debt"
+        );
+        assertLt(
+            optimizerDebtCToken.debtBalance(borrower),
+            borrowerDebtBefore,
+            "fresh exact liquidation should reduce borrower optimizer-share debt"
+        );
+        assertGt(
+            collateralCToken.balanceOf(liquidator),
+            liquidatorCollateralBefore,
+            "liquidator should receive non-optimizer collateral"
+        );
+
+        vm.clearMockedCalls();
+    }
+
     function test_lendingOptimizer_plainSimpleOptimizerCollateralCanPassStaleBorrowCheckAfterLoss()
         public
     {
@@ -1934,6 +2351,96 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
             debt,
             maxDebt,
             "plain optimizer-share collateral can become unhealthy after fresh accrual"
+        );
+
+        vm.clearMockedCalls();
+    }
+
+    function test_lendingOptimizer_plainSimpleOptimizerCollateralLiquidationWaitsForOptimizerAccrual()
+        public
+    {
+        (
+            MarketManagerIsolated optimizerCollateralMarket,
+            BorrowableCToken debtCToken,
+            SimpleCToken optimizerCollateralCToken
+        ) = _deployPlainOptimizerShareCollateralMarket();
+
+        uint256 lendAssets = 500_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 collateralShares = optimizer.balanceOf(address(this)) / 2;
+        IERC20(address(optimizer))
+            .approve(address(optimizerCollateralCToken), collateralShares);
+        optimizerCollateralCToken.depositAsCollateral(
+            collateralShares, address(this)
+        );
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        address[] memory approvedMarkets = optimizer.getApprovedMarkets();
+        for (uint256 i; i < approvedMarkets.length; ++i) {
+            uint256 cTokenShares = IBorrowableCToken(approvedMarkets[i])
+                .balanceOf(address(optimizer));
+            if (cTokenShares == 0) {
+                continue;
+            }
+
+            vm.mockCall(
+                approvedMarkets[i],
+                abi.encodeWithSelector(
+                    IBorrowableCToken.convertToAssets.selector, cTokenShares
+                ),
+                abi.encode(staleTotalAssets / 20)
+            );
+        }
+        _refreshUsdcPriceFeed();
+        _setOptimizerVaultFeedAnswer(1e8);
+
+        uint256 borrowAssets = 30_000e6;
+        debtCToken.borrow(borrowAssets, address(this));
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "plain optimizer-share liquidation setup must leave NAV stale"
+        );
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = address(this);
+        address liquidator = makeAddr("plainOptimizerCollateralLiquidator");
+        deal(USDC_MONAD, liquidator, 100_000e6);
+
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(debtCToken), type(uint256).max);
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable
+                .selector
+        );
+        debtCToken.liquidate(accounts, address(optimizerCollateralCToken));
+        vm.stopPrank();
+
+        optimizer.accrueIfNeeded();
+        assertLt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal lower plain collateral value"
+        );
+
+        uint256 liquidatorCollateralBefore =
+            optimizerCollateralCToken.balanceOf(liquidator);
+        vm.startPrank(liquidator);
+        debtCToken.liquidate(accounts, address(optimizerCollateralCToken));
+        vm.stopPrank();
+
+        assertLt(
+            debtCToken.debtBalance(address(this)),
+            borrowAssets,
+            "fresh liquidation should reduce borrower debt"
+        );
+        assertGt(
+            optimizerCollateralCToken.balanceOf(liquidator),
+            liquidatorCollateralBefore,
+            "liquidator should receive plain optimizer-share collateral"
         );
 
         vm.clearMockedCalls();
@@ -2797,6 +3304,62 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
             0,
             "zapper deposits realized USDC output"
         );
+
+        _assertNextOptimizerZapperFullSpendLeavesResidue(
+            optimizerZapper, swapTarget, seedAssets, outputAssets, strandedShares
+        );
+    }
+
+    function _assertNextOptimizerZapperFullSpendLeavesResidue(
+        OptimizerZapper optimizerZapper,
+        PartialInputOptimizerShareSwapTarget swapTarget,
+        uint256 seedAssets,
+        uint256 outputAssets,
+        uint256 expectedResidue
+    ) internal {
+        address nextUser = makeAddr("optimizerZapperPartialShareNextUser");
+        deal(USDC_MONAD, nextUser, seedAssets);
+        vm.startPrank(nextUser);
+        IERC20(USDC_MONAD).approve(address(optimizer), seedAssets);
+        uint256 nextInputShares = optimizer.deposit(seedAssets, nextUser) / 2;
+        IERC20(address(optimizer))
+            .approve(address(optimizerZapper), nextInputShares);
+        vm.stopPrank();
+        assertGt(nextInputShares, 1, "next user must mint optimizer shares");
+
+        uint256 swapTargetSharesBefore =
+            IERC20(address(optimizer)).balanceOf(address(swapTarget));
+        deal(USDC_MONAD, address(swapTarget), outputAssets);
+
+        SwapperLib.Swap memory nextSwapAction = SwapperLib.Swap({
+            inputToken: address(optimizer),
+            inputAmount: nextInputShares,
+            outputToken: USDC_MONAD,
+            target: address(swapTarget),
+            slippage: WAD - 1,
+            call: abi.encodeWithSelector(
+                PartialInputOptimizerShareSwapTarget.partialSwap.selector,
+                nextInputShares,
+                outputAssets
+            )
+        });
+
+        vm.prank(nextUser);
+        uint256 nextMintedShares = optimizerZapper.swapAndDeposit(
+            address(optimizer), false, nextSwapAction, 1, nextUser
+        );
+
+        assertGt(nextMintedShares, 0, "next route deposits output assets");
+        assertEq(
+            IERC20(address(optimizer)).balanceOf(address(optimizerZapper)),
+            expectedResidue,
+            "next full-spend route leaves prior zapper residue stranded"
+        );
+        assertEq(
+            IERC20(address(optimizer)).balanceOf(address(swapTarget)),
+            swapTargetSharesBefore + nextInputShares,
+            "next target receives only the next caller's declared input"
+        );
     }
 
     function test_lendingOptimizerShareCToken_externalRawConsumerCanUnderpayStaleShares()
@@ -2912,6 +3475,133 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
 
         _liquidateExternalRawLenderPosition(
             lender, borrower, liquidator, collateralShares, debtAssets, ltvBps
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_externalRawVaultLenderCanLiquidateFreshHealthyCollateral()
+        public
+    {
+        address borrower = makeAddr("externalRawVaultLenderBorrower");
+        address liquidator = makeAddr("externalRawVaultLenderLiquidator");
+        uint256 ltvBps = 8000;
+
+        (
+            ExternalRawOptimizerShareVault vault,
+            ExternalRawOptimizerShareVaultLender lender,
+            uint256 vaultShares,
+            uint256 debtAssets
+        ) = _openExternalRawVaultLenderPosition(borrower, ltvBps);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before raw-vault health check"
+        );
+
+        uint256 staleBorrowLimit = lender.rawBorrowLimit(
+            vault, ILendingOptimizer(address(optimizer)), borrower
+        );
+        assertGt(
+            debtAssets,
+            staleBorrowLimit,
+            "external raw-vault health check liquidates"
+        );
+
+        _liquidateExternalRawVaultLenderPosition(
+            vault,
+            lender,
+            borrower,
+            liquidator,
+            vaultShares,
+            debtAssets,
+            ltvBps,
+            staleTotalAssets
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_externalWrapperLenderCanLiquidateFreshHealthyCollateral()
+        public
+    {
+        address borrower = makeAddr("externalWrapperLenderBorrower");
+        address liquidator = makeAddr("externalWrapperLenderLiquidator");
+        uint256 ltvBps = 8000;
+
+        (
+            ExternalOptimizerShareCTokenLender lender,
+            uint256 wrapperShares,
+            uint256 debtAssets
+        ) = _openExternalWrapperLenderPosition(borrower, ltvBps);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before wrapper health check"
+        );
+
+        uint256 staleBorrowLimit = lender.rawBorrowLimit(
+            optimizerCToken, ILendingOptimizer(address(optimizer)), borrower
+        );
+        assertGt(
+            debtAssets,
+            staleBorrowLimit,
+            "external wrapper health check liquidates"
+        );
+
+        _liquidateExternalWrapperLenderPosition(
+            lender,
+            borrower,
+            liquidator,
+            wrapperShares,
+            debtAssets,
+            ltvBps,
+            staleTotalAssets
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_externalSecondLayerVaultLenderCanLiquidateFreshHealthyCollateral()
+        public
+    {
+        address borrower = makeAddr("externalVaultLenderBorrower");
+        address liquidator = makeAddr("externalVaultLenderLiquidator");
+        uint256 ltvBps = 8000;
+
+        (
+            ExternalOptimizerShareCTokenVault vault,
+            ExternalOptimizerShareVaultLender lender,
+            uint256 vaultShares,
+            uint256 debtAssets
+        ) = _openExternalWrapperVaultLenderPosition(borrower, ltvBps);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before outer-vault health check"
+        );
+
+        uint256 staleBorrowLimit = lender.rawBorrowLimit(
+            vault, optimizerCToken, ILendingOptimizer(address(optimizer)), borrower
+        );
+        assertGt(
+            debtAssets,
+            staleBorrowLimit,
+            "external outer-vault health check liquidates"
+        );
+
+        _liquidateExternalWrapperVaultLenderPosition(
+            vault,
+            lender,
+            borrower,
+            liquidator,
+            vaultShares,
+            debtAssets,
+            ltvBps,
+            staleTotalAssets
         );
     }
 
@@ -3465,6 +4155,191 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         vm.stopPrank();
     }
 
+    function _openExternalRawVaultLenderPosition(
+        address borrower,
+        uint256 ltvBps
+    )
+        internal
+        returns (
+            ExternalRawOptimizerShareVault vault,
+            ExternalRawOptimizerShareVaultLender lender,
+            uint256 vaultShares,
+            uint256 debtAssets
+        )
+    {
+        uint256 rawValueAtDeposit;
+        (vault, vaultShares, rawValueAtDeposit) =
+            _depositExternalRawVaultCollateral(borrower);
+
+        debtAssets =
+            FixedPointMathLib.mulDiv(rawValueAtDeposit, ltvBps, 10000) + 10e6;
+
+        lender = new ExternalRawOptimizerShareVaultLender(
+            IERC20(USDC_MONAD), ltvBps
+        );
+        deal(USDC_MONAD, address(lender), debtAssets);
+
+        vm.startPrank(borrower);
+        vault.approve(address(lender), vaultShares);
+        lender.openPosition(vault, vaultShares, debtAssets, borrower);
+        vm.stopPrank();
+    }
+
+    function _depositExternalRawVaultCollateral(
+        address borrower
+    )
+        internal
+        returns (
+            ExternalRawOptimizerShareVault vault,
+            uint256 vaultShares,
+            uint256 rawValueAtDeposit
+        )
+    {
+        uint256 depositAmount = 100_000e6;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer))
+            .depositToMarket(depositAmount, borrower, cUSDC_WMON_MARKET);
+
+        uint256 optimizerShares = optimizer.balanceOf(borrower);
+        assertGt(optimizerShares, 0, "borrower must have optimizer shares");
+
+        vault = new ExternalRawOptimizerShareVault(
+            ILendingOptimizer(address(optimizer))
+        );
+
+        vm.startPrank(borrower);
+        IERC20(address(optimizer)).approve(address(vault), optimizerShares);
+        vaultShares = vault.deposit(optimizerShares, borrower);
+        vm.stopPrank();
+
+        uint256 rawSharesAtDeposit = vault.convertToAssets(vaultShares);
+        rawValueAtDeposit = optimizer.convertToAssets(rawSharesAtDeposit);
+    }
+
+    function _openExternalWrapperLenderPosition(
+        address borrower,
+        uint256 ltvBps
+    )
+        internal
+        returns (
+            ExternalOptimizerShareCTokenLender lender,
+            uint256 wrapperShares,
+            uint256 debtAssets
+        )
+    {
+        uint256 depositAmount = 100_000e6;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer))
+            .depositToMarket(depositAmount, borrower, cUSDC_WMON_MARKET);
+
+        uint256 optimizerShares = optimizer.balanceOf(borrower);
+        assertGt(optimizerShares, 0, "borrower must have optimizer shares");
+
+        _mockCanMint();
+        vm.startPrank(borrower);
+        IERC20(address(optimizer))
+            .approve(address(optimizerCToken), optimizerShares);
+        wrapperShares = optimizerCToken.deposit(optimizerShares, borrower);
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        uint256 rawSharesAtDeposit =
+            optimizerCToken.convertToAssets(wrapperShares);
+        uint256 rawValueAtDeposit =
+            optimizer.convertToAssets(rawSharesAtDeposit);
+        debtAssets =
+            FixedPointMathLib.mulDiv(rawValueAtDeposit, ltvBps, 10000) + 10e6;
+
+        lender = new ExternalOptimizerShareCTokenLender(
+            IERC20(USDC_MONAD), ltvBps
+        );
+        deal(USDC_MONAD, address(lender), debtAssets);
+
+        _mockCanTransfer(borrower, address(lender), wrapperShares);
+        vm.startPrank(borrower);
+        IERC20(address(optimizerCToken)).approve(address(lender), wrapperShares);
+        lender.openPosition(optimizerCToken, wrapperShares, debtAssets, borrower);
+        vm.stopPrank();
+        vm.clearMockedCalls();
+    }
+
+    function _openExternalWrapperVaultLenderPosition(
+        address borrower,
+        uint256 ltvBps
+    )
+        internal
+        returns (
+            ExternalOptimizerShareCTokenVault vault,
+            ExternalOptimizerShareVaultLender lender,
+            uint256 vaultShares,
+            uint256 debtAssets
+        )
+    {
+        uint256 rawValueAtDeposit;
+        (vault, vaultShares, rawValueAtDeposit) =
+            _depositExternalWrapperVaultCollateral(borrower);
+
+        debtAssets =
+            FixedPointMathLib.mulDiv(rawValueAtDeposit, ltvBps, 10000) + 10e6;
+
+        lender = new ExternalOptimizerShareVaultLender(
+            IERC20(USDC_MONAD), ltvBps
+        );
+        deal(USDC_MONAD, address(lender), debtAssets);
+
+        vm.startPrank(borrower);
+        vault.approve(address(lender), vaultShares);
+        lender.openPosition(vault, vaultShares, debtAssets, borrower);
+        vm.stopPrank();
+    }
+
+    function _depositExternalWrapperVaultCollateral(
+        address borrower
+    )
+        internal
+        returns (
+            ExternalOptimizerShareCTokenVault vault,
+            uint256 vaultShares,
+            uint256 rawValueAtDeposit
+        )
+    {
+        uint256 depositAmount = 100_000e6;
+        deal(USDC_MONAD, address(this), depositAmount);
+        IERC20(USDC_MONAD).approve(address(optimizer), depositAmount);
+        LendingOptimizerHarness(address(optimizer))
+            .depositToMarket(depositAmount, borrower, cUSDC_WMON_MARKET);
+
+        uint256 optimizerShares = optimizer.balanceOf(borrower);
+        assertGt(optimizerShares, 0, "borrower must have optimizer shares");
+
+        _mockCanMint();
+        vm.startPrank(borrower);
+        IERC20(address(optimizer))
+            .approve(address(optimizerCToken), optimizerShares);
+        uint256 wrapperShares = optimizerCToken.deposit(
+            optimizerShares,
+            borrower
+        );
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        vault = new ExternalOptimizerShareCTokenVault(optimizerCToken);
+
+        _mockCanTransfer(borrower, address(vault), wrapperShares);
+        vm.startPrank(borrower);
+        IERC20(address(optimizerCToken)).approve(address(vault), wrapperShares);
+        vaultShares = vault.deposit(wrapperShares, borrower);
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        uint256 wrapperSharesAtDeposit = vault.convertToAssets(vaultShares);
+        uint256 rawSharesAtDeposit =
+            optimizerCToken.convertToAssets(wrapperSharesAtDeposit);
+        rawValueAtDeposit = optimizer.convertToAssets(rawSharesAtDeposit);
+    }
+
     function _liquidateExternalRawLenderPosition(
         ExternalRawOptimizerShareLender lender,
         address borrower,
@@ -3499,6 +4374,161 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
             IERC20(USDC_MONAD).balanceOf(address(lender)),
             lenderAssetsBefore + debtAssets
         );
+        assertEq(lender.collateralShares(borrower), 0);
+        assertEq(lender.debtAssets(borrower), 0);
+    }
+
+    function _liquidateExternalRawVaultLenderPosition(
+        ExternalRawOptimizerShareVault vault,
+        ExternalRawOptimizerShareVaultLender lender,
+        address borrower,
+        address liquidator,
+        uint256 vaultShares,
+        uint256 debtAssets,
+        uint256 ltvBps,
+        uint256 staleTotalAssets
+    ) internal {
+        deal(USDC_MONAD, liquidator, debtAssets);
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(lender), debtAssets);
+        (uint256 seizedVaultShares, uint256 repaidAssets) =
+            lender.liquidateAtRawPrice(
+                vault,
+                ILendingOptimizer(address(optimizer)),
+                borrower,
+                liquidator
+            );
+        vm.stopPrank();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "raw-vault share transfer does not sync optimizer NAV"
+        );
+
+        ILendingOptimizer(address(optimizer)).accrueIfNeeded();
+
+        uint256 freshRawShares = vault.convertToAssets(seizedVaultShares);
+        uint256 freshSeizedValue = optimizer.convertToAssets(freshRawShares);
+        uint256 freshBorrowLimit =
+            FixedPointMathLib.mulDiv(freshSeizedValue, ltvBps, 10000);
+
+        assertEq(seizedVaultShares, vaultShares);
+        assertEq(repaidAssets, debtAssets);
+        assertGt(
+            freshBorrowLimit,
+            debtAssets,
+            "fresh raw-vault collateral was healthy"
+        );
+        assertGt(
+            freshSeizedValue,
+            debtAssets,
+            "liquidator seizes raw-vault borrower surplus"
+        );
+        assertEq(vault.balanceOf(liquidator), vaultShares);
+        assertEq(lender.collateralShares(borrower), 0);
+        assertEq(lender.debtAssets(borrower), 0);
+    }
+
+    function _liquidateExternalWrapperLenderPosition(
+        ExternalOptimizerShareCTokenLender lender,
+        address borrower,
+        address liquidator,
+        uint256 wrapperShares,
+        uint256 debtAssets,
+        uint256 ltvBps,
+        uint256 staleTotalAssets
+    ) internal {
+        deal(USDC_MONAD, liquidator, debtAssets);
+        _mockCanTransfer(address(lender), liquidator, wrapperShares);
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(lender), debtAssets);
+        (uint256 seizedWrapperShares, uint256 repaidAssets) =
+            lender.liquidateAtRawPrice(
+                optimizerCToken,
+                ILendingOptimizer(address(optimizer)),
+                borrower,
+                liquidator
+            );
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "wrapper-share transfer must sync optimizer NAV"
+        );
+
+        uint256 freshRawShares =
+            optimizerCToken.convertToAssets(seizedWrapperShares);
+        uint256 freshSeizedValue = optimizer.convertToAssets(freshRawShares);
+        uint256 freshBorrowLimit =
+            FixedPointMathLib.mulDiv(freshSeizedValue, ltvBps, 10000);
+
+        assertEq(seizedWrapperShares, wrapperShares);
+        assertEq(repaidAssets, debtAssets);
+        assertGt(
+            freshBorrowLimit,
+            debtAssets,
+            "fresh wrapper collateral was healthy"
+        );
+        assertEq(optimizerCToken.balanceOf(liquidator), wrapperShares);
+        assertEq(lender.collateralShares(borrower), 0);
+        assertEq(lender.debtAssets(borrower), 0);
+    }
+
+    function _liquidateExternalWrapperVaultLenderPosition(
+        ExternalOptimizerShareCTokenVault vault,
+        ExternalOptimizerShareVaultLender lender,
+        address borrower,
+        address liquidator,
+        uint256 vaultShares,
+        uint256 debtAssets,
+        uint256 ltvBps,
+        uint256 staleTotalAssets
+    ) internal {
+        deal(USDC_MONAD, liquidator, debtAssets);
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(lender), debtAssets);
+        (uint256 seizedVaultShares, uint256 repaidAssets) =
+            lender.liquidateAtRawPrice(
+                vault,
+                optimizerCToken,
+                ILendingOptimizer(address(optimizer)),
+                borrower,
+                liquidator
+            );
+        vm.stopPrank();
+
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "outer-vault share transfer does not sync optimizer NAV"
+        );
+
+        ILendingOptimizer(address(optimizer)).accrueIfNeeded();
+
+        uint256 freshWrapperShares =
+            vault.convertToAssets(seizedVaultShares);
+        uint256 freshRawShares =
+            optimizerCToken.convertToAssets(freshWrapperShares);
+        uint256 freshSeizedValue = optimizer.convertToAssets(freshRawShares);
+        uint256 freshBorrowLimit =
+            FixedPointMathLib.mulDiv(freshSeizedValue, ltvBps, 10000);
+
+        assertEq(seizedVaultShares, vaultShares);
+        assertEq(repaidAssets, debtAssets);
+        assertGt(
+            freshBorrowLimit,
+            debtAssets,
+            "fresh outer-vault collateral was healthy"
+        );
+        assertGt(
+            freshSeizedValue,
+            debtAssets,
+            "liquidator seizes outer-vault borrower surplus"
+        );
+        assertEq(vault.balanceOf(liquidator), vaultShares);
         assertEq(lender.collateralShares(borrower), 0);
         assertEq(lender.debtAssets(borrower), 0);
     }
@@ -5164,6 +6194,136 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         );
     }
 
+    function test_lendingOptimizerShareCToken_dualSidedVaultPositionManagerUnderEncodedSwapLeavesUnderlyingResidue()
+        public
+    {
+        UnderEncodedDualSidedVaultFixture memory fixture =
+            _setupUnderEncodedDualSidedVaultFixture();
+        uint256 collateralAssets = 1e6;
+        uint256 swapInputAssets = 400000;
+        uint256 repayAssets = swapInputAssets;
+        fixture.debtAsset.mint(address(fixture.swapTarget), repayAssets);
+
+        IPositionManager.DeleverageAction memory deleverageAction =
+            _underEncodedDualSidedVaultDeleverageAction(
+                fixture, collateralAssets, swapInputAssets
+            );
+        uint256 accountUsdcBefore =
+            IERC20(USDC_MONAD).balanceOf(fixture.account);
+
+        vm.prank(fixture.account);
+        fixture.positionManager.deleverage(deleverageAction, 0.05e18);
+
+        assertGt(
+            optimizer.totalAssets(),
+            fixture.staleTotalAssets,
+            "dual-sided vault redemption must sync optimizer NAV"
+        );
+        assertLt(
+            fixture.shareCToken.collateralPosted(fixture.account),
+            fixture.collateralBefore,
+            "under-encoded deleverage should still burn wrapper collateral"
+        );
+        assertLt(
+            fixture.debtCToken.debtBalance(fixture.account),
+            fixture.debtBefore,
+            "under-encoded deleverage should still repay debt"
+        );
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(fixture.account),
+            accountUsdcBefore,
+            "under-encoded vault underlying is not refunded to owner"
+        );
+        assertGt(
+            IERC20(USDC_MONAD).balanceOf(address(fixture.positionManager)),
+            0,
+            "under-encoded vault underlying should remain as PM residue"
+        );
+        assertEq(
+            IERC20(address(fixture.debtAsset)).balanceOf(
+                address(fixture.positionManager)
+            ),
+            0,
+            "PM debt-asset residue should be repaid or refunded"
+        );
+        assertEq(
+            IERC20(address(optimizer)).balanceOf(
+                address(fixture.positionManager)
+            ),
+            0,
+            "PM optimizer residue"
+        );
+        assertEq(
+            IERC20(USDC_MONAD).balanceOf(address(fixture.swapTarget)),
+            swapInputAssets,
+            "swap target should receive only encoded vault underlying"
+        );
+        assertEq(
+            IERC20(address(fixture.debtAsset)).balanceOf(
+                address(fixture.swapTarget)
+            ),
+            0,
+            "swap target should spend debt-asset output"
+        );
+
+        uint256 strandedUsdc =
+            IERC20(USDC_MONAD).balanceOf(address(fixture.positionManager));
+        _assertNextCallerCanSweepUnderEncodedVaultResidue(
+            fixture, strandedUsdc
+        );
+    }
+
+    function _assertNextCallerCanSweepUnderEncodedVaultResidue(
+        UnderEncodedDualSidedVaultFixture memory fixture,
+        uint256 strandedUsdc
+    ) internal {
+        address sweeper =
+            makeAddr("optimizerShareDualSidedVaultResidueSweeper");
+        _postOptimizerShareCollateral(fixture.shareCToken, sweeper, 100_000e6);
+        vm.prank(sweeper);
+        fixture.debtCToken.borrow(20e6, sweeper);
+        vm.warp(
+            fixture.optimizerMarket.accountAssets(sweeper) +
+                fixture.optimizerMarket.MIN_HOLD_PERIOD()
+        );
+        _refreshUsdcPriceFeed();
+        MockV3Aggregator sweeperDebtFeed = new MockV3Aggregator(8, 1e8);
+        _chainlinkAdaptor.addAsset(
+            address(fixture.debtAsset), true, address(sweeperDebtFeed), 0
+        );
+        _setOptimizerVaultFeedAnswer(1e8);
+        uint256 sweeperCollateralBefore =
+            fixture.shareCToken.collateralPosted(sweeper);
+        uint256 sweeperDebtBefore =
+            fixture.debtCToken.debtBalanceUpdated(sweeper);
+        uint256 sweepCollateralAssets = 1e6;
+        uint256 sweepInputAssets = strandedUsdc + sweepCollateralAssets;
+        fixture.debtAsset.mint(address(fixture.swapTarget), sweepInputAssets);
+        IPositionManager.DeleverageAction memory sweepAction =
+            _underEncodedDualSidedVaultDeleverageAction(
+                fixture, sweepCollateralAssets, sweepInputAssets
+            );
+
+        vm.prank(sweeper);
+        fixture.positionManager.deleverage(sweepAction, 0.05e18);
+
+        assertLt(
+            IERC20(USDC_MONAD).balanceOf(address(fixture.positionManager)),
+            strandedUsdc,
+            "next caller should be able to consume prior PM USDC residue"
+        );
+        assertEq(
+            sweeperDebtBefore - fixture.debtCToken.debtBalance(sweeper),
+            sweepInputAssets,
+            "sweeper debt repayment should be funded by prior PM residue"
+        );
+        assertLt(
+            fixture.shareCToken.collateralPosted(sweeper),
+            sweeperCollateralBefore,
+            "sweeper burns their own wrapper collateral while sweeping residue"
+        );
+    }
+
     function test_lendingOptimizerShareCToken_positionManagerDeleverageRollsBackWhenOptimizerPriceFails()
         public
     {
@@ -5488,6 +6648,59 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
                 .selector
         );
         optimizerCToken.flashLoan(1, "");
+    }
+
+    function test_lendingOptimizerShareCToken_repaySurfacesCannotCreateWrapperDebtOrDonations()
+        public
+    {
+        uint256 assetsBefore = _depositIntoWrapperAndSkipForOptimizerYield();
+        uint256 ownerOptimizerSharesBefore = optimizer.balanceOf(address(this));
+        uint256 wrapperOptimizerSharesBefore =
+            optimizer.balanceOf(address(optimizerCToken));
+        address payer = makeAddr("wrapperRepayPayer");
+
+        deal(address(optimizer), payer, 2);
+        vm.prank(payer);
+        optimizer.approve(address(optimizerCToken), 2);
+
+        vm.prank(payer);
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        optimizerCToken.repay(0);
+
+        vm.prank(payer);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
+        optimizerCToken.repay(1);
+
+        vm.prank(payer);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
+        optimizerCToken.repayFor(1, address(this));
+
+        assertEq(
+            optimizer.totalAssets(),
+            assetsBefore,
+            "wrapper repay reverts must roll back optimizer accrual"
+        );
+        assertEq(optimizerCToken.marketOutstandingDebt(), 0, "wrapper debt");
+        assertEq(
+            optimizerCToken.debtBalance(address(this)),
+            0,
+            "owner wrapper debt"
+        );
+        assertEq(
+            optimizer.balanceOf(payer),
+            2,
+            "payer optimizer shares should not be pulled"
+        );
+        assertEq(
+            optimizer.balanceOf(address(this)),
+            ownerOptimizerSharesBefore,
+            "owner optimizer shares should not change"
+        );
+        assertEq(
+            optimizer.balanceOf(address(optimizerCToken)),
+            wrapperOptimizerSharesBefore,
+            "wrapper optimizer shares should not receive repay donation"
+        );
     }
 
     function testFuzz_lendingOptimizerShareCToken_borrowSurfacesAlwaysDisabled(
@@ -5870,6 +7083,96 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         vm.clearMockedCalls();
     }
 
+    function test_lendingOptimizerShareCToken_stableLpCollateralStatusOfUsesStaleRawOptimizerSharePrice()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        _mintOptimizerShares(100_000e6);
+        uint256 optimizerSharesInLp = optimizer.balanceOf(address(this)) / 2;
+        assertGt(
+            optimizerSharesInLp, 0, "test setup must mint optimizer shares"
+        );
+
+        MockStableOptimizerSharePool lp =
+            new MockStableOptimizerSharePool(address(optimizer), USDC_MONAD);
+        lp.setReserves(uint112(optimizerSharesInLp), uint112(100_000e6));
+        lp.mint(address(this), 150_000e18);
+
+        MockStableLPAdaptor lpAdaptor =
+            new MockStableLPAdaptor(liveCentralRegistry);
+        _oracleManager.addApprovedAdaptor(address(lpAdaptor));
+        lpAdaptor.addAsset(address(lp));
+        _oracleManager.addAssetPricingAdaptor(
+            address(lp), address(lpAdaptor), 0, 0, 0, 0
+        );
+
+        _assertRecursiveRouteCollateralMarketAuthority(
+            address(lp), 50_000e18
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_stableLpLiquidationWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        _mintOptimizerShares(100_000e6);
+        uint256 optimizerSharesInLp = optimizer.balanceOf(address(this)) / 2;
+        assertGt(
+            optimizerSharesInLp, 0, "test setup must mint optimizer shares"
+        );
+
+        MockStableOptimizerSharePool lp =
+            new MockStableOptimizerSharePool(address(optimizer), USDC_MONAD);
+        lp.setReserves(uint112(optimizerSharesInLp), uint112(100_000e6));
+        lp.mint(address(this), 150_000e18);
+
+        MockStableLPAdaptor lpAdaptor =
+            new MockStableLPAdaptor(liveCentralRegistry);
+        _oracleManager.addApprovedAdaptor(address(lpAdaptor));
+        lpAdaptor.addAsset(address(lp));
+        _oracleManager.addAssetPricingAdaptor(
+            address(lp), address(lpAdaptor), 0, 0, 0, 0
+        );
+
+        _assertRecursiveRouteLiquidationBlockedUntilOptimizerAccrual(
+            address(lp), 50_000e18
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_stableLpLiquidationExactWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        _mintOptimizerShares(100_000e6);
+        uint256 optimizerSharesInLp = optimizer.balanceOf(address(this)) / 2;
+        assertGt(
+            optimizerSharesInLp, 0, "test setup must mint optimizer shares"
+        );
+
+        MockStableOptimizerSharePool lp =
+            new MockStableOptimizerSharePool(address(optimizer), USDC_MONAD);
+        lp.setReserves(uint112(optimizerSharesInLp), uint112(100_000e6));
+        lp.mint(address(this), 150_000e18);
+
+        MockStableLPAdaptor lpAdaptor =
+            new MockStableLPAdaptor(liveCentralRegistry);
+        _oracleManager.addApprovedAdaptor(address(lpAdaptor));
+        lpAdaptor.addAsset(address(lp));
+        _oracleManager.addAssetPricingAdaptor(
+            address(lp), address(lpAdaptor), 0, 0, 0, 0
+        );
+
+        _assertRecursiveRouteLiquidationExactBlockedUntilOptimizerAccrual(
+            address(lp), 50_000e18
+        );
+    }
+
     function test_lendingOptimizerShareCToken_uniswapQuoteTokenRouteInheritsStaleRawOptimizerSharePrice()
         public
     {
@@ -6156,6 +7459,64 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         );
     }
 
+    function test_lendingOptimizerShareCToken_pendleLpLiquidationWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        (MockPendleMarket market, MockERC20 pt, MockPendlePTOracle ptOracle) =
+            _deployPendleOptimizerShareQuoteMarket();
+        PendleLPTokenAdaptor lpAdaptor = new PendleLPTokenAdaptor(
+            liveCentralRegistry, IPendlePTOracle(address(ptOracle))
+        );
+
+        _oracleManager.addApprovedAdaptor(address(lpAdaptor));
+        PendleLPTokenAdaptor.AssetConfig memory config;
+        config.pt = address(pt);
+        config.twapDuration = 12;
+        config.quoteAsset = address(optimizer);
+        config.quoteAssetDecimals = 6;
+        lpAdaptor.addAsset(address(market), config);
+        _oracleManager.addAssetPricingAdaptor(
+            address(market), address(lpAdaptor), 0, 0, 0, 0
+        );
+
+        market.mint(address(this), 75_000e18);
+        _assertRecursiveRouteLiquidationBlockedUntilOptimizerAccrual(
+            address(market), 50_000e18
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_pendleLpLiquidationExactWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        (MockPendleMarket market, MockERC20 pt, MockPendlePTOracle ptOracle) =
+            _deployPendleOptimizerShareQuoteMarket();
+        PendleLPTokenAdaptor lpAdaptor = new PendleLPTokenAdaptor(
+            liveCentralRegistry, IPendlePTOracle(address(ptOracle))
+        );
+
+        _oracleManager.addApprovedAdaptor(address(lpAdaptor));
+        PendleLPTokenAdaptor.AssetConfig memory config;
+        config.pt = address(pt);
+        config.twapDuration = 12;
+        config.quoteAsset = address(optimizer);
+        config.quoteAssetDecimals = 6;
+        lpAdaptor.addAsset(address(market), config);
+        _oracleManager.addAssetPricingAdaptor(
+            address(market), address(lpAdaptor), 0, 0, 0, 0
+        );
+
+        market.mint(address(this), 75_000e18);
+        _assertRecursiveRouteLiquidationExactBlockedUntilOptimizerAccrual(
+            address(market), 50_000e18
+        );
+    }
+
     function test_lendingOptimizerShareCToken_pendlePtQuoteAssetRouteInheritsStaleRawOptimizerSharePrice()
         public
     {
@@ -6207,6 +7568,512 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
 
         pt.mint(address(this), 75_000e18);
         _assertRecursiveRouteCollateralMarketAuthority(address(pt), 50_000e18);
+    }
+
+    function test_lendingOptimizerShareCToken_pendlePtLiquidationWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        (MockPendleMarket market, MockERC20 pt, MockPendlePTOracle ptOracle) =
+            _deployPendleOptimizerShareQuoteMarket();
+        PendlePrincipalTokenAdaptor ptAdaptor = new PendlePrincipalTokenAdaptor(
+            liveCentralRegistry, IPendlePTOracle(address(ptOracle))
+        );
+
+        _oracleManager.addApprovedAdaptor(address(ptAdaptor));
+        PendlePrincipalTokenAdaptor.AssetConfig memory config;
+        config.market = IPMarket(address(market));
+        config.twapDuration = 12;
+        config.quoteAsset = address(optimizer);
+        config.quoteAssetDecimals = 6;
+        ptAdaptor.addAsset(address(pt), config);
+        _oracleManager.addAssetPricingAdaptor(
+            address(pt), address(ptAdaptor), 0, 0, 0, 0
+        );
+
+        pt.mint(address(this), 75_000e18);
+        _assertRecursiveRouteLiquidationBlockedUntilOptimizerAccrual(
+            address(pt), 50_000e18
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_pendlePtLiquidationExactWaitsForRawOptimizerShareAccrual()
+        public
+    {
+        _registerOptimizerShareVaultPriceFeed();
+        _refreshUsdcPriceFeed();
+
+        (MockPendleMarket market, MockERC20 pt, MockPendlePTOracle ptOracle) =
+            _deployPendleOptimizerShareQuoteMarket();
+        PendlePrincipalTokenAdaptor ptAdaptor = new PendlePrincipalTokenAdaptor(
+            liveCentralRegistry, IPendlePTOracle(address(ptOracle))
+        );
+
+        _oracleManager.addApprovedAdaptor(address(ptAdaptor));
+        PendlePrincipalTokenAdaptor.AssetConfig memory config;
+        config.market = IPMarket(address(market));
+        config.twapDuration = 12;
+        config.quoteAsset = address(optimizer);
+        config.quoteAssetDecimals = 6;
+        ptAdaptor.addAsset(address(pt), config);
+        _oracleManager.addAssetPricingAdaptor(
+            address(pt), address(ptAdaptor), 0, 0, 0, 0
+        );
+
+        pt.mint(address(this), 75_000e18);
+        _assertRecursiveRouteLiquidationExactBlockedUntilOptimizerAccrual(
+            address(pt), 50_000e18
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_plainNestedWrapperCollateralCanPassStaleBorrowCheckAfterLoss()
+        public
+    {
+        (
+            MarketManagerIsolated wrapperCollateralMarket,
+            BorrowableCToken debtCToken,
+            SimpleCToken wrapperCollateralCToken
+        ) = _deployPlainWrapperShareCollateralMarket();
+
+        uint256 lendAssets = 500_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 collateralShares = optimizerCToken.balanceOf(address(this)) / 2;
+        _mockCanTransfer(
+            address(this), address(wrapperCollateralCToken), collateralShares
+        );
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperCollateralCToken), collateralShares);
+        wrapperCollateralCToken.depositAsCollateral(
+            collateralShares, address(this)
+        );
+        vm.clearMockedCalls();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets / 20);
+        _refreshUsdcPriceFeed();
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before nested wrapper borrow"
+        );
+
+        uint256 borrowAssets = 30_000e6;
+        debtCToken.borrow(borrowAssets, address(this));
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "outer cToken borrow check does not sync inner optimizer NAV"
+        );
+
+        optimizer.accrueIfNeeded();
+        assertLt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal lower nested wrapper collateral value"
+        );
+
+        (, uint256 maxDebt, uint256 debt) =
+            wrapperCollateralMarket.statusOf(address(this));
+        assertGt(
+            debt,
+            maxDebt,
+            "nested wrapper-share collateral can become unhealthy after fresh accrual"
+        );
+
+        vm.clearMockedCalls();
+    }
+
+    function test_lendingOptimizerShareCToken_plainNestedWrapperCollateralLiquidationWaitsForOptimizerAccrual()
+        public
+    {
+        (
+            ,
+            BorrowableCToken debtCToken,
+            SimpleCToken wrapperCollateralCToken
+        ) = _deployPlainWrapperShareCollateralMarket();
+
+        uint256 lendAssets = 500_000e6;
+        deal(USDC_MONAD, address(this), lendAssets);
+        IERC20(USDC_MONAD).approve(address(debtCToken), lendAssets);
+        debtCToken.deposit(lendAssets, address(this));
+
+        uint256 collateralShares = optimizerCToken.balanceOf(address(this)) / 2;
+        _mockCanTransfer(
+            address(this), address(wrapperCollateralCToken), collateralShares
+        );
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperCollateralCToken), collateralShares);
+        wrapperCollateralCToken.depositAsCollateral(
+            collateralShares, address(this)
+        );
+        vm.clearMockedCalls();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets / 20);
+        _refreshUsdcPriceFeed();
+
+        uint256 borrowAssets = 30_000e6;
+        debtCToken.borrow(borrowAssets, address(this));
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "nested wrapper liquidation setup must leave NAV stale"
+        );
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = address(this);
+        address liquidator = makeAddr("nestedWrapperCollateralLiquidator");
+        deal(USDC_MONAD, liquidator, 100_000e6);
+
+        vm.startPrank(liquidator);
+        IERC20(USDC_MONAD).approve(address(debtCToken), type(uint256).max);
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable
+                .selector
+        );
+        debtCToken.liquidate(accounts, address(wrapperCollateralCToken));
+        vm.stopPrank();
+
+        optimizer.accrueIfNeeded();
+        assertLt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal lower nested wrapper collateral value"
+        );
+
+        uint256 liquidatorCollateralBefore =
+            wrapperCollateralCToken.balanceOf(liquidator);
+        vm.startPrank(liquidator);
+        debtCToken.liquidate(accounts, address(wrapperCollateralCToken));
+        vm.stopPrank();
+
+        assertLt(
+            debtCToken.debtBalance(address(this)),
+            borrowAssets,
+            "fresh liquidation should reduce borrower debt"
+        );
+        assertGt(
+            wrapperCollateralCToken.balanceOf(liquidator),
+            liquidatorCollateralBefore,
+            "liquidator should receive nested wrapper-share collateral"
+        );
+
+        vm.clearMockedCalls();
+    }
+
+    function test_lendingOptimizerShareCToken_plainNestedWrapperDebtCanPassStaleBorrowCheckAndEndUnhealthy()
+        public
+    {
+        (
+            MarketManagerIsolated wrapperDebtMarket,
+            BorrowableCToken wrapperDebtCToken,
+            MockERC20 collateral,
+            SimpleCToken collateralCToken
+        ) = _deployPlainBorrowableWrapperDebtMarket();
+
+        uint256 lenderShares = optimizerCToken.balanceOf(address(this)) / 2;
+        _mockCanTransfer(address(this), address(wrapperDebtCToken), lenderShares);
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperDebtCToken), lenderShares);
+        wrapperDebtCToken.deposit(lenderShares, address(this));
+        vm.clearMockedCalls();
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        skip(365 days);
+        _refreshUsdcPriceFeed();
+        _refreshOptimizerShareNestedVaultFeeds();
+        _chainlinkAdaptor.addAsset(
+            address(collateral), true, address(new MockV3Aggregator(8, 1e8)), 0
+        );
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before wrapper-debt borrow"
+        );
+
+        uint256 borrowShares = lenderShares / 4;
+        (uint256 staleDebtPrice, uint256 staleDebtPriceError) =
+            _oracleManager.getPrice(address(optimizerCToken), true, false);
+        assertEq(staleDebtPriceError, NO_ERROR);
+        uint256 staleDebtValue =
+            FixedPointMathLib.mulDivUp(borrowShares, staleDebtPrice, 1e6);
+        uint256 targetMaxDebt = staleDebtValue + 10e18;
+        uint256 collateralAmount =
+            FixedPointMathLib.mulDivUp(targetMaxDebt, BPS, 7000);
+        address borrower = makeAddr("plainWrapperDebtBorrower");
+
+        collateral.mint(borrower, collateralAmount);
+        vm.startPrank(borrower);
+        IERC20(address(collateral))
+            .approve(address(collateralCToken), collateralAmount);
+        collateralCToken.depositAsCollateral(collateralAmount, borrower);
+        vm.stopPrank();
+
+        skip(1201);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: collateral setup must not refresh optimizer NAV"
+        );
+
+        _mockCanTransfer(address(wrapperDebtCToken), borrower, borrowShares);
+        vm.prank(borrower);
+        wrapperDebtCToken.borrow(borrowShares, borrower);
+        vm.clearMockedCalls();
+
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "wrapper-share debt transfer refreshes only after borrow check"
+        );
+        assertEq(optimizerCToken.balanceOf(borrower), borrowShares);
+
+        (, uint256 maxDebt, uint256 debt) =
+            wrapperDebtMarket.statusOf(borrower);
+        assertGt(
+            debt,
+            maxDebt,
+            "plain borrowable wrapper-share debt can become unhealthy after transfer accrual"
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_plainNestedWrapperDebtLiquidationWaitsForOptimizerAccrual()
+        public
+    {
+        (
+            MarketManagerIsolated wrapperDebtMarket,
+            BorrowableCToken wrapperDebtCToken,
+            MockERC20 collateral,
+            SimpleCToken collateralCToken
+        ) = _deployPlainBorrowableWrapperDebtMarket();
+
+        uint256 lenderShares = optimizerCToken.balanceOf(address(this)) / 2;
+        _mockCanTransfer(address(this), address(wrapperDebtCToken), lenderShares);
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperDebtCToken), lenderShares);
+        wrapperDebtCToken.deposit(lenderShares, address(this));
+        vm.clearMockedCalls();
+
+        uint256 borrowShares = lenderShares / 4;
+        address borrower = makeAddr("plainWrapperDebtLiqBorrower");
+        {
+            (uint256 staleDebtPrice, uint256 staleDebtPriceError) =
+                _oracleManager.getPrice(address(optimizerCToken), true, false);
+            assertEq(staleDebtPriceError, NO_ERROR);
+            uint256 staleDebtValue =
+                FixedPointMathLib.mulDivUp(borrowShares, staleDebtPrice, 1e6);
+            uint256 collateralAmount =
+                FixedPointMathLib.mulDivUp(staleDebtValue + 10e18, BPS, 7000);
+
+            collateral.mint(borrower, collateralAmount);
+            vm.startPrank(borrower);
+            IERC20(address(collateral))
+                .approve(address(collateralCToken), collateralAmount);
+            collateralCToken.depositAsCollateral(collateralAmount, borrower);
+            _mockCanTransfer(address(wrapperDebtCToken), borrower, borrowShares);
+            wrapperDebtCToken.borrow(borrowShares, borrower);
+            vm.stopPrank();
+            vm.clearMockedCalls();
+        }
+
+        address liquidator = makeAddr("plainWrapperDebtLiquidator");
+        uint256 liquidatorShares = lenderShares / 2;
+        _mockCanTransfer(address(this), liquidator, liquidatorShares);
+        optimizerCToken.transfer(liquidator, liquidatorShares);
+        vm.clearMockedCalls();
+        vm.prank(liquidator);
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperDebtCToken), type(uint256).max);
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets * 20);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before wrapper-debt liquidation"
+        );
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = borrower;
+
+        vm.startPrank(liquidator);
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable
+                .selector
+        );
+        wrapperDebtCToken.liquidate(accounts, address(collateralCToken));
+        vm.stopPrank();
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "stale wrapper-debt liquidation attempt must not sync optimizer NAV"
+        );
+
+        optimizer.accrueIfNeeded();
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "fresh accrual must reveal higher wrapper-share debt value"
+        );
+
+        uint256 borrowerDebtBefore = wrapperDebtCToken.debtBalance(borrower);
+        uint256 liquidatorCollateralBefore = collateralCToken.balanceOf(liquidator);
+        _mockWrapperDebtLiquidationRepayTransfer(
+            wrapperDebtMarket,
+            wrapperDebtCToken,
+            collateralCToken,
+            liquidator,
+            accounts
+        );
+        vm.startPrank(liquidator);
+        wrapperDebtCToken.liquidate(accounts, address(collateralCToken));
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        assertLt(
+            wrapperDebtCToken.debtBalance(borrower),
+            borrowerDebtBefore,
+            "fresh liquidation should reduce borrower wrapper-share debt"
+        );
+        assertGt(
+            collateralCToken.balanceOf(liquidator),
+            liquidatorCollateralBefore,
+            "liquidator should receive non-wrapper collateral"
+        );
+    }
+
+    function test_lendingOptimizerShareCToken_plainNestedWrapperDebtPartialRepayAccruesBeforeResidualReview()
+        public
+    {
+        PlainNestedWrapperDebtRepayFixture memory fixture =
+            _preparePlainNestedWrapperDebtPartialRepayFixture();
+
+        vm.warp(
+            fixture.market.accountAssets(fixture.borrower)
+                + fixture.market.MIN_HOLD_PERIOD()
+        );
+
+        uint256 staleTotalAssets = optimizer.totalAssets();
+        _mockOptimizerApprovedMarketAssets(staleTotalAssets * 20);
+        assertEq(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "precondition: optimizer NAV is stale before wrapper-debt repay"
+        );
+
+        uint256 debtBeforeRepay = fixture.debtCToken.debtBalance(fixture.borrower);
+        assertGt(
+            debtBeforeRepay, fixture.repayShares, "repay must remain partial"
+        );
+        uint256 expectedResidualDebt = debtBeforeRepay - fixture.repayShares;
+        uint256 staleResidualValue = FixedPointMathLib.mulDiv(
+            expectedResidualDebt, fixture.staleDebtPrice, fixture.debtUnit
+        );
+        assertLt(
+            staleResidualValue,
+            fixture.minLoanSize,
+            "stale residual debt should fail minimum loan size review"
+        );
+
+        vm.startPrank(fixture.repayer);
+        IERC20(address(optimizerCToken))
+            .approve(address(fixture.debtCToken), fixture.repayShares);
+        _mockCanTransfer(
+            fixture.repayer, address(fixture.debtCToken), fixture.repayShares
+        );
+        fixture.debtCToken.repayFor(fixture.repayShares, fixture.borrower);
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        (uint256 freshDebtPrice, uint256 freshDebtPriceError) =
+            _oracleManager.getPrice(address(optimizerCToken), true, true);
+        assertEq(freshDebtPriceError, NO_ERROR);
+        assertGt(
+            optimizer.totalAssets(),
+            staleTotalAssets,
+            "wrapper-share repay transfer should accrue before residual review"
+        );
+        assertGt(
+            freshDebtPrice,
+            fixture.staleDebtPrice,
+            "fresh debt price should reflect transfer-triggered optimizer accrual"
+        );
+        assertGt(
+            FixedPointMathLib.mulDiv(
+                fixture.debtCToken.debtBalance(fixture.borrower),
+                freshDebtPrice,
+                fixture.debtUnit
+            ),
+            fixture.minLoanSize,
+            "fresh residual debt should pass minimum loan size review"
+        );
+        assertEq(
+            optimizerCToken.balanceOf(fixture.repayer),
+            0,
+            "repayer wrapper shares should be consumed"
+        );
+    }
+
+    function _preparePlainNestedWrapperDebtPartialRepayFixture()
+        internal
+        returns (PlainNestedWrapperDebtRepayFixture memory fixture)
+    {
+        MockERC20 collateral;
+        SimpleCToken collateralCToken;
+        (
+            fixture.market,
+            fixture.debtCToken,
+            collateral,
+            collateralCToken
+        ) = _deployPlainBorrowableWrapperDebtMarket();
+
+        uint256 lenderShares = optimizerCToken.balanceOf(address(this)) / 2;
+        _mockCanTransfer(address(this), address(fixture.debtCToken), lenderShares);
+        IERC20(address(optimizerCToken))
+            .approve(address(fixture.debtCToken), lenderShares);
+        fixture.debtCToken.deposit(lenderShares, address(this));
+        vm.clearMockedCalls();
+
+        uint256 staleDebtPriceError;
+        (fixture.staleDebtPrice, staleDebtPriceError) =
+            _oracleManager.getPrice(address(optimizerCToken), true, true);
+        assertEq(staleDebtPriceError, NO_ERROR);
+
+        fixture.minLoanSize = fixture.market.MIN_LOAN_SIZE();
+        fixture.debtUnit = 10 ** fixture.debtCToken.decimals();
+        uint256 borrowShares = FixedPointMathLib.mulDivUp(
+            fixture.minLoanSize * 2, fixture.debtUnit, fixture.staleDebtPrice
+        );
+        uint256 targetResidualShares = FixedPointMathLib.mulDiv(
+            fixture.minLoanSize / 2, fixture.debtUnit, fixture.staleDebtPrice
+        );
+        assertGt(targetResidualShares, 0, "residual debt must be nonzero");
+        assertGt(
+            borrowShares,
+            targetResidualShares,
+            "borrow must leave room for partial repay"
+        );
+
+        fixture.borrower = makeAddr("plainWrapperDebtRepayBorrower");
+        collateral.mint(fixture.borrower, 1_000e18);
+        vm.startPrank(fixture.borrower);
+        IERC20(address(collateral)).approve(address(collateralCToken), 1_000e18);
+        collateralCToken.depositAsCollateral(1_000e18, fixture.borrower);
+        _mockCanTransfer(address(fixture.debtCToken), fixture.borrower, borrowShares);
+        fixture.debtCToken.borrow(borrowShares, fixture.borrower);
+        vm.stopPrank();
+        vm.clearMockedCalls();
+
+        fixture.repayer = makeAddr("plainWrapperDebtRepayer");
+        fixture.repayShares = borrowShares - targetResidualShares;
+        _mockCanTransfer(address(this), fixture.repayer, fixture.repayShares);
+        optimizerCToken.transfer(fixture.repayer, fixture.repayShares);
+        vm.clearMockedCalls();
     }
 
     function _assertRecursiveRouteCollateralMarketAuthority(
@@ -7015,6 +8882,162 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         );
     }
 
+    function _deployPlainWrapperShareCollateralMarket()
+        internal
+        returns (
+            MarketManagerIsolated wrapperCollateralMarket,
+            BorrowableCToken debtCToken,
+            SimpleCToken wrapperCollateralCToken
+        )
+    {
+        CentralRegistry cr = CentralRegistry(address(liveCentralRegistry));
+        wrapperCollateralMarket =
+            new MarketManagerIsolated(liveCentralRegistry, 10e18, false);
+        cr.addMarketManager(address(wrapperCollateralMarket));
+
+        DynamicIRM debtIRM = _deployOptimizerCTokenIRM();
+        debtCToken = new BorrowableCToken(
+            liveCentralRegistry,
+            IERC20(USDC_MONAD),
+            address(wrapperCollateralMarket),
+            address(debtIRM)
+        );
+        debtIRM.setLinkedToken(address(debtCToken));
+
+        wrapperCollateralCToken = new SimpleCToken(
+            liveCentralRegistry,
+            IERC20(address(optimizerCToken)),
+            address(wrapperCollateralMarket)
+        );
+
+        _registerOptimizerShareVaultPriceFeed();
+        _registerOptimizerShareCTokenVaultPriceFeed();
+        _oracleManager.addCTokenSupport(address(debtCToken));
+        _oracleManager.addCTokenSupport(address(wrapperCollateralCToken));
+
+        _mintOptimizerShares(100_000e6);
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer))
+            .approve(address(optimizerCToken), optimizerShares);
+        _mockCanMint();
+        optimizerCToken.deposit(optimizerShares, address(this));
+        vm.clearMockedCalls();
+
+        _mockCanTransfer(address(this), address(wrapperCollateralCToken), 77777);
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperCollateralCToken), 77777);
+        deal(USDC_MONAD, address(this), 77777);
+        IERC20(USDC_MONAD).approve(address(debtCToken), 77777);
+        wrapperCollateralMarket.listTokens(
+            address(wrapperCollateralCToken), address(debtCToken)
+        );
+        vm.clearMockedCalls();
+
+        _configureToken(
+            wrapperCollateralMarket,
+            address(wrapperCollateralCToken),
+            7000,
+            1_000_000e6,
+            0
+        );
+        _configureToken(
+            wrapperCollateralMarket, address(debtCToken), 0, 0, 1_000_000e6
+        );
+    }
+
+    function _deployPlainBorrowableWrapperDebtMarket()
+        internal
+        returns (
+            MarketManagerIsolated wrapperDebtMarket,
+            BorrowableCToken wrapperDebtCToken,
+            MockERC20 collateral,
+            SimpleCToken collateralCToken
+        )
+    {
+        CentralRegistry cr = CentralRegistry(address(liveCentralRegistry));
+        wrapperDebtMarket =
+            new MarketManagerIsolated(liveCentralRegistry, 10e18, false);
+        cr.addMarketManager(address(wrapperDebtMarket));
+
+        DynamicIRM wrapperDebtIRM = _deployOptimizerCTokenIRM();
+        wrapperDebtCToken = new BorrowableCToken(
+            liveCentralRegistry,
+            IERC20(address(optimizerCToken)),
+            address(wrapperDebtMarket),
+            address(wrapperDebtIRM)
+        );
+        wrapperDebtIRM.setLinkedToken(address(wrapperDebtCToken));
+
+        collateral = new MockERC20("Plain Wrapper Debt Collateral", "PWDC", 18);
+        _registerPriceFeed(address(collateral), 1e8);
+        collateralCToken = new SimpleCToken(
+            liveCentralRegistry,
+            IERC20(address(collateral)),
+            address(wrapperDebtMarket)
+        );
+
+        _registerOptimizerShareVaultPriceFeed();
+        _registerOptimizerShareCTokenVaultPriceFeed();
+        _oracleManager.addCTokenSupport(address(wrapperDebtCToken));
+        _oracleManager.addCTokenSupport(address(collateralCToken));
+
+        _mintOptimizerShares(2_000_000e6);
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer))
+            .approve(address(optimizerCToken), optimizerShares);
+        _mockCanMint();
+        optimizerCToken.deposit(optimizerShares, address(this));
+        vm.clearMockedCalls();
+
+        _mockCanTransfer(address(this), address(wrapperDebtCToken), 77777);
+        IERC20(address(optimizerCToken))
+            .approve(address(wrapperDebtCToken), type(uint256).max);
+        collateral.mint(address(this), 77777);
+        IERC20(address(collateral)).approve(address(collateralCToken), 77777);
+        wrapperDebtMarket.listTokens(
+            address(collateralCToken), address(wrapperDebtCToken)
+        );
+        vm.clearMockedCalls();
+
+        _configureToken(
+            wrapperDebtMarket,
+            address(collateralCToken),
+            7000,
+            10_000_000e18,
+            0
+        );
+        _configureToken(
+            wrapperDebtMarket, address(wrapperDebtCToken), 0, 0, 2_000_000e6
+        );
+    }
+
+    function _mockWrapperDebtLiquidationRepayTransfer(
+        MarketManagerIsolated wrapperDebtMarket,
+        BorrowableCToken wrapperDebtCToken,
+        SimpleCToken collateralCToken,
+        address liquidator,
+        address[] memory accounts
+    ) internal {
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
+            collateralToken: address(collateralCToken),
+            debtToken: address(wrapperDebtCToken),
+            numAccounts: accounts.length,
+            liquidateExact: false,
+            liquidatedShares: 0,
+            debtRepaid: 0,
+            badDebt: 0
+        });
+        uint256[] memory debtAmounts = new uint256[](accounts.length);
+        vm.prank(address(wrapperDebtCToken));
+        (IMarketManager.LiqResult memory liqResult,) =
+            wrapperDebtMarket.canLiquidate(
+                debtAmounts, liquidator, accounts, action
+            );
+        _mockCanTransfer(
+            liquidator, address(wrapperDebtCToken), liqResult.debtRepaid
+        );
+    }
+
     function _deployOptimizerShareLaunchMarket()
         internal
         returns (
@@ -7065,6 +9088,163 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         _configureToken(
             optimizerMarket, address(debtCToken), 0, 0, 1_000_000e6
         );
+    }
+
+    function _deployOptimizerShareLaunchMarketWithMockDebtAsset()
+        internal
+        returns (
+            MarketManagerIsolated optimizerMarket,
+            BorrowableCToken debtCToken,
+            LendingOptimizerShareCToken shareCToken,
+            MockERC20 debtAsset
+        )
+    {
+        CentralRegistry cr = CentralRegistry(address(liveCentralRegistry));
+        optimizerMarket =
+            new MarketManagerIsolated(liveCentralRegistry, 10e18, false);
+        cr.addMarketManager(address(optimizerMarket));
+
+        debtAsset = new MockERC20("Mock Deleverage Debt", "mDD", 6);
+        _registerPriceFeed(address(debtAsset), 1e8);
+
+        DynamicIRM debtIRM = _deployOptimizerCTokenIRM();
+        debtCToken = new BorrowableCToken(
+            liveCentralRegistry,
+            IERC20(address(debtAsset)),
+            address(optimizerMarket),
+            address(debtIRM)
+        );
+        debtIRM.setLinkedToken(address(debtCToken));
+
+        DynamicIRM shareIRM = _deployOptimizerCTokenIRM();
+        shareCToken = new LendingOptimizerShareCToken(
+            liveCentralRegistry,
+            ILendingOptimizer(address(optimizer)),
+            address(optimizerMarket),
+            address(shareIRM)
+        );
+        shareIRM.setLinkedToken(address(shareCToken));
+
+        _registerOptimizerShareVaultPriceFeed();
+        _chainlinkAdaptor.setGuardedPriceConfig(
+            address(optimizer), true, 0, 0, WAD, 0
+        );
+        _oracleManager.addCTokenSupport(address(debtCToken));
+        _oracleManager.addCTokenSupport(address(shareCToken));
+
+        _mintOptimizerShares(100_000e6);
+        IERC20(address(optimizer)).approve(address(shareCToken), 77777);
+        debtAsset.mint(address(this), 77777);
+        IERC20(address(debtAsset)).approve(address(debtCToken), 77777);
+        optimizerMarket.listTokens(address(shareCToken), address(debtCToken));
+
+        _configureToken(
+            optimizerMarket, address(shareCToken), 7000, 1_000_000e6, 0
+        );
+        _configureToken(
+            optimizerMarket, address(debtCToken), 0, 0, 1_000_000e6
+        );
+    }
+
+    function _setupUnderEncodedDualSidedVaultFixture()
+        internal
+        returns (UnderEncodedDualSidedVaultFixture memory fixture)
+    {
+        (
+            fixture.optimizerMarket,
+            fixture.debtCToken,
+            fixture.shareCToken,
+            fixture.debtAsset
+        ) = _deployOptimizerShareLaunchMarketWithMockDebtAsset();
+        fixture.positionManager =
+            _deployDualSidedOptimizerShareVaultPositionManager(
+                fixture.optimizerMarket
+            );
+        fixture.swapTarget = new OptimizerShareSwapTarget(
+            IERC20(USDC_MONAD), IERC20(address(fixture.debtAsset))
+        );
+        CentralRegistry(address(liveCentralRegistry))
+            .setExternalCalldataChecker(
+                address(fixture.swapTarget),
+                address(new MockCalldataChecker(address(fixture.swapTarget)))
+            );
+
+        uint256 lendAssets = 100_000e6;
+        fixture.debtAsset.mint(address(this), lendAssets);
+        IERC20(address(fixture.debtAsset))
+            .approve(address(fixture.debtCToken), lendAssets);
+        fixture.debtCToken.deposit(lendAssets, address(this));
+
+        fixture.account =
+            makeAddr("optimizerShareDualSidedVaultUnderEncodedAccount");
+        uint256 optimizerShares = optimizer.balanceOf(address(this));
+        IERC20(address(optimizer))
+            .approve(address(fixture.shareCToken), optimizerShares);
+        uint256 wrapperShares =
+            fixture.shareCToken.deposit(optimizerShares, fixture.account);
+        vm.startPrank(fixture.account);
+        fixture.shareCToken.postCollateral(wrapperShares);
+        fixture.debtCToken.borrow(20_000e6, fixture.account);
+        vm.stopPrank();
+
+        fixture.collateralBefore =
+            fixture.shareCToken.collateralPosted(fixture.account);
+        fixture.staleTotalAssets = optimizer.totalAssets();
+        skip(30 days);
+        _refreshUsdcPriceFeed();
+        MockV3Aggregator debtFeed = new MockV3Aggregator(8, 1e8);
+        _chainlinkAdaptor.addAsset(
+            address(fixture.debtAsset), true, address(debtFeed), 0
+        );
+        _setOptimizerVaultFeedAnswer(1e8);
+        fixture.debtBefore =
+            fixture.debtCToken.debtBalanceUpdated(fixture.account);
+        assertEq(
+            optimizer.totalAssets(),
+            fixture.staleTotalAssets,
+            "precondition: optimizer NAV is stale before under-encoded dual-sided deleverage"
+        );
+    }
+
+    function _underEncodedDualSidedVaultDeleverageAction(
+        UnderEncodedDualSidedVaultFixture memory fixture,
+        uint256 collateralAssets,
+        uint256 swapInputAssets
+    ) internal view returns (IPositionManager.DeleverageAction memory action) {
+        action.cToken = ICToken(address(fixture.shareCToken));
+        action.collateralAssets = collateralAssets;
+        action.borrowableCToken =
+            IBorrowableCToken(address(fixture.debtCToken));
+        action.repayAssets = swapInputAssets;
+        action.swapActions = new SwapperLib.Swap[](1);
+        action.swapActions[0] = SwapperLib.Swap({
+            inputToken: USDC_MONAD,
+            inputAmount: swapInputAssets,
+            outputToken: address(fixture.debtAsset),
+            target: address(fixture.swapTarget),
+            slippage: WAD - 1,
+            call: abi.encodeWithSelector(
+                OptimizerShareSwapTarget.swap.selector,
+                swapInputAssets,
+                swapInputAssets
+            )
+        });
+    }
+
+    function _postOptimizerShareCollateral(
+        LendingOptimizerShareCToken shareCToken,
+        address account,
+        uint256 assets
+    ) internal {
+        uint256 sharesBefore = optimizer.balanceOf(address(this));
+        _mintOptimizerShares(assets);
+        uint256 optimizerShares =
+            optimizer.balanceOf(address(this)) - sharesBefore;
+        IERC20(address(optimizer))
+            .approve(address(shareCToken), optimizerShares);
+        uint256 wrapperShares = shareCToken.deposit(optimizerShares, account);
+        vm.prank(account);
+        shareCToken.postCollateral(wrapperShares);
     }
 
     function _deployOptimizerSharePositionManager(MarketManagerIsolated optimizerMarket)
@@ -7125,6 +9305,26 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         );
     }
 
+    function _registerOptimizerShareCTokenVaultPriceFeed() internal {
+        (bool feedConfigured, IChainlink feed,,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+
+        VaultAggregator shareCTokenFeed = new VaultAggregator(
+            address(optimizerCToken),
+            address(optimizer),
+            address(feed),
+            "optimizer-cToken/USD"
+        );
+
+        _chainlinkAdaptor.addAsset(
+            address(optimizerCToken), true, address(shareCTokenFeed), 0
+        );
+        _oracleManager.addAssetPricingAdaptor(
+            address(optimizerCToken), address(_chainlinkAdaptor), 0, 0, 0, 0
+        );
+    }
+
     function _setOptimizerVaultFeedAnswer(int256 answer) internal {
         MockV3Aggregator usdcFeed = new MockV3Aggregator(8, answer);
         VaultAggregator optimizerVaultFeed = new VaultAggregator(
@@ -7133,6 +9333,25 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
 
         _chainlinkAdaptor.addAsset(
             address(optimizer), true, address(optimizerVaultFeed), 0
+        );
+    }
+
+    function _refreshOptimizerShareNestedVaultFeeds() internal {
+        _setOptimizerVaultFeedAnswer(1e8);
+
+        (bool feedConfigured, IChainlink feed,,) =
+            _chainlinkAdaptor.assetConfig(address(optimizer), true);
+        assertTrue(feedConfigured, "optimizer share feed must be configured");
+
+        VaultAggregator shareCTokenFeed = new VaultAggregator(
+            address(optimizerCToken),
+            address(optimizer),
+            address(feed),
+            "optimizer-cToken/USD"
+        );
+
+        _chainlinkAdaptor.addAsset(
+            address(optimizerCToken), true, address(shareCTokenFeed), 0
         );
     }
 
@@ -7163,6 +9382,40 @@ contract TestLendingOptimizerShareCToken is TestBaseLendingOptimizer {
         deal(USDC_MONAD, address(this), assets);
         IERC20(USDC_MONAD).approve(address(optimizer), assets);
         optimizer.deposit(assets, address(this));
+    }
+
+    function _mockOptimizerApprovedMarketAssets(uint256 targetTotalAssets)
+        internal
+    {
+        address[] memory approvedMarkets = optimizer.getApprovedMarkets();
+        uint256 nonZeroMarkets;
+        for (uint256 i; i < approvedMarkets.length; ++i) {
+            if (
+                IBorrowableCToken(approvedMarkets[i])
+                    .balanceOf(address(optimizer)) > 0
+            ) {
+                ++nonZeroMarkets;
+            }
+        }
+        assertGt(nonZeroMarkets, 0, "optimizer must have active markets");
+
+        uint256 freshPerMarketAssets =
+            FixedPointMathLib.fullMulDiv(targetTotalAssets, 1, nonZeroMarkets);
+        for (uint256 i; i < approvedMarkets.length; ++i) {
+            uint256 cTokenShares = IBorrowableCToken(approvedMarkets[i])
+                .balanceOf(address(optimizer));
+            if (cTokenShares == 0) {
+                continue;
+            }
+
+            vm.mockCall(
+                approvedMarkets[i],
+                abi.encodeWithSelector(
+                    IBorrowableCToken.convertToAssets.selector, cTokenShares
+                ),
+                abi.encode(freshPerMarketAssets)
+            );
+        }
     }
 
     function _quoteOptimizerVaultZapperShares(
@@ -7898,6 +10151,374 @@ contract ExternalRawOptimizerShareLender {
     {
         return FixedPointMathLib.mulDiv(
             optimizer.convertToAssets(collateralShares[borrower]),
+            liquidationLtvBps,
+            10000
+        );
+    }
+}
+
+contract ExternalRawOptimizerShareVault is ERC20 {
+    ILendingOptimizer public immutable optimizer;
+
+    constructor(ILendingOptimizer optimizer_) {
+        optimizer = optimizer_;
+    }
+
+    function name() public pure override returns (string memory) {
+        return "External Raw Optimizer Share Vault";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "ext-hyAUSD";
+    }
+
+    function decimals() public view override returns (uint8) {
+        return IERC20(address(optimizer)).decimals();
+    }
+
+    function asset() external view returns (address) {
+        return address(optimizer);
+    }
+
+    function totalAssets() external view returns (uint256) {
+        return IERC20(address(optimizer)).balanceOf(address(this));
+    }
+
+    function convertToAssets(uint256 shares)
+        public
+        view
+        returns (uint256 assets)
+    {
+        uint256 supply = totalSupply();
+        uint256 heldShares =
+            IERC20(address(optimizer)).balanceOf(address(this));
+        if (supply == 0) return shares;
+
+        assets = FixedPointMathLib.mulDiv(shares, heldShares, supply);
+    }
+
+    function deposit(uint256 assets, address receiver)
+        external
+        returns (uint256 shares)
+    {
+        uint256 supply = totalSupply();
+        uint256 heldSharesBefore =
+            IERC20(address(optimizer)).balanceOf(address(this));
+        shares = supply == 0
+            ? assets
+            : FixedPointMathLib.mulDiv(assets, supply, heldSharesBefore);
+
+        require(
+            IERC20(address(optimizer)).transferFrom(
+                msg.sender,
+                address(this),
+                assets
+            ),
+            "raw-vault deposit failed"
+        );
+        _mint(receiver, shares);
+    }
+}
+
+contract ExternalRawOptimizerShareVaultLender {
+    IERC20 internal immutable asset;
+    uint256 internal immutable liquidationLtvBps;
+
+    mapping(address => uint256) public collateralShares;
+    mapping(address => uint256) public debtAssets;
+
+    constructor(IERC20 asset_, uint256 liquidationLtvBps_) {
+        asset = asset_;
+        liquidationLtvBps = liquidationLtvBps_;
+    }
+
+    function openPosition(
+        ExternalRawOptimizerShareVault vault,
+        uint256 shares,
+        uint256 debt,
+        address borrower
+    ) external {
+        collateralShares[borrower] += shares;
+        debtAssets[borrower] += debt;
+
+        require(
+            vault.transferFrom(borrower, address(this), shares),
+            "raw-vault collateral transfer failed"
+        );
+        require(asset.transfer(borrower, debt), "borrow transfer failed");
+    }
+
+    function rawBorrowLimit(
+        ExternalRawOptimizerShareVault vault,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) external view returns (uint256) {
+        return _rawBorrowLimit(vault, optimizer, borrower);
+    }
+
+    function liquidateAtRawPrice(
+        ExternalRawOptimizerShareVault vault,
+        ILendingOptimizer optimizer,
+        address borrower,
+        address liquidator
+    ) external returns (uint256 seizedShares, uint256 repaidAssets) {
+        repaidAssets = debtAssets[borrower];
+        require(
+            repaidAssets > _rawBorrowLimit(vault, optimizer, borrower),
+            "raw-vault position healthy"
+        );
+
+        seizedShares = collateralShares[borrower];
+        collateralShares[borrower] = 0;
+        debtAssets[borrower] = 0;
+
+        require(
+            asset.transferFrom(liquidator, address(this), repaidAssets),
+            "repay transfer failed"
+        );
+        require(
+            vault.transfer(liquidator, seizedShares),
+            "raw-vault collateral transfer failed"
+        );
+    }
+
+    function _rawBorrowLimit(
+        ExternalRawOptimizerShareVault vault,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) internal view returns (uint256) {
+        uint256 optimizerShares =
+            vault.convertToAssets(collateralShares[borrower]);
+        return FixedPointMathLib.mulDiv(
+            optimizer.convertToAssets(optimizerShares),
+            liquidationLtvBps,
+            10000
+        );
+    }
+}
+
+contract ExternalOptimizerShareCTokenLender {
+    IERC20 internal immutable asset;
+    uint256 internal immutable liquidationLtvBps;
+
+    mapping(address => uint256) public collateralShares;
+    mapping(address => uint256) public debtAssets;
+
+    constructor(IERC20 asset_, uint256 liquidationLtvBps_) {
+        asset = asset_;
+        liquidationLtvBps = liquidationLtvBps_;
+    }
+
+    function openPosition(
+        LendingOptimizerShareCToken shareCToken,
+        uint256 shares,
+        uint256 debt,
+        address borrower
+    ) external {
+        collateralShares[borrower] += shares;
+        debtAssets[borrower] += debt;
+
+        require(
+            IERC20(address(shareCToken)).transferFrom(
+                borrower, address(this), shares
+            ),
+            "collateral transfer failed"
+        );
+        require(asset.transfer(borrower, debt), "borrow transfer failed");
+    }
+
+    function rawBorrowLimit(
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) external view returns (uint256) {
+        return _rawBorrowLimit(shareCToken, optimizer, borrower);
+    }
+
+    function liquidateAtRawPrice(
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower,
+        address liquidator
+    ) external returns (uint256 seizedShares, uint256 repaidAssets) {
+        repaidAssets = debtAssets[borrower];
+        require(
+            repaidAssets > _rawBorrowLimit(shareCToken, optimizer, borrower),
+            "wrapper position healthy"
+        );
+
+        seizedShares = collateralShares[borrower];
+        collateralShares[borrower] = 0;
+        debtAssets[borrower] = 0;
+
+        require(
+            asset.transferFrom(liquidator, address(this), repaidAssets),
+            "repay transfer failed"
+        );
+        require(
+            IERC20(address(shareCToken)).transfer(liquidator, seizedShares),
+            "collateral transfer failed"
+        );
+    }
+
+    function _rawBorrowLimit(
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) internal view returns (uint256) {
+        uint256 optimizerShares =
+            shareCToken.convertToAssets(collateralShares[borrower]);
+        return FixedPointMathLib.mulDiv(
+            optimizer.convertToAssets(optimizerShares),
+            liquidationLtvBps,
+            10000
+        );
+    }
+}
+
+contract ExternalOptimizerShareCTokenVault is ERC20 {
+    LendingOptimizerShareCToken public immutable shareCToken;
+
+    constructor(LendingOptimizerShareCToken shareCToken_) {
+        shareCToken = shareCToken_;
+    }
+
+    function name() public pure override returns (string memory) {
+        return "External Optimizer Share CToken Vault";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "ext-ocToken";
+    }
+
+    function decimals() public view override returns (uint8) {
+        return IERC20(address(shareCToken)).decimals();
+    }
+
+    function asset() external view returns (address) {
+        return address(shareCToken);
+    }
+
+    function totalAssets() external view returns (uint256) {
+        return IERC20(address(shareCToken)).balanceOf(address(this));
+    }
+
+    function convertToAssets(uint256 shares)
+        public
+        view
+        returns (uint256 assets)
+    {
+        uint256 supply = totalSupply();
+        uint256 heldShares =
+            IERC20(address(shareCToken)).balanceOf(address(this));
+        if (supply == 0) return shares;
+
+        assets = FixedPointMathLib.mulDiv(shares, heldShares, supply);
+    }
+
+    function deposit(uint256 assets, address receiver)
+        external
+        returns (uint256 shares)
+    {
+        uint256 supply = totalSupply();
+        uint256 heldSharesBefore =
+            IERC20(address(shareCToken)).balanceOf(address(this));
+        shares = supply == 0
+            ? assets
+            : FixedPointMathLib.mulDiv(assets, supply, heldSharesBefore);
+
+        require(
+            IERC20(address(shareCToken)).transferFrom(
+                msg.sender,
+                address(this),
+                assets
+            ),
+            "vault deposit failed"
+        );
+        _mint(receiver, shares);
+    }
+}
+
+contract ExternalOptimizerShareVaultLender {
+    IERC20 internal immutable asset;
+    uint256 internal immutable liquidationLtvBps;
+
+    mapping(address => uint256) public collateralShares;
+    mapping(address => uint256) public debtAssets;
+
+    constructor(IERC20 asset_, uint256 liquidationLtvBps_) {
+        asset = asset_;
+        liquidationLtvBps = liquidationLtvBps_;
+    }
+
+    function openPosition(
+        ExternalOptimizerShareCTokenVault vault,
+        uint256 shares,
+        uint256 debt,
+        address borrower
+    ) external {
+        collateralShares[borrower] += shares;
+        debtAssets[borrower] += debt;
+
+        require(
+            vault.transferFrom(borrower, address(this), shares),
+            "vault collateral transfer failed"
+        );
+        require(asset.transfer(borrower, debt), "borrow transfer failed");
+    }
+
+    function rawBorrowLimit(
+        ExternalOptimizerShareCTokenVault vault,
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) external view returns (uint256) {
+        return _rawBorrowLimit(vault, shareCToken, optimizer, borrower);
+    }
+
+    function liquidateAtRawPrice(
+        ExternalOptimizerShareCTokenVault vault,
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower,
+        address liquidator
+    ) external returns (uint256 seizedShares, uint256 repaidAssets) {
+        repaidAssets = debtAssets[borrower];
+        require(
+            repaidAssets > _rawBorrowLimit(
+                vault,
+                shareCToken,
+                optimizer,
+                borrower
+            ),
+            "outer-vault position healthy"
+        );
+
+        seizedShares = collateralShares[borrower];
+        collateralShares[borrower] = 0;
+        debtAssets[borrower] = 0;
+
+        require(
+            asset.transferFrom(liquidator, address(this), repaidAssets),
+            "repay transfer failed"
+        );
+        require(
+            vault.transfer(liquidator, seizedShares),
+            "vault collateral transfer failed"
+        );
+    }
+
+    function _rawBorrowLimit(
+        ExternalOptimizerShareCTokenVault vault,
+        LendingOptimizerShareCToken shareCToken,
+        ILendingOptimizer optimizer,
+        address borrower
+    ) internal view returns (uint256) {
+        uint256 wrapperShares =
+            vault.convertToAssets(collateralShares[borrower]);
+        uint256 optimizerShares = shareCToken.convertToAssets(wrapperShares);
+        return FixedPointMathLib.mulDiv(
+            optimizer.convertToAssets(optimizerShares),
             liquidationLtvBps,
             10000
         );

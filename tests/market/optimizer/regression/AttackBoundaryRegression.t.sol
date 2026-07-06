@@ -4,10 +4,13 @@ pragma solidity 0.8.28;
 import { TestBaseLendingOptimizer } from "../TestBaseLendingOptimizer.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { LendingOptimizerShareCToken } from "contracts/market/token/LendingOptimizerShareCToken.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 
@@ -819,6 +822,59 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
         assertEq(accrualOptimizer.fee(), 100, "setFee still settles");
     }
 
+    /// @notice Verify: a hard-reverting approved market bricks optimizer movement fail-closed.
+    /// @dev This preserves the code-identity boundary: the optimizer does not
+    ///      route around an approved market whose accrual hook stops working.
+    function test_attackBoundary_revertingApprovedMarketBlocksMovementAndRemoval() public {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        MaliciousOptimizerMarket revertingMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(revertingMarket));
+
+        LendingOptimizer livenessOptimizer = _newTwoMarketOptimizer(
+            IERC20(USDC_MONAD),
+            address(revertingMarket),
+            cUSDC_WMON_MARKET
+        );
+
+        deal(USDC_MONAD, address(this), 77777 + 200_000e6);
+        IERC20(USDC_MONAD).approve(address(livenessOptimizer), type(uint256).max);
+        livenessOptimizer.initializeDeposits(address(revertingMarket));
+        uint256 shares = livenessOptimizer.deposit(100_000e6, address(this));
+        assertGt(shares, 0, "test setup shares");
+
+        revertingMarket.setRevertOnAccrue(true);
+
+        vm.expectRevert(MaliciousOptimizerMarket.MaliciousOptimizerMarket__AccrueReverted.selector);
+        livenessOptimizer.deposit(1e6, address(this));
+
+        vm.expectRevert(MaliciousOptimizerMarket.MaliciousOptimizerMarket__AccrueReverted.selector);
+        livenessOptimizer.transfer(victim, shares / 4);
+
+        vm.mockCall(
+            address(liveCentralRegistry),
+            abi.encodeWithSelector(ICentralRegistry.hasMarketPermissions.selector, address(this)),
+            abi.encode(true)
+        );
+        vm.expectRevert(MaliciousOptimizerMarket.MaliciousOptimizerMarket__AccrueReverted.selector);
+        livenessOptimizer.removeApprovedAsset(
+            address(revertingMarket),
+            _removeAction(cUSDC_WMON_MARKET),
+            _bounds1(cUSDC_WMON_MARKET)
+        );
+
+        assertEq(livenessOptimizer.numApprovedMarkets(), 2, "failed removal keeps market approved");
+        assertEq(
+            livenessOptimizer.balanceOf(victim),
+            0,
+            "failed transfer does not move optimizer shares"
+        );
+    }
+
     /// @notice Verify: optimizer share movement cannot be reentered while it refreshes approved-market NAV.
     /// @dev `transfer` and `transferFrom` both call `_accrueIfNeeded()` before moving shares.
     function test_attackBoundary_maliciousApprovedMarketReentryBlockedDuringShareMovement() public {
@@ -881,6 +937,85 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
         assertEq(accrualOptimizer.allowance(address(this), attacker), 0, "delegated allowance consumed");
     }
 
+    /// @notice Verify: optimizer-approved market callbacks cannot reenter the share wrapper while it refreshes NAV.
+    /// @dev The wrapper's freshness hook calls optimizer.accrual before cToken accounting;
+    ///      a hostile approved market then attempts the wrapper's unguarded freshness hook.
+    function test_attackBoundary_maliciousApprovedMarketCannotReenterShareWrapperFreshnessDuringDeposit()
+        public
+    {
+        address validManager = address(
+            IBorrowableCToken(cUSDC_WMON_MARKET).marketManager()
+        );
+        MaliciousOptimizerMarket accrualMarket = new MaliciousOptimizerMarket(
+            USDC_MONAD,
+            validManager
+        );
+        _mockMarketListed(validManager, address(accrualMarket));
+        LendingOptimizer accrualOptimizer = _newSingleMarketOptimizer(
+            IERC20(USDC_MONAD),
+            address(accrualMarket)
+        );
+        accrualMarket.setOptimizer(address(accrualOptimizer));
+
+        DynamicIRM irm = _newWrapperIRM();
+        LendingOptimizerShareCToken shareCToken = new LendingOptimizerShareCToken(
+            liveCentralRegistry,
+            ILendingOptimizer(address(accrualOptimizer)),
+            validManager,
+            address(irm)
+        );
+        irm.setLinkedToken(address(shareCToken));
+
+        vm.mockCall(
+            validManager,
+            abi.encodeWithSelector(IMarketManager.canMint.selector, address(shareCToken)),
+            ""
+        );
+
+        deal(USDC_MONAD, address(this), 77777 + 100_000e6);
+        IERC20(USDC_MONAD).approve(address(accrualOptimizer), type(uint256).max);
+        accrualOptimizer.initializeDeposits(address(accrualMarket));
+        uint256 optimizerShares = accrualOptimizer.deposit(100_000e6, address(this));
+        assertGt(optimizerShares, 77777, "test setup optimizer shares");
+        uint256 wrapperDeposit = (optimizerShares - 77777) / 2;
+        assertGt(wrapperDeposit, 0, "test setup wrapper assets");
+
+        IERC20(address(accrualOptimizer)).approve(
+            address(shareCToken), 77777 + wrapperDeposit
+        );
+        vm.prank(validManager);
+        shareCToken.initializeDeposits(address(this));
+
+        accrualMarket.setReentryOnAccrue(true);
+        accrualMarket.setReentryCall(
+            address(shareCToken),
+            abi.encodeWithSelector(shareCToken.exchangeRateUpdated.selector)
+        );
+        accrualMarket.setReentryEnabled(true);
+
+        uint256 optimizerAssetsBefore = accrualOptimizer.totalAssets();
+        uint256 wrapperShares = shareCToken.deposit(wrapperDeposit, address(this));
+
+        assertGt(wrapperShares, 0, "wrapper deposit settled");
+        assertTrue(accrualMarket.reentryAttempted(), "wrapper reentry attempted");
+        assertFalse(accrualMarket.reentrySucceeded(), "wrapper reentry blocked");
+        assertEq(
+            accrualMarket.lastReentrySelector(),
+            REENTRANCY_SELECTOR,
+            "wrapper reentry selector"
+        );
+        assertEq(
+            shareCToken.convertToAssets(wrapperShares),
+            wrapperDeposit,
+            "wrapper accounting settled on deposited optimizer shares"
+        );
+        assertEq(
+            accrualOptimizer.totalAssets(),
+            optimizerAssetsBefore,
+            "blocked nested freshness did not mutate optimizer NAV"
+        );
+    }
+
     function _newSingleMarketOptimizer(
         IERC20 asset,
         address market
@@ -923,6 +1058,12 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
             approvedCTokens,
             allocationCapsBps,
             0
+        );
+    }
+
+    function _newWrapperIRM() internal returns (DynamicIRM) {
+        return new DynamicIRM(
+            liveCentralRegistry, 1200, 2000, 8500, 500, 200, 100000
         );
     }
 
@@ -1334,6 +1475,8 @@ contract LendingOptimizerAttackBoundaryRegression is TestBaseLendingOptimizer {
 }
 
 contract MaliciousOptimizerMarket {
+    error MaliciousOptimizerMarket__AccrueReverted();
+
     address public immutable asset;
     address public immutable marketManager;
 
@@ -1341,9 +1484,12 @@ contract MaliciousOptimizerMarket {
     uint256 public totalSupply;
     bool public reentryEnabled;
     bool public reenterOnAccrue;
+    bool public revertOnAccrue;
     bool public reentryAttempted;
     bool public reentrySucceeded;
     bytes public lastReentryData;
+    address public reentryTarget;
+    bytes public reentryCallData;
 
     mapping(address => uint256) public balanceOf;
 
@@ -1362,6 +1508,15 @@ contract MaliciousOptimizerMarket {
 
     function setReentryOnAccrue(bool enabled) external {
         reenterOnAccrue = enabled;
+    }
+
+    function setRevertOnAccrue(bool enabled) external {
+        revertOnAccrue = enabled;
+    }
+
+    function setReentryCall(address target, bytes calldata data) external {
+        reentryTarget = target;
+        reentryCallData = data;
     }
 
     function resetReentry() external {
@@ -1411,6 +1566,7 @@ contract MaliciousOptimizerMarket {
     }
 
     function accrueIfNeeded() external {
+        if (revertOnAccrue) revert MaliciousOptimizerMarket__AccrueReverted();
         if (reenterOnAccrue) _attemptReentry();
     }
 
@@ -1462,6 +1618,13 @@ contract MaliciousOptimizerMarket {
         if (!reentryEnabled || reentryAttempted) return;
 
         reentryAttempted = true;
+
+        if (reentryTarget != address(0)) {
+            (reentrySucceeded, lastReentryData) =
+                reentryTarget.call(reentryCallData);
+            return;
+        }
+
         IERC20(asset).approve(optimizer, 1);
 
         try LendingOptimizer(optimizer).deposit(1, address(this)) returns (uint256) {

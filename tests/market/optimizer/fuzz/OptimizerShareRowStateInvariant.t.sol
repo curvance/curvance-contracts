@@ -71,7 +71,7 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
 
         optimizerMarket.addPositionManager(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](44);
+        bytes4[] memory selectors = new bytes4[](47);
         _populateTargetSelectors(selectors);
         targetContract(address(handler));
         targetSelector(
@@ -182,21 +182,30 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         selectors[35] =
         OptimizerShareRowStateHandler.skimDonatedOptimizerUnderlying.selector;
         selectors[36] =
-        OptimizerShareRowStateHandler.updateOptimizerCap.selector;
+        OptimizerShareRowStateHandler.donateOptimizerSharesToShareCToken
+            .selector;
         selectors[37] =
-        OptimizerShareRowStateHandler.removeOptimizerApprovedAsset.selector;
+        OptimizerShareRowStateHandler.skimDonatedOptimizerSharesFromShareCToken
+            .selector;
         selectors[38] =
-        OptimizerShareRowStateHandler.addOptimizerApprovedAsset.selector;
+        OptimizerShareRowStateHandler.donateOptimizerApprovedMarketShares
+            .selector;
         selectors[39] =
-        OptimizerShareRowStateHandler.pauseOptimizerMint.selector;
+        OptimizerShareRowStateHandler.updateOptimizerCap.selector;
         selectors[40] =
-        OptimizerShareRowStateHandler.unpauseOptimizerMint.selector;
+        OptimizerShareRowStateHandler.removeOptimizerApprovedAsset.selector;
         selectors[41] =
-        OptimizerShareRowStateHandler.initializeOptimizerDepositsAgain.selector;
+        OptimizerShareRowStateHandler.addOptimizerApprovedAsset.selector;
         selectors[42] =
+        OptimizerShareRowStateHandler.pauseOptimizerMint.selector;
+        selectors[43] =
+        OptimizerShareRowStateHandler.unpauseOptimizerMint.selector;
+        selectors[44] =
+        OptimizerShareRowStateHandler.initializeOptimizerDepositsAgain.selector;
+        selectors[45] =
         OptimizerShareRowStateHandler.depositSecondaryOptimizerCollateral
             .selector;
-        selectors[43] =
+        selectors[46] =
         OptimizerShareRowStateHandler.removeSecondaryOptimizerCollateral
             .selector;
     }
@@ -338,6 +347,9 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         uint256 totalPosted = borrowerPosted + secondaryPosted;
         uint256 shareTokenSupply = shareCToken.totalSupply();
         uint256 shareTokenAssets = shareCToken.totalAssets();
+        uint256 shareTokenUnderlying = harness.balanceOf(address(shareCToken));
+        uint256 expectedWrapperExcess = handler.optimizerSharesDonatedToShareCToken()
+        - handler.optimizerSharesSkimmedFromShareCToken();
 
         assertEq(
             shareCToken.marketCollateralPosted(),
@@ -360,9 +372,9 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
             "share cToken collateral exceeds supply"
         );
         assertEq(
-            shareTokenAssets,
-            harness.balanceOf(address(shareCToken)),
-            "share cToken assets not backed by optimizer shares"
+            shareTokenUnderlying,
+            shareTokenAssets + expectedWrapperExcess,
+            "share cToken assets plus excess not backed"
         );
 
         uint256 knownShareCTokenBalances = shareCToken.balanceOf(address(0))
@@ -532,6 +544,9 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         handler.optimizerExchangeRateUpdated();
         handler.setOptimizerFee(1_000);
         handler.skimDonatedOptimizerUnderlying(123e6);
+        handler.donateOptimizerSharesToShareCToken(123e6);
+        handler.skimDonatedOptimizerSharesFromShareCToken();
+        handler.donateOptimizerApprovedMarketShares(0, 123e6);
         handler.updateOptimizerCap(0, 10_000);
         handler.removeOptimizerApprovedAsset(2, 0);
         handler.addOptimizerApprovedAsset(2, 7_500);
@@ -687,6 +702,18 @@ contract OptimizerShareRowStateInvariant is TestBaseLendingOptimizer {
         _assertSelectorHit(
             OptimizerShareRowStateHandler.skimDonatedOptimizerUnderlying
             .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.donateOptimizerSharesToShareCToken
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.skimDonatedOptimizerSharesFromShareCToken
+                .selector
+        );
+        _assertSelectorHit(
+            OptimizerShareRowStateHandler.donateOptimizerApprovedMarketShares
+                .selector
         );
         _assertSelectorHit(
             OptimizerShareRowStateHandler.updateOptimizerCap.selector
@@ -967,6 +994,9 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
     uint256 public optimizerMarketAdds;
     uint256 public optimizerMarketRemovals;
     uint256 public optimizerSkims;
+    uint256 public optimizerApprovedMarketSharesDonated;
+    uint256 public optimizerSharesDonatedToShareCToken;
+    uint256 public optimizerSharesSkimmedFromShareCToken;
     uint256 public totalSelectorHits;
     mapping(bytes4 => uint256) public selectorHitCount;
     uint256 public lastPmBorrowOptimizerShares;
@@ -1397,6 +1427,104 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
                 "POST OPT SKIM: totalAssets changed"
             );
         } catch {}
+    }
+
+    function donateOptimizerSharesToShareCToken(uint256 assetsSeed)
+        external
+        checkPostActionInvariants
+    {
+        uint256 assets = bound(assetsSeed, 1_000e6, 100_000e6);
+        uint256 optimizerShares =
+            _mintOptimizerSharesFor(address(this), assets);
+        if (optimizerShares == 0) return;
+
+        uint256 totalAssetsBefore = shareCToken.totalAssets();
+        uint256 totalSupplyBefore = shareCToken.totalSupply();
+
+        try optimizer.transfer(address(shareCToken), optimizerShares) returns (
+            bool success
+        ) {
+            if (success) {
+                optimizerSharesDonatedToShareCToken += optimizerShares;
+                assertEq(
+                    shareCToken.totalAssets(),
+                    totalAssetsBefore,
+                    "POST SHARE DONATE: totalAssets changed"
+                );
+                assertEq(
+                    shareCToken.totalSupply(),
+                    totalSupplyBefore,
+                    "POST SHARE DONATE: supply changed"
+                );
+            }
+        } catch {}
+    }
+
+    function skimDonatedOptimizerSharesFromShareCToken()
+        external
+        checkPostActionInvariants
+    {
+        uint256 excess = _shareCTokenExcess();
+        if (excess == 0) return;
+
+        address dao = centralRegistry.daoAddress();
+        uint256 daoOptimizerBefore = optimizer.balanceOf(dao);
+        uint256 totalAssetsBefore = shareCToken.totalAssets();
+        uint256 totalSupplyBefore = shareCToken.totalSupply();
+
+        _mockDaoPermissions(address(this));
+        try shareCToken.skim() {
+            optimizerSharesSkimmedFromShareCToken += excess;
+            assertEq(
+                optimizer.balanceOf(dao),
+                daoOptimizerBefore + excess,
+                "POST SHARE SKIM: dao optimizer delta"
+            );
+            assertEq(
+                shareCToken.totalAssets(),
+                totalAssetsBefore,
+                "POST SHARE SKIM: totalAssets changed"
+            );
+            assertEq(
+                shareCToken.totalSupply(),
+                totalSupplyBefore,
+                "POST SHARE SKIM: supply changed"
+            );
+        } catch {}
+    }
+
+    function donateOptimizerApprovedMarketShares(
+        uint256 marketSeed,
+        uint256 assetsSeed
+    ) external checkPostActionInvariants {
+        uint256 numMarkets = optimizer.numApprovedMarkets();
+        if (numMarkets == 0) return;
+
+        address market = optimizer.approvedCTokensList(
+            bound(marketSeed, 0, numMarkets - 1)
+        );
+        uint256 assets = bound(assetsSeed, 1e6, 1_000_000e6);
+
+        deal(
+            address(usdc),
+            address(this),
+            usdc.balanceOf(address(this)) + assets
+        );
+        usdc.approve(market, assets);
+
+        try IBorrowableCToken(market).deposit(assets, address(this)) returns (
+            uint256 shares
+        ) {
+            try IERC20(market).transfer(address(optimizer), shares) returns (
+                bool success
+            ) {
+                if (success) optimizerApprovedMarketSharesDonated += shares;
+            } catch {
+                // Unexpected cToken transfer failure.
+            }
+        } catch {
+            // Expected if the selected market rejects fresh deposits.
+        }
     }
 
     function updateOptimizerCap(uint256 marketSeed, uint256 capSeed)
@@ -2023,6 +2151,8 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         uint256 shareTokenAssets = shareCToken.totalAssets();
         uint256 shareTokenUnderlyingHeld =
             optimizer.balanceOf(address(shareCToken));
+        uint256 expectedShareTokenExcess = optimizerSharesDonatedToShareCToken
+            - optimizerSharesSkimmedFromShareCToken;
         uint256 optimizerSupply = optimizer.totalSupply();
         uint256 optimizerTrackedAssets = optimizer.totalAssets();
         assertFalse(
@@ -2086,9 +2216,16 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
         );
         assertEq(
             shareTokenUnderlyingHeld,
-            shareTokenAssets,
-            "POST ACTION: share cToken assets differ from underlying held"
+            shareTokenAssets + expectedShareTokenExcess,
+            "POST ACTION: share cToken excess accounting"
         );
+        if (expectedShareTokenExcess > 0) {
+            assertEq(
+                shareCToken.skimAvailable(),
+                expectedShareTokenExcess,
+                "POST ACTION: share cToken skim excess"
+            );
+        }
         assertEq(
             shareCToken.asset(),
             address(optimizer),
@@ -2129,6 +2266,14 @@ contract OptimizerShareRowStateHandler is Test, IPositionManager {
             _sumOptimizerApprovedMarketAssets(),
             "POST ACTION: optimizer assets exceed approved markets"
         );
+    }
+
+    function _shareCTokenExcess() internal view returns (uint256 excess) {
+        uint256 underlyingHeld = optimizer.balanceOf(address(shareCToken));
+        uint256 trackedAssets = shareCToken.totalAssets();
+        if (underlyingHeld > trackedAssets) {
+            excess = underlyingHeld - trackedAssets;
+        }
     }
 
     function _shareSnapshot()
