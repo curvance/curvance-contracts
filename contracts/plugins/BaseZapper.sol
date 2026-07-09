@@ -38,32 +38,27 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 ///            token denominated actions to prevent double spend transaction
 ///            failures from delegate call.
 ///
-///      ROUTER-STYLE RESIDUE SEMANTIC (PROTOCOL-WIDE):
-///      Zapper contracts are treated as routers. Any leftover
-///      ERC20 balance held on a Zapper between calls is
-///      sweepable by the next caller's swap approval, identical to the
-///      way Uniswap V2 Router02, Uniswap V3 SwapRouter, UniversalRouter,
-///      and 0x Exchange handle stranded balance.
+///      ZAPPER BALANCE ACCOUNTING:
+///      Zappers do not maintain per-user balances and must not be used as
+///      token custody. Swap amount authority is entrypoint-specific:
 ///
-///      This design choice has been reviewed across every Zapper
-///      implementation (Simple, Vault, Native Vault, Velodrome, Optimizer,
-///      Pendle) and is intentional. Implementation consequences:
+///      1. `SwapperLib` approves only the declared `inputAmount` and credits
+///         only the post-call increase in `outputToken`. Pre-existing output
+///         balances are not credited to the current caller.
 ///
-///      1. Callers (frontends/integrators) MUST encode `swapAction` input
-///         amounts to match what the deleverage flow actually produces
-///         (e.g. for vault PMs, `previewRedeem(collateralAssets)`); under-
-///         encoding silently transfers the difference to whoever calls
-///         next, exactly as with any aggregator router.
+///      2. A pre-existing token balance is not automatically swept by the
+///         next caller. It can be consumed only by a path whose declared or
+///         intermediate amount can be funded from the Zapper's existing
+///         balance. Those paths must be reviewed individually.
 ///
-///      2. Intermediate steps in a multi-hop swap chain are not chain-
-///         validated for token contiguity or amount continuity beyond the
-///         first/last endpoint check. A caller can craft a chain that
-///         consumes residue of unrelated tokens; the resulting debtAsset
-///         output simply funds that caller's debt repayment.
+///      3. `OptimizerZapper` is standalone, but its public swap path follows
+///         the same declared-input and realized-output accounting as
+///         `BaseZapper` and `SimpleZapper`. Inheritance does not define these
+///         accounting semantics.
 ///
-///      3. Zappers therefore should not be relied upon to
-///         retain user-specific balances between calls; treat them as
-///         stateless routers from a token-custody perspective.
+///      Callers and integrators MUST encode each swap input from the amount
+///      actually produced by the preceding action. Under-encoding can strand
+///      residue on paths that do not explicitly refund it.
 ///
 abstract contract BaseZapper is Multicall, ReentrancyGuard {
     /// TYPES ///

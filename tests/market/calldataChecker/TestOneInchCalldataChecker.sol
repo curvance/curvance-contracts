@@ -10,6 +10,9 @@ import {
 import {
     IAggregationRouterV5
 } from "contracts/interfaces/external/1inch/IAggregationRouterV5.sol";
+import {
+    UniswapV3Pool
+} from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 
 import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 
@@ -43,12 +46,31 @@ contract TestOneInchCalldataChecker is TestBaseMarketIsolated {
     function testCheckCalldataRevert__RecipientError() public {
         recipient = address(0);
         swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
-        swapAction.inputAmount = 10000000000000000000000;
+        swapAction.inputAmount = 1e18;
         swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
         swapAction.target = oneInchRouterV5;
-        // generate from 1inch api
-        swapAction.call =
-            hex"12aa3caf000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd520000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe2000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021e19e0c9bab24000000000000000000000000000000000000000000000000000e0c267176dae176b5d000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001700000000000000000000000000000000000000000000001520001240000da00a007e5c0d20000000000000000000000000000000000000000000000000000b600006302a00000000000000000000000000000000000000000000000001978fc787c1b3265ee63c1e580919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52795065dcc9f64b5614c407a6efdc400da6221fb000206ae4071118002dc6c0795065dcc9f64b5614c407a6efdc400da6221fb00000000000000000000000000000000000000000000000e0c267176dae176b5dc02aaa39b223fe8d0a0e5c4f27ead9083c756cc200a0f2fa6b666b3595068778dd592e39a122f4f5a5cf09c90fe20000000000000000000000000000000000000000000000e30799439feb5321760000000000000000349d7e6836c4f96680a06c4eca276b3595068778dd592e39a122f4f5a5cf09c90fe21111111254eeb25477b68fb85ed929f73a960582000000000000000000000000000000008b1ccac8";
+
+        address pool = address(0x1234);
+        vm.mockCall(
+            pool,
+            abi.encodeWithSelector(UniswapV3Pool.token0.selector),
+            abi.encode(swapAction.inputToken)
+        );
+        vm.mockCall(
+            pool,
+            abi.encodeWithSelector(UniswapV3Pool.token1.selector),
+            abi.encode(swapAction.outputToken)
+        );
+
+        uint256[] memory pools = new uint256[](1);
+        pools[0] = uint256(uint160(pool));
+        swapAction.call = abi.encodeWithSelector(
+            IAggregationRouterV5.uniswapV3SwapTo.selector,
+            payable(recipient),
+            swapAction.inputAmount,
+            1,
+            pools
+        );
 
         vm.expectRevert(
             BaseSwapChecker.CalldataChecker__RecipientError.selector
@@ -136,7 +158,7 @@ contract TestOneInchCalldataChecker is TestBaseMarketIsolated {
         checker.checkCalldata(swapAction, address(0));
     }
 
-    function testCheckCalldataSuccess3() public {
+    function testCheckCalldataRevert__GenericSwapFromApi() public {
         recipient = address(0);
         swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
         swapAction.inputAmount = 10000000000000000000000;
@@ -146,10 +168,13 @@ contract TestOneInchCalldataChecker is TestBaseMarketIsolated {
         swapAction.call =
             hex"12aa3caf000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd520000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe2000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021e19e0c9bab24000000000000000000000000000000000000000000000000000e0c267176dae176b5d000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001700000000000000000000000000000000000000000000001520001240000da00a007e5c0d20000000000000000000000000000000000000000000000000000b600006302a00000000000000000000000000000000000000000000000001978fc787c1b3265ee63c1e580919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52795065dcc9f64b5614c407a6efdc400da6221fb000206ae4071118002dc6c0795065dcc9f64b5614c407a6efdc400da6221fb00000000000000000000000000000000000000000000000e0c267176dae176b5dc02aaa39b223fe8d0a0e5c4f27ead9083c756cc200a0f2fa6b666b3595068778dd592e39a122f4f5a5cf09c90fe20000000000000000000000000000000000000000000000e30799439feb5321760000000000000000349d7e6836c4f96680a06c4eca276b3595068778dd592e39a122f4f5a5cf09c90fe21111111254eeb25477b68fb85ed929f73a960582000000000000000000000000000000008b1ccac8";
 
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector
+        );
         checker.checkCalldata(swapAction, address(0));
     }
 
-    function testCheckCalldataSuccess_swapDoesNotBindSrcReceiverExecutorOrFlags()
+    function testCheckCalldataRevert__GenericSwapWithUnboundFields()
         public
     {
         recipient = address(this);
@@ -177,33 +202,58 @@ contract TestOneInchCalldataChecker is TestBaseMarketIsolated {
             bytes("01")
         );
 
-        assertEq(checker.checkCalldata(swapAction, recipient), 1);
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector
+        );
+        checker.checkCalldata(swapAction, recipient);
     }
 
-    function testCheckCalldataRevert__NonEmptyPermit() public {
+    function testCheckCalldataRevert__UniswapV3SwapToWithPermit()
+        public
+    {
         recipient = address(this);
         swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
         swapAction.inputAmount = 1e18;
         swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
         swapAction.target = oneInchRouterV5;
 
-        IAggregationRouterV5.SwapDescription memory desc =
-            IAggregationRouterV5.SwapDescription({
-                srcToken: swapAction.inputToken,
-                dstToken: swapAction.outputToken,
-                srcReceiver: payable(address(0xBEEF)),
-                dstReceiver: payable(recipient),
-                amount: swapAction.inputAmount,
-                minReturnAmount: 1,
-                flags: 0
-            });
+        uint256[] memory pools = new uint256[](1);
+        pools[0] = uint256(uint160(address(0x1234)));
 
         swapAction.call = abi.encodeWithSelector(
-            IAggregationRouterV5.swap.selector,
-            address(0xBEEF),
-            desc,
-            bytes("permit"),
-            bytes("01")
+            IAggregationRouterV5.uniswapV3SwapToWithPermit.selector,
+            payable(recipient),
+            swapAction.inputToken,
+            swapAction.inputAmount,
+            1,
+            pools,
+            bytes("")
+        );
+
+        vm.expectRevert(
+            BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector
+        );
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testCheckCalldataRevert__UnoswapToWithPermit() public {
+        recipient = address(this);
+        swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        swapAction.target = oneInchRouterV5;
+
+        uint256[] memory pools = new uint256[](1);
+        pools[0] = uint256(uint160(address(0x1234)));
+
+        swapAction.call = abi.encodeWithSelector(
+            IAggregationRouterV5.unoswapToWithPermit.selector,
+            payable(recipient),
+            swapAction.inputToken,
+            swapAction.inputAmount,
+            1,
+            pools,
+            bytes("")
         );
 
         vm.expectRevert(
