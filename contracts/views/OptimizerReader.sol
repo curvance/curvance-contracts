@@ -87,6 +87,13 @@ contract OptimizerReader {
         uint256 redeemable;
     }
 
+    struct MarketIncentiveAPYBps {
+        /// @notice The cToken market receiving the incentive APY.
+        address cToken;
+        /// @notice Annual incentive APY in BPS (1000 = 10%, max accepted).
+        uint256 incentiveAPYBps;
+    }
+
     /// @dev Internal struct to pack per-market allocation state into a single
     ///      array, avoiding stack-too-deep in _computeIdealAllocation.
     struct MarketAlloc {
@@ -95,6 +102,7 @@ contract OptimizerReader {
         uint256 fees;
         uint256 maxAllocation;
         uint256 hardMaxAllocation;
+        uint256 incentiveAPY;
         IDynamicIRM irm;
         bool canWithdraw;
         bool canDeposit;
@@ -114,6 +122,12 @@ contract OptimizerReader {
     error OptimizerReader__Unauthorized();
     error OptimizerReader__InvalidMultiplier();
     error OptimizerReader__InvalidRebalanceChunks();
+    error OptimizerReader__InvalidIncentiveData();
+    error OptimizerReader__InvalidIncentiveMarket(address cToken);
+    error OptimizerReader__InvalidIncentiveAPYBps(
+        address cToken, uint256 incentiveAPYBps
+    );
+    error OptimizerReader__DuplicateIncentiveMarket(address cToken);
 
     /// EVENTS ///
 
@@ -123,6 +137,8 @@ contract OptimizerReader {
 
     /// CONSTANTS ///
 
+    uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
+
     /// @notice Minimum total rebalance value in USD (WAD) below which
     ///         optimalRebalance returns empty arrays. 1e18 = $1.
     uint256 public constant USD_THRESHOLD = 100e18;
@@ -131,6 +147,9 @@ contract OptimizerReader {
     uint256 public constant CAP_BUFFER_BPS = 5;
     /// @notice Tiny asset-unit headroom for hard-cap planner moves.
     uint256 internal constant HARD_CAP_ROUNDING_BUFFER = 4;
+
+    /// @notice Maximum accepted off-chain incentive APY, in BPS. 1000 = 10%.
+    uint256 public constant MAX_INCENTIVE_APY_BPS = 1_000;
 
     /// IMMUTABLES ///
 
@@ -378,7 +397,7 @@ contract OptimizerReader {
             weightedRate += FixedPointMathLib.mulDiv(allocated, rate, ta);
         }
 
-        apy = weightedRate * 31_536_000;
+        apy = weightedRate * SECONDS_PER_YEAR;
     }
 
     /// @notice Computes optimal rebalance actions, automatically excluding
@@ -412,13 +431,64 @@ contract OptimizerReader {
         }
 
         ILendingOptimizer(optimizer).accrueIfNeeded();
-        return _optimalRebalance(optimizer, slippageBps, rebalanceChunks);
+        address[] memory markets =
+            ILendingOptimizer(optimizer).getApprovedMarkets();
+        return _optimalRebalance(
+            optimizer, slippageBps, rebalanceChunks, markets, new uint256[](0)
+        );
+    }
+
+    /// @notice Computes optimal rebalance actions while adding address-tagged
+    ///         off-chain incentive APYs to each market's marginal supply score.
+    /// @dev Incentives may be provided in any order. Each `cToken` must be an
+    ///      approved market for `optimizer`, and duplicate cTokens revert.
+    ///      Missing approved markets receive zero incentive APY. Values are
+    ///      annual APYs in BPS and must not exceed MAX_INCENTIVE_APY_BPS.
+    /// @param optimizer The LendingOptimizer address.
+    /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
+    /// @param rebalanceChunks Number of chunks used by the greedy allocation.
+    /// @param marketIncentives Annual incentive APYs in BPS, tagged by cToken.
+    /// @return actions The rebalance actions array matching approvedCTokensList order,
+    ///                 or empty if no rebalance is needed.
+    /// @return bounds The allocation bounds array matching approvedCTokensList order,
+    ///                or empty if no rebalance is needed.
+    function optimalRebalanceWithIncentives(
+        address optimizer,
+        uint256 slippageBps,
+        uint256 rebalanceChunks,
+        MarketIncentiveAPYBps[] calldata marketIncentives
+    )
+        external
+        returns (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        )
+    {
+        if (rebalanceChunks == 0) {
+            revert OptimizerReader__InvalidRebalanceChunks();
+        }
+
+        ILendingOptimizer(optimizer).accrueIfNeeded();
+        address[] memory markets =
+            ILendingOptimizer(optimizer).getApprovedMarkets();
+        uint256[] memory marketIncentiveAPYsBps =
+            _alignTaggedIncentives(markets, marketIncentives);
+
+        return _optimalRebalance(
+            optimizer,
+            slippageBps,
+            rebalanceChunks,
+            markets,
+            marketIncentiveAPYsBps
+        );
     }
 
     function _optimalRebalance(
         address optimizer,
         uint256 slippageBps,
-        uint256 rebalanceChunks
+        uint256 rebalanceChunks,
+        address[] memory markets,
+        uint256[] memory marketIncentiveAPYsBps
     )
         internal
         view
@@ -427,8 +497,12 @@ contract OptimizerReader {
             LendingOptimizer.AllocationBound[] memory bounds
         )
     {
-        address[] memory markets =
-            ILendingOptimizer(optimizer).getApprovedMarkets();
+        if (
+            marketIncentiveAPYsBps.length != 0
+                && marketIncentiveAPYsBps.length != markets.length
+        ) {
+            revert OptimizerReader__InvalidIncentiveData();
+        }
 
         if (markets.length == 0) return (actions, bounds);
 
@@ -439,7 +513,11 @@ contract OptimizerReader {
         uint256[] memory currentAssets;
         uint256 totalAssets;
         (idealAssets, currentAssets,) = _computeIdealAllocation(
-            optimizer, markets, badMarkets, rebalanceChunks
+            optimizer,
+            markets,
+            badMarkets,
+            rebalanceChunks,
+            marketIncentiveAPYsBps
         );
         for (uint256 i; i < currentAssets.length; ++i) {
             totalAssets += currentAssets[i];
@@ -456,31 +534,10 @@ contract OptimizerReader {
             return (actions, bounds);
         }
 
-        ILendingOptimizer opt = ILendingOptimizer(optimizer);
-        if (
-            !_idealWithinHardCaps(opt, markets, idealAssets, totalAssets)
-                || !_postActionWithinHardCaps(
-                    optimizer, opt, markets, currentAssets, idealAssets
-                )
-        ) {
-            return (
-                new LendingOptimizer.ReallocationAction[](0),
-                new LendingOptimizer.AllocationBound[](0)
-            );
-        }
-
-        actions = new LendingOptimizer.ReallocationAction[](markets.length);
-        bounds = new LendingOptimizer.AllocationBound[](markets.length);
-
-        _buildActionsAndBounds(
-            markets,
-            idealAssets,
-            currentAssets,
-            totalAssets,
-            slippageBps,
-            actions,
-            bounds
+        (actions, bounds) = _buildValidatedPlan(
+            optimizer, markets, idealAssets, currentAssets, slippageBps
         );
+        if (actions.length == 0) return (actions, bounds);
 
         if (badMarkets.length == 0) {
             address underlying = ILendingOptimizer(optimizer).asset();
@@ -512,6 +569,43 @@ contract OptimizerReader {
         }
     }
 
+    function _alignTaggedIncentives(
+        address[] memory markets,
+        MarketIncentiveAPYBps[] calldata marketIncentives
+    ) internal pure returns (uint256[] memory marketIncentiveAPYsBps) {
+        marketIncentiveAPYsBps = new uint256[](markets.length);
+        bool[] memory seen = new bool[](markets.length);
+
+        for (uint256 i; i < marketIncentives.length; ++i) {
+            address cToken = marketIncentives[i].cToken;
+            uint256 incentiveAPYBps = marketIncentives[i].incentiveAPYBps;
+            bool found;
+
+            for (uint256 j; j < markets.length; ++j) {
+                if (cToken != markets[j]) continue;
+
+                if (seen[j]) {
+                    revert OptimizerReader__DuplicateIncentiveMarket(cToken);
+                }
+
+                if (incentiveAPYBps > MAX_INCENTIVE_APY_BPS) {
+                    revert OptimizerReader__InvalidIncentiveAPYBps(
+                        cToken, incentiveAPYBps
+                    );
+                }
+
+                seen[j] = true;
+                marketIncentiveAPYsBps[j] = incentiveAPYBps;
+                found = true;
+                break;
+            }
+
+            if (!found) {
+                revert OptimizerReader__InvalidIncentiveMarket(cToken);
+            }
+        }
+    }
+
     /// @dev Chunked greedy rebalancing: starts from current allocations and
     ///      applies executable source-to-destination moves in memory.
     ///      Normal moves require the destination post-move APY to be strictly
@@ -522,7 +616,8 @@ contract OptimizerReader {
         address optimizer,
         address[] memory markets,
         address[] memory badMarkets,
-        uint256 rebalanceChunks
+        uint256 rebalanceChunks,
+        uint256[] memory marketIncentiveAPYsBps
     )
         internal
         view
@@ -538,23 +633,14 @@ contract OptimizerReader {
         m = new MarketAlloc[](numMarkets);
 
         // First pass: snapshot per-market state and compute total assets.
-        uint256 ta;
-        {
-            for (uint256 i; i < numMarkets; ++i) {
-                IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-                uint256 ca =
-                    ct.convertToAssets(_balanceOf(address(ct), optimizer));
-                currentAssets[i] = ca;
-                idealAssets[i] = ca;
-                ta += ca;
-
-                uint256 assetsHeld = _assetsHeld(ct);
-                m[i].simAssetsHeld = assetsHeld;
-                m[i].debt = _outstandingDebt(ct);
-                m[i].fees = _interestFee(ct);
-                m[i].irm = _IRM(ct);
-            }
-        }
+        uint256 ta = _snapshotMarketAllocations(
+            optimizer,
+            markets,
+            marketIncentiveAPYsBps,
+            idealAssets,
+            currentAssets,
+            m
+        );
 
         if (ta == 0) return (idealAssets, currentAssets, m);
 
@@ -597,6 +683,36 @@ contract OptimizerReader {
         if (!_allWithinHardCaps(idealAssets, m)) {
             for (uint256 i; i < numMarkets; ++i) {
                 idealAssets[i] = currentAssets[i];
+            }
+        }
+    }
+
+    function _snapshotMarketAllocations(
+        address optimizer,
+        address[] memory markets,
+        uint256[] memory marketIncentiveAPYsBps,
+        uint256[] memory idealAssets,
+        uint256[] memory currentAssets,
+        MarketAlloc[] memory m
+    ) internal view returns (uint256 ta) {
+        bool hasIncentives =
+            marketIncentiveAPYsBps.length != 0;
+
+        for (uint256 i; i < markets.length; ++i) {
+            IBorrowableCToken ct = IBorrowableCToken(markets[i]);
+            uint256 ca = ct.convertToAssets(_balanceOf(address(ct), optimizer));
+            currentAssets[i] = ca;
+            idealAssets[i] = ca;
+            ta += ca;
+
+            m[i].simAssetsHeld = _assetsHeld(ct);
+            m[i].debt = _outstandingDebt(ct);
+            m[i].fees = _interestFee(ct);
+            m[i].irm = _IRM(ct);
+            if (hasIncentives) {
+                m[i].incentiveAPY = FixedPointMathLib.mulDiv(
+                    marketIncentiveAPYsBps[i], WAD, BPS
+                );
             }
         }
     }
@@ -654,13 +770,11 @@ contract OptimizerReader {
                 );
                 if (amount == 0) continue;
 
-                uint256 destRate = m[j].irm
-                    .supplyRate(
-                        m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
-                    );
+                uint256 score =
+                    _allocationScore(m[j], m[j].simAssetsHeld + amount);
 
-                if (!best.found || destRate > best.score) {
-                    best = MoveCandidate(i, j, amount, destRate, true);
+                if (!best.found || score > best.score) {
+                    best = MoveCandidate(i, j, amount, score, true);
                 }
             }
         }
@@ -687,18 +801,14 @@ contract OptimizerReader {
                 );
                 if (amount == 0) continue;
 
-                uint256 sourceRateAfter = m[i].irm
-                    .supplyRate(
-                        m[i].simAssetsHeld - amount, m[i].debt, m[i].fees
-                    );
-                uint256 destRateAfter = m[j].irm
-                    .supplyRate(
-                        m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
-                    );
+                uint256 sourceScoreAfter =
+                    _allocationScore(m[i], m[i].simAssetsHeld - amount);
+                uint256 destScoreAfter =
+                    _allocationScore(m[j], m[j].simAssetsHeld + amount);
 
-                if (destRateAfter <= sourceRateAfter) continue;
+                if (destScoreAfter <= sourceScoreAfter) continue;
 
-                uint256 spread = destRateAfter - sourceRateAfter;
+                uint256 spread = destScoreAfter - sourceScoreAfter;
                 if (!best.found || spread > best.score) {
                     best = MoveCandidate(i, j, amount, spread, true);
                 }
@@ -723,8 +833,13 @@ contract OptimizerReader {
             return 0;
         }
 
-        return
-            _min(idealAssets[i] - m[i].hardMaxAllocation, m[i].simAssetsHeld);
+        uint256 hardRepairTarget = m[i].hardMaxAllocation
+            > HARD_CAP_ROUNDING_BUFFER
+            ? m[i].hardMaxAllocation - HARD_CAP_ROUNDING_BUFFER
+            : 0;
+        uint256 repairTarget = _min(m[i].maxAllocation, hardRepairTarget);
+
+        return _min(idealAssets[i] - repairTarget, m[i].simAssetsHeld);
     }
 
     function _normalSourceRoom(
@@ -789,6 +904,27 @@ contract OptimizerReader {
         return true;
     }
 
+    function _allocationScore(MarketAlloc memory m, uint256 assetsHeld)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 supplyRate = m.irm.supplyRate(assetsHeld, m.debt, m.fees);
+        uint256 nativeAPY = supplyRate > type(uint256).max / SECONDS_PER_YEAR
+            ? type(uint256).max
+            : supplyRate * SECONDS_PER_YEAR;
+
+        return _saturatingAdd(nativeAPY, m.incentiveAPY);
+    }
+
+    function _saturatingAdd(uint256 a, uint256 b)
+        internal
+        pure
+        returns (uint256)
+    {
+        return a > type(uint256).max - b ? type(uint256).max : a + b;
+    }
+
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
@@ -807,12 +943,13 @@ contract OptimizerReader {
     }
 
     /// @dev Diffs ideal vs current allocations to produce deposit/withdraw
-    ///      actions, and computes bounds around each market's ideal BPS.
+    ///      actions, and computes bounds around the projected executed BPS.
     function _buildActionsAndBounds(
         address[] memory markets,
         uint256[] memory idealAssets,
         uint256[] memory currentAssets,
-        uint256 ta,
+        uint256[] memory postAssets,
+        uint256 postTotal,
         uint256 slippageBps,
         LendingOptimizer.ReallocationAction[] memory actions,
         LendingOptimizer.AllocationBound[] memory bounds
@@ -834,68 +971,99 @@ contract OptimizerReader {
                 );
             }
 
-            if (ta > 0) {
-                uint256 idealBps =
-                    FixedPointMathLib.mulDiv(idealAssets[i], 10000, ta);
+            if (postTotal > 0) {
+                uint256 postBpsDown = FixedPointMathLib.fullMulDiv(
+                    postAssets[i], BPS, postTotal
+                );
+                uint256 postBpsUp = FixedPointMathLib.fullMulDivUp(
+                    postAssets[i], BPS, postTotal
+                );
+                uint256 maxBps = postBpsUp;
+                if (maxBps < BPS) {
+                    maxBps += _min(slippageBps, BPS - maxBps);
+                }
+
                 bounds[i] = LendingOptimizer.AllocationBound(
                     markets[i],
-                    idealBps > slippageBps ? idealBps - slippageBps : 0,
-                    idealBps + slippageBps > 10000
-                        ? 10000
-                        : idealBps + slippageBps
+                    postBpsDown > slippageBps ? postBpsDown - slippageBps : 0,
+                    maxBps
                 );
             } else {
                 bounds[i] =
-                    LendingOptimizer.AllocationBound(markets[i], 0, 10000);
+                    LendingOptimizer.AllocationBound(markets[i], 0, BPS);
             }
         }
     }
 
-    function _idealWithinHardCaps(
-        ILendingOptimizer opt,
+    function _buildValidatedPlan(
+        address optimizer,
         address[] memory markets,
         uint256[] memory idealAssets,
-        uint256 totalAssets
+        uint256[] memory currentAssets,
+        uint256 slippageBps
+    )
+        internal
+        view
+        returns (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        )
+    {
+        (uint256[] memory postAssets, uint256 postTotal) = _projectPostActionAssets(
+            optimizer, markets, currentAssets, idealAssets
+        );
+
+        if (!_postActionWithinHardCaps(
+                ILendingOptimizer(optimizer), markets, postAssets, postTotal
+            )) {
+            return (actions, bounds);
+        }
+
+        actions = new LendingOptimizer.ReallocationAction[](markets.length);
+        bounds = new LendingOptimizer.AllocationBound[](markets.length);
+        _buildActionsAndBounds(
+            markets,
+            idealAssets,
+            currentAssets,
+            postAssets,
+            postTotal,
+            slippageBps,
+            actions,
+            bounds
+        );
+    }
+
+    function _postActionWithinHardCaps(
+        ILendingOptimizer opt,
+        address[] memory markets,
+        uint256[] memory postAssets,
+        uint256 postTotal
     ) internal view returns (bool) {
-        if (totalAssets == 0) return true;
+        if (postTotal == 0) return true;
 
         for (uint256 i; i < markets.length; ++i) {
-            uint256 hardMax = FixedPointMathLib.mulDiv(
-                totalAssets, opt.allocationCaps(markets[i]), WAD
-            );
-            if (idealAssets[i] > hardMax) return false;
+            uint256 allocationWad =
+                FixedPointMathLib.fullMulDiv(postAssets[i], WAD, postTotal);
+            if (allocationWad > opt.allocationCaps(markets[i])) return false;
         }
 
         return true;
     }
 
-    function _postActionWithinHardCaps(
+    function _projectPostActionAssets(
         address optimizer,
-        ILendingOptimizer opt,
         address[] memory markets,
         uint256[] memory currentAssets,
         uint256[] memory idealAssets
-    ) internal view returns (bool) {
-        uint256 numMarkets = markets.length;
-        uint256[] memory postAssets = new uint256[](numMarkets);
-        uint256 postTotal;
+    ) internal view returns (uint256[] memory postAssets, uint256 postTotal) {
+        postAssets = new uint256[](markets.length);
 
-        for (uint256 i; i < numMarkets; ++i) {
-            postAssets[i] =
-                _postActionAssets(optimizer, markets[i], currentAssets[i], idealAssets[i]);
+        for (uint256 i; i < markets.length; ++i) {
+            postAssets[i] = _postActionAssets(
+                optimizer, markets[i], currentAssets[i], idealAssets[i]
+            );
             postTotal += postAssets[i];
         }
-
-        if (postTotal == 0) return true;
-
-        for (uint256 i; i < numMarkets; ++i) {
-            uint256 hardMax = FixedPointMathLib.mulDiv(
-                postTotal, opt.allocationCaps(markets[i]), WAD
-            );
-            if (postAssets[i] > hardMax) return false;
-        }
-
-        return true;
     }
 
     function _postActionAssets(
@@ -908,14 +1076,28 @@ contract OptimizerReader {
         uint256 currentShares = _balanceOf(market, optimizer);
 
         if (idealAssets > currentAssets) {
-            uint256 sharesToMint = ct.previewDeposit(idealAssets - currentAssets);
-            return ct.convertToAssets(currentShares + sharesToMint);
+            uint256 assetsToDeposit = idealAssets - currentAssets;
+            uint256 sharesToMint = ct.previewDeposit(assetsToDeposit);
+            return FixedPointMathLib.fullMulDiv(
+                currentShares + sharesToMint,
+                ct.totalAssets() + assetsToDeposit,
+                ct.totalSupply() + sharesToMint
+            );
         }
 
         if (currentAssets > idealAssets) {
-            uint256 sharesToBurn = ct.previewWithdraw(currentAssets - idealAssets);
+            uint256 assetsToWithdraw = currentAssets - idealAssets;
+            uint256 sharesToBurn = ct.previewWithdraw(assetsToWithdraw);
             if (sharesToBurn >= currentShares) return 0;
-            return ct.convertToAssets(currentShares - sharesToBurn);
+
+            uint256 totalShares = ct.totalSupply();
+            if (sharesToBurn >= totalShares) return 0;
+
+            return FixedPointMathLib.fullMulDiv(
+                currentShares - sharesToBurn,
+                ct.totalAssets() - assetsToWithdraw,
+                totalShares - sharesToBurn
+            );
         }
 
         return currentAssets;
