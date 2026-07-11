@@ -43,6 +43,410 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         reader.optimalRebalance(address(optimizer), 500, 0);
     }
 
+    function test_optimalRebalanceWithIncentives_revertsWithZeroRebalanceChunks() public {
+        _setUpThreeMarkets();
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            new OptimizerReader.MarketIncentiveAPYBps[](0);
+
+        vm.expectRevert(OptimizerReader.OptimizerReader__InvalidRebalanceChunks.selector);
+        reader.optimalRebalanceWithIncentives(address(optimizer), 500, 0, marketIncentives);
+    }
+
+    function test_optimalRebalanceWithIncentives_revertsWithUnapprovedMarket() public {
+        _setUpThreeMarkets();
+
+        address unapprovedMarket = address(0xBEEF);
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _singleTaggedIncentive(unapprovedMarket, 1_000);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimizerReader.OptimizerReader__InvalidIncentiveMarket.selector,
+                unapprovedMarket
+            )
+        );
+        reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+    }
+
+    function test_optimalRebalanceWithIncentives_revertsWithDuplicateMarket() public {
+        _setUpThreeMarkets();
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            new OptimizerReader.MarketIncentiveAPYBps[](2);
+        marketIncentives[0] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: cUSDC_WMON_MARKET,
+            incentiveAPYBps: 1_000
+        });
+        marketIncentives[1] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: cUSDC_WMON_MARKET,
+            incentiveAPYBps: 2_000
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimizerReader.OptimizerReader__DuplicateIncentiveMarket.selector,
+                cUSDC_WMON_MARKET
+            )
+        );
+        reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+    }
+
+    function test_optimalRebalanceWithIncentives_zeroIncentivesMatchesDefault() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(50_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            new OptimizerReader.MarketIncentiveAPYBps[](0);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory defaultActions,
+            LendingOptimizer.AllocationBound[] memory defaultBounds
+        ) = reader.optimalRebalance(address(optimizer), 500, 200);
+        (
+            LendingOptimizer.ReallocationAction[] memory incentiveActions,
+            LendingOptimizer.AllocationBound[] memory incentiveBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        _assertRebalanceResultsEq(defaultActions, incentiveActions, defaultBounds, incentiveBounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_equalNonZeroIncentivesMatchesDefault() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(50_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(750, 750, 750);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory defaultActions,
+            LendingOptimizer.AllocationBound[] memory defaultBounds
+        ) = reader.optimalRebalance(address(optimizer), 500, 200);
+        (
+            LendingOptimizer.ReallocationAction[] memory incentiveActions,
+            LendingOptimizer.AllocationBound[] memory incentiveBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        _assertRebalanceResultsEq(defaultActions, incentiveActions, defaultBounds, incentiveBounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_unorderedTagsMatchApprovedOrder() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(100_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory orderedMarketIncentives =
+            _marketIncentives(100, 500, 1_000);
+        OptimizerReader.MarketIncentiveAPYBps[] memory unorderedMarketIncentives =
+            _taggedIncentives(
+                cUSDC_WETH_MARKET,
+                1_000,
+                cUSDC_WMON_MARKET,
+                100,
+                cUSDC_WBTC_MARKET,
+                500
+            );
+
+        (
+            LendingOptimizer.ReallocationAction[] memory orderedActions,
+            LendingOptimizer.AllocationBound[] memory orderedBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, orderedMarketIncentives);
+        (
+            LendingOptimizer.ReallocationAction[] memory taggedActions,
+            LendingOptimizer.AllocationBound[] memory taggedBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, unorderedMarketIncentives);
+
+        _assertRebalanceResultsEq(orderedActions, taggedActions, orderedBounds, taggedBounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_missingMarketsDefaultToZero() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory fullMarketIncentives = _marketIncentives(0, 1_000, 0);
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _singleTaggedIncentive(cUSDC_WBTC_MARKET, 1_000);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory orderedActions,
+            LendingOptimizer.AllocationBound[] memory orderedBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, fullMarketIncentives);
+        (
+            LendingOptimizer.ReallocationAction[] memory taggedActions,
+            LendingOptimizer.AllocationBound[] memory taggedBounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        _assertRebalanceResultsEq(orderedActions, taggedActions, orderedBounds, taggedBounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_prefersIncentivizedMarket() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(0, 0, 1_000);
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        assertGt(actions[2].assetsOrBps, 0, "Should add assets to incentivized market");
+    }
+
+    function test_optimalRebalanceWithIncentives_rankedIncentivesFillCapsInOrder() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(100_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _marketIncentives(100, 500, 1_000);
+        uint256 chunkToleranceBps = BPS / 200 + 1;
+
+        (, LendingOptimizer.AllocationBound[] memory bounds) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 0, 200, marketIncentives);
+
+        assertEq(bounds.length, 3, "Should return bounds for every market");
+        _assertZeroSlippageBounds(bounds);
+        assertLe(bounds[2].minBps, 2000, "Highest incentive market should not exceed its hard cap");
+        assertGe(
+            bounds[2].minBps + chunkToleranceBps,
+            2000,
+            "Highest incentive market should fill to within one chunk of its hard cap"
+        );
+        assertLe(bounds[1].minBps, 5000, "Second incentive market should not exceed its hard cap");
+        assertGe(
+            bounds[1].minBps + chunkToleranceBps,
+            5000,
+            "Second incentive market should fill to within one chunk of its hard cap"
+        );
+        assertApproxEqAbs(
+            bounds[0].minBps,
+            3010,
+            chunkToleranceBps * 2,
+            "Lowest incentive market should receive residual assets"
+        );
+    }
+
+    function test_optimalRebalanceWithIncentives_canOvercomeNativeRateRanking() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        (LendingOptimizer.ReallocationAction[] memory baselineActions, ) =
+            reader.optimalRebalance(address(optimizer), 0, 200);
+        uint256[] memory baselineBps = _idealBpsFromActions(baselineActions);
+        uint256 targetIdx = _lowestBpsIndex(baselineBps);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _singleTaggedIncentive(_marketAtIndex(targetIdx), 1_000);
+
+        (LendingOptimizer.ReallocationAction[] memory incentiveActions, ) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 0, 200, marketIncentives);
+        uint256[] memory incentiveBps = _idealBpsFromActions(incentiveActions);
+
+        assertGt(
+            incentiveBps[targetIdx],
+            baselineBps[targetIdx] + 5_000,
+            "High incentive should overcome lower native rate ranking"
+        );
+        assertGe(
+            incentiveBps[targetIdx] + BPS / 200 + 1,
+            9995,
+            "Target market should fill its buffered 100% cap within one chunk"
+        );
+        assertLe(incentiveBps[targetIdx], 9995, "Target market should not exceed buffered 100% cap");
+    }
+
+    function test_optimalRebalanceWithIncentives_respectsAllocationCaps() public {
+        _setUpThreeMarkets();
+        _depositToAllMarkets(100_000e6);
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(0, 0, 1_000);
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 0, 200, marketIncentives);
+        uint256[] memory incentiveBps = _idealBpsFromActions(actions);
+        uint256 chunkToleranceBps = BPS / 200 + 1;
+
+        assertLe(incentiveBps[2], 2000, "Incentives should not push market above its hard cap");
+        assertGe(
+            incentiveBps[2] + chunkToleranceBps,
+            2000,
+            "Incentivized market should fill to within one chunk of its hard cap"
+        );
+    }
+
+    function test_optimalRebalanceWithIncentives_doesNotDepositToMintPausedMarket() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
+        vm.mockCall(
+            mmWBTC,
+            abi.encodeWithSelector(IMarketManager.actionsPaused.selector, cUSDC_WBTC_MARKET),
+            abi.encode(true, false, false)
+        );
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(0, 1_000, 0);
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        assertLe(actions[1].assetsOrBps, 0, "Mint-paused market must not receive deposits");
+    }
+
+    function test_optimalRebalanceWithIncentives_doesNotDepositToRedeemPausedMarket() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        address mmWBTC = address(IBorrowableCToken(cUSDC_WBTC_MARKET).marketManager());
+        vm.mockCall(
+            mmWBTC,
+            abi.encodeWithSelector(bytes4(keccak256("redeemPaused()"))),
+            abi.encode(uint8(2))
+        );
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(0, 1_000, 0);
+
+        (LendingOptimizer.ReallocationAction[] memory actions, ) =
+            reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        if (actions.length > 0) {
+            assertEq(actions[1].assetsOrBps, 0, "Redeem-paused market must stay frozen");
+        }
+    }
+
+    function test_optimalRebalanceWithIncentives_actionsExecuteAndStayWithinBounds() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        uint256 allocationBefore = _allocatedAssets(cUSDC_WETH_MARKET);
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives = _marketIncentives(0, 0, 1_000);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        optimizer.rebalance(actions, bounds);
+
+        assertGt(
+            _allocatedAssets(cUSDC_WETH_MARKET),
+            allocationBefore,
+            "Execution should increase allocation to the incentivized market"
+        );
+        _assertAllocationsWithinBounds(bounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_acceptsMaxIncentiveAPYBps() public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        uint256 maxIncentiveAPYBps = reader.MAX_INCENTIVE_APY_BPS();
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _marketIncentives(maxIncentiveAPYBps, maxIncentiveAPYBps, maxIncentiveAPYBps);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+
+        _assertRebalancePlanWellFormed(actions, bounds);
+    }
+
+    function test_optimalRebalanceWithIncentives_revertsWithIncentiveAboveMax() public {
+        _setUpThreeMarkets();
+
+        uint256 invalidIncentiveAPYBps = reader.MAX_INCENTIVE_APY_BPS() + 1;
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _singleTaggedIncentive(cUSDC_WMON_MARKET, invalidIncentiveAPYBps);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimizerReader.OptimizerReader__InvalidIncentiveAPYBps.selector,
+                cUSDC_WMON_MARKET,
+                invalidIncentiveAPYBps
+            )
+        );
+        reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+    }
+
+    function test_optimalRebalanceWithIncentives_revertsWithMaxUintIncentive() public {
+        _setUpThreeMarkets();
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _singleTaggedIncentive(cUSDC_WMON_MARKET, type(uint256).max);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OptimizerReader.OptimizerReader__InvalidIncentiveAPYBps.selector,
+                cUSDC_WMON_MARKET,
+                type(uint256).max
+            )
+        );
+        reader.optimalRebalanceWithIncentives(address(optimizer), 500, 200, marketIncentives);
+    }
+
+    function testFuzz_optimalRebalanceWithIncentives_noMathRevertForValidIncentiveBps(
+        uint256 market0Bps,
+        uint256 market1Bps,
+        uint256 market2Bps,
+        uint16 slippageSeed,
+        uint16 chunksSeed
+    ) public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        uint256 slippageBps = bound(uint256(slippageSeed), 0, BPS);
+        uint256 rebalanceChunks = bound(uint256(chunksSeed), 1, 500);
+        uint256 maxIncentiveAPYBps = reader.MAX_INCENTIVE_APY_BPS();
+        market0Bps = bound(market0Bps, 0, maxIncentiveAPYBps);
+        market1Bps = bound(market1Bps, 0, maxIncentiveAPYBps);
+        market2Bps = bound(market2Bps, 0, maxIncentiveAPYBps);
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _taggedIncentives(
+                cUSDC_WETH_MARKET,
+                market2Bps,
+                cUSDC_WMON_MARKET,
+                market0Bps,
+                cUSDC_WBTC_MARKET,
+                market1Bps
+            );
+
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalanceWithIncentives(
+            address(optimizer),
+            slippageBps,
+            rebalanceChunks,
+            marketIncentives
+        );
+
+        _assertRebalancePlanWellFormed(actions, bounds);
+    }
+
+    function testFuzz_optimalRebalanceWithIncentives_noMathRevertWithMissingMarkets(
+        uint256 market0Bps,
+        uint256 market1Bps,
+        uint256 market2Bps,
+        uint8 maskSeed,
+        uint16 chunksSeed
+    ) public {
+        _setUpUnconstrainedOptimizer();
+        _depositEvenlyToThreeMarkets(100_000e6);
+
+        uint8 marketMask = uint8(bound(uint256(maskSeed), 0, 7));
+        uint256 rebalanceChunks = bound(uint256(chunksSeed), 1, 500);
+        uint256 maxIncentiveAPYBps = reader.MAX_INCENTIVE_APY_BPS();
+        market0Bps = bound(market0Bps, 0, maxIncentiveAPYBps);
+        market1Bps = bound(market1Bps, 0, maxIncentiveAPYBps);
+        market2Bps = bound(market2Bps, 0, maxIncentiveAPYBps);
+        OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives =
+            _maskedMarketIncentives(marketMask, market0Bps, market1Bps, market2Bps);
+
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalanceWithIncentives(address(optimizer), 500, rebalanceChunks, marketIncentives);
+
+        _assertRebalancePlanWellFormed(actions, bounds);
+    }
+
     function test_getOptimizerMarketData_accruesBeforeReportingTotalAssets() public {
         _setUpOneMarket();
 
@@ -1302,6 +1706,43 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
 
     // ============ Helpers ============
 
+    function _projectPostActionAssets(
+        LendingOptimizer.ReallocationAction[] memory actions
+    ) internal view returns (uint256[] memory assets, uint256 total) {
+        assets = new uint256[](actions.length);
+
+        for (uint256 i; i < actions.length; ++i) {
+            IBorrowableCToken cToken = actions[i].cToken;
+            uint256 optimizerShares = cToken.balanceOf(address(optimizer));
+            int256 delta = actions[i].assetsOrBps;
+
+            if (delta > 0) {
+                uint256 depositAssets = uint256(delta);
+                uint256 mintShares = cToken.previewDeposit(depositAssets);
+                assets[i] = FixedPointMathLib.fullMulDiv(
+                    optimizerShares + mintShares,
+                    cToken.totalAssets() + depositAssets,
+                    cToken.totalSupply() + mintShares
+                );
+            } else if (delta < 0) {
+                uint256 withdrawAssets = uint256(-delta);
+                uint256 burnShares = cToken.previewWithdraw(withdrawAssets);
+
+                if (burnShares < optimizerShares) {
+                    assets[i] = FixedPointMathLib.fullMulDiv(
+                        optimizerShares - burnShares,
+                        cToken.totalAssets() - withdrawAssets,
+                        cToken.totalSupply() - burnShares
+                    );
+                }
+            } else {
+                assets[i] = cToken.convertToAssets(optimizerShares);
+            }
+
+            total += assets[i];
+        }
+    }
+
     /// @dev Sets up an optimizer with 100% caps on all 3 markets and 0% fee.
     function _setUpUnconstrainedOptimizer() internal {
         address[] memory approvedCTokens = new address[](3);
@@ -1362,6 +1803,220 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500, 200);
         if (actions.length > 0) optimizer.rebalance(actions, bounds);
+    }
+
+    function _depositEvenlyToThreeMarkets(uint256 perMarket) internal {
+        deal(USDC_MONAD, address(this), perMarket * 3);
+        IERC20(USDC_MONAD).approve(address(optimizer), perMarket * 3);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(perMarket, address(this), cUSDC_WMON_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(perMarket, address(this), cUSDC_WBTC_MARKET);
+        LendingOptimizerHarness(address(optimizer)).depositToMarket(perMarket, address(this), cUSDC_WETH_MARKET);
+    }
+
+    function _marketIncentives(
+        uint256 market0Bps,
+        uint256 market1Bps,
+        uint256 market2Bps
+    ) internal view returns (OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives) {
+        marketIncentives = _taggedIncentives(
+            cUSDC_WMON_MARKET,
+            market0Bps,
+            cUSDC_WBTC_MARKET,
+            market1Bps,
+            cUSDC_WETH_MARKET,
+            market2Bps
+        );
+    }
+
+    function _marketAtIndex(uint256 index) internal view returns (address market) {
+        if (index == 0) return cUSDC_WMON_MARKET;
+        if (index == 1) return cUSDC_WBTC_MARKET;
+        if (index == 2) return cUSDC_WETH_MARKET;
+        revert("invalid market index");
+    }
+
+    function _taggedIncentives(
+        address market0,
+        uint256 market0Bps,
+        address market1,
+        uint256 market1Bps,
+        address market2,
+        uint256 market2Bps
+    ) internal pure returns (OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives) {
+        marketIncentives = new OptimizerReader.MarketIncentiveAPYBps[](3);
+        marketIncentives[0] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: market0,
+            incentiveAPYBps: market0Bps
+        });
+        marketIncentives[1] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: market1,
+            incentiveAPYBps: market1Bps
+        });
+        marketIncentives[2] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: market2,
+            incentiveAPYBps: market2Bps
+        });
+    }
+
+    function _singleTaggedIncentive(
+        address market,
+        uint256 marketBps
+    ) internal pure returns (OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives) {
+        marketIncentives = new OptimizerReader.MarketIncentiveAPYBps[](1);
+        marketIncentives[0] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: market,
+            incentiveAPYBps: marketBps
+        });
+    }
+
+    function _maskedMarketIncentives(
+        uint8 marketMask,
+        uint256 market0Bps,
+        uint256 market1Bps,
+        uint256 market2Bps
+    ) internal view returns (OptimizerReader.MarketIncentiveAPYBps[] memory marketIncentives) {
+        uint256 numIncentives;
+        if ((marketMask & uint8(1)) != 0) ++numIncentives;
+        if ((marketMask & uint8(2)) != 0) ++numIncentives;
+        if ((marketMask & uint8(4)) != 0) ++numIncentives;
+
+        marketIncentives = new OptimizerReader.MarketIncentiveAPYBps[](numIncentives);
+
+        uint256 index;
+        if ((marketMask & uint8(1)) != 0) {
+            marketIncentives[index++] = OptimizerReader.MarketIncentiveAPYBps({
+                cToken: cUSDC_WMON_MARKET,
+                incentiveAPYBps: market0Bps
+            });
+        }
+        if ((marketMask & uint8(2)) != 0) {
+            marketIncentives[index++] = OptimizerReader.MarketIncentiveAPYBps({
+                cToken: cUSDC_WBTC_MARKET,
+                incentiveAPYBps: market1Bps
+            });
+        }
+        if ((marketMask & uint8(4)) != 0) {
+            marketIncentives[index] = OptimizerReader.MarketIncentiveAPYBps({
+                cToken: cUSDC_WETH_MARKET,
+                incentiveAPYBps: market2Bps
+            });
+        }
+    }
+
+    function _allocatedAssets(address market) internal view returns (uint256) {
+        IBorrowableCToken ct = IBorrowableCToken(market);
+        return ct.convertToAssets(ct.balanceOf(address(optimizer)));
+    }
+
+    function _idealAssetsFromActions(
+        LendingOptimizer.ReallocationAction[] memory actions
+    ) internal view returns (uint256[] memory idealAssets) {
+        idealAssets = new uint256[](actions.length);
+
+        for (uint256 i; i < actions.length; ++i) {
+            uint256 current = actions[i].cToken.convertToAssets(
+                actions[i].cToken.balanceOf(address(optimizer))
+            );
+            int256 delta = actions[i].assetsOrBps;
+            idealAssets[i] = delta >= 0
+                ? current + uint256(delta)
+                : current - uint256(-delta);
+        }
+    }
+
+    function _idealBpsFromActions(
+        LendingOptimizer.ReallocationAction[] memory actions
+    ) internal view returns (uint256[] memory idealBps) {
+        uint256[] memory idealAssets = _idealAssetsFromActions(actions);
+        idealBps = new uint256[](idealAssets.length);
+
+        uint256 totalIdealAssets;
+        for (uint256 i; i < idealAssets.length; ++i) {
+            totalIdealAssets += idealAssets[i];
+        }
+
+        for (uint256 i; i < idealAssets.length; ++i) {
+            idealBps[i] = FixedPointMathLib.mulDiv(idealAssets[i], BPS, totalIdealAssets);
+        }
+    }
+
+    function _lowestBpsIndex(
+        uint256[] memory allocationBps
+    ) internal pure returns (uint256 lowestIdx) {
+        uint256 lowestBps = type(uint256).max;
+        for (uint256 i; i < allocationBps.length; ++i) {
+            if (allocationBps[i] < lowestBps) {
+                lowestBps = allocationBps[i];
+                lowestIdx = i;
+            }
+        }
+    }
+
+    function _assertZeroSlippageBounds(
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) internal pure {
+        for (uint256 i; i < bounds.length; ++i) {
+            assertLe(
+                bounds[i].maxBps - bounds[i].minBps,
+                1,
+                "Zero slippage should use the narrowest executable bounds"
+            );
+        }
+    }
+
+    function _assertAllocationsWithinBounds(
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) internal view {
+        uint256 ta = optimizer.totalAssets();
+
+        for (uint256 i; i < bounds.length; ++i) {
+            uint256 allocationBps = FixedPointMathLib.mulDiv(
+                _allocatedAssets(bounds[i].cToken),
+                BPS,
+                ta
+            );
+            assertGe(allocationBps, bounds[i].minBps, "allocation below bound");
+            assertLe(allocationBps, bounds[i].maxBps, "allocation above bound");
+        }
+    }
+
+    function _assertRebalancePlanWellFormed(
+        LendingOptimizer.ReallocationAction[] memory actions,
+        LendingOptimizer.AllocationBound[] memory bounds
+    ) internal view {
+        assertEq(bounds.length, actions.length, "bounds and actions length mismatch");
+        if (actions.length == 0) return;
+
+        address[] memory markets = optimizer.getApprovedMarkets();
+        assertEq(actions.length, markets.length, "actions length");
+
+        for (uint256 i; i < actions.length; ++i) {
+            assertEq(address(actions[i].cToken), markets[i], "action market order");
+            assertEq(bounds[i].cToken, markets[i], "bound market order");
+            assertLe(bounds[i].minBps, bounds[i].maxBps, "minBps > maxBps");
+            assertLe(bounds[i].maxBps, BPS, "maxBps exceeds 100%");
+        }
+    }
+
+    function _assertRebalanceResultsEq(
+        LendingOptimizer.ReallocationAction[] memory expectedActions,
+        LendingOptimizer.ReallocationAction[] memory actualActions,
+        LendingOptimizer.AllocationBound[] memory expectedBounds,
+        LendingOptimizer.AllocationBound[] memory actualBounds
+    ) internal {
+        assertEq(actualActions.length, expectedActions.length, "actions length");
+        assertEq(actualBounds.length, expectedBounds.length, "bounds length");
+
+        for (uint256 i; i < expectedActions.length; ++i) {
+            assertEq(address(actualActions[i].cToken), address(expectedActions[i].cToken), "action cToken");
+            assertEq(actualActions[i].assetsOrBps, expectedActions[i].assetsOrBps, "action amount");
+        }
+
+        for (uint256 i; i < expectedBounds.length; ++i) {
+            assertEq(actualBounds[i].cToken, expectedBounds[i].cToken, "bound cToken");
+            assertEq(actualBounds[i].minBps, expectedBounds[i].minBps, "bound min");
+            assertEq(actualBounds[i].maxBps, expectedBounds[i].maxBps, "bound max");
+        }
     }
 
     function _assertExchangeRateNotMateriallyLower(
@@ -1454,15 +2109,79 @@ contract TestOptimalRebalance is TestBaseLendingOptimizer {
         }
     }
 
-    /// @notice Zero slippage produces exact bounds (minBps == maxBps).
-    function test_optimalRebalance_success_zeroSlippageExactBounds() public {
+    /// @notice Zero slippage uses the narrowest integer-BPS bounds that contain
+    ///         the projected post-rebalance allocation.
+    function test_optimalRebalance_success_zeroSlippageUsesNarrowestExecutableBounds() public {
         _setUpThreeMarkets();
         _depositToAllMarkets(10_000e6);
 
-        (, LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 0, 200);
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalance(address(optimizer), 0, 200);
+        (uint256[] memory projectedAssets, uint256 projectedTotal) =
+            _projectPostActionAssets(actions);
 
         for (uint256 i; i < bounds.length; ++i) {
-            assertEq(bounds[i].minBps, bounds[i].maxBps, "Zero slippage should give exact bounds");
+            uint256 expectedMin = FixedPointMathLib.fullMulDiv(
+                projectedAssets[i], BPS, projectedTotal
+            );
+            uint256 expectedMax = FixedPointMathLib.fullMulDivUp(
+                projectedAssets[i], BPS, projectedTotal
+            );
+
+            assertEq(bounds[i].minBps, expectedMin, "Incorrect zero-slippage minimum");
+            assertEq(bounds[i].maxBps, expectedMax, "Incorrect zero-slippage maximum");
+            assertLe(
+                bounds[i].maxBps - bounds[i].minBps,
+                1,
+                "Zero-slippage interval should be at most one BPS wide"
+            );
+        }
+    }
+
+    /// @notice Regression: floor-derived zero-slippage max bounds previously
+    ///         reverted against the executor's ceil-based upper-bound check.
+    function test_regression_zeroSlippageNonIntegralBoundsExecute() public {
+        _setUpUnconstrainedOptimizer();
+
+        address[3] memory markets = [
+            cUSDC_WMON_MARKET,
+            cUSDC_WBTC_MARKET,
+            cUSDC_WETH_MARKET
+        ];
+        uint256[3] memory deposits =
+            [uint256(300_000e6), 100_000e6, 100_000e6];
+
+        for (uint256 i; i < markets.length; ++i) {
+            deal(USDC_MONAD, address(this), deposits[i]);
+            IERC20(USDC_MONAD).approve(address(optimizer), deposits[i]);
+            LendingOptimizerHarness(address(optimizer)).depositToMarket(
+                deposits[i], address(this), markets[i]
+            );
+        }
+
+        (
+            LendingOptimizer.ReallocationAction[] memory actions,
+            LendingOptimizer.AllocationBound[] memory bounds
+        ) = reader.optimalRebalance(address(optimizer), 0, 200);
+
+        assertEq(actions.length, 3, "Expected a nonempty rebalance plan");
+        (uint256[] memory projectedAssets,) =
+            _projectPostActionAssets(actions);
+
+        optimizer.rebalance(actions, bounds);
+
+        for (uint256 i; i < markets.length; ++i) {
+            IBorrowableCToken cToken = IBorrowableCToken(markets[i]);
+            uint256 actualAssets = cToken.convertToAssets(
+                cToken.balanceOf(address(optimizer))
+            );
+            assertEq(
+                actualAssets,
+                projectedAssets[i],
+                "Projected assets should match execution"
+            );
         }
     }
 

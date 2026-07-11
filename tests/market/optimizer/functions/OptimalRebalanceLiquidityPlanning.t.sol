@@ -564,6 +564,14 @@ contract MockCToken {
         return currentAssets;
     }
 
+    function totalAssets() external view returns (uint256) {
+        return currentAssets;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return currentAssets;
+    }
+
     function convertToAssets(uint256 shares) external pure returns (uint256) {
         return shares;
     }
