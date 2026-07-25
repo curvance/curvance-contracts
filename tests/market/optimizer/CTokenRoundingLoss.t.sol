@@ -176,10 +176,35 @@ contract CTokenRoundingLossTest is TestBaseLendingOptimizer {
         emit log_named_uint("ct shares (floor)     ", ctFloor);
         emit log_named_uint("ct shares (ceil)      ", ctCeil);
 
-        // Do the withdrawal.
-        address user = address(0xCAFE);
-        vm.prank(user);
-        optimizer.withdraw(amount, user, user);
+        {
+            address user = address(0xCAFE);
+            uint256 previewShares = optimizer.previewWithdraw(amount);
+            uint256 supplyBefore = optimizer.totalSupply();
+            uint256 userAssetsBefore = IERC20(USDC_MONAD).balanceOf(user);
+
+            // Do the withdrawal.
+            vm.prank(user);
+            uint256 actualShares = optimizer.withdraw(amount, user, user);
+
+            emit log_named_uint("preview shares        ", previewShares);
+            emit log_named_uint("actual shares burned  ", actualShares);
+
+            assertEq(
+                actualShares,
+                previewShares + 1,
+                "cToken rounding loss should exceed preview by one optimizer share"
+            );
+            assertEq(
+                supplyBefore - optimizer.totalSupply(),
+                actualShares,
+                "returned shares should equal the optimizer supply delta"
+            );
+            assertEq(
+                IERC20(USDC_MONAD).balanceOf(user) - userAssetsBefore,
+                amount,
+                "receiver should still receive the exact requested assets"
+            );
+        }
 
         // Re-sync to absorb cToken loss into _totalAssets.
         optimizer.accrueIfNeeded();

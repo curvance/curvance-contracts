@@ -29,6 +29,17 @@ contract PreLiquidationExitLossRegression is TestBaseLendingOptimizer {
         uint256 secondHolderAssets;
         uint256 riskyMarketFunding;
         uint256 healthyMarketFunding;
+        uint256 terminalOptimizerAssets;
+        uint256 terminalOptimizerMarketAssets;
+        uint256 terminalNonOptimizerMarketBacking;
+        uint256 terminalApprovedMarketAssets;
+        uint256 terminalIdleAssets;
+        uint256 terminalSupply;
+        uint256 terminalDeadShares;
+        uint256 terminalFeeShares;
+        uint256 terminalDeadShareAssets;
+        uint256 terminalFeeShareAssets;
+        uint256 terminalShareClaimDust;
     }
 
     address internal holderOne = makeAddr("preLiquidationHolderOne");
@@ -140,6 +151,52 @@ contract PreLiquidationExitLossRegression is TestBaseLendingOptimizer {
             exitFirst.healthyMarketFunding,
             exitFirst.riskyMarketFunding,
             "healthy markets must fund most of the pre-liquidation exit"
+        );
+
+        _assertTerminalAccounting(exitFirst);
+        _assertTerminalAccounting(liquidateFirst);
+        assertEq(
+            exitFirst.terminalSupply,
+            liquidateFirst.terminalSupply,
+            "branch ordering must not change terminal optimizer supply"
+        );
+        assertEq(
+            exitFirst.terminalDeadShares,
+            liquidateFirst.terminalDeadShares,
+            "branch ordering must not change dead shares"
+        );
+        assertEq(
+            exitFirst.terminalFeeShares,
+            liquidateFirst.terminalFeeShares,
+            "branch ordering must not change fee shares"
+        );
+
+        uint256 exitFirstHolderPayouts =
+            exitFirst.firstHolderAssets + exitFirst.secondHolderAssets;
+        uint256 liquidateFirstHolderPayouts = liquidateFirst.firstHolderAssets
+            + liquidateFirst.secondHolderAssets;
+        uint256 exitFirstAggregate = exitFirstHolderPayouts
+            + exitFirst.terminalApprovedMarketAssets
+            + exitFirst.terminalIdleAssets;
+        uint256 liquidateFirstAggregate = liquidateFirstHolderPayouts
+            + liquidateFirst.terminalApprovedMarketAssets
+            + liquidateFirst.terminalIdleAssets;
+
+        assertEq(
+            exitFirstAggregate,
+            liquidateFirstAggregate,
+            "holder payouts plus terminal approved-market assets must conserve"
+        );
+        assertGt(
+            liquidateFirst.terminalApprovedMarketAssets,
+            exitFirst.terminalApprovedMarketAssets,
+            "larger early payouts must leave less value in approved markets"
+        );
+        assertEq(
+            exitFirstHolderPayouts - liquidateFirstHolderPayouts,
+            liquidateFirst.terminalApprovedMarketAssets
+                - exitFirst.terminalApprovedMarketAssets,
+            "terminal market value must exactly explain the payout difference"
         );
     }
 
@@ -255,6 +312,76 @@ contract PreLiquidationExitLossRegression is TestBaseLendingOptimizer {
             outcome.firstHolderAssets = _redeemAll(holderOne);
             outcome.secondHolderAssets = _redeemAll(holderTwo);
         }
+
+        _recordTerminalAccounting(outcome);
+    }
+
+    function _recordTerminalAccounting(BranchOutcome memory outcome)
+        internal
+        view
+    {
+        outcome.terminalOptimizerAssets = optimizer.totalAssets();
+        outcome.terminalOptimizerMarketAssets = _optimizerMarketAssets(
+            riskyMarket
+        ) + _optimizerMarketAssets(healthyMarketOne)
+        + _optimizerMarketAssets(healthyMarketTwo);
+        outcome.terminalApprovedMarketAssets = BorrowableCToken(riskyMarket)
+            .totalAssets() + BorrowableCToken(healthyMarketOne).totalAssets()
+        + BorrowableCToken(healthyMarketTwo).totalAssets();
+        outcome.terminalNonOptimizerMarketBacking =
+            outcome.terminalApprovedMarketAssets
+                - outcome.terminalOptimizerMarketAssets;
+        outcome.terminalIdleAssets =
+            IERC20(USDC_MONAD).balanceOf(address(optimizer));
+
+        outcome.terminalSupply = optimizer.totalSupply();
+        outcome.terminalDeadShares = optimizer.balanceOf(address(0));
+        outcome.terminalFeeShares =
+            optimizer.balanceOf(liveCentralRegistry.daoAddress());
+        outcome.terminalDeadShareAssets =
+            optimizer.convertToAssets(outcome.terminalDeadShares);
+        outcome.terminalFeeShareAssets =
+            optimizer.convertToAssets(outcome.terminalFeeShares);
+        outcome.terminalShareClaimDust = outcome.terminalOptimizerAssets
+            - outcome.terminalDeadShareAssets - outcome.terminalFeeShareAssets;
+    }
+
+    function _assertTerminalAccounting(BranchOutcome memory outcome)
+        internal
+        view
+    {
+        assertEq(
+            outcome.terminalIdleAssets,
+            0,
+            "optimizer must not retain idle underlying"
+        );
+        assertEq(
+            outcome.terminalOptimizerAssets,
+            outcome.terminalOptimizerMarketAssets,
+            "cached optimizer NAV must match terminal market positions"
+        );
+        assertEq(
+            outcome.terminalSupply,
+            outcome.terminalDeadShares + outcome.terminalFeeShares,
+            "terminal optimizer supply must be only dead and fee shares"
+        );
+        assertEq(
+            outcome.terminalOptimizerAssets,
+            outcome.terminalDeadShareAssets + outcome.terminalFeeShareAssets
+                + outcome.terminalShareClaimDust,
+            "terminal optimizer NAV must map to remaining share claims"
+        );
+        assertLe(
+            outcome.terminalShareClaimDust,
+            1,
+            "two terminal share buckets can leave at most one atomic unit"
+        );
+        assertEq(
+            outcome.terminalApprovedMarketAssets,
+            outcome.terminalOptimizerMarketAssets
+                + outcome.terminalNonOptimizerMarketBacking,
+            "terminal approved-market value must include non-optimizer backing"
+        );
     }
 
     function _liquidateUnderwaterBorrower()

@@ -349,6 +349,105 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(callbackDebtCToken.marketOutstandingDebt(), 100e6);
         assertEq(debt.balanceOf(address(this)), 100e6);
     }
+    function test_borrowableCTokenBorrow_priceGuardDebtCapPersistsBorrowRejectedAtRawPrice()
+        public
+    {
+        _provideUsdcLiquidity(1_000_000e6);
+        _setCTokenConfigBasic(
+            address(borrowableCUSDC),
+            100_000e18,
+            1_000_000e6
+        );
+        _postPendleCollateral(user1, 10e18);
+
+        mockUsdcFeed.setMockAnswer(1.10e8);
+        _refreshMockFeeds();
+
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            1e18,
+            0.95e18
+        );
+        dualChainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            1e18,
+            0.95e18
+        );
+
+        (uint256 cappedPrice, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(cappedPrice, 1e18);
+        assertEq(errorCode, 0);
+
+        (, uint256 maxDebt,) = marketManagerIsolated.statusOf(user1);
+        uint256 borrowAssets = (maxDebt / 1e12) - 1;
+        assertLt(borrowAssets, borrowableCUSDC.assetsHeld());
+        assertLt(
+            borrowAssets,
+            marketManagerIsolated.debtCaps(address(borrowableCUSDC))
+        );
+
+        uint256 receiverBalanceBefore = usdc.balanceOf(user1);
+        uint256 accountDebtBefore = borrowableCUSDC.debtBalance(user1);
+        uint256 marketDebtBefore = borrowableCUSDC.marketOutstandingDebt();
+        uint256 marketCashBefore = usdc.balanceOf(address(borrowableCUSDC));
+        uint256 baseline = vm.snapshotState();
+
+        vm.prank(user1);
+        borrowableCUSDC.borrow(borrowAssets, user1);
+
+        assertEq(
+            usdc.balanceOf(user1),
+            receiverBalanceBefore + borrowAssets,
+            "guarded borrow should transfer assets"
+        );
+        assertEq(
+            borrowableCUSDC.debtBalance(user1),
+            accountDebtBefore + borrowAssets,
+            "guarded borrow should persist account debt"
+        );
+        assertEq(
+            borrowableCUSDC.marketOutstandingDebt(),
+            marketDebtBefore + borrowAssets,
+            "guarded borrow should persist market debt"
+        );
+        assertEq(
+            usdc.balanceOf(address(borrowableCUSDC)),
+            marketCashBefore - borrowAssets,
+            "guarded borrow should reduce market cash"
+        );
+
+        assertTrue(vm.revertToState(baseline));
+
+        chainlinkAdaptor.disableGuardedPriceConfig(_USDC_ADDRESS, true);
+        dualChainlinkAdaptor.disableGuardedPriceConfig(_USDC_ADDRESS, true);
+
+        (uint256 rawPrice, uint256 rawErrorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(rawPrice, 1.10e18);
+        assertEq(rawErrorCode, 0);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(user1);
+        borrowableCUSDC.borrow(borrowAssets, user1);
+
+        assertEq(usdc.balanceOf(user1), receiverBalanceBefore);
+        assertEq(borrowableCUSDC.debtBalance(user1), accountDebtBefore);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), marketDebtBefore);
+        assertEq(
+            usdc.balanceOf(address(borrowableCUSDC)),
+            marketCashBefore
+        );
+    }
+
     function test_borrowableCTokenBorrow_success() public {
         borrowableCUSDC.deposit(200e6, address(this));
         pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);

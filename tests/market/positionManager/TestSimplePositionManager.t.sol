@@ -840,6 +840,94 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_positionManagerDelegateLifecycle_sameAddressReaddRestoresApproval()
+        public
+    {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.deposit(1000e6, user);
+        borrowableCUSDC.postCollateral(1000e6);
+        positionManager.setDelegateApproval(address(user2), true);
+
+        vm.stopPrank();
+
+        uint256 borrowAssets = 20 ether;
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken =
+            IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = borrowAssets;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = borrowAssets;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            borrowAssets,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        assertTrue(positionManager.isDelegate(user, address(user2)));
+
+        uint256 debtBefore = borrowableCDAI.debtBalance(user);
+        vm.prank(user2);
+        positionManager.leverageFor(leverageAction, user, 0.05e18);
+        assertEq(borrowableCDAI.debtBalance(user), debtBefore + borrowAssets);
+
+        marketManagerIsolated.removePositionManager(address(positionManager));
+        assertFalse(
+            marketManagerIsolated.isPositionManager(address(positionManager))
+        );
+        assertTrue(positionManager.isDelegate(user, address(user2)));
+
+        uint256 debtWhileRemoved = borrowableCDAI.debtBalance(user);
+        vm.expectRevert(bytes4(keccak256("BaseCToken__Unauthorized()")));
+        vm.prank(user2);
+        positionManager.leverageFor(leverageAction, user, 0.05e18);
+        assertEq(borrowableCDAI.debtBalance(user), debtWhileRemoved);
+
+        marketManagerIsolated.addPositionManager(address(positionManager));
+        assertTrue(positionManager.isDelegate(user, address(user2)));
+
+        vm.prank(user2);
+        positionManager.leverageFor(leverageAction, user, 0.05e18);
+        assertEq(
+            borrowableCDAI.debtBalance(user), debtWhileRemoved + borrowAssets
+        );
+
+        SimplePositionManager replacement = new SimplePositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+        marketManagerIsolated.addPositionManager(address(replacement));
+        assertFalse(replacement.isDelegate(user, address(user2)));
+
+        vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
+        vm.prank(user2);
+        replacement.leverageFor(leverageAction, user, 0.05e18);
+
+        vm.prank(user);
+        centralRegistry.incrementApprovalIndex();
+        assertFalse(positionManager.isDelegate(user, address(user2)));
+
+        uint256 debtAfterIndexIncrement = borrowableCDAI.debtBalance(user);
+        vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
+        vm.prank(user2);
+        positionManager.leverageFor(leverageAction, user, 0.05e18);
+        assertEq(borrowableCDAI.debtBalance(user), debtAfterIndexIncrement);
+    }
+
     function testRevert_leverageAboveDebtCap() public {
         vm.startPrank(user);
 
