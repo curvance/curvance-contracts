@@ -16,6 +16,7 @@
 **/node_modules
 **/out
 **/output
+**/tools
 /coverage_report
 .vigiles/
 .claude/
