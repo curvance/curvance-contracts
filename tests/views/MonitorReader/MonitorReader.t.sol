@@ -50,11 +50,7 @@ contract MonitorMockOracleManager {
     mapping(address => address) public cTokens;
     uint256 public price = 1e18;
     uint256 public errorCode;
-    uint256 public upperPrice = 1e18;
-    uint256 public upperErrorCode;
     bool public shouldRevert;
-    bool public lowerShouldRevert;
-    bool public upperShouldRevert;
 
     function setCToken(address cToken, address underlying) external {
         cTokens[cToken] = underlying;
@@ -63,41 +59,19 @@ contract MonitorMockOracleManager {
     function setPrice(uint256 newPrice, uint256 newErrorCode) external {
         price = newPrice;
         errorCode = newErrorCode;
-        upperPrice = newPrice;
-        upperErrorCode = newErrorCode;
-    }
-
-    function setDirectionalPrices(
-        uint256 newLowerPrice,
-        uint256 newLowerErrorCode,
-        uint256 newUpperPrice,
-        uint256 newUpperErrorCode
-    ) external {
-        price = newLowerPrice;
-        errorCode = newLowerErrorCode;
-        upperPrice = newUpperPrice;
-        upperErrorCode = newUpperErrorCode;
     }
 
     function setShouldRevert(bool value) external {
         shouldRevert = value;
     }
 
-    function setDirectionalReverts(bool lower, bool upper) external {
-        lowerShouldRevert = lower;
-        upperShouldRevert = upper;
-    }
-
-    function getPrice(address, bool, bool getLower)
+    function getPrice(address, bool, bool)
         external
         view
         returns (uint256, uint256)
     {
-        if (
-            shouldRevert || (getLower && lowerShouldRevert)
-                || (!getLower && upperShouldRevert)
-        ) revert();
-        return getLower ? (price, errorCode) : (upperPrice, upperErrorCode);
+        if (shouldRevert) revert();
+        return (price, errorCode);
     }
 }
 
@@ -426,7 +400,7 @@ contract MonitorReaderTest is Test {
         _assertDecoded(
             oracleDegraded,
             address(underlying),
-            5,
+            3,
             reader.FAMILY_ADVISORY_ORACLE_DEGRADED(),
             1,
             reader.SUBJECT_ASSET()

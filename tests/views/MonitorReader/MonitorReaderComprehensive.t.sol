@@ -77,7 +77,7 @@ contract MonitorReaderHarness is MonitorReader {
 
     function cTokenLimitSignal(address centralRegistry)
         external
-        pure
+        view
         returns (uint256)
     {
         SignalAccumulator[5] memory signals;
@@ -95,7 +95,7 @@ contract MonitorReaderHarness is MonitorReader {
 
     function oracleAssetLimitSignal(address centralRegistry)
         external
-        pure
+        view
         returns (uint256)
     {
         SignalAccumulator[5] memory signals;
@@ -260,7 +260,7 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         assertEq(reader.FAMILY_ADVISORY_OPTIMIZER(), 9);
         assertEq(reader.FAMILY_ADVISORY_READ_FAILURE(), 10);
 
-        uint256[] memory cTokenBroken = new uint256[](16);
+        uint256[] memory cTokenBroken = new uint256[](15);
         cTokenBroken[0] = reader.CTOKEN_BROKEN_MANAGER_ZERO();
         cTokenBroken[1] = reader.CTOKEN_BROKEN_ASSET_ZERO();
         cTokenBroken[2] = reader.CTOKEN_BROKEN_NOT_LISTED();
@@ -275,18 +275,16 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         cTokenBroken[11] = reader.CTOKEN_BROKEN_CASH();
         cTokenBroken[12] = reader.CTOKEN_BROKEN_VESTING_CLOCK();
         cTokenBroken[13] = reader.CTOKEN_BROKEN_DEBT_INDEX();
-        cTokenBroken[14] = reader.CTOKEN_BROKEN_ORACLE_LOWER();
-        cTokenBroken[15] = reader.CTOKEN_BROKEN_ORACLE_UPPER();
+        cTokenBroken[14] = reader.CTOKEN_BROKEN_ORACLE();
         _assertUniqueOneHot(cTokenBroken);
 
-        uint256[] memory cTokenWarnings = new uint256[](4);
-        cTokenWarnings[0] = reader.CTOKEN_WARNING_ORACLE_LOWER();
-        cTokenWarnings[1] = reader.CTOKEN_WARNING_ORACLE_UPPER();
-        cTokenWarnings[2] = reader.CTOKEN_WARNING_COLLATERAL_CAP();
-        cTokenWarnings[3] = reader.CTOKEN_WARNING_DEBT_CAP();
+        uint256[] memory cTokenWarnings = new uint256[](3);
+        cTokenWarnings[0] = reader.CTOKEN_WARNING_ORACLE();
+        cTokenWarnings[1] = reader.CTOKEN_WARNING_COLLATERAL_CAP();
+        cTokenWarnings[2] = reader.CTOKEN_WARNING_DEBT_CAP();
         _assertUniqueOneHot(cTokenWarnings);
 
-        uint256[] memory cTokenReads = new uint256[](19);
+        uint256[] memory cTokenReads = new uint256[](18);
         cTokenReads[0] = reader.CTOKEN_READ_IS_BORROWABLE();
         cTokenReads[1] = reader.CTOKEN_READ_MANAGER();
         cTokenReads[2] = reader.CTOKEN_READ_ASSET();
@@ -302,10 +300,9 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         cTokenReads[12] = reader.CTOKEN_READ_DEBT();
         cTokenReads[13] = reader.CTOKEN_READ_ASSETS_HELD();
         cTokenReads[14] = reader.CTOKEN_READ_YIELD();
-        cTokenReads[15] = reader.CTOKEN_READ_ORACLE_LOWER();
-        cTokenReads[16] = reader.CTOKEN_READ_ORACLE_UPPER();
-        cTokenReads[17] = reader.CTOKEN_READ_COLLATERAL_CAP();
-        cTokenReads[18] = reader.CTOKEN_READ_DEBT_CAP();
+        cTokenReads[15] = reader.CTOKEN_READ_ORACLE_PRICE();
+        cTokenReads[16] = reader.CTOKEN_READ_COLLATERAL_CAP();
+        cTokenReads[17] = reader.CTOKEN_READ_DEBT_CAP();
         _assertUniqueOneHot(cTokenReads);
 
         uint256[] memory optimizerBroken = new uint256[](15);
@@ -367,67 +364,62 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
 
     function test_checkOracleClassifiesEveryStateWithoutOverlap() public {
         MonitorReader.OracleStatus memory status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.price, 1e18);
         assertEq(status.brokenMask, 0);
         assertEq(status.warningMask, 0);
         assertEq(status.readErrorMask, 0);
 
-        oracleManager.setDirectionalPrices(0, 0, 1e18, 0);
+        oracleManager.setPrice(0, 0);
         status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.brokenMask, reader.ORACLE_BROKEN_PRICE_ZERO());
 
-        oracleManager.setDirectionalPrices(1e18, 1, 1e18, 0);
+        oracleManager.setPrice(1e18, 1);
         status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.warningMask, reader.ORACLE_WARNING_CAUTION());
         assertEq(status.brokenMask, 0);
 
-        oracleManager.setDirectionalPrices(1e18, 2, 1e18, 0);
+        oracleManager.setPrice(1e18, 2);
         status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.brokenMask, reader.ORACLE_BROKEN_BAD_SOURCE());
 
-        oracleManager.setDirectionalPrices(1e18, 3, 1e18, 0);
+        oracleManager.setPrice(1e18, 3);
         status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.brokenMask, reader.ORACLE_BROKEN_UNKNOWN_ERROR());
 
-        oracleManager.setDirectionalReverts(true, false);
+        oracleManager.setShouldRevert(true);
         status = reader.checkOracle(
-            address(oracleManager), address(underlying), true, true
+            address(oracleManager), address(underlying), true
         );
         assertEq(status.brokenMask, 0);
         assertEq(status.warningMask, 0);
         assertEq(status.readErrorMask, reader.ORACLE_READ_PRICE());
     }
 
-    function test_oracleZeroCodesDistinguishLowerAndUpper() public {
-        oracleManager.setDirectionalPrices(0, 0, 1e18, 0);
+    function test_advisoryOracleZeroUsesOnePrice() public {
+        oracleManager.setPrice(0, 0);
         _assertOracleZeroCode(1);
 
-        oracleManager.setDirectionalPrices(1e18, 0, 0, 0);
-        _assertOracleZeroCode(2);
-
-        oracleManager.setDirectionalPrices(0, 0, 0, 0);
-        _assertOracleZeroCode(1);
+        oracleManager.setPrice(1e18, 0);
+        address[] memory optimizers = new address[](0);
+        (uint256 oracleZero,,,,) =
+            reader.advisorySignals(address(registry), optimizers);
+        assertEq(oracleZero, 0);
     }
 
-    function test_oracleDegradedCodesCoverAllDirectionsAndStates() public {
-        _assertOracleDegradedCode(1e18, 2, 1e18, 0, 1);
-        _assertOracleDegradedCode(1e18, 0, 1e18, 2, 2);
-        _assertOracleDegradedCode(1e18, 3, 1e18, 0, 3);
-        _assertOracleDegradedCode(1e18, 0, 1e18, 3, 4);
-        _assertOracleDegradedCode(1e18, 1, 1e18, 0, 5);
-        _assertOracleDegradedCode(1e18, 0, 1e18, 1, 6);
-
-        _assertOracleDegradedCode(1e18, 2, 1e18, 2, 1);
+    function test_advisoryOracleDegradedUsesOnePrice() public {
+        _assertOracleDegradedCode(2, 1);
+        _assertOracleDegradedCode(3, 2);
+        _assertOracleDegradedCode(1, 3);
     }
 
     function test_sameOracleAssetIsCountedOnceAcrossCTokens() public {
@@ -451,6 +443,32 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
             reader.FAMILY_ADVISORY_ORACLE_ZERO(),
             1,
             reader.SUBJECT_ASSET()
+        );
+    }
+
+    function test_cachedOracleReadFailureIsCountedForEveryCToken() public {
+        MonitorMockCToken secondCToken =
+            new MonitorMockCToken(address(underlying), address(manager));
+        manager.addToken(address(secondCToken));
+        manager.setCaps(
+            address(secondCToken), type(uint256).max, type(uint256).max
+        );
+        oracleManager.setCToken(address(secondCToken), address(underlying));
+        _configureHealthyCToken(secondCToken, underlying);
+        oracleManager.setShouldRevert(true);
+
+        address[] memory optimizers = new address[](0);
+        (uint256 oracleZero, uint256 degraded,,, uint256 readFailure) =
+            reader.advisorySignals(address(registry), optimizers);
+        assertEq(oracleZero, 0);
+        assertEq(degraded, 0);
+        _assertDecoded(
+            readFailure,
+            address(cToken),
+            47,
+            reader.FAMILY_ADVISORY_READ_FAILURE(),
+            2,
+            reader.SUBJECT_CTOKEN()
         );
     }
 
@@ -773,9 +791,9 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
 
     /// READ FAILURE ROUTING ///
 
-    function test_allCTokenReadFailuresMapToCodes32Through50() public {
-        address[] memory targets = new address[](19);
-        bytes[] memory calls = new bytes[](19);
+    function test_allMonitoredCTokenReadFailuresMapToDocumentedCodes() public {
+        address[] memory targets = new address[](18);
+        bytes[] memory calls = new bytes[](18);
 
         targets[0] = address(cToken);
         calls[0] = abi.encodeWithSignature("isBorrowable()");
@@ -815,20 +833,17 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         calls[15] = abi.encodeWithSignature(
             "getPrice(address,bool,bool)", address(underlying), true, true
         );
-        targets[16] = address(oracleManager);
+        targets[16] = address(manager);
         calls[16] = abi.encodeWithSignature(
-            "getPrice(address,bool,bool)", address(underlying), true, false
-        );
-        targets[17] = address(manager);
-        calls[17] = abi.encodeWithSignature(
             "collateralCaps(address)", address(cToken)
         );
-        targets[18] = address(manager);
-        calls[18] =
+        targets[17] = address(manager);
+        calls[17] =
             abi.encodeWithSignature("debtCaps(address)", address(cToken));
 
         for (uint256 i; i < targets.length; ++i) {
-            _assertCTokenReadFailure(targets[i], calls[i], uint8(32 + i));
+            uint8 expectedCode = uint8(32 + i);
+            _assertCTokenReadFailure(targets[i], calls[i], expectedCode);
         }
     }
 
@@ -936,7 +951,7 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         address eoa = address(0xBEEF);
 
         MonitorReader.OracleStatus memory oracle =
-            reader.checkOracle(eoa, address(underlying), true, true);
+            reader.checkOracle(eoa, address(underlying), true);
         assertEq(oracle.readErrorMask, reader.ORACLE_READ_PRICE());
 
         address[] memory optimizers = new address[](0);
@@ -983,10 +998,7 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
             token.readErrorMask & reader.CTOKEN_READ_ORACLE_BINDING() != 0
         );
         assertTrue(
-            token.readErrorMask & reader.CTOKEN_READ_ORACLE_LOWER() != 0
-        );
-        assertTrue(
-            token.readErrorMask & reader.CTOKEN_READ_ORACLE_UPPER() != 0
+            token.readErrorMask & reader.CTOKEN_READ_ORACLE_PRICE() != 0
         );
 
         vm.mockCall(
@@ -1316,16 +1328,10 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
         );
     }
 
-    function _assertOracleDegradedCode(
-        uint256 lowerPrice,
-        uint256 lowerError,
-        uint256 upperPrice,
-        uint256 upperError,
-        uint8 expectedCode
-    ) internal {
-        oracleManager.setDirectionalPrices(
-            lowerPrice, lowerError, upperPrice, upperError
-        );
+    function _assertOracleDegradedCode(uint256 errorCode, uint8 expectedCode)
+        internal
+    {
+        oracleManager.setPrice(1e18, errorCode);
         address[] memory optimizers = new address[](0);
         (, uint256 degraded,,,) =
             reader.advisorySignals(address(registry), optimizers);
