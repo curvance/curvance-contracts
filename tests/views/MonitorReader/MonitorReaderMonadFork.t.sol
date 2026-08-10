@@ -12,12 +12,10 @@ contract MonitorReaderMonadForkTest is Test {
         0xaD663aC84052b52BE4ed1b27BA416505e84a00Bf;
 
     MonitorReader internal reader;
-    address[] internal optimizers;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("MON_NODE_URI_MONAD_ARCHIVE"));
         reader = new MonitorReader();
-        optimizers.push(HIGH_YIELD_AUSD_OPTIMIZER);
     }
 
     function test_currentProtocolHasNoCriticalSignals() public view {
@@ -26,16 +24,18 @@ contract MonitorReaderMonadForkTest is Test {
             uint256 wiring,
             uint256 tokenAccounting,
             uint256 backing,
-            uint256 borrowAccounting,
-            uint256 optimizerCritical
-        ) = reader.criticalSignals(CENTRAL_REGISTRY, optimizers);
-        console2.log("criticalSignals gas", gasBefore - gasleft());
+            uint256 borrowAccounting
+        ) = reader.protocolCriticalSignals(CENTRAL_REGISTRY);
+        console2.log("protocolCriticalSignals gas", gasBefore - gasleft());
+        (uint256 optimizerCritical, uint256 optimizerReadFailure) =
+            reader.optimizerCriticalSignals(HIGH_YIELD_AUSD_OPTIMIZER);
 
         assertEq(wiring, 0, "critical wiring");
         assertEq(tokenAccounting, 0, "critical token accounting");
         assertEq(backing, 0, "critical backing");
         assertEq(borrowAccounting, 0, "critical borrow accounting");
         assertEq(optimizerCritical, 0, "critical optimizer");
+        assertEq(optimizerReadFailure, 0, "optimizer could not verify");
     }
 
     function test_currentProtocolReaderCanVerifyAdvisories() public view {
@@ -44,15 +44,19 @@ contract MonitorReaderMonadForkTest is Test {
             uint256 oracleZero,
             uint256 oracleDegraded,
             uint256 collateralOrCap,
-            uint256 optimizerWarning,
-            uint256 readFailure
-        ) = reader.advisorySignals(CENTRAL_REGISTRY, optimizers);
-        console2.log("advisorySignals gas", gasBefore - gasleft());
+            uint256 protocolReadFailure
+        ) = reader.protocolAdvisorySignals(CENTRAL_REGISTRY);
+        console2.log("protocolAdvisorySignals gas", gasBefore - gasleft());
+        uint256 optimizerWarning =
+            reader.optimizerWarningSignal(HIGH_YIELD_AUSD_OPTIMIZER);
+        (, uint256 optimizerReadFailure) =
+            reader.optimizerCriticalSignals(HIGH_YIELD_AUSD_OPTIMIZER);
         console2.log("oracle zero", oracleZero);
         console2.log("oracle degraded", oracleDegraded);
         console2.log("collateral or cap", collateralOrCap);
         console2.log("optimizer warning", optimizerWarning);
 
-        assertEq(readFailure, 0, "reader could not verify");
+        assertEq(protocolReadFailure, 0, "protocol reader could not verify");
+        assertEq(optimizerReadFailure, 0, "optimizer reader could not verify");
     }
 }

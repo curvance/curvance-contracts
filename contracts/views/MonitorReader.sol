@@ -16,33 +16,34 @@ import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 /// @dev
 /// HOW TO MONITOR
 ///
-/// This contract is designed for two Blockaid contract-call monitors. Each
-/// function returns exactly five integer metrics:
+/// This contract separates protocol-wide checks from optimizer checks so every
+/// Blockaid-facing argument is scalar. Blockaid should create:
 ///
-/// - `criticalSignals`:
+/// - One protocol-critical monitor from `protocolCriticalSignals`:
 ///   [0] Wiring
 ///   [1] Token Accounting
 ///   [2] Reserve Backing
 ///   [3] Borrow Accounting
-///   [4] Optimizer Critical
-/// - `advisorySignals`:
+/// - One protocol-advisory monitor from `protocolAdvisorySignals`:
 ///   [0] Oracle Price Zero
 ///   [1] Oracle Degraded
 ///   [2] Collateral or Cap Warning
-///   [3] Optimizer Warning
-///   [4] Monitor Reader Could Not Verify
+///   [3] Protocol Reader Could Not Verify
+/// - One critical monitor per optimizer from `optimizerCriticalSignals`:
+///   [0] Optimizer Critical
+///   [1] Optimizer Reader Could Not Verify
+/// - One warning monitor per optimizer from `optimizerWarningSignal`.
 ///
-/// Give each return field the human-readable name above and alert when any
-/// selected value is nonzero. `criticalSignals` contains pause-eligible
-/// invariant failures. `advisorySignals` is alert-only; its fifth field means
-/// the reader could not complete a read, not that an invariant was proven
-/// broken.
+/// Give every metric the human-readable name above and alert when any selected
+/// value is nonzero. Protocol critical and optimizer critical invariant
+/// findings are pause-eligible. Advisory, warning, and read-failure values are
+/// alert-only. A read failure means the reader could not complete a read, not
+/// that an invariant was proven broken.
 ///
-/// Pass the deployed CentralRegistry and the same explicit optimizer list to
-/// both calls. MarketManagers, cTokens, and the OracleManager are discovered
-/// from the registry. Optimizers are explicit because they have no central
-/// registry. Duplicate optimizer inputs are ignored. Only the first 32 are
-/// checked; advisory read-failure code 98 reports a longer input list.
+/// Pass the deployed CentralRegistry to both protocol calls. MarketManagers,
+/// cTokens, and the OracleManager are discovered from it. Pass each optimizer
+/// directly to its two optimizer calls because no central registry maps
+/// optimizers.
 ///
 /// Borrow-specific cToken reads run only when that cToken's debt cap is
 /// nonzero. An empty registered MarketManager is treated as provisioning and
@@ -60,7 +61,7 @@ import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 /// A return value of zero means that no finding was recorded for that return
 /// field. A nonzero value summarizes one signal family. Scanning order is
 /// deterministic: registry order, then each MarketManager's listed-token
-/// order, followed by optimizer calldata order.
+/// order. An optimizer signal covers exactly the optimizer argument supplied.
 ///
 /// The signal stores the first recorded subject and finding code, plus the
 /// total number of recorded findings in that family. If several findings are
@@ -212,7 +213,6 @@ import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 /// - 75 optimizer market position could not be read
 /// - 96 cToken tracking limit was reached
 /// - 97 oracle-asset tracking limit was reached
-/// - 98 more optimizer inputs were supplied than can be checked
 ///
 /// MANUAL DIAGNOSTICS
 ///
@@ -318,7 +318,6 @@ contract MonitorReader {
     uint256 public constant BASE_UNDERLYING_RESERVE = 77_777;
     uint256 public constant CONVERSION_TOLERANCE = 1;
     uint256 public constant MAX_OPTIMIZER_MARKETS = 32;
-    uint256 public constant MAX_INPUT_OPTIMIZERS = 32;
     uint256 public constant MAX_TRACKED_CTOKENS = 512;
     uint256 public constant MAX_TRACKED_ORACLE_ASSETS = 512;
 
@@ -445,27 +444,22 @@ contract MonitorReader {
 
     /// BLOCKAID FUNCTIONS ///
 
-    /// @notice Returns five packed signals for pause-eligible invariants.
+    /// @notice Returns protocol-wide packed pause-eligible signals.
     /// @dev Suggested metric names, in return order:
-    ///      Wiring; Token Accounting; Reserve Backing; Borrow Accounting;
-    ///      Optimizer Critical. A monitor should alert when any value is > 0.
-    function criticalSignals(
-        address centralRegistry,
-        address[] calldata optimizers
-    )
+    ///      Wiring; Token Accounting; Reserve Backing; Borrow Accounting.
+    ///      One monitor should alert when any value is greater than zero.
+    function protocolCriticalSignals(address centralRegistry)
         external
         view
         returns (
             uint256 wiring,
             uint256 tokenAccounting,
             uint256 backing,
-            uint256 borrowAccounting,
-            uint256 optimizerCritical
+            uint256 borrowAccounting
         )
     {
         SignalAccumulator[5] memory signals;
         _scanCriticalMarkets(centralRegistry, signals);
-        _scanCriticalOptimizers(optimizers, signals[4]);
 
         wiring = _packSignal(signals[0], FAMILY_CRITICAL_WIRING);
         tokenAccounting =
@@ -473,41 +467,87 @@ contract MonitorReader {
         backing = _packSignal(signals[2], FAMILY_CRITICAL_BACKING);
         borrowAccounting =
             _packSignal(signals[3], FAMILY_CRITICAL_BORROW_ACCOUNTING);
-        optimizerCritical = _packSignal(signals[4], FAMILY_CRITICAL_OPTIMIZER);
     }
 
-    /// @notice Returns five packed alert-only and reader-health signals.
+    /// @notice Returns protocol-wide packed alert-only signals.
     /// @dev Suggested metric names, in return order:
     ///      Oracle Price Zero; Oracle Degraded; Collateral or Cap Warning;
-    ///      Optimizer Warning; Monitor Reader Could Not Verify.
-    function advisorySignals(
-        address centralRegistry,
-        address[] calldata optimizers
-    )
+    ///      Protocol Reader Could Not Verify.
+    function protocolAdvisorySignals(address centralRegistry)
         external
         view
         returns (
             uint256 oracleZero,
             uint256 oracleDegraded,
             uint256 collateralOrCap,
-            uint256 optimizerWarning,
             uint256 readFailure
         )
     {
         SignalAccumulator[5] memory signals;
         _scanAdvisoryMarkets(centralRegistry, signals);
-        _scanAdvisoryOptimizers(optimizers, signals[3], signals[4]);
 
         oracleZero = _packSignal(signals[0], FAMILY_ADVISORY_ORACLE_ZERO);
         oracleDegraded =
             _packSignal(signals[1], FAMILY_ADVISORY_ORACLE_DEGRADED);
         collateralOrCap =
             _packSignal(signals[2], FAMILY_ADVISORY_COLLATERAL_OR_CAP);
-        optimizerWarning = _packSignal(signals[3], FAMILY_ADVISORY_OPTIMIZER);
         readFailure = _packSignal(signals[4], FAMILY_ADVISORY_READ_FAILURE);
     }
 
-    /// @notice Decodes a packed value returned by either signal function.
+    /// @notice Returns critical and read-failure signals for one optimizer.
+    /// @dev One critical optimizer monitor should alert when either value is
+    ///      greater than zero.
+    function optimizerCriticalSignals(address optimizer)
+        external
+        view
+        returns (uint256 optimizerCritical, uint256 readFailure)
+    {
+        OptimizerStatus memory status = checkOptimizer(optimizer);
+        SignalAccumulator memory criticalSignal;
+        SignalAccumulator memory readSignal;
+
+        if (status.brokenMask != 0) {
+            _record(
+                criticalSignal,
+                optimizer,
+                SUBJECT_OPTIMIZER,
+                _bitCode(status.brokenMask)
+            );
+        }
+        if (status.readErrorMask != 0) {
+            _record(
+                readSignal,
+                optimizer,
+                SUBJECT_OPTIMIZER,
+                uint8(64 + _firstBitIndex(status.readErrorMask))
+            );
+        }
+
+        optimizerCritical =
+            _packSignal(criticalSignal, FAMILY_CRITICAL_OPTIMIZER);
+        readFailure = _packSignal(readSignal, FAMILY_ADVISORY_READ_FAILURE);
+    }
+
+    /// @notice Returns the warning signal for one optimizer.
+    function optimizerWarningSignal(address optimizer)
+        external
+        view
+        returns (uint256 optimizerWarning)
+    {
+        OptimizerStatus memory status = checkOptimizer(optimizer);
+        SignalAccumulator memory signal;
+        if (status.warningMask != 0) {
+            _record(
+                signal,
+                optimizer,
+                SUBJECT_OPTIMIZER,
+                _bitCode(status.warningMask)
+            );
+        }
+        optimizerWarning = _packSignal(signal, FAMILY_ADVISORY_OPTIMIZER);
+    }
+
+    /// @notice Decodes a packed value returned by any signal function.
     /// @param signal The exact nonzero uint256 shown by the Blockaid metric.
     function decodeSignal(uint256 signal)
         external
@@ -818,31 +858,6 @@ contract MonitorReader {
         }
     }
 
-    function _scanCriticalOptimizers(
-        address[] calldata optimizers,
-        SignalAccumulator memory signal
-    ) internal view {
-        uint256 length = optimizers.length;
-        if (length > MAX_INPUT_OPTIMIZERS) {
-            length = MAX_INPUT_OPTIMIZERS;
-        }
-
-        for (uint256 i; i < length; ++i) {
-            address optimizer = optimizers[i];
-            if (_containsCalldata(optimizers, i, optimizer)) continue;
-
-            OptimizerStatus memory status = checkOptimizer(optimizer);
-            if (status.brokenMask != 0) {
-                _record(
-                    signal,
-                    optimizer,
-                    SUBJECT_OPTIMIZER,
-                    _bitCode(status.brokenMask)
-                );
-            }
-        }
-    }
-
     function _scanAdvisoryMarkets(
         address centralRegistry,
         SignalAccumulator[5] memory signals
@@ -1022,41 +1037,6 @@ contract MonitorReader {
         if (price.readErrorMask != 0) cached |= 1 << 16;
     }
 
-    function _scanAdvisoryOptimizers(
-        address[] calldata optimizers,
-        SignalAccumulator memory warningSignal,
-        SignalAccumulator memory readSignal
-    ) internal view {
-        uint256 length = optimizers.length;
-        if (length > MAX_INPUT_OPTIMIZERS) {
-            _record(readSignal, address(0), SUBJECT_OPTIMIZER, 98);
-            length = MAX_INPUT_OPTIMIZERS;
-        }
-
-        for (uint256 i; i < length; ++i) {
-            address optimizer = optimizers[i];
-            if (_containsCalldata(optimizers, i, optimizer)) continue;
-
-            OptimizerStatus memory status = checkOptimizer(optimizer);
-            if (status.warningMask != 0) {
-                _record(
-                    warningSignal,
-                    optimizer,
-                    SUBJECT_OPTIMIZER,
-                    _bitCode(status.warningMask)
-                );
-            }
-            if (status.readErrorMask != 0) {
-                _record(
-                    readSignal,
-                    optimizer,
-                    SUBJECT_OPTIMIZER,
-                    uint8(64 + _firstBitIndex(status.readErrorMask))
-                );
-            }
-        }
-    }
-
     /// SIGNAL ENCODING ///
 
     function _record(
@@ -1208,7 +1188,7 @@ contract MonitorReader {
     // 1 zero registry argument; 2 registry market list; 3 registry oracle;
     // 16 MarketManager token list; 32..50 cToken read-mask bit index;
     // 64..75 optimizer read-mask bit index; 96 cToken tracking limit;
-    // 97 oracle-asset tracking limit; 98 optimizer-input tracking limit.
+    // 97 oracle-asset tracking limit.
     function _bitCode(uint256 mask) internal pure returns (uint8) {
         if (mask == 0) return 0;
         return uint8(_firstBitIndex(mask) + 1);
@@ -1231,17 +1211,6 @@ contract MonitorReader {
         pure
         returns (bool)
     {
-        for (uint256 i; i < length; ++i) {
-            if (values[i] == value) return true;
-        }
-        return false;
-    }
-
-    function _containsCalldata(
-        address[] calldata values,
-        uint256 length,
-        address value
-    ) internal pure returns (bool) {
         for (uint256 i; i < length; ++i) {
             if (values[i] == value) return true;
         }

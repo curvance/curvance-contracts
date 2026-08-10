@@ -274,7 +274,55 @@ contract MonitorReaderTest is Test {
         _configureHealthyCToken(cToken, underlying);
     }
 
-    function test_healthyProtocolReturnsTenZeroSignals() public view {
+    function _combinedCriticalSignalsForTest(
+        address centralRegistry,
+        address[] memory optimizers
+    )
+        internal
+        view
+        returns (
+            uint256 wiring,
+            uint256 tokenAccounting,
+            uint256 backing,
+            uint256 borrowAccounting,
+            uint256 optimizerCritical
+        )
+    {
+        (
+            wiring, tokenAccounting, backing, borrowAccounting
+        ) = reader.protocolCriticalSignals(centralRegistry);
+        if (optimizers.length != 0) {
+            (optimizerCritical,) =
+                reader.optimizerCriticalSignals(optimizers[0]);
+        }
+    }
+
+    function _combinedAdvisorySignalsForTest(
+        address centralRegistry,
+        address[] memory optimizers
+    )
+        internal
+        view
+        returns (
+            uint256 oracleZero,
+            uint256 oracleDegraded,
+            uint256 collateralOrCap,
+            uint256 optimizerWarning,
+            uint256 readFailure
+        )
+    {
+        (
+            oracleZero, oracleDegraded, collateralOrCap, readFailure
+        ) = reader.protocolAdvisorySignals(centralRegistry);
+        if (optimizers.length != 0) {
+            optimizerWarning = reader.optimizerWarningSignal(optimizers[0]);
+            (, uint256 optimizerReadFailure) =
+                reader.optimizerCriticalSignals(optimizers[0]);
+            if (readFailure == 0) readFailure = optimizerReadFailure;
+        }
+    }
+
+    function test_healthyProtocolReturnsAllZeroSignals() public view {
         address[] memory optimizers = new address[](0);
 
         (
@@ -283,7 +331,7 @@ contract MonitorReaderTest is Test {
             uint256 backing,
             uint256 borrowAccounting,
             uint256 optimizerCritical
-        ) = reader.criticalSignals(address(registry), optimizers);
+        ) = _combinedCriticalSignalsForTest(address(registry), optimizers);
         assertEq(wiring, 0);
         assertEq(tokenAccounting, 0);
         assertEq(backing, 0);
@@ -296,7 +344,7 @@ contract MonitorReaderTest is Test {
             uint256 collateralOrCap,
             uint256 optimizerWarning,
             uint256 readFailure
-        ) = reader.advisorySignals(address(registry), optimizers);
+        ) = _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertEq(oracleZero, 0);
         assertEq(oracleDegraded, 0);
         assertEq(collateralOrCap, 0);
@@ -314,7 +362,7 @@ contract MonitorReaderTest is Test {
             uint256 backing,
             uint256 borrowAccounting,
             uint256 optimizerCritical
-        ) = reader.criticalSignals(address(registry), optimizers);
+        ) = _combinedCriticalSignalsForTest(address(registry), optimizers);
 
         assertEq(wiring, 0);
         assertEq(tokenAccounting, 0);
@@ -338,12 +386,12 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (, uint256 tokenAccounting, uint256 backing,,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         assertEq(tokenAccounting, 0);
         assertEq(backing, 0);
 
         (,, uint256 collateralOrCap,, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+            _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertGt(collateralOrCap, 0);
         assertEq(readFailure, 0);
         _assertDecoded(
@@ -365,7 +413,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (uint256 oracleZero, uint256 oracleDegraded,,, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+            _combinedAdvisorySignalsForTest(address(registry), optimizers);
 
         assertGt(oracleZero, 0);
         assertEq(oracleDegraded, 0);
@@ -389,13 +437,13 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (uint256 wiring, uint256 accounting, uint256 backing,,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         assertEq(wiring, 0);
         assertEq(accounting, 0);
         assertEq(backing, 0);
 
         (, uint256 oracleDegraded,,, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+            _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertEq(readFailure, 0);
         _assertDecoded(
             oracleDegraded,
@@ -413,12 +461,12 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (,, uint256 backing, uint256 borrowAccounting,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         assertEq(backing, 0);
         assertEq(borrowAccounting, 0);
 
         (,,,, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+            _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertEq(readFailure, 0);
 
         MonitorReader.CTokenStatus memory status = reader.checkMarketCToken(
@@ -443,7 +491,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (,,, uint256 borrowAccounting,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         _assertDecoded(
             borrowAccounting,
             address(cToken),
@@ -454,7 +502,7 @@ contract MonitorReaderTest is Test {
         );
     }
 
-    function test_registryReadFailureUsesFifthAdvisorySignal() public {
+    function test_registryReadFailureUsesProtocolHealthSignal() public {
         registry.setRevertMarkets(true);
         address[] memory optimizers = new address[](0);
 
@@ -463,7 +511,7 @@ contract MonitorReaderTest is Test {
             uint256 degraded,
             uint256 collateral,,
             uint256 readFailure
-        ) = reader.advisorySignals(address(registry), optimizers);
+        ) = _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertEq(oracleZero, 0);
         assertEq(degraded, 0);
         assertEq(collateral, 0);
@@ -484,7 +532,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (uint256 wiring,,,,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         assertEq(wiring, 0);
 
         MonitorReader.MarketStatus memory status = reader.checkMarket(
@@ -500,7 +548,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (uint256 wiring,,,,) =
-            reader.criticalSignals(address(emptyRegistry), optimizers);
+            _combinedCriticalSignalsForTest(address(emptyRegistry), optimizers);
         _assertDecoded(
             wiring,
             address(emptyRegistry),
@@ -516,7 +564,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (uint256 oracleZero, uint256 degraded,,, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+            _combinedAdvisorySignalsForTest(address(registry), optimizers);
         assertEq(oracleZero, 0);
         assertEq(degraded, 0);
         _assertDecoded(
@@ -529,16 +577,14 @@ contract MonitorReaderTest is Test {
         );
     }
 
-    function test_optimizerSignalsUseExplicitArgumentsAndDeduplicate() public {
+    function test_optimizerSignalsUseExplicitScalarArgument() public {
         MonitorMockOptimizer optimizer = _healthyOptimizer();
         optimizer.setMintPaused(2);
 
-        address[] memory optimizers = new address[](2);
-        optimizers[0] = address(optimizer);
-        optimizers[1] = address(optimizer);
-
-        (,,, uint256 optimizerWarning, uint256 readFailure) =
-            reader.advisorySignals(address(registry), optimizers);
+        uint256 optimizerWarning =
+            reader.optimizerWarningSignal(address(optimizer));
+        (, uint256 readFailure) =
+            reader.optimizerCriticalSignals(address(optimizer));
         assertEq(readFailure, 0);
         _assertDecoded(
             optimizerWarning,
@@ -550,8 +596,8 @@ contract MonitorReaderTest is Test {
         );
 
         optimizer.setAccounting(600_000_000, 600_000_000, RESERVE);
-        (,,,, uint256 optimizerCritical) =
-            reader.criticalSignals(address(registry), optimizers);
+        (uint256 optimizerCritical,) =
+            reader.optimizerCriticalSignals(address(optimizer));
         _assertDecoded(
             optimizerCritical,
             address(optimizer),
@@ -560,6 +606,37 @@ contract MonitorReaderTest is Test {
             1,
             reader.SUBJECT_OPTIMIZER()
         );
+    }
+
+    function test_optimizerCriticalSeparatesBrokenAndUnreadableSubjects()
+        public
+        view
+    {
+        (uint256 critical, uint256 readFailure) =
+            reader.optimizerCriticalSignals(address(0));
+        assertEq(readFailure, 0);
+        _assertDecoded(
+            critical,
+            address(0),
+            1,
+            reader.FAMILY_CRITICAL_OPTIMIZER(),
+            1,
+            reader.SUBJECT_OPTIMIZER()
+        );
+
+        address unreadableOptimizer = address(0xBEEF);
+        (critical, readFailure) =
+            reader.optimizerCriticalSignals(unreadableOptimizer);
+        assertEq(critical, 0);
+        _assertDecoded(
+            readFailure,
+            unreadableOptimizer,
+            64,
+            reader.FAMILY_ADVISORY_READ_FAILURE(),
+            1,
+            reader.SUBJECT_OPTIMIZER()
+        );
+        assertEq(reader.optimizerWarningSignal(unreadableOptimizer), 0);
     }
 
     function test_optimizerPositionAboveAllocationCapIsNotAWarning() public {
@@ -586,10 +663,8 @@ contract MonitorReaderTest is Test {
         assertEq(status.warningMask, 0);
         assertEq(status.readErrorMask, 0);
 
-        address[] memory optimizers = new address[](1);
-        optimizers[0] = address(optimizer);
-        (,,, uint256 optimizerWarning,) =
-            reader.advisorySignals(address(registry), optimizers);
+        uint256 optimizerWarning =
+            reader.optimizerWarningSignal(address(optimizer));
         assertEq(optimizerWarning, 0);
     }
 
@@ -605,7 +680,7 @@ contract MonitorReaderTest is Test {
         address[] memory optimizers = new address[](0);
 
         (,, uint256 backing,,) =
-            reader.criticalSignals(address(registry), optimizers);
+            _combinedCriticalSignalsForTest(address(registry), optimizers);
         _assertDecoded(
             backing,
             address(cToken),
