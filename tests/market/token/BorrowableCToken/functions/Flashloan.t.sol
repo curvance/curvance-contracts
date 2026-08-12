@@ -132,6 +132,98 @@ contract FlashloanTest is TestBaseBorrowableCToken {
         );
     }
 
+    function test_flashloan_reachesCallback_whenAllMarketActionsArePaused() public {
+        marketManagerIsolated.setLiquidationPaused(true);
+        marketManagerIsolated.setRedeemPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
+        marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
+        marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
+
+        _prepareUSDC(address(this), 0);
+        uint256 marketBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
+        uint256 totalAssetsBefore = borrowableCUSDC.totalAssets();
+        bytes memory callbackData = abi.encode(marketBalanceBefore, false);
+
+        borrowableCUSDC.flashLoan(flashloanAmount, callbackData);
+
+        assertEq(
+            usdc.balanceOf(address(borrowableCUSDC)),
+            marketBalanceBefore + fee,
+            "paused market receives principal and fee"
+        );
+        assertEq(
+            borrowableCUSDC.totalAssets(),
+            totalAssetsBefore + fee,
+            "paused market books only the flashloan fee"
+        );
+    }
+
+    function test_flashloan_reentry_nestedFlashloans_stackFeesOnly() public {
+        NestedFlashloanReceiver receiver = new NestedFlashloanReceiver(
+            address(usdc),
+            address(borrowableCUSDC)
+        );
+
+        uint256 outerAssets = 6_000e6;
+        uint256 innerAssets = 3_000e6;
+        uint256 outerFee = FixedPointMathLib.mulDivUp(outerAssets, 4, 10_000);
+        uint256 innerFee = FixedPointMathLib.mulDivUp(innerAssets, 4, 10_000);
+        uint256 totalFees = outerFee + innerFee;
+        _prepareUSDC(address(receiver), totalFees);
+
+        uint256 marketBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
+        uint256 totalAssetsBefore = borrowableCUSDC.totalAssets();
+        uint256 debtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        receiver.execute(outerAssets, innerAssets, false);
+
+        assertEq(receiver.callbackCount(), 2, "both flashloan callbacks execute");
+        assertEq(usdc.balanceOf(address(receiver)), 0, "receiver only pays stacked fees");
+        assertEq(
+            usdc.balanceOf(address(borrowableCUSDC)),
+            marketBalanceBefore + totalFees,
+            "market receives both fees and both principals are restored"
+        );
+        assertEq(
+            borrowableCUSDC.totalAssets(),
+            totalAssetsBefore + totalFees,
+            "stacked fees are the only market accounting delta"
+        );
+        assertEq(
+            borrowableCUSDC.marketOutstandingDebt(),
+            debtBefore,
+            "nested flashloans do not create debt"
+        );
+    }
+
+    function test_flashloan_reentry_nestedRepaymentFailure_rollsBackEntireStack() public {
+        NestedFlashloanReceiver receiver = new NestedFlashloanReceiver(
+            address(usdc),
+            address(borrowableCUSDC)
+        );
+
+        uint256 outerAssets = 6_000e6;
+        uint256 innerAssets = 3_000e6;
+        uint256 outerFee = FixedPointMathLib.mulDivUp(outerAssets, 4, 10_000);
+        uint256 innerFee = FixedPointMathLib.mulDivUp(innerAssets, 4, 10_000);
+        _prepareUSDC(address(receiver), outerFee + innerFee);
+
+        uint256 receiverBalanceBefore = usdc.balanceOf(address(receiver));
+        uint256 marketBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
+        uint256 totalAssetsBefore = borrowableCUSDC.totalAssets();
+        uint256 debtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        vm.expectRevert();
+        receiver.execute(outerAssets, innerAssets, true);
+
+        assertEq(receiver.callbackCount(), 0, "callback state rolls back");
+        assertEq(usdc.balanceOf(address(receiver)), receiverBalanceBefore, "receiver balance rolls back");
+        assertEq(usdc.balanceOf(address(borrowableCUSDC)), marketBalanceBefore, "market cash rolls back");
+        assertEq(borrowableCUSDC.totalAssets(), totalAssetsBefore, "market accounting rolls back");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), debtBefore, "market debt rolls back");
+    }
+
     // Callback function for the flashloan
     function onFlashLoan(uint256 assets, uint256 assetsReturned, bytes calldata data) external returns (bytes32) {
 
@@ -203,6 +295,40 @@ contract FlashloanReentryReceiver {
             borrowableCToken.redeem(shares, address(this), address(this));
         } else if (mode == MODE_BORROW) {
             borrowableCToken.borrow(borrowAmount, address(this));
+        }
+
+        asset.approve(address(borrowableCToken), assetsReturned);
+        return bytes32(0);
+    }
+}
+
+contract NestedFlashloanReceiver {
+    IERC20Like internal immutable asset;
+    BorrowableCToken internal immutable borrowableCToken;
+
+    uint256 public callbackCount;
+    uint256 internal innerAssets;
+    bool internal failInnerRepayment;
+
+    constructor(address asset_, address borrowableCToken_) {
+        asset = IERC20Like(asset_);
+        borrowableCToken = BorrowableCToken(borrowableCToken_);
+    }
+
+    function execute(uint256 outerAssets, uint256 innerAssets_, bool failInnerRepayment_) external {
+        innerAssets = innerAssets_;
+        failInnerRepayment = failInnerRepayment_;
+        borrowableCToken.flashLoan(outerAssets, "");
+    }
+
+    function onFlashLoan(uint256, uint256 assetsReturned, bytes calldata) external returns (bytes32) {
+        require(msg.sender == address(borrowableCToken), "unauthorized callback");
+
+        ++callbackCount;
+        if (callbackCount == 1) {
+            borrowableCToken.flashLoan(innerAssets, "");
+        } else if (failInnerRepayment) {
+            return bytes32(0);
         }
 
         asset.approve(address(borrowableCToken), assetsReturned);

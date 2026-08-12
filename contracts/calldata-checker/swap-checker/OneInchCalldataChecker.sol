@@ -10,6 +10,10 @@ import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggre
 
 /// @notice Inspects the calldata for a 1inch related swap action.
 /// @dev NOTE: Currently built for Aggregation Router V5.
+///      Generic `swap` routes are intentionally unsupported because their
+///      executor, source receiver, flags, and opaque execution data require
+///      route-specific trust validation. Permit-bearing routes are also
+///      unsupported; optimized non-permit 1inch routes remain supported.
 contract OneInchCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
     /// @notice The mask for the one for zero flag
@@ -45,60 +49,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
-        if (funcSigHash == IAggregationRouterV5.swap.selector) {
-            (
-                ,
-                IAggregationRouterV5.SwapDescription memory desc,
-                bytes memory permit,
-
-            ) = abi.decode(
-                    _getFuncParams(swapAction.call),
-                    (
-                        address,
-                        IAggregationRouterV5.SwapDescription,
-                        bytes,
-                        bytes
-                    )
-                );
-            recipient = desc.dstReceiver;
-            inputToken = desc.srcToken;
-            inputAmount = desc.amount;
-            outputToken = desc.dstToken;
-            minOutAmount = desc.minReturnAmount;
-
-            if (permit.length != 0) {
-                revert CalldataChecker__InvalidFuncSig();
-            }
-        } else if (
-            funcSigHash ==
-            IAggregationRouterV5.uniswapV3SwapToWithPermit.selector
-        ) {
-            (
-                address payable recipientAddress,
-                address srcToken,
-                uint256 amount,
-                uint256 minReturn,
-                uint256[] memory pools,
-                bytes memory permitData
-            ) = abi.decode(
-                    _getFuncParams(swapAction.call),
-                    (address, address, uint256, uint256, uint256[], bytes)
-                );
-
-            recipient = recipientAddress;
-            inputToken = srcToken;
-            inputAmount = amount;
-            minOutAmount = minReturn;
-
-            if (permitData.length != 0) {
-                revert CalldataChecker__InvalidFuncSig();
-            }
-
-            uint256 pool = pools[pools.length - 1];
-            outputToken = (pool & _ONE_FOR_ZERO_MASK == 0)
-                ? UniswapV3Pool(address(uint160(pool))).token1()
-                : UniswapV3Pool(address(uint160(pool))).token0();
-        } else if (
+        if (
             funcSigHash == IAggregationRouterV5.uniswapV3SwapTo.selector
         ) {
             (
@@ -144,34 +95,6 @@ contract OneInchCalldataChecker is BaseSwapChecker {
 
             pool = pools[pools.length - 1];
             outputToken = (pool & _ONE_FOR_ZERO_MASK == 0)
-                ? UniswapV3Pool(address(uint160(pool))).token1()
-                : UniswapV3Pool(address(uint160(pool))).token0();
-        } else if (
-            funcSigHash == IAggregationRouterV5.unoswapToWithPermit.selector
-        ) {
-            (
-                address payable recipientAddress,
-                address srcToken,
-                uint256 amount,
-                uint256 minReturn,
-                uint256[] memory pools,
-                bytes memory permitData
-            ) = abi.decode(
-                    _getFuncParams(swapAction.call),
-                    (address, address, uint256, uint256, uint256[], bytes)
-                );
-
-            recipient = recipientAddress;
-            inputToken = srcToken;
-            inputAmount = amount;
-            minOutAmount = minReturn;
-
-            if (permitData.length != 0) {
-                revert CalldataChecker__InvalidFuncSig();
-            }
-
-            uint256 pool = pools[pools.length - 1];
-            outputToken = (pool & _REVERSE_MASK == 0)
                 ? UniswapV3Pool(address(uint160(pool))).token1()
                 : UniswapV3Pool(address(uint160(pool))).token0();
         } else if (funcSigHash == IAggregationRouterV5.unoswapTo.selector) {

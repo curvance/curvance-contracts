@@ -114,6 +114,90 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         );
     }
 
+    function test_priceGuardDebtCapAllowsBorrowRejectedAtRawPrice() public {
+        deal(address(LP_wstETH_24Dec2025), user1, 10e18);
+
+        vm.startPrank(user1);
+        LP_wstETH_24Dec2025.approve(
+            address(pendleStrategyCTokenSTETH),
+            10e18
+        );
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
+        vm.stopPrank();
+
+        mockUsdcFeed.setMockAnswer(1.10e8);
+        _refreshMockFeeds();
+
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            1e18,
+            0.95e18
+        );
+        dualChainlinkAdaptor.setGuardedPriceConfig(
+            _USDC_ADDRESS,
+            true,
+            0,
+            0,
+            1e18,
+            0.95e18
+        );
+
+        (uint256 cappedPrice, uint256 errorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(cappedPrice, 1e18);
+        assertEq(errorCode, 0);
+
+        (, uint256 maxDebt,) = marketManagerIsolated.statusOf(user1);
+
+        // maxDebt is WAD USD while USDC has six decimals. Leave one atom
+        // below the capped-price boundary to avoid equality rounding effects.
+        uint256 borrowAssets = (maxDebt / 1e12) - 1;
+        uint256 newNetDebt =
+            borrowableCUSDC.marketOutstandingDebt() + borrowAssets;
+
+        assertLt(
+            newNetDebt,
+            marketManagerIsolated.debtCaps(address(borrowableCUSDC))
+        );
+
+        uint256 baseline = vm.snapshotState();
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(
+            address(borrowableCUSDC),
+            borrowAssets,
+            user1,
+            newNetDebt
+        );
+
+        assertTrue(vm.revertToState(baseline));
+
+        // Change only the guard policy. The raw feed, account, collateral,
+        // borrow amount, and debt cap remain identical to the admitted branch.
+        chainlinkAdaptor.disableGuardedPriceConfig(_USDC_ADDRESS, true);
+        dualChainlinkAdaptor.disableGuardedPriceConfig(_USDC_ADDRESS, true);
+
+        (uint256 rawPrice, uint256 rawErrorCode) =
+            oracleManager.getPrice(_USDC_ADDRESS, true, false);
+        assertEq(rawPrice, 1.10e18);
+        assertEq(rawErrorCode, 0);
+
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+        );
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(
+            address(borrowableCUSDC),
+            borrowAssets,
+            user1,
+            newNetDebt
+        );
+    }
+
     function test_canBorrow_fail_userCallsCanBorrow() external {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 0, user1, 0);

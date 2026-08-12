@@ -53,10 +53,20 @@ import { ILendingOptimizer } from "contracts/interfaces/ILendingOptimizer.sol";
 ///      `(totalAssets * WAD) / totalSupply`.
 ///
 ///      Allocation caps (stored internally in WAD, configured in BPS)
-///      define the maximum percentage each market can hold. The sum of
-///      all caps must be >= 100% to ensure
-///      full allocation is possible. Authorized harvesters can rebalance
-///      assets across markets while respecting these caps.
+///      bound managed rebalances and removals. They are not continuously
+///      enforced exposure limits: yield and donated cTokens can move live
+///      allocations above a cap, and pro-rata user flows need not restore
+///      them. The sum of all caps must be >= 100% to ensure full allocation
+///      is possible.
+///
+///      Approved markets must not create a direct or transitive collateral
+///      or valuation dependency back to this optimizer. `_validateCToken()`
+///      rejects only a listed sibling whose immediate `asset()` is this
+///      optimizer. Operators must verify the full receipt-token, vault, LP,
+///      and oracle dependency closure using the launch and de-scope verifiers
+///      plus reviewed terminal and route manifests before approval and on
+///      configuration changes; see
+///      `docs/lending-optimizer-integration.md`.
 ///
 ///      Dead shares minted to address(0) on initialization prevent
 ///      inflation attacks. All state-changing functions have reentrancy
@@ -185,7 +195,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///         the high watermark to WAD (1:1 exchange rate).
     ///
     ///      After construction the optimizer is NOT yet active; `initializeDeposits()`
-    ///      must be called to mint dead shares and enable deposits.
+    ///      must be called to mint dead shares and enable deposits. The full
+    ///      dependency closure of every approved market must be verified
+    ///      before initialization; constructor validation includes only the
+    ///      direct sibling check described by `_validateCToken()`.
     /// @param asset_ The underlying ERC20 asset (e.g. USDC).
     /// @param vaultNamePrefix_ Vault name prefix (e.g. Flagship, Prime).
     /// @param vaultSymbolPrefix_ Vault symbol prefix (e.g. Flag, Prime).
@@ -397,9 +410,13 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///         all approved markets while respecting liquidity constraints.
     /// @dev Executes withdrawals first (violating CEI), then measures the
     ///      actual cToken rounding loss by re-reading positions. Shares
-    ///      burned reflect the true cost including rounding loss, so
-    ///      remaining depositors are not diluted. CEI violation is safe
-    ///      because cToken markets are trusted and nonReentrant is enforced.
+    ///      burned reflect the true cost including rounding loss, so that
+    ///      conversion rounding does not dilute remaining depositors. This
+    ///      protection does not realize unrecognized cToken credit losses.
+    ///      Aggregate liquidity can fund an exit before a cToken recognizes
+    ///      impairment, concentrating a later-recognized loss in remaining
+    ///      holders. CEI violation is safe because cToken markets are trusted
+    ///      and nonReentrant is enforced.
     /// @param assets The amount of underlying assets to withdraw.
     /// @param receiver The address to receive the withdrawn assets.
     /// @param owner The address that owns the shares being burned.
@@ -438,7 +455,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @notice ERC4626-like redeem - redeems pro-rata across
     ///         all approved markets while respecting liquidity constraints.
     /// @dev Executes withdrawals with a conversion roundtrip to ensure
-    ///      the optimizer's position drops by exactly the fair amount.
+    ///      the optimizer's position drops by exactly the rounding-adjusted
+    ///      amount. This does not realize credit impairment that the
+    ///      underlying cToken has not yet recognized; aggregate liquidity can
+    ///      fund an exit before that loss reaches optimizer NAV.
     /// @param shares The amount of shares to redeem.
     /// @param receiver The address to receive the underlying assets.
     /// @param owner The address that owns the shares being burned.
@@ -729,6 +749,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @notice Adds a new approved market for allocation.
     /// @dev Requires elevated permissions. The cToken must have matching
     ///      underlying asset and a registered market manager. Max 8 markets.
+    ///      Runtime validation rejects a direct sibling backed immediately by
+    ///      this optimizer, but does not walk transitive collateral or pricing
+    ///      dependencies. Verify the candidate's complete dependency closure
+    ///      before approval and perform a post-change readback.
     /// @param newAsset Address of the cToken market to add.
     /// @param capBps Allocation cap in BPS. Stored as WAD internally.
     function addApprovedAsset(address newAsset, uint256 capBps) external nonReentrant {
@@ -1081,6 +1105,9 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     /// @dev Executes pro-rata withdrawals across all approved markets and
     ///      returns the total remaining position (for `_totalAssets` re-sync).
     ///      Entry point reverts if any market is paused for redemptions.
+    ///      Liquidity shortfalls are sourced from other approved markets. The
+    ///      routine uses each cToken's current accounting value and does not
+    ///      independently recognize borrower impairment or bad debt.
     /// @param assets Total underlying assets to withdraw.
     /// @param conversionRoundtrip If true, adjusts each per-market amount
     ///        via previewRedeem(previewDeposit(amount)) so the optimizer's
@@ -1296,9 +1323,14 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
         return ct.convertToAssets(ct.balanceOf(address(this)));
     }
 
-    /// @dev Validates cToken has correct underlying, is borrowable,
-    ///      has a registered market manager, is listed in that manager,
-    ///      and is not paired with this optimizer's share token.
+    /// @dev Validates cToken has the correct underlying, is borrowable, has a
+    ///      registered market manager, and is listed in that manager.
+    ///      The final runtime check is one hop: it rejects a listed
+    ///      sibling whose immediate `asset()` is this optimizer. It does not
+    ///      walk nested receipt tokens, vaults, LP components, or oracle
+    ///      dependencies.
+    ///      Operators must separately reject every transitive dependency path
+    ///      that reaches this optimizer.
     /// @param cToken The cToken market address to validate.
     function _validateCToken(address cToken) internal view {
         if (IBorrowableCToken(cToken).asset() != address(_asset)) revert LendingOptimizer__InvalidUnderlying();
@@ -1417,7 +1449,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
     ///      Performance Fees
     ///      Fees are charged on yield above a high watermark, ensuring fees
     ///      are only taken on new all-time-high profits. This prevents
-    ///      double-charging after drawdowns recover.
+    ///      double-charging after drawdowns recover. Fee assets and shares
+    ///      round down to atomic units; if a positive increment cannot mint
+    ///      a fee share, accrual can advance the watermark and forgive that
+    ///      dust amount.
     function _accrueIfNeeded() internal {
         // Sync with underlying cToken markets and absorb yield
         uint256 rawTa = _accrueMarkets();
@@ -1431,7 +1466,10 @@ contract LendingOptimizer is ILendingOptimizer, ERC4626, ReentrancyGuard, ERC165
                 uint256 highRate = exchangeRateHighWatermark;
 
                 if (currentRate > highRate) {
-                    // Round up to prevent fee undercharge on dust profits.
+                    // Round the high-watermark asset baseline up so a
+                    // fractional baseline is not treated as new profit.
+                    // Fee assets and shares below round down; sub-share fee
+                    // dust can be forgiven when the watermark advances.
                     uint256 profit = rawTa - FixedPointMathLib.fullMulDivUp(highRate, supply, WAD);
                     uint256 feeAssets = FixedPointMathLib.fullMulDiv(profit, fee, BPS);
 

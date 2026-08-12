@@ -5,6 +5,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager, BAD_SOURCE } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -243,6 +244,43 @@ contract GetPriceTest is TestBaseOracleManager {
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _USDC_ADDRESS,
+            true,
+            true
+        );
+
+        assertEq(price, 0);
+        assertEq(errorCode, BAD_SOURCE);
+    }
+
+    function test_getPrice_bubblesBadSource_whenCTokenTransformRoundsNonzeroPriceToZero()
+        public
+    {
+        MockOracleAdaptor mockAdaptor = new MockOracleAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            "Mock"
+        );
+
+        oracleManager.addApprovedAdaptor(address(mockAdaptor));
+        mockAdaptor.addAsset(_USDC_ADDRESS);
+        mockAdaptor.setPrice(_USDC_ADDRESS, 1, 1);
+        oracleManager.addAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(mockAdaptor),
+            180,
+            130,
+            180,
+            130
+        );
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+
+        vm.mockCall(
+            address(borrowableCUSDC),
+            abi.encodeWithSelector(ICToken.exchangeRate.selector),
+            abi.encode(uint256(1))
+        );
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            address(borrowableCUSDC),
             true,
             true
         );

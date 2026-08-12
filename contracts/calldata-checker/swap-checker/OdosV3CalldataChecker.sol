@@ -122,7 +122,11 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
             revert CalldataChecker__InvalidFuncSig();
         }
 
-        if (referralInfo.code != 0) {
+        if (
+            referralInfo.code != 0 ||
+            referralInfo.fee != 0 ||
+            referralInfo.feeRecipient != address(0)
+        ) {
             revert CalldataChecker__ReferralError();
         }
 
