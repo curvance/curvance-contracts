@@ -36,7 +36,8 @@ contract TestHighYieldAUSDOptimizerReaderMonadFork is Test {
         ) = reader.optimalRebalance(
             HIGH_YIELD_AUSD_OPTIMIZER,
             DEFAULT_SLIPPAGE_BPS,
-            REBALANCE_CHUNKS
+            REBALANCE_CHUNKS,
+            new OptimizerReader.MarketIncentiveAPYBps[](0)
         );
 
         assertEq(actions.length, bounds.length, "actions/bounds length");

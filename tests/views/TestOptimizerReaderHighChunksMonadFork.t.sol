@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 
 import {LendingOptimizer} from "contracts/market/optimizer/LendingOptimizer.sol";
+import {OptimizerReader} from "contracts/views/OptimizerReader.sol";
 import {OptimizerReaderHarness} from "tests/market/optimizer/OptimizerReaderHarness.sol";
 
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
@@ -48,7 +49,12 @@ contract TestOptimizerReaderHighChunksMonadFork is Test {
 
     function test_highChunkReaderExecutesAllCapsPlan() public {
         (LendingOptimizer.ReallocationAction[] memory actions, LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(LENDING_OPTIMIZER, DEFAULT_SLIPPAGE_BPS, 100);
+            reader.optimalRebalance(
+                LENDING_OPTIMIZER,
+                DEFAULT_SLIPPAGE_BPS,
+                100,
+                new OptimizerReader.MarketIncentiveAPYBps[](0)
+            );
 
         uint256 moved = _totalMoved(actions);
         console2.log("actions", actions.length);

@@ -59,8 +59,13 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
             })
         );
 
+        // Make the destination decisively attractive while retaining the
+        // constrained source cash. This isolates the assertion that incentive
+        // scoring still cannot plan a withdrawal above assetsHeld().
+        OptimizerReader.MarketIncentiveAPYBps[] memory incentives =
+            _oneMarketIncentive(address(destination), 1_000);
         (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, 100);
+            reader.optimalRebalance(address(optimizer), 0, 100, incentives);
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(source));
 
@@ -100,8 +105,9 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
         );
 
         uint256 chunks = 100;
-        (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, chunks);
+        (LendingOptimizer.ReallocationAction[] memory actions,) = reader.optimalRebalance(
+            address(optimizer), 0, chunks, _emptyMarketIncentives()
+        );
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(source));
         uint256 chunkSize =
@@ -144,8 +150,9 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
         );
 
         uint256 chunks = 200;
-        (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, chunks);
+        (LendingOptimizer.ReallocationAction[] memory actions,) = reader.optimalRebalance(
+            address(optimizer), 0, chunks, _emptyMarketIncentives()
+        );
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(source));
         uint256 chunkSize =
@@ -191,8 +198,9 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
                 address(new MockFlatRateModel(2))
             );
 
-        (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, 100);
+        (LendingOptimizer.ReallocationAction[] memory actions,) = reader.optimalRebalance(
+            address(optimizer), 0, 100, _emptyMarketIncentives()
+        );
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(source));
 
@@ -233,10 +241,11 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
             })
         );
 
-        _markSourceBad(badSource);
+        _markBad(badSource);
 
-        (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, 100);
+        (LendingOptimizer.ReallocationAction[] memory actions,) = reader.optimalRebalance(
+            address(optimizer), 0, 100, _emptyMarketIncentives()
+        );
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(badSource));
 
@@ -276,10 +285,11 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
             })
         );
 
-        _markSourceBad(badSource);
+        _markBad(badSource);
 
-        (LendingOptimizer.ReallocationAction[] memory actions,) =
-            reader.optimalRebalance(address(optimizer), 0, 100);
+        (LendingOptimizer.ReallocationAction[] memory actions,) = reader.optimalRebalance(
+            address(optimizer), 0, 100, _emptyMarketIncentives()
+        );
 
         uint256 withdrawAmount = _withdrawAmount(actions, address(badSource));
 
@@ -301,6 +311,248 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
         _assertActionsBalance(actions);
     }
 
+    /// @dev The destination starts with a lower native per-second rate. A 400
+    ///      BPS annual incentive is large enough after unit conversion to make
+    ///      its effective rate higher and reverse the planner's preference.
+    function test_optimalRebalance_incentiveOvercomesNativeRateDisadvantage()
+        public
+    {
+        (MockOptimizer optimizer, MockCToken source, MockCToken destination) = _deployTwoMarketOptimizerWithRateModels(
+            Scenario({
+                sourceAssets: 900_000e6,
+                destinationAssets: 100_000e6,
+                sourceCash: 900_000e6,
+                destinationCash: 100_000e6,
+                sourceDebt: 1,
+                destinationDebt: 1,
+                sourceCapBps: 10_000,
+                destinationCapBps: 10_000
+            }),
+            address(new MockFlatRateModel(2e9)),
+            address(new MockFlatRateModel(1e9))
+        );
+
+        (LendingOptimizer.ReallocationAction[] memory nativeActions,) = reader.optimalRebalance(
+            address(optimizer), 0, 100, _emptyMarketIncentives()
+        );
+        OptimizerReader.MarketIncentiveAPYBps[] memory incentives =
+            _oneMarketIncentive(address(destination), 400);
+        (LendingOptimizer.ReallocationAction[] memory incentiveActions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, incentives);
+
+        assertEq(
+            _depositAmount(nativeActions, address(destination)),
+            0,
+            "lower native rate should not attract deposits"
+        );
+        assertGt(
+            _depositAmount(incentiveActions, address(destination)),
+            0,
+            "incentive should overcome the native-rate disadvantage"
+        );
+        assertGt(
+            _withdrawAmount(incentiveActions, address(source)),
+            0,
+            "incentive move should have an executable source"
+        );
+    }
+
+    /// @dev Pins the source side of the normal effective-rate comparison and
+    ///      the annual-BPS conversion boundary. One BPS converts to roughly
+    ///      3.17e6 per-second WAD, so 315 BPS leaves the 1e9 native-rate source
+    ///      just below the 2e9 destination while 316 BPS places it just above.
+    function test_optimalRebalance_sourceIncentiveReversesNormalMoveDirection()
+        public
+    {
+        (MockOptimizer optimizer, MockCToken source, MockCToken destination) = _deployTwoMarketOptimizerWithRateModels(
+            Scenario({
+                sourceAssets: 900_000e6,
+                destinationAssets: 100_000e6,
+                sourceCash: 900_000e6,
+                destinationCash: 100_000e6,
+                sourceDebt: 1,
+                destinationDebt: 1,
+                sourceCapBps: 10_000,
+                destinationCapBps: 10_000
+            }),
+            address(new MockFlatRateModel(1e9)),
+            address(new MockFlatRateModel(2e9))
+        );
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory belowCrossover =
+            _oneMarketIncentive(address(source), 315);
+        (LendingOptimizer.ReallocationAction[] memory belowActions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, belowCrossover);
+
+        assertGt(
+            _withdrawAmount(belowActions, address(source)),
+            0,
+            "315 BPS should not overcome the native-rate disadvantage"
+        );
+        assertGt(
+            _depositAmount(belowActions, address(destination)),
+            0,
+            "lower effective-rate source should fund the destination"
+        );
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory aboveCrossover =
+            _oneMarketIncentive(address(source), 316);
+        (LendingOptimizer.ReallocationAction[] memory aboveActions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, aboveCrossover);
+
+        assertEq(
+            _withdrawAmount(aboveActions, address(source)),
+            0,
+            "316 BPS source incentive should prevent source withdrawal"
+        );
+        assertGt(
+            _depositAmount(aboveActions, address(source)),
+            0,
+            "higher effective-rate source should become the destination"
+        );
+    }
+
+    /// @dev Runs the same maximum-incentive destination through bad-market,
+    ///      mint-paused, and redeem-paused states. Incentives may rank eligible
+    ///      destinations but must never make an ineligible destination valid.
+    function test_optimalRebalance_maxIncentiveCannotBypassEligibility()
+        public
+    {
+        _assertMaxIncentiveCannotAttract(0);
+        _assertMaxIncentiveCannotAttract(1);
+        _assertMaxIncentiveCannotAttract(2);
+    }
+
+    /// @dev Forces an over-cap withdrawal, then verifies the incentive chooses
+    ///      between two otherwise eligible repair destinations without
+    ///      changing the amount that must leave the over-cap source.
+    function test_optimalRebalance_incentiveRanksHardCapRepairDestination()
+        public
+    {
+        (
+            MockOptimizer optimizer,
+            MockCToken source,
+            MockCToken nativeDestination,
+            MockCToken incentivizedDestination
+        ) = _deployThreeMarketRankingScenario(5_000);
+        OptimizerReader.MarketIncentiveAPYBps[] memory incentives =
+            _oneMarketIncentive(address(incentivizedDestination), 1_000);
+
+        (LendingOptimizer.ReallocationAction[] memory actions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, incentives);
+
+        assertGt(
+            _withdrawAmount(actions, address(source)),
+            0,
+            "over-cap source should be repaired"
+        );
+        assertEq(
+            _depositAmount(actions, address(nativeDestination)),
+            0,
+            "lower effective destination should not win cap repair"
+        );
+        assertGt(
+            _depositAmount(actions, address(incentivizedDestination)),
+            0,
+            "incentive should rank the cap-repair destination"
+        );
+    }
+
+    /// @dev Forces evacuation from a bad source and verifies incentives only
+    ///      select the best eligible destination; the source still evacuates
+    ///      all physically executable liquidity.
+    function test_optimalRebalance_incentiveRanksBadMarketDestination()
+        public
+    {
+        (
+            MockOptimizer optimizer,
+            MockCToken badSource,
+            MockCToken nativeDestination,
+            MockCToken incentivizedDestination
+        ) = _deployThreeMarketRankingScenario(10_000);
+        _markBad(badSource);
+        OptimizerReader.MarketIncentiveAPYBps[] memory incentives =
+            _oneMarketIncentive(address(incentivizedDestination), 1_000);
+
+        (LendingOptimizer.ReallocationAction[] memory actions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, incentives);
+
+        assertEq(
+            _withdrawAmount(actions, address(badSource)),
+            badSource.assetsHeld(),
+            "bad market should evacuate all executable liquidity"
+        );
+        assertEq(
+            _depositAmount(actions, address(nativeDestination)),
+            0,
+            "lower effective destination should not win evacuation"
+        );
+        assertGt(
+            _depositAmount(actions, address(incentivizedDestination)),
+            0,
+            "incentive should rank the evacuation destination"
+        );
+    }
+
+    /// @dev Encodes native-rate-only behavior under the new four-argument ABI.
+    function _emptyMarketIncentives()
+        internal
+        pure
+        returns (OptimizerReader.MarketIncentiveAPYBps[] memory incentives)
+    {
+        incentives = new OptimizerReader.MarketIncentiveAPYBps[](0);
+    }
+
+    /// @dev Builds one address-tagged incentive without relying on market order.
+    function _oneMarketIncentive(address cToken, uint256 incentiveAPYBps)
+        internal
+        pure
+        returns (OptimizerReader.MarketIncentiveAPYBps[] memory incentives)
+    {
+        incentives = new OptimizerReader.MarketIncentiveAPYBps[](1);
+        incentives[0] = OptimizerReader.MarketIncentiveAPYBps({
+            cToken: cToken, incentiveAPYBps: incentiveAPYBps
+        });
+    }
+
+    /// @dev Applies one eligibility restriction to an otherwise attractive
+    ///      destination: 0 = bad, 1 = mint-paused, 2 = redeem-paused.
+    function _assertMaxIncentiveCannotAttract(uint8 marketState) internal {
+        (MockOptimizer optimizer,, MockCToken destination) = _deployTwoMarketOptimizerWithRateModels(
+            Scenario({
+                sourceAssets: 900_000e6,
+                destinationAssets: 100_000e6,
+                sourceCash: 900_000e6,
+                destinationCash: 100_000e6,
+                sourceDebt: 1,
+                destinationDebt: 1,
+                sourceCapBps: 10_000,
+                destinationCapBps: 10_000
+            }),
+            address(new MockFlatRateModel(2e9)),
+            address(new MockFlatRateModel(1e9))
+        );
+
+        if (marketState == 0) {
+            _markBad(destination);
+        } else if (marketState == 1) {
+            destination.manager().setMintPaused(true);
+        } else {
+            destination.manager().setRedeemPaused(2);
+        }
+
+        OptimizerReader.MarketIncentiveAPYBps[] memory incentives =
+            _oneMarketIncentive(address(destination), 1_000);
+        (LendingOptimizer.ReallocationAction[] memory actions,) =
+            reader.optimalRebalance(address(optimizer), 0, 100, incentives);
+
+        assertEq(
+            _depositAmount(actions, address(destination)),
+            0,
+            "incentive must not bypass destination eligibility"
+        );
+    }
+
     function _deployTwoMarketOptimizer(Scenario memory scenario)
         internal
         returns (
@@ -315,6 +567,8 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
         );
     }
 
+    /// @dev Deploys the standard two-market liquidity scenario with independently
+    ///      selectable IRMs, allowing tests to pin the native-rate ordering.
     function _deployTwoMarketOptimizerWithRateModels(
         Scenario memory scenario,
         address sourceIrm,
@@ -358,10 +612,61 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
         optimizer = new MockOptimizer(UNDERLYING, markets, caps);
     }
 
-    function _markSourceBad(MockCToken source) internal {
+    /// @dev Creates one funded source and two eligible destinations. The native
+    ///      destination has the better IRM rate, while the other can win only
+    ///      through its supplied incentive. `sourceCapBps` selects whether the
+    ///      forced path is cap repair (5,000) or bad-market evacuation (10,000).
+    function _deployThreeMarketRankingScenario(uint256 sourceCapBps)
+        internal
+        returns (
+            MockOptimizer optimizer,
+            MockCToken source,
+            MockCToken nativeDestination,
+            MockCToken incentivizedDestination
+        )
+    {
+        source = new MockCToken(
+            UNDERLYING,
+            address(new MockMarketManager()),
+            address(new MockFlatRateModel(100e9)),
+            900_000e6,
+            800_000e6,
+            1
+        );
+        nativeDestination = new MockCToken(
+            UNDERLYING,
+            address(new MockMarketManager()),
+            address(new MockFlatRateModel(2e9)),
+            0,
+            100_000e6,
+            1
+        );
+        incentivizedDestination = new MockCToken(
+            UNDERLYING,
+            address(new MockMarketManager()),
+            address(new MockFlatRateModel(1e9)),
+            100_000e6,
+            100_000e6,
+            1
+        );
+
+        address[] memory markets = new address[](3);
+        markets[0] = address(source);
+        markets[1] = address(nativeDestination);
+        markets[2] = address(incentivizedDestination);
+        uint256[] memory caps = new uint256[](3);
+        caps[0] = sourceCapBps * 1e14;
+        caps[1] = WAD;
+        caps[2] = WAD;
+        optimizer = new MockOptimizer(UNDERLYING, markets, caps);
+    }
+
+    /// @dev Makes the reader classify `market` as bad by listing collateral
+    ///      whose configured oracle price is zero.
+    function _markBad(MockCToken market) internal {
         MockCollateralCToken collateralCToken =
             new MockCollateralCToken(SOURCE_COLLATERAL);
-        source.manager().setListed(address(source), address(collateralCToken));
+        market.manager().setListed(address(market), address(collateralCToken));
         MockOracleAdaptor adaptor = new MockOracleAdaptor();
         adaptor.setPrice(SOURCE_COLLATERAL, 0);
         oracleManager.setAdaptor(SOURCE_COLLATERAL, address(adaptor));
@@ -375,6 +680,21 @@ contract TestOptimalRebalanceLiquidityPlanning is Test {
             if (address(actions[i].cToken) != market) continue;
             if (actions[i].assetsOrBps >= 0) return 0;
             return uint256(-actions[i].assetsOrBps);
+        }
+
+        return 0;
+    }
+
+    /// @dev Returns the positive action for `market`, or zero when the market is
+    ///      absent from the plan or has a non-deposit action.
+    function _depositAmount(
+        LendingOptimizer.ReallocationAction[] memory actions,
+        address market
+    ) internal pure returns (uint256) {
+        for (uint256 i; i < actions.length; ++i) {
+            if (address(actions[i].cToken) != market) continue;
+            if (actions[i].assetsOrBps <= 0) return 0;
+            return uint256(actions[i].assetsOrBps);
         }
 
         return 0;
@@ -611,7 +931,20 @@ contract MockCollateralCToken {
 
 contract MockMarketManager {
     address[] internal listed;
+    /// @dev Mutable pause state lets one scenario test each destination policy
+    ///      without changing the planner or deploying a different mock type.
+    bool internal mintPaused;
     uint8 public redeemPaused;
+
+    /// @dev Mirrors the mint-pause component returned by actionsPaused().
+    function setMintPaused(bool paused) external {
+        mintPaused = paused;
+    }
+
+    /// @dev Uses value 2 to mirror the production manager's full redeem pause.
+    function setRedeemPaused(uint8 paused) external {
+        redeemPaused = paused;
+    }
 
     function setListed(address borrowable, address collateral) external {
         delete listed;
@@ -619,8 +952,8 @@ contract MockMarketManager {
         listed.push(collateral);
     }
 
-    function actionsPaused(address) external pure returns (bool, bool, bool) {
-        return (false, false, false);
+    function actionsPaused(address) external view returns (bool, bool, bool) {
+        return (mintPaused, false, false);
     }
 
     function queryTokensListed() external view returns (address[] memory) {
@@ -638,6 +971,8 @@ contract MockRateModel {
     }
 }
 
+/// @dev Deterministic per-second WAD rate model used to isolate incentive
+///      arithmetic from utilization-dependent IRM movement in ranking tests.
 contract MockFlatRateModel {
     uint256 internal immutable rate;
 
