@@ -69,7 +69,7 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertEq(actions.length, 0, "No executable rebalance when every market is stale");
         assertEq(bounds.length, 0, "No bounds when every market is stale");
@@ -365,7 +365,7 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
 
         // optimalRebalance should defensively exit market 0.
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertTrue(actions.length > 0, "Should have rebalance actions");
 
@@ -402,7 +402,7 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
@@ -442,7 +442,7 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions1,
          LendingOptimizer.AllocationBound[] memory bounds1) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions1.length > 0) {
             optimizer.rebalance(actions1, bounds1);
@@ -461,7 +461,7 @@ contract TestOracleStaleness is TestBaseLendingOptimizer {
         // Next rebalance should re-enter market 0.
         (LendingOptimizer.ReallocationAction[] memory actions2,
          LendingOptimizer.AllocationBound[] memory bounds2) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions2.length > 0) {
             optimizer.rebalance(actions2, bounds2);

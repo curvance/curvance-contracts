@@ -35,7 +35,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_noBadMarkets());
 
         (LendingOptimizer.ReallocationAction[] memory actions,
-         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500, 200);
+         LendingOptimizer.AllocationBound[] memory bounds) = reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertEq(actions.length, 3, "Actions should have 3 markets");
         assertEq(bounds.length, 3, "Bounds should have 3 markets");
@@ -48,7 +48,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_noBadMarkets());
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertEq(address(actions[0].cToken), cUSDC_WMON_MARKET, "Market 0 mismatch");
         assertEq(address(actions[1].cToken), cUSDC_WBTC_MARKET, "Market 1 mismatch");
@@ -65,14 +65,14 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory defActions,
          LendingOptimizer.AllocationBound[] memory defBounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Clear mock so optimalRebalance uses the real (empty) path.
         vm.clearMockedCalls();
 
         (LendingOptimizer.ReallocationAction[] memory optActions,
          LendingOptimizer.AllocationBound[] memory optBounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         for (uint256 i; i < defActions.length; ++i) {
             assertEq(
@@ -96,7 +96,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Bad market (index 2) should have a full withdrawal (negative action).
         assertLt(actions[2].assetsOrBps, 0, "Bad market should have negative action");
@@ -120,7 +120,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (, LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Bad market's ideal allocation is 0, so bounds should be [0, slippageBps].
         assertEq(bounds[2].minBps, 0, "Bad market minBps should be 0");
@@ -134,7 +134,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // At least one good market should receive deposits.
         bool hasDeposit;
@@ -155,7 +155,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertEq(actions.length, 0, "No executable rebalance when all markets are bad");
         assertEq(bounds.length, 0, "No bounds when all markets are bad");
@@ -170,7 +170,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 totalDeposits;
         uint256 totalWithdrawals;
@@ -199,7 +199,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 ta = optimizer.totalAssets();
 
@@ -236,7 +236,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
 
@@ -259,7 +259,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
@@ -281,7 +281,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
@@ -316,7 +316,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Should succeed — reader-computed bounds match the actions.
         _rebalance(optimizer, actions, bounds);
@@ -335,7 +335,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(bad);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Both bad markets should have negative actions.
         assertLt(actions[0].assetsOrBps, 0, "Bad market 0 should withdraw");
@@ -355,7 +355,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(bad);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 totalAssetsBefore = optimizer.totalAssets();
         _rebalance(optimizer, actions, _unconstrainedBounds());
@@ -398,7 +398,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Market 0 should fully withdraw.
         assertLt(actions[0].assetsOrBps, 0, "Concentrated bad market should withdraw");
@@ -423,7 +423,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WMON_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
@@ -449,7 +449,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         _rebalance(optimizer, actions, _unconstrainedBounds());
 
@@ -475,7 +475,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(cUSDC_WETH_MARKET));
 
         (, LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 200, 200);
+            reader.optimalRebalance(address(optimizer), 200, 200, _emptyMarketIncentives());
 
         for (uint256 i; i < bounds.length; ++i) {
             assertLe(bounds[i].minBps, bounds[i].maxBps, "minBps > maxBps");
@@ -518,7 +518,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(badMarket));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         uint256 ta = optimizer.totalAssets();
 
@@ -573,7 +573,7 @@ contract TestDefensiveRebalance is TestBaseLendingOptimizer {
         _mockIsBad(_singleBadMarket(badMarket));
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // The bad market should have a negative (withdrawal) action.
         assertLt(

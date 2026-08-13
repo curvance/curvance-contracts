@@ -13,6 +13,7 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { MockERC20 } from "tests/libraries/utils/mocks/MockERC20.sol";
 import { LendingOptimizer } from "contracts/market/optimizer/LendingOptimizer.sol";
 import { LendingOptimizerHarness } from "./LendingOptimizerHarness.sol";
+import { OptimizerReader } from "contracts/views/OptimizerReader.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -393,6 +394,15 @@ contract TestBaseLendingOptimizer is TestBaseMarketIsolated {
         for (uint256 i; i < l - 1; ++i) {
             bounds[i] = LendingOptimizer.AllocationBound({ cToken: postRemoval[i], minBps: 0, maxBps: 10000 });
         }
+    }
+
+    /// @dev Returns no incentive tags for native-rate-only planner calls.
+    function _emptyMarketIncentives()
+        internal
+        pure
+        returns (OptimizerReader.MarketIncentiveAPYBps[] memory incentives)
+    {
+        incentives = new OptimizerReader.MarketIncentiveAPYBps[](0);
     }
 
     /// @dev Convenience wrapper for rebalance.

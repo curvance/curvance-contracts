@@ -5,7 +5,11 @@ import {
     MarketManagerIsolated
 } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import {BPS, WAD} from "contracts/libraries/ConstantsLib.sol";
+import {
+    BPS,
+    SECONDS_PER_YEAR,
+    WAD
+} from "contracts/libraries/ConstantsLib.sol";
 
 import {
     FixedPointMathLib
@@ -87,6 +91,17 @@ contract OptimizerReader {
         uint256 redeemable;
     }
 
+    /// @notice A caller-supplied annual incentive APY for one approved market.
+    /// @dev The cToken tag makes the input independent of approved-market order.
+    ///      Callers may omit markets that have no incentive; omitted markets are
+    ///      assigned a zero incentive rate during input alignment.
+    struct MarketIncentiveAPYBps {
+        /// @notice The approved cToken market receiving the incentive APY.
+        address cToken;
+        /// @notice Annual incentive APY in BPS, where 1,000 BPS equals 10% APY.
+        uint256 incentiveAPYBps;
+    }
+
     /// @dev Internal struct to pack per-market allocation state into a single
     ///      array, avoiding stack-too-deep in _computeIdealAllocation.
     struct MarketAlloc {
@@ -95,6 +110,9 @@ contract OptimizerReader {
         uint256 fees;
         uint256 maxAllocation;
         uint256 hardMaxAllocation;
+        /// @dev Caller-supplied annual APY converted to the same per-second WAD
+        ///      rate unit returned by the market's IRM.
+        uint256 incentiveRatePerSecond;
         IDynamicIRM irm;
         bool canWithdraw;
         bool canDeposit;
@@ -114,6 +132,12 @@ contract OptimizerReader {
     error OptimizerReader__Unauthorized();
     error OptimizerReader__InvalidMultiplier();
     error OptimizerReader__InvalidRebalanceChunks();
+    /// @notice Thrown when an incentive tag is not an approved optimizer market.
+    error OptimizerReader__InvalidIncentiveMarket();
+    /// @notice Thrown when an incentive APY exceeds MAX_INCENTIVE_APY_BPS.
+    error OptimizerReader__InvalidIncentiveAPYBps();
+    /// @notice Thrown when the same approved market is tagged more than once.
+    error OptimizerReader__DuplicateIncentiveMarket();
 
     /// EVENTS ///
 
@@ -131,6 +155,10 @@ contract OptimizerReader {
     uint256 public constant CAP_BUFFER_BPS = 5;
     /// @notice Tiny asset-unit headroom for hard-cap planner moves.
     uint256 internal constant HARD_CAP_ROUNDING_BUFFER = 4;
+
+    /// @notice Maximum accepted caller-supplied incentive APY, in BPS.
+    /// @dev Caps untrusted off-chain incentive data at 10% annual APY.
+    uint256 public constant MAX_INCENTIVE_APY_BPS = 1_000;
 
     /// IMMUTABLES ///
 
@@ -386,12 +414,17 @@ contract OptimizerReader {
     ///         markets), this is a pure yield-optimization. When bad markets
     ///         exist, it withdraws everything from them and optimally
     ///         redistributes across the remaining good markets.
+    ///         Caller-supplied incentives affect market ranking only; they do
+    ///         not change deposit, withdrawal, pause, bad-market, or cap policy.
     ///         Returns empty arrays when no actionable rebalance exists
     ///         (all deltas are zero or dust).
     /// @param optimizer The LendingOptimizer address.
     /// @param slippageBps Tolerance in BPS around each market's ideal allocation.
     ///                    e.g., 100 = +/- 1%.
     /// @param rebalanceChunks Number of chunks used by the greedy allocation.
+    /// @param marketIncentives Sparse annual incentive APYs in BPS, tagged by
+    ///                         approved cToken address. Order is irrelevant and
+    ///                         omitted approved markets receive zero incentive.
     /// @return actions The rebalance actions array matching approvedCTokensList order,
     ///                 or empty if no rebalance is needed.
     /// @return bounds The allocation bounds array matching approvedCTokensList order,
@@ -399,7 +432,8 @@ contract OptimizerReader {
     function optimalRebalance(
         address optimizer,
         uint256 slippageBps,
-        uint256 rebalanceChunks
+        uint256 rebalanceChunks,
+        MarketIncentiveAPYBps[] calldata marketIncentives
     )
         external
         returns (
@@ -412,13 +446,16 @@ contract OptimizerReader {
         }
 
         ILendingOptimizer(optimizer).accrueIfNeeded();
-        return _optimalRebalance(optimizer, slippageBps, rebalanceChunks);
+        return _optimalRebalance(
+            optimizer, slippageBps, rebalanceChunks, marketIncentives
+        );
     }
 
     function _optimalRebalance(
         address optimizer,
         uint256 slippageBps,
-        uint256 rebalanceChunks
+        uint256 rebalanceChunks,
+        MarketIncentiveAPYBps[] calldata marketIncentives
     )
         internal
         view
@@ -430,6 +467,9 @@ contract OptimizerReader {
         address[] memory markets =
             ILendingOptimizer(optimizer).getApprovedMarkets();
 
+        // With no approved markets there is no allocation or incentive ranking
+        // to perform. Preserve the existing empty-plan result without spending
+        // gas validating incentive tags that cannot affect a plan.
         if (markets.length == 0) return (actions, bounds);
 
         // Automatically exclude bad markets from allocation.
@@ -438,8 +478,14 @@ contract OptimizerReader {
         uint256[] memory idealAssets;
         uint256[] memory currentAssets;
         uint256 totalAssets;
+        // Validate the sparse tagged input, align it to `markets`, and convert
+        // every supplied annual APY into the IRM's per-second WAD rate unit.
         (idealAssets, currentAssets,) = _computeIdealAllocation(
-            optimizer, markets, badMarkets, rebalanceChunks
+            optimizer,
+            markets,
+            badMarkets,
+            rebalanceChunks,
+            _alignTaggedIncentives(markets, marketIncentives)
         );
         for (uint256 i; i < currentAssets.length; ++i) {
             totalAssets += currentAssets[i];
@@ -456,17 +502,22 @@ contract OptimizerReader {
             return (actions, bounds);
         }
 
-        ILendingOptimizer opt = ILendingOptimizer(optimizer);
-        if (
-            !_idealWithinHardCaps(opt, markets, idealAssets, totalAssets)
-                || !_postActionWithinHardCaps(
-                    optimizer, opt, markets, currentAssets, idealAssets
-                )
-        ) {
-            return (
-                new LendingOptimizer.ReallocationAction[](0),
-                new LendingOptimizer.AllocationBound[](0)
-            );
+        // Keep `opt` scoped to cap validation so the subsequent action builder
+        // does not exceed Solidity's stack limit. This does not change planner
+        // behavior or the protected cap-validation helpers.
+        {
+            ILendingOptimizer opt = ILendingOptimizer(optimizer);
+            if (
+                !_idealWithinHardCaps(opt, markets, idealAssets, totalAssets)
+                    || !_postActionWithinHardCaps(
+                        optimizer, opt, markets, currentAssets, idealAssets
+                    )
+            ) {
+                return (
+                    new LendingOptimizer.ReallocationAction[](0),
+                    new LendingOptimizer.AllocationBound[](0)
+                );
+            }
         }
 
         actions = new LendingOptimizer.ReallocationAction[](markets.length);
@@ -512,17 +563,78 @@ contract OptimizerReader {
         }
     }
 
+    /// @dev Validates sparse cToken-tagged incentives and aligns them to the
+    ///      optimizer's approved-market order. Solidity zero-initializes the
+    ///      result, so approved markets omitted by the caller retain a zero
+    ///      incentive. Each supplied annual BPS value is converted as:
+    ///      `APY BPS * 1e18 / (10_000 * seconds per year)`. The returned values
+    ///      can therefore be added directly to IDynamicIRM supply rates.
+    /// @param markets Approved cToken markets in optimizer storage order.
+    /// @param marketIncentives Sparse, order-independent caller input.
+    /// @return incentiveRatesPerSecond Per-market incentive rates parallel to
+    ///         `markets`, expressed as per-second WAD values.
+    function _alignTaggedIncentives(
+        address[] memory markets,
+        MarketIncentiveAPYBps[] calldata marketIncentives
+    ) internal pure returns (uint256[] memory incentiveRatesPerSecond) {
+        // Omitted markets remain zero. `seen` is indexed by approved-market
+        // position so duplicate tags are detected regardless of input order.
+        incentiveRatesPerSecond = new uint256[](markets.length);
+        bool[] memory seen = new bool[](markets.length);
+
+        for (uint256 i; i < marketIncentives.length; ++i) {
+            address cToken = marketIncentives[i].cToken;
+            uint256 incentiveAPYBps = marketIncentives[i].incentiveAPYBps;
+            bool found;
+
+            // The APY cap applies to the input entry itself, independently of
+            // which approved-market index its cToken tag resolves to.
+            if (incentiveAPYBps > MAX_INCENTIVE_APY_BPS) {
+                revert OptimizerReader__InvalidIncentiveAPYBps();
+            }
+
+            // Resolve the cToken tag against the authoritative approved list
+            // instead of assuming the caller supplied positional input.
+            for (uint256 j; j < markets.length; ++j) {
+                if (cToken != markets[j]) continue;
+
+                if (seen[j]) {
+                    revert OptimizerReader__DuplicateIncentiveMarket();
+                }
+
+                seen[j] = true;
+                // Convert annual BPS into the IRM's per-second WAD unit. mulDiv
+                // performs the multiplication before division with full
+                // precision and rounds down consistently with rate math.
+                incentiveRatesPerSecond[j] = FixedPointMathLib.mulDiv(
+                    incentiveAPYBps, WAD, BPS * SECONDS_PER_YEAR
+                );
+                found = true;
+                break;
+            }
+
+            // A caller cannot supply incentives for markets outside the
+            // optimizer's current approved set.
+            if (!found) {
+                revert OptimizerReader__InvalidIncentiveMarket();
+            }
+        }
+    }
+
     /// @dev Chunked greedy rebalancing: starts from current allocations and
     ///      applies executable source-to-destination moves in memory.
     ///      Normal moves require the destination post-move APY to be strictly
     ///      greater than the source post-move APY. Bad-market and cap-repair
     ///      moves are forced safety paths and can use hard cap room.
+    ///      `incentiveRatesPerSecond` is parallel to `markets` and changes only
+    ///      the effective-rate comparisons used to rank otherwise-valid moves.
     ///      Separated from the public functions to avoid stack-too-deep.
     function _computeIdealAllocation(
         address optimizer,
         address[] memory markets,
         address[] memory badMarkets,
-        uint256 rebalanceChunks
+        uint256 rebalanceChunks,
+        uint256[] memory incentiveRatesPerSecond
     )
         internal
         view
@@ -541,18 +653,11 @@ contract OptimizerReader {
         uint256 ta;
         {
             for (uint256 i; i < numMarkets; ++i) {
-                IBorrowableCToken ct = IBorrowableCToken(markets[i]);
-                uint256 ca =
-                    ct.convertToAssets(_balanceOf(address(ct), optimizer));
-                currentAssets[i] = ca;
-                idealAssets[i] = ca;
-                ta += ca;
-
-                uint256 assetsHeld = _assetsHeld(ct);
-                m[i].simAssetsHeld = assetsHeld;
-                m[i].debt = _outstandingDebt(ct);
-                m[i].fees = _interestFee(ct);
-                m[i].irm = _IRM(ct);
+                (currentAssets[i], m[i]) = _snapshotMarketAllocation(
+                    optimizer, markets[i], incentiveRatesPerSecond[i]
+                );
+                idealAssets[i] = currentAssets[i];
+                ta += currentAssets[i];
             }
         }
 
@@ -599,6 +704,29 @@ contract OptimizerReader {
                 idealAssets[i] = currentAssets[i];
             }
         }
+    }
+
+    /// @dev Snapshots the same market state used by the develop planner and
+    ///      attaches the already-aligned incentive rate. Keeping this work in a
+    ///      small helper avoids stack-too-deep without changing the cash,
+    ///      debt, fee, IRM, or optimizer-position values being read.
+    /// @param optimizer LendingOptimizer whose cToken position is measured.
+    /// @param market Approved cToken being snapshotted.
+    /// @param incentiveRatePerSecond Aligned incentive in per-second WAD units.
+    /// @return currentAssets Optimizer position converted from shares to assets.
+    /// @return m Planner state used for simulated move evaluation.
+    function _snapshotMarketAllocation(
+        address optimizer,
+        address market,
+        uint256 incentiveRatePerSecond
+    ) internal view returns (uint256 currentAssets, MarketAlloc memory m) {
+        IBorrowableCToken ct = IBorrowableCToken(market);
+        currentAssets = ct.convertToAssets(_balanceOf(address(ct), optimizer));
+        m.simAssetsHeld = _assetsHeld(ct);
+        m.debt = _outstandingDebt(ct);
+        m.fees = _interestFee(ct);
+        m.irm = _IRM(ct);
+        m.incentiveRatePerSecond = incentiveRatePerSecond;
     }
 
     function _applyForcedMoves(
@@ -654,10 +782,13 @@ contract OptimizerReader {
                 );
                 if (amount == 0) continue;
 
+                // Evacuation or cap repair is already mandatory here. The
+                // incentive only ranks destinations that passed the existing
+                // eligibility and capacity checks above.
                 uint256 destRate = m[j].irm
                     .supplyRate(
                         m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
-                    );
+                    ) + m[j].incentiveRatePerSecond;
 
                 if (!best.found || destRate > best.score) {
                     best = MoveCandidate(i, j, amount, destRate, true);
@@ -687,14 +818,18 @@ contract OptimizerReader {
                 );
                 if (amount == 0) continue;
 
+                // Compare both markets after the proposed move using effective
+                // rate = native IRM supply rate + caller-supplied incentive.
+                // Both terms use per-second WAD units, and the existing room
+                // checks continue to determine whether the move is permitted.
                 uint256 sourceRateAfter = m[i].irm
                     .supplyRate(
                         m[i].simAssetsHeld - amount, m[i].debt, m[i].fees
-                    );
+                    ) + m[i].incentiveRatePerSecond;
                 uint256 destRateAfter = m[j].irm
                     .supplyRate(
                         m[j].simAssetsHeld + amount, m[j].debt, m[j].fees
-                    );
+                    ) + m[j].incentiveRatePerSecond;
 
                 if (destRateAfter <= sourceRateAfter) continue;
 

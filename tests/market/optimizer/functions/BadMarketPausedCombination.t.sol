@@ -63,7 +63,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         assertEq(bad[0], cUSDC_WMON_MARKET, "Market 0 (WMON) is the bad one");
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions.length > 0) {
             assertEq(
@@ -96,7 +96,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
 
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         // Should not revert.
         if (actions.length > 0) {
@@ -155,7 +155,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         _mockRedeemPaused(cUSDC_WMON_MARKET);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions.length > 0) {
             // Market 0 frozen.
@@ -190,7 +190,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         _mockMintPaused(cUSDC_WMON_MARKET);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertTrue(actions.length > 0, "Should produce actions");
         assertLt(
@@ -217,7 +217,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         _mockMintPaused(cUSDC_WMON_MARKET);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions.length > 0) {
             assertEq(
@@ -243,7 +243,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         _refreshCollateralFeed(cUSDC_WETH_MARKET);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         assertTrue(actions.length > 0, "Should produce actions");
         assertLt(
@@ -270,7 +270,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
         _floodMarket(cUSDC_WETH_MARKET, 3_000_000e6);
 
         (LendingOptimizer.ReallocationAction[] memory actions, ) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
 
         if (actions.length > 0) {
             // No movement into or out of the paused market.
@@ -377,7 +377,7 @@ contract TestBadMarketPausedCombination is TestBaseLendingOptimizer {
     function _executeOptimalRebalance() internal {
         (LendingOptimizer.ReallocationAction[] memory actions,
          LendingOptimizer.AllocationBound[] memory bounds) =
-            reader.optimalRebalance(address(optimizer), 500, 200);
+            reader.optimalRebalance(address(optimizer), 500, 200, _emptyMarketIncentives());
         if (actions.length > 0) optimizer.rebalance(actions, bounds);
     }
 }
