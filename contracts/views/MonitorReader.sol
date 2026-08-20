@@ -24,11 +24,15 @@ import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 ///   [1] Token Accounting
 ///   [2] Reserve Backing
 ///   [3] Borrow Accounting
+///   Its [4] Critical Scan Could Not Verify value belongs to the protocol-
+///   advisory monitor, not the critical formula.
 /// - One protocol-advisory monitor from `protocolAdvisorySignals`:
 ///   [0] Oracle Price Zero
 ///   [1] Oracle Degraded
 ///   [2] Collateral or Cap Warning
-///   [3] Protocol Reader Could Not Verify
+///   [3] Advisory Scan Could Not Verify
+///   Add `protocolCriticalSignals` [4] as its fifth metric so failures from
+///   both protocol scans remain alertable without repeating critical reads.
 /// - One critical monitor per optimizer from `optimizerCriticalSignals`:
 ///   [0] Optimizer Critical
 ///   [1] Optimizer Reader Could Not Verify
@@ -51,9 +55,11 @@ import {IOracleManager} from "contracts/interfaces/IOracleManager.sol";
 /// validated as configuration, but natural position drift above a cap is not
 /// a warning because the optimizer enforces caps when applying a rebalance.
 ///
-/// The critical scan omits advisory-only collateral and oracle-price reads.
-/// The advisory scan still performs the full verification surface, but caches
-/// one oracle result per underlying asset. Public diagnostic functions always
+/// The critical scan omits advisory-only collateral and oracle-price reads and
+/// returns its own read-failure signal. The advisory scan only performs the
+/// remaining advisory reads and caches one oracle result per underlying asset.
+/// Together their two read-failure fields retain the full verification surface
+/// without paying for critical reads twice. Public diagnostic functions always
 /// return the complete, uncached per-cToken status.
 ///
 /// HOW A SIGNAL IS CONSTRUCTED
@@ -304,8 +310,7 @@ contract MonitorReader {
 
     struct AdvisoryScanState {
         address[] seenCTokens;
-        address[] seenAssets;
-        uint256[] oracleCache;
+        uint256[] oracleAssets;
         uint256 seenCTokenCount;
         uint256 seenAssetCount;
         bool cTokenLimitReported;
@@ -446,8 +451,9 @@ contract MonitorReader {
 
     /// @notice Returns protocol-wide packed pause-eligible signals.
     /// @dev Suggested metric names, in return order:
-    ///      Wiring; Token Accounting; Reserve Backing; Borrow Accounting.
-    ///      One monitor should alert when any value is greater than zero.
+    ///      Wiring; Token Accounting; Reserve Backing; Borrow Accounting;
+    ///      Critical Scan Could Not Verify. The critical monitor should use
+    ///      only the first four. Attach the fifth to the advisory monitor.
     function protocolCriticalSignals(address centralRegistry)
         external
         view
@@ -455,7 +461,8 @@ contract MonitorReader {
             uint256 wiring,
             uint256 tokenAccounting,
             uint256 backing,
-            uint256 borrowAccounting
+            uint256 borrowAccounting,
+            uint256 readFailure
         )
     {
         SignalAccumulator[5] memory signals;
@@ -467,12 +474,13 @@ contract MonitorReader {
         backing = _packSignal(signals[2], FAMILY_CRITICAL_BACKING);
         borrowAccounting =
             _packSignal(signals[3], FAMILY_CRITICAL_BORROW_ACCOUNTING);
+        readFailure = _packSignal(signals[4], FAMILY_ADVISORY_READ_FAILURE);
     }
 
     /// @notice Returns protocol-wide packed alert-only signals.
     /// @dev Suggested metric names, in return order:
     ///      Oracle Price Zero; Oracle Degraded; Collateral or Cap Warning;
-    ///      Protocol Reader Could Not Verify.
+    ///      Advisory Scan Could Not Verify.
     function protocolAdvisorySignals(address centralRegistry)
         external
         view
@@ -777,9 +785,13 @@ contract MonitorReader {
     ) internal view {
         if (centralRegistry == address(0)) {
             _record(signals[0], centralRegistry, SUBJECT_CENTRAL_REGISTRY, 1);
+            _record(signals[4], centralRegistry, SUBJECT_CENTRAL_REGISTRY, 1);
             return;
         }
-        if (centralRegistry.code.length == 0) return;
+        if (centralRegistry.code.length == 0) {
+            _record(signals[4], centralRegistry, SUBJECT_CENTRAL_REGISTRY, 2);
+            return;
+        }
 
         address[] memory markets;
         try ICentralRegistry(centralRegistry).marketManagers() returns (
@@ -787,7 +799,7 @@ contract MonitorReader {
         ) {
             markets = value;
         } catch {
-            // The advisory reader-health metric reports this failed read.
+            _record(signals[4], centralRegistry, SUBJECT_CENTRAL_REGISTRY, 2);
             return;
         }
 
@@ -802,7 +814,7 @@ contract MonitorReader {
                 );
             }
         } catch {
-            // The advisory reader-health metric reports this failed read.
+            _record(signals[4], centralRegistry, SUBJECT_CENTRAL_REGISTRY, 3);
         }
 
         if (markets.length == 0) {
@@ -811,6 +823,7 @@ contract MonitorReader {
 
         address[] memory seenCTokens = new address[](MAX_TRACKED_CTOKENS);
         uint256 seenCount;
+        bool cTokenLimitReported;
         for (uint256 i; i < markets.length; ++i) {
             if (_contains(markets, i, markets[i])) {
                 _record(signals[0], markets[i], SUBJECT_MARKET_MANAGER, 20);
@@ -819,6 +832,9 @@ contract MonitorReader {
 
             MarketStatus memory status =
                 _checkMarket(markets[i], oracleManager, false, false);
+            if (status.readErrorMask & MARKET_READ_TOKEN_LIST != 0) {
+                _record(signals[4], markets[i], SUBJECT_MARKET_MANAGER, 16);
+            }
             uint8 marketCode = _criticalMarketWiringCode(status.brokenMask);
             if (marketCode != 0) {
                 _record(
@@ -837,8 +853,28 @@ contract MonitorReader {
                 }
 
                 if (_contains(seenCTokens, seenCount, cToken)) continue;
-                if (seenCount == MAX_TRACKED_CTOKENS) continue;
+                if (seenCount == MAX_TRACKED_CTOKENS) {
+                    if (!cTokenLimitReported) {
+                        _record(
+                            signals[4],
+                            centralRegistry,
+                            SUBJECT_CENTRAL_REGISTRY,
+                            96
+                        );
+                        cTokenLimitReported = true;
+                    }
+                    continue;
+                }
                 seenCTokens[seenCount++] = cToken;
+
+                if (token.readErrorMask != 0) {
+                    _record(
+                        signals[4],
+                        cToken,
+                        SUBJECT_CTOKEN,
+                        uint8(32 + _firstBitIndex(token.readErrorMask))
+                    );
+                }
 
                 uint8 code = _criticalTokenAccountingCode(token.brokenMask);
                 if (code != 0) {
@@ -892,10 +928,10 @@ contract MonitorReader {
 
         AdvisoryScanState memory state;
         state.seenCTokens = new address[](MAX_TRACKED_CTOKENS);
-        state.seenAssets = new address[](MAX_TRACKED_ORACLE_ASSETS);
-        state.oracleCache = new uint256[](MAX_TRACKED_ORACLE_ASSETS);
+        state.oracleAssets = new uint256[](MAX_TRACKED_ORACLE_ASSETS);
 
         for (uint256 i; i < markets.length; ++i) {
+            if (_contains(markets, i, markets[i])) continue;
             _processAdvisoryMarket(
                 centralRegistry, oracleManager, markets[i], signals, state
             );
@@ -909,36 +945,48 @@ contract MonitorReader {
         SignalAccumulator[5] memory signals,
         AdvisoryScanState memory state
     ) internal view {
-        MarketStatus memory status = _checkMarket(
-            market, oracleManager, false, true
-        );
-        if (status.readErrorMask & MARKET_READ_TOKEN_LIST != 0) {
+        if (market == address(0)) return;
+        if (market.code.length == 0) {
             _record(signals[4], market, SUBJECT_MARKET_MANAGER, 16);
+            return;
         }
 
-        for (uint256 i; i < status.tokenStatus.length; ++i) {
-            address cToken = status.cTokens[i];
+        address[] memory cTokens;
+        try IMarketManager(market).queryTokensListed() returns (
+            address[] memory value
+        ) {
+            cTokens = value;
+        } catch {
+            _record(signals[4], market, SUBJECT_MARKET_MANAGER, 16);
+            return;
+        }
+
+        for (uint256 i; i < cTokens.length; ++i) {
+            address cToken = cTokens[i];
             if (cToken == address(0)) continue;
-            _processAdvisoryToken(
-                centralRegistry,
-                oracleManager,
-                cToken,
-                status.tokenStatus[i],
-                signals,
-                state
+
+            if (!_trackAdvisoryCToken(centralRegistry, cToken, signals, state))
+            {
+                continue;
+            }
+
+            CTokenStatus memory token = _checkAdvisoryCToken(cToken, market);
+            _addCapWarnings(token);
+            _processAdvisoryTokenStatus(
+                centralRegistry, oracleManager, cToken, token, signals, state
             );
         }
     }
 
-    function _processAdvisoryToken(
+    function _trackAdvisoryCToken(
         address centralRegistry,
-        address oracleManager,
         address cToken,
-        CTokenStatus memory token,
         SignalAccumulator[5] memory signals,
         AdvisoryScanState memory state
-    ) internal view {
-        if (_contains(state.seenCTokens, state.seenCTokenCount, cToken)) return;
+    ) internal pure returns (bool tracked) {
+        if (_contains(state.seenCTokens, state.seenCTokenCount, cToken)) {
+            return false;
+        }
         if (state.seenCTokenCount == MAX_TRACKED_CTOKENS) {
             if (!state.cTokenLimitReported) {
                 _record(
@@ -946,10 +994,20 @@ contract MonitorReader {
                 );
                 state.cTokenLimitReported = true;
             }
-            return;
+            return false;
         }
         state.seenCTokens[state.seenCTokenCount++] = cToken;
+        return true;
+    }
 
+    function _processAdvisoryTokenStatus(
+        address centralRegistry,
+        address oracleManager,
+        address cToken,
+        CTokenStatus memory token,
+        SignalAccumulator[5] memory signals,
+        AdvisoryScanState memory state
+    ) internal view {
         uint8 collateralCode = _advisoryCollateralCode(token);
         if (collateralCode != 0) {
             _record(signals[2], cToken, SUBJECT_CTOKEN, collateralCode);
@@ -961,7 +1019,7 @@ contract MonitorReader {
             uint256 assetIndex;
             bool seenAsset;
             for (uint256 i; i < state.seenAssetCount; ++i) {
-                if (state.seenAssets[i] == asset) {
+                if (address(uint160(state.oracleAssets[i])) == asset) {
                     assetIndex = i;
                     seenAsset = true;
                     break;
@@ -991,9 +1049,9 @@ contract MonitorReader {
                 }
 
                 assetIndex = state.seenAssetCount++;
-                state.seenAssets[assetIndex] = asset;
                 uint256 cached = _readOracleCache(oracleManager, asset);
-                state.oracleCache[assetIndex] = cached;
+                state.oracleAssets[assetIndex] =
+                    uint256(uint160(asset)) | (cached << 160);
 
                 // Safe: the cache reserves bits 0..7 for the uint8 zero code.
                 // forge-lint: disable-next-line(unsafe-typecast)
@@ -1010,7 +1068,7 @@ contract MonitorReader {
                 }
             }
 
-            uint256 oracleCache = state.oracleCache[assetIndex];
+            uint256 oracleCache = state.oracleAssets[assetIndex] >> 160;
             if (oracleCache & (1 << 16) != 0) {
                 readErrorMask |= CTOKEN_READ_ORACLE_PRICE;
             }
@@ -1218,6 +1276,61 @@ contract MonitorReader {
     }
 
     /// CTOKEN CHECKS ///
+
+    function _checkAdvisoryCToken(address cToken, address marketManager)
+        internal
+        view
+        returns (CTokenStatus memory status)
+    {
+        uint256 advisoryReadMask = CTOKEN_READ_IS_BORROWABLE
+            | CTOKEN_READ_DEAD_SHARES | CTOKEN_READ_COLLATERAL
+            | CTOKEN_READ_COLLATERAL_CAP;
+        if (cToken.code.length == 0) {
+            status.readErrorMask = advisoryReadMask;
+            return status;
+        }
+
+        try ICToken(cToken).isBorrowable() returns (bool value) {
+            status.isBorrowable = value;
+        } catch {
+            status.readErrorMask |= CTOKEN_READ_IS_BORROWABLE;
+        }
+
+        try ICToken(cToken).asset() returns (address value) {
+            status.underlying = value;
+        } catch {
+            // The critical scan reports this shared dependency failure.
+            status.readErrorMask |= CTOKEN_READ_ASSET;
+        }
+
+        try ICToken(cToken).totalSupply() returns (uint256 value) {
+            status.totalSupply = value;
+        } catch {
+            // The critical scan reports this shared dependency failure.
+            status.readErrorMask |= CTOKEN_READ_SUPPLY;
+        }
+
+        _readCollateralAccounting(status, cToken);
+        _readTokenCaps(status, cToken, marketManager, true);
+        if (
+            status.readErrorMask & CTOKEN_READ_DEBT_CAP == 0
+                && status.debtCap != 0
+        ) {
+            try IBorrowableCToken(cToken).marketOutstandingDebt() returns (
+                uint256 value
+            ) {
+                status.marketOutstandingDebt = value;
+            } catch {
+                // The critical scan reports this shared dependency failure.
+                status.readErrorMask |= CTOKEN_READ_DEBT;
+            }
+        }
+
+        // Failures from reads shared with the critical scan are returned there
+        // so the advisory monitor can consume both signals without repeating
+        // all critical-only accounting reads in this path.
+        status.readErrorMask &= advisoryReadMask;
+    }
 
     function _checkCToken(
         address cToken,

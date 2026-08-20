@@ -83,13 +83,9 @@ contract MonitorReaderHarness is MonitorReader {
         SignalAccumulator[5] memory signals;
         AdvisoryScanState memory state;
         state.seenCTokens = new address[](MAX_TRACKED_CTOKENS);
-        state.seenAssets = new address[](MAX_TRACKED_ORACLE_ASSETS);
         state.seenCTokenCount = MAX_TRACKED_CTOKENS;
-        CTokenStatus memory token;
 
-        _processAdvisoryToken(
-            centralRegistry, address(1), address(2), token, signals, state
-        );
+        _trackAdvisoryCToken(centralRegistry, address(2), signals, state);
         return _packSignal(signals[4], FAMILY_ADVISORY_READ_FAILURE);
     }
 
@@ -101,12 +97,12 @@ contract MonitorReaderHarness is MonitorReader {
         SignalAccumulator[5] memory signals;
         AdvisoryScanState memory state;
         state.seenCTokens = new address[](MAX_TRACKED_CTOKENS);
-        state.seenAssets = new address[](MAX_TRACKED_ORACLE_ASSETS);
+        state.oracleAssets = new uint256[](MAX_TRACKED_ORACLE_ASSETS);
         state.seenAssetCount = MAX_TRACKED_ORACLE_ASSETS;
         CTokenStatus memory token;
         token.underlying = address(3);
 
-        _processAdvisoryToken(
+        _processAdvisoryTokenStatus(
             centralRegistry, address(1), address(2), token, signals, state
         );
         return _packSignal(signals[4], FAMILY_ADVISORY_READ_FAILURE);
@@ -794,6 +790,66 @@ contract MonitorReaderComprehensiveTest is MonitorReaderTest {
     }
 
     /// READ FAILURE ROUTING ///
+
+    function test_protocolReadFailuresAreSplitWithoutDroppingCoverage()
+        public
+    {
+        vm.mockCallRevert(
+            address(cToken),
+            abi.encodeWithSignature("isBorrowable()"),
+            bytes("advisory read")
+        );
+        vm.mockCallRevert(
+            address(cToken),
+            abi.encodeWithSignature("exchangeRate()"),
+            bytes("critical read")
+        );
+
+        (,,,, uint256 criticalReadFailure) =
+            reader.protocolCriticalSignals(address(registry));
+        (,,, uint256 advisoryReadFailure) =
+            reader.protocolAdvisorySignals(address(registry));
+
+        _assertDecoded(
+            criticalReadFailure,
+            address(cToken),
+            40,
+            reader.FAMILY_ADVISORY_READ_FAILURE(),
+            1,
+            reader.SUBJECT_CTOKEN()
+        );
+        _assertDecoded(
+            advisoryReadFailure,
+            address(cToken),
+            32,
+            reader.FAMILY_ADVISORY_READ_FAILURE(),
+            1,
+            reader.SUBJECT_CTOKEN()
+        );
+    }
+
+    function test_sharedReadFailureIsReportedOnlyByCriticalScan() public {
+        vm.mockCallRevert(
+            address(cToken),
+            abi.encodeWithSignature("totalSupply()"),
+            bytes("shared read")
+        );
+
+        (,,,, uint256 criticalReadFailure) =
+            reader.protocolCriticalSignals(address(registry));
+        (,,, uint256 advisoryReadFailure) =
+            reader.protocolAdvisorySignals(address(registry));
+
+        _assertDecoded(
+            criticalReadFailure,
+            address(cToken),
+            36,
+            reader.FAMILY_ADVISORY_READ_FAILURE(),
+            1,
+            reader.SUBJECT_CTOKEN()
+        );
+        assertEq(advisoryReadFailure, 0);
+    }
 
     function test_allMonitoredCTokenReadFailuresMapToDocumentedCodes() public {
         address[] memory targets = new address[](18);

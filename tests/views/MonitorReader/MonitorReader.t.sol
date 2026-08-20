@@ -289,7 +289,7 @@ contract MonitorReaderTest is Test {
         )
     {
         (
-            wiring, tokenAccounting, backing, borrowAccounting
+            wiring, tokenAccounting, backing, borrowAccounting,
         ) = reader.protocolCriticalSignals(centralRegistry);
         if (optimizers.length != 0) {
             (optimizerCritical,) =
@@ -314,6 +314,9 @@ contract MonitorReaderTest is Test {
         (
             oracleZero, oracleDegraded, collateralOrCap, readFailure
         ) = reader.protocolAdvisorySignals(centralRegistry);
+        (,,,, uint256 criticalReadFailure) =
+            reader.protocolCriticalSignals(centralRegistry);
+        if (readFailure == 0) readFailure = criticalReadFailure;
         if (optimizers.length != 0) {
             optimizerWarning = reader.optimizerWarningSignal(optimizers[0]);
             (, uint256 optimizerReadFailure) =
